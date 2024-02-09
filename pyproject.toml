@@ -1,13 +1,17 @@
 [tool.poetry]
-name = "python-template-repo"
+name = "node-hub-api-adapter"
 version = "0.1.0"
-description = ""
-authors = ["Maximilian Jugl <Maximilian.Jugl@medizin.uni-leipzig.de>"]
+description = "API interface for the Node UI to interact with the other node services and the hub."
+authors = ["Bruce Schultz <bruce.schultz@uk-koeln.de>"]
 readme = "README.md"
 packages = [{ include = "project" }]
 
 [tool.poetry.dependencies]
 python = "^3.11"
+uvicorn = "^0.27.0.post1"
+fastapi = "^0.109.2"
+python-jose = "^3.3.0"
+requests = "^2.31.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.3"
