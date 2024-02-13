@@ -1,6 +1,9 @@
 """Models for API."""
+from project.config import Settings
 
-from pydantic import BaseModel
+from typing import Annotated
+
+from pydantic import BaseModel, ConfigDict
 
 
 class User(BaseModel):
@@ -27,10 +30,11 @@ class AuthConfiguration(BaseModel):
     issuer_url: str
 
 
-# class ScratchRequest(BaseModel):
-#     """Request model for read_from_scratch."""
-#
-#     client_id: Annotated[str, "foo"]
-#     object_id: uuid.UUID
-#     settings: Annotated[project.config.Settings, None]
-#     minio: Annotated[Minio, None]
+class ScratchRequest(BaseModel):
+    """Request model for read_from_scratch."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    client_id: Annotated[str, "foo"]
+    settings: Annotated[Settings, None]
+    minio: Annotated[any, None]  # TODO fix "any"
