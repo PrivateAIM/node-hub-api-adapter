@@ -1,4 +1,5 @@
 """Models for API."""
+
 from pydantic import BaseModel
 
 
@@ -24,3 +25,12 @@ class AuthConfiguration(BaseModel):
     authorization_url: str
     token_url: str
     issuer_url: str
+
+
+# class ScratchRequest(BaseModel):
+#     """Request model for read_from_scratch."""
+#
+#     client_id: Annotated[str, "foo"]
+#     object_id: uuid.UUID
+#     settings: Annotated[project.config.Settings, None]
+#     minio: Annotated[Minio, None]

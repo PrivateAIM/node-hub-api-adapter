@@ -3,9 +3,15 @@
 import uvicorn
 from fastapi import FastAPI, Depends
 
-from project.auth import get_user_info, settings
-from project.models import User
+from auth import get_user_info, settings
+from utils import export_openapi, merge_openapi_schemas, __import_schema
+from models import User
 
+
+# API Schemas to collect
+RESULTS_API_SCHEMA = "http://localhost:8000/openapi.json"
+
+# API metadata
 tags_metadata = [
     {"name": "Results", "description": "Endpoints for the Results service."},
     {"name": "Analysis", "description": "Endpoints for the Analysis service."},
@@ -46,6 +52,16 @@ async def secure_greeting(user: User = Depends(get_user_info)):
     return {
         "message": f"Hello {user.username} your name is: {user.first_name} {user.last_name}"
     }
+
+
+oapi_schema = export_openapi(app)
+combined = merge_openapi_schemas(
+    oapi_schema,
+    [
+        __import_schema(RESULTS_API_SCHEMA),
+    ],
+)
+app.openapi_schema = combined
 
 
 if __name__ == "__main__":

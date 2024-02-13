@@ -4,7 +4,7 @@ from fastapi.security import OAuth2AuthorizationCodeBearer
 from jose import jwt, JOSEError
 from starlette import status
 
-from project.models import AuthConfiguration, User
+from models import AuthConfiguration, User
 
 settings = AuthConfiguration(
     server_url="http://localhost:8080",

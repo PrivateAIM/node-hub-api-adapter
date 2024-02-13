@@ -1,4 +1,4 @@
-from project.main import add
+from gateway.main import add
 
 
 def test_add():
