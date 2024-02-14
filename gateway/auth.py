@@ -1,32 +1,50 @@
 import requests
+import kubernetes.client
+
 from fastapi import Security, HTTPException, Depends
 from fastapi.security import OAuth2AuthorizationCodeBearer
 from jose import jwt, JOSEError
 from starlette import status
 
 from models import AuthConfiguration, User
+from conf import settings as conf_settings
 
-settings = AuthConfiguration(
+# IDP i.e. Keycloak
+idp_settings = AuthConfiguration(
     server_url="http://localhost:8080",
-    realm="flame",
-    client_id="test-client",
-    client_secret="lhjYYgU5e1GQtfrs3YsTiESGpzqE8YSb",
-    authorization_url="http://localhost:8080/realms/flame/protocol/openid-connect/auth",
-    token_url="http://localhost:8080/realms/flame/protocol/openid-connect/token",
-    issuer_url="http://localhost:8080/realms/flame",
+    realm=conf_settings.IDP_ISSUER_URL.split("/")[
+        -1
+    ],  # Take last part of issuer URL for realm
+    client_id=conf_settings.UI_CLIENT_ID,
+    client_secret=conf_settings.UI_CLIENT_SECRET,
+    authorization_url=conf_settings.IDP_ISSUER_URL + "/protocol/openid-connect/auth",
+    token_url=conf_settings.IDP_ISSUER_URL + "/protocol/openid-connect/token",
+    issuer_url=conf_settings.IDP_ISSUER_URL,
 )
 
 oauth2_scheme = OAuth2AuthorizationCodeBearer(
-    authorizationUrl=settings.authorization_url,
-    tokenUrl=settings.token_url,
+    authorizationUrl=idp_settings.authorization_url,
+    tokenUrl=idp_settings.token_url,
 )
+
+
+def initialize_k8s_api_conn():  # Convert to decorator for each EP?
+    """Create an API client for the K8s instance."""
+    # K8s init
+    k8s_conf = kubernetes.client.Configuration()
+    k8s_conf.api_key["authorization"] = conf_settings.K8S_API_KEY
+    k8s_conf.host = conf_settings.PODORC_SERVICE_URL
+    kubernetes.client.Configuration.set_default(k8s_conf)
+
+    api_client = kubernetes.client.CoreV1Api()
+    return api_client
 
 
 async def get_idp_public_key() -> str:
     """Get the public key."""
     return (
         "-----BEGIN PUBLIC KEY-----\n"
-        f"{requests.get(settings.issuer_url).json().get('public_key')}"
+        f"{requests.get(idp_settings.issuer_url).json().get('public_key')}"
         "\n-----END PUBLIC KEY-----"
     )
 

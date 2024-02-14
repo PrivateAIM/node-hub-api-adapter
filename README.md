@@ -12,3 +12,7 @@ The API can be found at http://127.0.0.1:8081 with a GUI for the API available a
 users must authorize themselves in keycloak to run protected endpoints:
 * Test User: `flameuser`
 * Test pwd: `flamepwd`
+
+## Discussion
+* Create developer/restricted user in k8s for API calls
+*

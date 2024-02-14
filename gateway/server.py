@@ -1,17 +1,14 @@
 """Methods for verifying auth."""
 import uuid
-
 import uvicorn
+
 from fastapi import FastAPI, Depends, Request, Response
 from starlette import status
 
-from auth import get_user_info, settings as auth_settings
+from auth import get_user_info, idp_settings as auth_settings, initialize_k8s_api_conn
 from conf import settings as conf_settings
 from models import User, ScratchRequest
 from wrapper import route
-
-# API Schemas to collect
-RESULTS_API_SCHEMA = "http://localhost:8000/openapi.json"
 
 # API metadata
 tags_metadata = [
@@ -55,6 +52,13 @@ async def secure_test(user: User = Depends(get_user_info)):
     return {
         "message": f"Hello {user.username} your name is: {user.first_name} {user.last_name}"
     }
+
+
+@app.get("/pods", tags=["PodOrc"])
+async def get_k8s_pods():
+    """Get a list of k8s pods."""
+    k8s_api = initialize_k8s_api_conn()
+    return k8s_api.list_pod_for_all_namespaces().to_dict()
 
 
 @route(
