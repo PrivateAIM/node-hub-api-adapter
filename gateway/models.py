@@ -1,9 +1,9 @@
 """Models for API."""
-from project.config import Settings
 
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, HttpUrl
+from pydantic_settings import BaseSettings
 
 
 class User(BaseModel):
@@ -30,11 +30,38 @@ class AuthConfiguration(BaseModel):
     issuer_url: str
 
 
+class MinioConnection(BaseModel):
+    endpoint: str
+    access_key: str
+    secret_key: str
+    region: str = "us-east-1"
+    use_ssl: bool = True
+
+    model_config = ConfigDict(frozen=True)
+
+
+class MinioBucketConfig(MinioConnection):
+    bucket: str
+
+
+class OIDCConfig(BaseModel):
+    certs_url: HttpUrl
+    client_id_claim_name: str = "client_id"
+
+    model_config = ConfigDict(frozen=True)
+
+
+class Settings(BaseSettings):
+    minio: MinioBucketConfig
+    remote: MinioBucketConfig
+    oidc: OIDCConfig
+
+
 class ScratchRequest(BaseModel):
     """Request model for read_from_scratch."""
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     client_id: Annotated[str, "foo"]
-    settings: Annotated[Settings, None]
+    # settings: Annotated[ResultSettings, None]
     minio: Annotated[any, None]  # TODO fix "any"

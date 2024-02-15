@@ -1,10 +1,10 @@
 [tool.poetry]
-name = "node-hub-api-adapter"
+name = "node-gateway"
 version = "0.1.0"
-description = "API interface for the Node UI to interact with the other node services and the hub."
+description = "API gateway interface for the Node UI to interact with the other node services and the hub."
 authors = ["Bruce Schultz <bruce.schultz@uk-koeln.de>"]
 readme = "README.md"
-packages = [{ include = "project" }]
+packages = [{ include = "gateway" }]
 
 [tool.poetry.dependencies]
 python = "^3.11"

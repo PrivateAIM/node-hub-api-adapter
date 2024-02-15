@@ -2,12 +2,12 @@
 import uuid
 import uvicorn
 
-from fastapi import FastAPI, Depends, Request, Response
+from fastapi import FastAPI, Request, Response, Security
 from starlette import status
 
-from auth import get_user_info, idp_settings as auth_settings, initialize_k8s_api_conn
-from conf import settings as conf_settings
-from models import User, ScratchRequest
+from auth import idp_settings, initialize_k8s_api_conn, oauth2_scheme
+from conf import gateway_settings
+from models import ScratchRequest
 from wrapper import route
 
 # API metadata
@@ -24,8 +24,8 @@ app = FastAPI(
     swagger_ui_init_oauth={
         "usePkceWithAuthorizationCodeGrant": True,
         # Auth fill client ID for the docs with the below value
-        "clientId": auth_settings.client_id,  # default client-id is Keycloak
-        "clientSecret": auth_settings.client_secret,
+        "clientId": idp_settings.client_id,  # default client-id is Keycloak
+        "clientSecret": idp_settings.client_secret,
     },
 )
 
@@ -47,11 +47,12 @@ async def unsecure_test() -> dict:
 
 
 @app.get("/secure")
-async def secure_test(user: User = Depends(get_user_info)):
+async def secure_test(token: str = Security(oauth2_scheme)):
     """Secured response greeting."""
-    return {
-        "message": f"Hello {user.username} your name is: {user.first_name} {user.last_name}"
-    }
+    return token
+    # return {
+    #     "message": f"Hello {user.username} your name is: {user.first_name} {user.last_name}"
+    # }
 
 
 @app.get("/pods", tags=["PodOrc"])
@@ -62,20 +63,20 @@ async def get_k8s_pods():
 
 
 @route(
-    request_method=app.get,
-    path="/results/scratch/{object_id}",
+    request_method=app.post,
+    path="/scratch/{object_id}",
     status_code=status.HTTP_200_OK,
-    payload_key="object_settings",
-    service_url=conf_settings.RESULTS_SERVICE_URL,
+    payload_key="scratch_read",
+    service_url=gateway_settings.RESULTS_SERVICE_URL,
     response_model=None,  # StreamingResponse
     tags=["Results"],
 )
 async def read_from_scratch(
-    object_id: uuid.UUID,
-    object_settings: ScratchRequest,
+    scratch_read: ScratchRequest,
     request: Request,
     response: Response,
-    user: User = Depends(get_user_info),
+    token: str = Security(oauth2_scheme),
+    object_id: uuid.UUID = "575a9ab0-2204-47c2-af7c-bb9f9b3390d5",
 ):
     pass
 

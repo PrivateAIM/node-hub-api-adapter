@@ -1,7 +1,7 @@
 import aiohttp
 import async_timeout
 
-from conf import settings
+from conf import gateway_settings
 
 
 async def make_request(url: str, method: str, data: dict = None, headers: dict = None):
@@ -15,9 +15,9 @@ async def make_request(url: str, method: str, data: dict = None, headers: dict =
     if not data:
         data = {}
 
-    with async_timeout.timeout(settings.GATEWAY_TIMEOUT):
+    with async_timeout.timeout(gateway_settings.GATEWAY_TIMEOUT):
         async with aiohttp.ClientSession() as session:
             request = getattr(session, method)
             async with request(url, json=data, headers=headers) as response:
-                data = await response.json()
-                return data, response.status
+                resp_data = await response.json()
+                return resp_data, response.status

@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 from dotenv import load_dotenv  # TODO remove
 
-load_dotenv(dotenv_path="./.env")
+load_dotenv(dotenv_path="./.env.dev")
 
 
 class Settings(BaseModel):
@@ -31,4 +31,4 @@ class Settings(BaseModel):
     UI_CLIENT_SECRET: str = os.getenv("UI_CLIENT_SECRET")
 
 
-settings = Settings()
+gateway_settings = Settings()
