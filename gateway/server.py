@@ -72,11 +72,11 @@ async def get_k8s_pods():
     tags=["Results"],
 )
 async def read_from_scratch(
+    object_id: uuid.UUID,
     scratch_read: ScratchRequest,
     request: Request,
     response: Response,
     token: str = Security(oauth2_scheme),
-    object_id: uuid.UUID = "575a9ab0-2204-47c2-af7c-bb9f9b3390d5",
 ):
     pass
 

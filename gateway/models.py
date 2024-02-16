@@ -62,6 +62,6 @@ class ScratchRequest(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    client_id: Annotated[str, "foo"]
+    client_id: Annotated[str, "foo"] = "575a9ab0-2204-47c2-af7c-bb9f9b3390d5"
     # settings: Annotated[ResultSettings, None]
     minio: Annotated[any, None]  # TODO fix "any"

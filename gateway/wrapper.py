@@ -48,7 +48,7 @@ def route(
     )
 
     def wrapper(f):
-        @restful_call
+        @restful_call  # Wrap fastapi http method decorator
         @functools.wraps(f)
         async def inner(request: Request, response: Response, **kwargs):
             service_headers = {}
