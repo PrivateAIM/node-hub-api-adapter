@@ -1,7 +1,7 @@
 """Methods for verifying auth."""
 import uuid
-import uvicorn
 
+import uvicorn
 from fastapi import FastAPI, Request, Response, Security
 from starlette import status
 
