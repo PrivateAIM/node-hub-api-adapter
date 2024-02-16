@@ -17,22 +17,29 @@ def route(
     response_model: str = None,
     tags: list[str] = None,
 ):
-    """
-    it is an advanced wrapper for FastAPI router, purpose is to make FastAPI
-    acts as a gateway API in front of anything
+    """A decorator for the FastAPI router, its purpose is to make FastAPI
+    acts as a gateway API in front of available microservices.
 
-    Args:
-        request_method: is a callable like (app.get, app.post and so on.)
-        path: is the path to bind (like app.post('/api/users/'))
-        status_code: expected HTTP(status.HTTP_200_OK) status code
-        payload_key: used to easily fetch payload data in request body
-        service_url: root endpoint for service
-        # authentication_required: whether the route requires authentication via IDP
-        response_model: shows return type and details on api docs
-        tags: list of metadata tags
+    Parameters
+    ----------
+    request_method
+        FastAPI HTTP method e.g. 'app.get' or 'app.post'
+    path : str
+        Downstream path to route request to (e.g. '/api/users/')
+    status_code : int
+        HTTP status code
+    payload_key : str
+        Reference name for the forwarded request load in the body
+    service_url : str
+        Root endpoint of the service for the forward request
+    response_model
+        Response model of the forwarded request. Can be imported from other packages.
+    tags : list[str]
+        List of tags used to classify methods
 
-    Returns:
-        wrapped endpoint result as is
+    Returns
+    -------
+    Response from the microservice
 
     """
 
