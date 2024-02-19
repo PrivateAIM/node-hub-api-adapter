@@ -59,6 +59,8 @@ async def secure_test(token: str = Security(oauth2_scheme)):
 async def get_k8s_pods():
     """Get a list of k8s pods."""
     k8s_api = initialize_k8s_api_conn()
+    # TODO improve output and limit requested information
+    # https://github.com/kubernetes-client/python/blob/master/kubernetes/docs/CoreV1Api.md
     return k8s_api.list_pod_for_all_namespaces().to_dict()
 
 
