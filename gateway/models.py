@@ -1,9 +1,20 @@
 """Models for API."""
-
+from functools import lru_cache
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, HttpUrl
-from pydantic_settings import BaseSettings
+from fastapi import Depends
+from minio import Minio
+from fastapi.encoders import jsonable_encoder
+from project.config import MinioBucketConfig, Settings as ResultSettings
+
+from pydantic import BaseModel, ConfigDict, HttpUrl, BeforeValidator
+
+from pydantic import (
+    AfterValidator,
+    PlainSerializer,
+    TypeAdapter,
+    WithJsonSchema,
+)
 
 
 class User(BaseModel):
@@ -30,38 +41,17 @@ class AuthConfiguration(BaseModel):
     issuer_url: str
 
 
-class MinioConnection(BaseModel):
-    endpoint: str
-    access_key: str
-    secret_key: str
-    region: str = "us-east-1"
-    use_ssl: bool = True
-
-    model_config = ConfigDict(frozen=True)
-
-
-class MinioBucketConfig(MinioConnection):
-    bucket: str
-
-
-class OIDCConfig(BaseModel):
-    certs_url: HttpUrl
-    client_id_claim_name: str = "client_id"
-
-    model_config = ConfigDict(frozen=True)
-
-
-class Settings(BaseSettings):
-    minio: MinioBucketConfig
-    remote: MinioBucketConfig
-    oidc: OIDCConfig
+def convert_url(settings: ResultSettings) -> ResultSettings:
+    """Convert the Url class to str to avoid breaking pydantic. The HttpUrl model in pydantic has a bug currently in
+    which it doesn't properly convert to a str during validation and this is a temporary workaround."""
+    settings.oidc.certs_url = str(settings.oidc.certs_url)
+    return settings
 
 
 class ScratchRequest(BaseModel):
     """Request model for read_from_scratch."""
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
-    client_id: Annotated[str, "foo"] = "575a9ab0-2204-47c2-af7c-bb9f9b3390d5"
-    # settings: Annotated[ResultSettings, None]
-    minio: Annotated[any, None]  # TODO fix "any"
+    client_id: str = "575a9ab0-2204-47c2-af7c-bb9f9b3390d5"
+    # settings: Annotated[ResultSettings, AfterValidator(convert_url)]
+    # settings: dict
+    # minio: MinioBucketConfig

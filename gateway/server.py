@@ -63,17 +63,17 @@ async def get_k8s_pods():
 
 
 @route(
-    request_method=app.post,
+    request_method=app.get,
     path="/scratch/{object_id}",
     status_code=status.HTTP_200_OK,
-    payload_key="scratch_read",
+    payload_key=None,  # None for GET reqs
+    # payload_key="scratch_read",  # Only for POST
     service_url=gateway_settings.RESULTS_SERVICE_URL,
     response_model=None,  # StreamingResponse
     tags=["Results"],
 )
 async def read_from_scratch(
     object_id: uuid.UUID,
-    scratch_read: ScratchRequest,
     request: Request,
     response: Response,
     token: str = Security(oauth2_scheme),

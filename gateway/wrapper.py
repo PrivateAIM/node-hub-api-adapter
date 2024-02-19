@@ -11,8 +11,8 @@ def route(
     request_method,
     path: str,
     status_code: int,
-    payload_key: str,
     service_url: str,
+    payload_key: str | None = None,  # None for GET reqs, otherwise POST and match payload_key to model
     # authentication_required: bool = False,
     response_model: str = None,
     tags: list[str] = None,
@@ -28,10 +28,10 @@ def route(
         Downstream path to route request to (e.g. '/api/users/')
     status_code : int
         HTTP status code
-    payload_key : str
-        Reference name for the forwarded request load in the body
     service_url : str
         Root endpoint of the service for the forward request
+    payload_key : str
+        Reference name for the forwarded request load in the body
     response_model
         Response model of the forwarded request. Can be imported from other packages.
     tags : list[str]
@@ -82,6 +82,13 @@ def route(
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Service error.",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+
+            except Exception as e:
+                raise HTTPException(
+                    status_code=status.HTTP_418_IM_A_TEAPOT,
+                    detail=str(e),
                     headers={"WWW-Authenticate": "Bearer"},
                 )
 
