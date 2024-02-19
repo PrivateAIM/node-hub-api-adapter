@@ -5,9 +5,10 @@ import uvicorn
 from fastapi import FastAPI, Request, Response, Security
 from starlette import status
 
-from auth import idp_settings, initialize_k8s_api_conn, oauth2_scheme
+from auth import idp_settings, oauth2_scheme
 from conf import gateway_settings
-from wrapper import route
+from gateway.k8s import initialize_k8s_api_conn
+from gateway.session import route
 
 # API metadata
 tags_metadata = [

@@ -1,14 +1,12 @@
 """Handle the authorization and authentication of services."""
 import requests
-import kubernetes.client
-
 from fastapi import Security, HTTPException, Depends
 from fastapi.security import OAuth2AuthorizationCodeBearer
 from jose import jwt, JOSEError
 from starlette import status
 
-from models import AuthConfiguration, User
 from conf import gateway_settings
+from models import AuthConfiguration, User
 
 # IDP i.e. Keycloak
 idp_settings = AuthConfiguration(
@@ -27,18 +25,6 @@ oauth2_scheme = OAuth2AuthorizationCodeBearer(
     authorizationUrl=idp_settings.authorization_url,
     tokenUrl=idp_settings.token_url,
 )
-
-
-def initialize_k8s_api_conn():  # Convert to decorator for each EP?
-    """Create an API client for the K8s instance."""
-    # K8s init
-    k8s_conf = kubernetes.client.Configuration()
-    k8s_conf.api_key["authorization"] = gateway_settings.K8S_API_KEY
-    k8s_conf.host = gateway_settings.PODORC_SERVICE_URL
-    kubernetes.client.Configuration.set_default(k8s_conf)
-
-    api_client = kubernetes.client.CoreV1Api()
-    return api_client
 
 
 # Debugging methods
