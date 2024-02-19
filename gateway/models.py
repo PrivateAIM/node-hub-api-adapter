@@ -1,20 +1,8 @@
 """Models for API."""
-from functools import lru_cache
-from typing import Annotated
 
-from fastapi import Depends
-from minio import Minio
-from fastapi.encoders import jsonable_encoder
-from project.config import MinioBucketConfig, Settings as ResultSettings
+from project.config import Settings as ResultSettings
 
-from pydantic import BaseModel, ConfigDict, HttpUrl, BeforeValidator
-
-from pydantic import (
-    AfterValidator,
-    PlainSerializer,
-    TypeAdapter,
-    WithJsonSchema,
-)
+from pydantic import BaseModel
 
 
 class User(BaseModel):

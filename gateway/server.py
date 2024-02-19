@@ -7,7 +7,6 @@ from starlette import status
 
 from auth import idp_settings, initialize_k8s_api_conn, oauth2_scheme
 from conf import gateway_settings
-from models import ScratchRequest
 from wrapper import route
 
 # API metadata
@@ -73,10 +72,10 @@ async def get_k8s_pods():
     tags=["Results"],
 )
 async def read_from_scratch(
-    object_id: uuid.UUID,
-    request: Request,
-    response: Response,
-    token: str = Security(oauth2_scheme),
+        object_id: uuid.UUID,
+        request: Request,
+        response: Response,
+        token: str = Security(oauth2_scheme),
 ):
     pass
 

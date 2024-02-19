@@ -8,14 +8,14 @@ from session import make_request
 
 
 def route(
-    request_method,
-    path: str,
-    status_code: int,
-    service_url: str,
-    payload_key: str | None = None,  # None for GET reqs, otherwise POST and match payload_key to model
-    # authentication_required: bool = False,
-    response_model: str = None,
-    tags: list[str] = None,
+        request_method,
+        path: str,
+        status_code: int,
+        service_url: str,
+        payload_key: str | None = None,  # None for GET reqs, otherwise POST and match payload_key to model
+        # authentication_required: bool = False,
+        response_model: str = None,
+        tags: list[str] = None,
 ):
     """A decorator for the FastAPI router, its purpose is to make FastAPI
     acts as a gateway API in front of available microservices.
