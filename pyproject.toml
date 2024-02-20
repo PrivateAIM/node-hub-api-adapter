@@ -15,7 +15,6 @@ python-jose = "^3.3.0"
 requests = "^2.31.0"
 aiohttp = "^3.9.3"
 async-timeout = "^4.0.3"
-python-template-repo = { git = "https://github.com/PrivateAIM/node-result-service.git" }
 kubernetes = "^29.0.0"
 
 [tool.poetry.group.dev.dependencies]
