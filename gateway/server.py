@@ -1,5 +1,4 @@
 """Methods for verifying auth."""
-
 import uvicorn
 from fastapi import FastAPI, Security
 
