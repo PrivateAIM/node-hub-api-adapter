@@ -1,8 +1,10 @@
 import logging
+from typing import Annotated
 
 import kubernetes.client
-from fastapi import APIRouter
+from fastapi import APIRouter, Path, Security
 
+from gateway.auth import oauth2_scheme
 from gateway.conf import gateway_settings
 
 k8s_router = APIRouter()
@@ -21,10 +23,20 @@ def initialize_k8s_api_conn():  # Convert to decorator for each EP?
     return api_client
 
 
-@k8s_router.get("/pods")
-async def get_k8s_pods():
-    """Get a list of k8s pods."""
+@k8s_router.get("/namespaces", response_model=list[str])
+async def get_namespaces(token: str = Security(oauth2_scheme), ):
+    """List available namespaces."""
+    k8s_api = initialize_k8s_api_conn()
+    resp = k8s_api.list_namespace().to_dict()
+    ns = {namespace["metadata"]["name"] for namespace in resp["items"]}
+    return ns
+
+
+@k8s_router.get("/pods/{namespace}")
+async def get_k8s_pods(namespace: Annotated[str, Path(title="Namespace to query")],
+                       token: str = Security(oauth2_scheme), ):
+    """Get a list of k8s pods for a given namespace."""
     k8s_api = initialize_k8s_api_conn()
     # TODO improve output and limit requested information
     # https://github.com/kubernetes-client/python/blob/master/kubernetes/docs/CoreV1Api.md
-    return k8s_api.list_pod_for_all_namespaces().to_dict()
+    return k8s_api.list_namespaced_pod(namespace=namespace).to_dict()

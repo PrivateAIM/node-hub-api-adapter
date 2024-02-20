@@ -34,8 +34,7 @@ def route(
         path: str,
         status_code: int,
         service_url: str,
-        payload_key: str
-                     | None = None,  # None for GET reqs, otherwise POST and match payload_key to model
+        payload_key: str | None = None,  # None for GET reqs, otherwise POST and match payload_key to model
         # authentication_required: bool = False,
         response_model: str = None,
         tags: list[str] = None,
