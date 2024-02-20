@@ -1,14 +1,11 @@
 """Methods for verifying auth."""
-import uuid
 
 import uvicorn
-from fastapi import FastAPI, Request, Response, Security
-from starlette import status
+from fastapi import FastAPI, Security
 
 from auth import idp_settings, oauth2_scheme
-from conf import gateway_settings
-from gateway.k8s import initialize_k8s_api_conn
-from gateway.session import route
+from gateway.routers.k8s import k8s_router
+from gateway.routers.results import results_router
 
 # API metadata
 tags_metadata = [
@@ -55,33 +52,15 @@ async def secure_test(token: str = Security(oauth2_scheme)):
     # }
 
 
-@app.get("/pods", tags=["PodOrc"])
-async def get_k8s_pods():
-    """Get a list of k8s pods."""
-    k8s_api = initialize_k8s_api_conn()
-    # TODO improve output and limit requested information
-    # https://github.com/kubernetes-client/python/blob/master/kubernetes/docs/CoreV1Api.md
-    return k8s_api.list_pod_for_all_namespaces().to_dict()
+app.include_router(
+    k8s_router,
+    tags=["PodOrc"],
+)
 
-
-@route(
-    request_method=app.get,
-    path="/scratch/{object_id}",
-    status_code=status.HTTP_200_OK,
-    payload_key=None,  # None for GET reqs
-    # payload_key="scratch_read",  # Only for POST
-    service_url=gateway_settings.RESULTS_SERVICE_URL,
-    response_model=None,  # StreamingResponse
+app.include_router(
+    results_router,
     tags=["Results"],
 )
-async def read_from_scratch(
-        object_id: uuid.UUID,
-        request: Request,
-        response: Response,
-        token: str = Security(oauth2_scheme),
-):
-    pass
-
 
 if __name__ == "__main__":
     uvicorn.run("server:app", host="127.0.0.1", port=8081)

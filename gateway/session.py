@@ -34,7 +34,8 @@ def route(
         path: str,
         status_code: int,
         service_url: str,
-        payload_key: str | None = None,  # None for GET reqs, otherwise POST and match payload_key to model
+        payload_key: str
+                     | None = None,  # None for GET reqs, otherwise POST and match payload_key to model
         # authentication_required: bool = False,
         response_model: str = None,
         tags: list[str] = None,
@@ -52,7 +53,7 @@ def route(
         HTTP status code
     service_url : str
         Root endpoint of the service for the forward request
-    payload_key : str
+    payload_key : str | None
         Reference name for the forwarded request load in the body
     response_model
         Response model of the forwarded request. Can be imported from other packages.
