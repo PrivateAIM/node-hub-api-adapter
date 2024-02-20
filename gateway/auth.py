@@ -5,8 +5,8 @@ from fastapi.security import OAuth2AuthorizationCodeBearer
 from jose import jwt, JOSEError
 from starlette import status
 
-from conf import gateway_settings
-from models import AuthConfiguration, User
+from gateway.conf import gateway_settings
+from gateway.models import AuthConfiguration, User
 
 # IDP i.e. Keycloak
 idp_settings = AuthConfiguration(

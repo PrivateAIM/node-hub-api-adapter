@@ -7,7 +7,7 @@ from starlette import status
 from starlette.requests import Request
 from starlette.responses import Response
 
-from conf import gateway_settings
+from gateway.conf import gateway_settings
 
 
 async def make_request(url: str, method: str, data: dict = None, headers: dict = None):

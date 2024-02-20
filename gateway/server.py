@@ -3,7 +3,7 @@
 import uvicorn
 from fastapi import FastAPI, Security
 
-from auth import idp_settings, oauth2_scheme
+from gateway.auth import idp_settings, oauth2_scheme
 from gateway.routers.k8s import k8s_router
 from gateway.routers.results import results_router
 
