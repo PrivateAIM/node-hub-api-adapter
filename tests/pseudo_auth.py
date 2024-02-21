@@ -71,3 +71,6 @@ class BearerAuth(httpx.Auth):
     def auth_flow(self, request: Request):
         request.headers["Authorization"] = f"Bearer {self.__token}"
         yield request
+
+
+fakeauth = BearerAuth(issue_client_access_token())
