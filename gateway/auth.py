@@ -12,14 +12,14 @@ IDP_ISSUER_URL = gateway_settings.IDP_URL.joinpath("realms", gateway_settings.ID
 
 # IDP i.e. Keycloak
 idp_settings = AuthConfiguration(
-    server_url=gateway_settings.IDP_URL,
+    server_url=gateway_settings.IDP_URL.as_posix(),
     # Take last part of issuer URL for realm
     realm=gateway_settings.IDP_REALM,
     client_id=gateway_settings.UI_CLIENT_ID,
     client_secret=gateway_settings.UI_CLIENT_SECRET,
-    authorization_url=gateway_settings.IDP_URL.joinpath("protocol", "openid-connect", "auth"),
-    token_url=gateway_settings.IDP_URL.joinpath("protocol", "openid-connect", "token"),
-    issuer_url=IDP_ISSUER_URL,
+    authorization_url=gateway_settings.IDP_URL.joinpath("protocol", "openid-connect", "auth").as_posix(),
+    token_url=gateway_settings.IDP_URL.joinpath("protocol", "openid-connect", "token").as_posix(),
+    issuer_url=IDP_ISSUER_URL.as_posix(),
 )
 
 oauth2_scheme = OAuth2AuthorizationCodeBearer(

@@ -19,8 +19,8 @@ class Settings(BaseModel):
     K8S_API_KEY: str = os.getenv("K8S_API_KEY")
 
     # IDP Settings
-    IDP_URL: str = Path(os.getenv("IDP_URL"))
-    IDP_REALM: str = os.getenv("IDP_URL") or "flame"
+    IDP_URL: str = Path(os.getenv("IDP_URL", "http://localhost:8080"))
+    IDP_REALM: str = os.getenv("IDP_URL", "flame")
 
     # Service URLs
     RESULTS_SERVICE_URL: str = os.getenv("RESULTS_SERVICE_URL")
@@ -28,8 +28,8 @@ class Settings(BaseModel):
     HUB_SERVICE_URL: str = os.getenv("HUB_SERVICE_URL")
 
     # UI ID and secret
-    UI_CLIENT_ID: str = os.getenv("UI_CLIENT_ID")
-    UI_CLIENT_SECRET: str = os.getenv("UI_CLIENT_SECRET")
+    UI_CLIENT_ID: str = os.getenv("UI_CLIENT_ID", "test-client")
+    UI_CLIENT_SECRET: str = os.getenv("UI_CLIENT_SECRET", "someSecret")
 
 
 gateway_settings = Settings()
