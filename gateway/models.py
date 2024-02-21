@@ -1,7 +1,5 @@
 """Models for API."""
 
-from project.config import Settings as ResultSettings
-
 from pydantic import BaseModel
 
 
@@ -29,17 +27,7 @@ class AuthConfiguration(BaseModel):
     issuer_url: str
 
 
-def convert_url(settings: ResultSettings) -> ResultSettings:
-    """Convert the Url class to str to avoid breaking pydantic. The HttpUrl model in pydantic has a bug currently in
-    which it doesn't properly convert to a str during validation and this is a temporary workaround."""
-    settings.oidc.certs_url = str(settings.oidc.certs_url)
-    return settings
-
-
 class ScratchRequest(BaseModel):
     """Request model for read_from_scratch."""
 
     client_id: str = "575a9ab0-2204-47c2-af7c-bb9f9b3390d5"
-    # settings: Annotated[ResultSettings, AfterValidator(convert_url)]
-    # settings: dict
-    # minio: MinioBucketConfig

@@ -8,17 +8,18 @@ from starlette import status
 from gateway.conf import gateway_settings
 from gateway.models import AuthConfiguration, User
 
+IDP_ISSUER_URL = gateway_settings.IDP_URL.joinpath("realms", gateway_settings.IDP_REALM)
+
 # IDP i.e. Keycloak
 idp_settings = AuthConfiguration(
-    server_url="http://localhost:8080",
-    realm=gateway_settings.IDP_ISSUER_URL.split("/")[
-        -1
-    ],  # Take last part of issuer URL for realm
+    server_url=gateway_settings.IDP_URL,
+    # Take last part of issuer URL for realm
+    realm=gateway_settings.IDP_REALM,
     client_id=gateway_settings.UI_CLIENT_ID,
     client_secret=gateway_settings.UI_CLIENT_SECRET,
-    authorization_url=gateway_settings.IDP_ISSUER_URL + "/protocol/openid-connect/auth",
-    token_url=gateway_settings.IDP_ISSUER_URL + "/protocol/openid-connect/token",
-    issuer_url=gateway_settings.IDP_ISSUER_URL,
+    authorization_url=gateway_settings.IDP_URL.joinpath("protocol", "openid-connect", "auth"),
+    token_url=gateway_settings.IDP_URL.joinpath("protocol", "openid-connect", "token"),
+    issuer_url=IDP_ISSUER_URL,
 )
 
 oauth2_scheme = OAuth2AuthorizationCodeBearer(
