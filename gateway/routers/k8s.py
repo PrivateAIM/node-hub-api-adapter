@@ -7,7 +7,11 @@ from fastapi import APIRouter, Path, Security
 from gateway.auth import oauth2_scheme
 from gateway.conf import gateway_settings
 
-k8s_router = APIRouter()
+k8s_router = APIRouter(
+    dependencies=[Security(oauth2_scheme)],
+    tags=["PodOrc"],
+    responses={404: {"description": "Not found"}},
+)
 logger = logging.getLogger(__name__)
 
 
@@ -24,7 +28,7 @@ def initialize_k8s_api_conn():  # Convert to decorator for each EP?
 
 
 @k8s_router.get("/namespaces", response_model=list[str])
-async def get_namespaces(token: str = Security(oauth2_scheme), ):
+async def get_namespaces():
     """List available namespaces."""
     k8s_api = initialize_k8s_api_conn()
     resp = k8s_api.list_namespace().to_dict()
@@ -33,8 +37,7 @@ async def get_namespaces(token: str = Security(oauth2_scheme), ):
 
 
 @k8s_router.get("/pods/{namespace}")
-async def get_k8s_pods(namespace: Annotated[str, Path(title="Namespace to query")],
-                       token: str = Security(oauth2_scheme), ):
+async def get_k8s_pods(namespace: Annotated[str, Path(title="Namespace to query")], ):
     """Get a list of k8s pods for a given namespace."""
     k8s_api = initialize_k8s_api_conn()
     # TODO improve output and limit requested information

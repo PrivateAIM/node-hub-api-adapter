@@ -46,20 +46,15 @@ async def unsecure_test() -> dict:
 async def secure_test(token: str = Security(oauth2_scheme)):
     """Secured response greeting."""
     return token
-    # return {
-    #     "message": f"Hello {user.username} your name is: {user.first_name} {user.last_name}"
-    # }
 
 
 app.include_router(
     k8s_router,
-    tags=["PodOrc"],
 )
 
 app.include_router(
     results_router,
-    tags=["Results"],
 )
 
 if __name__ == "__main__":
-    uvicorn.run("server:app", host="127.0.0.1", port=8081, reload=True)
+    uvicorn.run("server:app", host="127.0.0.1", port=8081)
