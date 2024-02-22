@@ -8,7 +8,7 @@ from starlette.responses import Response
 
 from gateway.auth import oauth2_scheme
 from gateway.conf import gateway_settings
-from gateway.session import route
+from gateway.core import route
 
 results_router = APIRouter(
     dependencies=[Security(oauth2_scheme)],

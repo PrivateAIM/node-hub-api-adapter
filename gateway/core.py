@@ -1,43 +1,66 @@
 import functools
+from typing import Union, Sequence
 
-import aiohttp
 import async_timeout
-from fastapi import HTTPException
+from aiohttp import JsonPayload, ClientSession
+from aiohttp.client_exceptions import ClientConnectorError, ContentTypeError
+from fastapi import HTTPException, params
 from starlette import status
+from starlette.datastructures import Headers
 from starlette.requests import Request
 from starlette.responses import Response
 
 from gateway.conf import gateway_settings
 
 
-async def make_request(url: str, method: str, data: dict = None, headers: dict = None):
-    """
-    Args:
-        url: is the url for one of the in-network services
-        method: is the lower version of one of the HTTP methods: GET, POST, PUT, DELETE # noqa
-        data: is the payload
-        headers: is the header to put additional headers into request
+async def make_request(
+        url: str,
+        method: str,
+        headers: Union[Headers, dict],
+        data: Union[JsonPayload, dict] = None,
+) -> tuple[dict, int]:
+    """Make an asynchronous request by creating a temporary session.
+
+    Parameters
+    ----------
+    url : str
+        The URL of the forwarded microservice
+    method : str
+        HTTP method e.g. GET, POST, PUT, DELETE
+    headers : Union[Headers, dict]
+        A dictionary-like object defining the request headers
+    data : Union[JsonPayload, dict]
+        A dictionary-like object defining the payload
+
+    Returns
+    -------
+    tuple[dict, int]
+        Returns the response as a dictionary and an HTTP status code.
+
     """
     if not data:
         data = {}
 
     with async_timeout.timeout(gateway_settings.GATEWAY_TIMEOUT):
-        async with aiohttp.ClientSession() as session:
+        async with ClientSession() as session:
             request = getattr(session, method)
-            async with request(url, json=data, headers=headers) as response:
-                resp_data = await response.json()
-                return resp_data, response.status
+            async with request(url, json=data, headers=headers) as resp:
+                resp_data = await resp.json()
+                return resp_data, resp.status
 
 
 def route(
         request_method,
         path: str,
-        status_code: int,
         service_url: str,
+        status_code: int | None = None,
         payload_key: str | None = None,  # None for GET reqs, otherwise POST and match payload_key to model
-        # authentication_required: bool = False,
         response_model: str = None,
         tags: list[str] = None,
+        dependencies: Sequence[params.Depends] | None = None,
+        summary: str | None = None,
+        description: str | None = None,
+        # params from fastapi http methods can be added here later and then added to `request_method()`
 ):
     """A decorator for the FastAPI router, its purpose is to make FastAPI
     acts as a gateway API in front of available microservices.
@@ -49,15 +72,22 @@ def route(
     path : str
         Downstream path to route request to (e.g. '/api/users/')
     status_code : int
-        HTTP status code
+        HTTP status code.
     service_url : str
-        Root endpoint of the service for the forward request
+        Root endpoint of the microservice for the forwarded request.
     payload_key : str | None
-        Reference name for the forwarded request load in the body
+        Reference name for the forwarded request load in the body.
     response_model
         Response model of the forwarded request. Can be imported from other packages.
     tags : list[str]
         List of tags used to classify methods
+    dependencies: Sequence[params.Depends] | None
+        Other methods required for this to work. E.g. An IDP token.
+    summary: str | None
+        Summary of the method (usually short).
+    description: str | None
+        Longer explanation of the method.
+
 
     Returns
     -------
@@ -66,51 +96,46 @@ def route(
     """
 
     restful_call = request_method(
-        path, status_code=status_code, response_model=response_model, tags=tags
+        path,
+        status_code=status_code,
+        response_model=response_model,
+        tags=tags,
+        dependencies=dependencies,
+        summary=summary,
+        description=description,
     )
 
-    def wrapper(f):
+    def wrapper(func):
         @restful_call  # Wrap fastapi http method decorator
-        @functools.wraps(f)
+        @functools.wraps(func)
         async def inner(request: Request, response: Response, **kwargs):
-            service_headers = {}
-
             scope = request.scope
-
             method = scope["method"].lower()
-            ep = scope["path"]
 
             payload_obj = kwargs.get(payload_key)
             payload = payload_obj.dict() if payload_obj else {}
 
-            url = f"{service_url}{ep}"
+            microsvc_path = f"{service_url}{path}"
 
             try:
                 resp_data, status_code_from_service = await make_request(
-                    url=url,
+                    url=microsvc_path,
                     method=method,
                     data=payload,
-                    headers=service_headers,
+                    headers=request.headers,
                 )
 
-            except aiohttp.client_exceptions.ClientConnectorError:
+            except ClientConnectorError:
                 raise HTTPException(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail="Service is unavailable.",
+                    detail="Service is unavailable",
                     headers={"WWW-Authenticate": "Bearer"},
                 )
 
-            except aiohttp.client_exceptions.ContentTypeError:
+            except ContentTypeError:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Service error.",
-                    headers={"WWW-Authenticate": "Bearer"},
-                )
-
-            except Exception as e:
-                raise HTTPException(
-                    status_code=status.HTTP_418_IM_A_TEAPOT,
-                    detail=str(e),
+                    detail="Service error",
                     headers={"WWW-Authenticate": "Bearer"},
                 )
 

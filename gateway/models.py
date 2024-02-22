@@ -3,6 +3,7 @@
 from pydantic import BaseModel
 
 
+# Method models
 class User(BaseModel):
     """Example User output"""
 
