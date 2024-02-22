@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-gateway-deployment
+spec:
+  selector:
+    matchLabels:
+      component: gateway-service
+      version: {{ .Chart.AppVersion }}
+      deployment-id:  {{ .Release.Name }}
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        component: gateway-service
+        version: {{ .Chart.AppVersion }}
+        deployment-id:  {{ .Release.Name }}
+    spec:
+      containers:
+        - name: api-gateway
+          image: ghcr.io/privateaim/node-hub-api-adapter:{{ .Chart.AppVersion }}
+          imagePullPolicy: IfNotPresent  # Maybe "Always" during debug
+          ports:
+            - containerPort: 5000
+          env:
+            - name: UI_CLIENT_ID
+              value: "ui-client"  # To be replaced
+            - name: UI_CLIENT_SECRET
+              value: "someClientSecret"     # To be replaced
+            - name: IDP_URL
+              value: "https://idp.provider/"  # To be replaced
+            - name: IDP_REALM
+              value: "flame"  # To be replaced
+            - name: RESULTS_SERVICE_URL
+              value: "https://results.service.de/"  # To be replaced
+            - name: HUB_SERVICE_URL
+              value: "https://central.hub.service.de/"  # To be replaced
+            - name: K8S_API_KEY
+              value: "apiSecret"  # To be replaced
