@@ -1,4 +1,6 @@
 """Handle the authorization and authentication of services."""
+from urllib.parse import urljoin
+
 import requests
 from fastapi import Security, HTTPException, Depends
 from fastapi.security import OAuth2AuthorizationCodeBearer
@@ -8,18 +10,18 @@ from starlette import status
 from gateway.conf import gateway_settings
 from gateway.models import AuthConfiguration, User
 
-IDP_ISSUER_URL = gateway_settings.IDP_URL.joinpath("realms", gateway_settings.IDP_REALM)
+IDP_ISSUER_URL = urljoin(gateway_settings.IDP_URL, "/".join(["realms", gateway_settings.IDP_REALM]))
 
 # IDP i.e. Keycloak
 idp_settings = AuthConfiguration(
-    server_url=gateway_settings.IDP_URL.as_posix(),
+    server_url=gateway_settings.IDP_URL,
     # Take last part of issuer URL for realm
     realm=gateway_settings.IDP_REALM,
     client_id=gateway_settings.UI_CLIENT_ID,
     client_secret=gateway_settings.UI_CLIENT_SECRET,
-    authorization_url=gateway_settings.IDP_URL.joinpath("protocol", "openid-connect", "auth").as_posix(),
-    token_url=gateway_settings.IDP_URL.joinpath("protocol", "openid-connect", "token").as_posix(),
-    issuer_url=IDP_ISSUER_URL.as_posix(),
+    authorization_url=IDP_ISSUER_URL + "/protocol/openid-connect/auth",
+    token_url=IDP_ISSUER_URL + "/protocol/openid-connect/token",
+    issuer_url=IDP_ISSUER_URL,
 )
 
 oauth2_scheme = OAuth2AuthorizationCodeBearer(

@@ -37,9 +37,18 @@ async def get_namespaces():
 
 
 @k8s_router.get("/pods/{namespace}")
-async def get_k8s_pods(namespace: Annotated[str, Path(title="Namespace to query")], ):
+async def get_k8s_pods_by_namespace(namespace: Annotated[str, Path(title="Namespace to query")], ):
     """Get a list of k8s pods for a given namespace."""
     k8s_api = initialize_k8s_api_conn()
     # TODO improve output and limit requested information
     # https://github.com/kubernetes-client/python/blob/master/kubernetes/docs/CoreV1Api.md
     return k8s_api.list_namespaced_pod(namespace=namespace).to_dict()
+
+
+@k8s_router.get("/svc/{namespace}")
+async def get_k8s_svc_by_namespace(namespace: Annotated[str, Path(title="Namespace to query")], ):
+    """Get a list of k8s services for a given namespace."""
+    k8s_api = initialize_k8s_api_conn()
+    # TODO improve output and limit requested information
+    # https://github.com/kubernetes-client/python/blob/master/kubernetes/docs/CoreV1Api.md
+    return k8s_api.list_namespaced_service(namespace=namespace).to_dict()

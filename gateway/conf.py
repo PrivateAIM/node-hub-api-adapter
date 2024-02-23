@@ -1,6 +1,5 @@
 """Adapter API Settings."""
 import os
-from pathlib import Path
 
 # from dotenv import load_dotenv  # TODO remove
 from pydantic import BaseModel
@@ -20,8 +19,8 @@ class Settings(BaseModel):
     K8S_API_KEY: str = os.getenv("K8S_API_KEY")
 
     # IDP Settings
-    IDP_URL: str = Path(os.getenv("IDP_URL", "http://localhost:8080"))
-    IDP_REALM: str = os.getenv("IDP_URL", "flame")
+    IDP_URL: str = os.getenv("IDP_URL", "http://localhost:8080")
+    IDP_REALM: str = os.getenv("IDP_REALM", "flame")
 
     # Service URLs
     RESULTS_SERVICE_URL: str = os.getenv("RESULTS_SERVICE_URL")

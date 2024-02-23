@@ -1,7 +1,7 @@
 """EPs for Results service."""
 import uuid
 
-from fastapi import APIRouter, Security
+from fastapi import APIRouter, Security, UploadFile
 from starlette import status
 from starlette.requests import Request
 from starlette.responses import Response
@@ -27,6 +27,22 @@ results_router = APIRouter(
 )
 async def read_from_scratch(
         object_id: uuid.UUID,
+        request: Request,
+        response: Response,
+):
+    pass
+
+
+@route(
+    request_method=results_router.put,
+    path="/scratch",
+    status_code=status.HTTP_200_OK,
+    payload_key=None,  # TODO update
+    service_url=gateway_settings.RESULTS_SERVICE_URL,
+    response_model=None,  # StreamingResponse
+)
+async def upload_to_scratch(
+        file: UploadFile,
         request: Request,
         response: Response,
 ):
