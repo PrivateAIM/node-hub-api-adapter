@@ -23,7 +23,7 @@ class Settings(BaseModel):
     IDP_REALM: str = os.getenv("IDP_REALM", "flame")
 
     # Service URLs
-    RESULTS_SERVICE_URL: str = os.getenv("RESULTS_SERVICE_URL")
+    RESULTS_SERVICE_URL: str = os.getenv("RESULTS_SERVICE_URL", "http://localhost:8000")
     PODORC_SERVICE_URL: str = os.getenv("PODORC_SERVICE_URL")
     HUB_SERVICE_URL: str = os.getenv("HUB_SERVICE_URL")
 
