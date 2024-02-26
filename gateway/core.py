@@ -4,11 +4,10 @@ from typing import Union, Sequence
 import async_timeout
 from aiohttp import JsonPayload, ClientSession
 from aiohttp.client_exceptions import ClientConnectorError, ContentTypeError
-from fastapi import HTTPException, params
-from starlette import status
-from starlette.datastructures import Headers
-from starlette.requests import Request
-from starlette.responses import Response
+from fastapi import HTTPException, params, status
+from fastapi.datastructures import Headers
+from fastapi.requests import Request
+from fastapi.responses import StreamingResponse, JSONResponse, Response
 
 from gateway.conf import gateway_settings
 
@@ -18,7 +17,8 @@ async def make_request(
         method: str,
         headers: Union[Headers, dict],
         data: Union[JsonPayload, dict] = None,
-) -> tuple[dict, int]:
+        is_stream: bool = False,
+) -> tuple[Union[JSONResponse, StreamingResponse], int]:
     """Make an asynchronous request by creating a temporary session.
 
     Parameters
@@ -42,11 +42,23 @@ async def make_request(
         data = {}
 
     with async_timeout.timeout(gateway_settings.GATEWAY_TIMEOUT):
-        async with ClientSession() as session:
-            request = getattr(session, method)
-            async with request(url, json=data, headers=headers) as resp:
-                resp_data = await resp.json()
-                return resp_data, resp.status
+        if is_stream:
+            async def process_response_stream():  # Need to keep session open while streaming response
+                async with ClientSession() as sess:
+                    req = getattr(sess, method)
+                    async with req(url, json=data, headers=headers) as r:
+                        async for chunk in r.content.iter_chunked(128):
+                            yield chunk
+
+            resp = StreamingResponse(process_response_stream(), media_type="application/octet-stream")
+            return resp, resp.status_code
+
+        else:
+            async with ClientSession() as session:
+                request = getattr(session, method)
+                async with request(url, json=data, headers=headers) as resp:
+                    resp_data = await resp.json()
+                    return resp_data, resp.status
 
 
 def route(
@@ -60,6 +72,7 @@ def route(
         dependencies: Sequence[params.Depends] | None = None,
         summary: str | None = None,
         description: str | None = None,
+        response_stream: bool = False,
         # params from fastapi http methods can be added here later and then added to `request_method()`
 ):
     """A decorator for the FastAPI router, its purpose is to make FastAPI
@@ -87,6 +100,8 @@ def route(
         Summary of the method (usually short).
     description: str | None
         Longer explanation of the method.
+    response_stream: bool
+        Whether the expected response from the microservice is a StreamingResponse
 
 
     Returns
@@ -112,10 +127,12 @@ def route(
             scope = request.scope
             method = scope["method"].lower()
 
+            downstream_path = scope['path']
+
             payload_obj = kwargs.get(payload_key)
             payload = payload_obj.dict() if payload_obj else {}
 
-            microsvc_path = f"{service_url}{path}"
+            microsvc_path = f"{service_url}{downstream_path}"
 
             try:
                 resp_data, status_code_from_service = await make_request(
@@ -123,6 +140,7 @@ def route(
                     method=method,
                     data=payload,
                     headers=request.headers,
+                    is_stream=response_stream,
                 )
 
             except ClientConnectorError:
