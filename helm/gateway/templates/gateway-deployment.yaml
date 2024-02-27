@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: api-gateway
-          image: ghcr.io/privateaim/node-hub-api-adapter:{{ .Chart.AppVersion }}
+          image: ghcr.io/privateaim/node-hub-api-adapter:sha-61a1c36
           imagePullPolicy: IfNotPresent  # Maybe "Always" during debug
           ports:
             - containerPort: 5000
