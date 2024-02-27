@@ -17,6 +17,7 @@ aiohttp = "^3.9.3"
 async-timeout = "^4.0.3"
 kubernetes = "^29.0.0"
 click = "^8.1.7"
+python-multipart = "^0.0.9"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.3"
