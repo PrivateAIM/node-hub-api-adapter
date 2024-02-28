@@ -1,6 +1,6 @@
 """Models for API."""
 
-from aiohttp import FormData
+from aiohttp import FormData, multipart, hdrs, payload
 from pydantic import BaseModel
 from starlette.datastructures import UploadFile  # Needs to be from starlette else isinstance() fails
 
@@ -32,6 +32,45 @@ class AuthConfiguration(BaseModel):
 
 class GatewayFormData(FormData):
     """Specialized form model with methods for parsing field data as well as uploaded files."""
+
+    # This method is copied from a PR to fix form data being falsely reported as not processed during redirects
+    # https://github.com/aio-libs/aiohttp/pull/5583/files
+    def _gen_form_data(self) -> multipart.MultipartWriter:
+        """Encode a list of fields using the multipart/form-data MIME format"""
+        if self._is_processed:
+            return self._writer
+        for dispparams, headers, value in self._fields:
+            try:
+                if hdrs.CONTENT_TYPE in headers:
+                    part = payload.get_payload(
+                        value,
+                        content_type=headers[hdrs.CONTENT_TYPE],
+                        headers=headers,
+                        encoding=self._charset,
+                    )
+                else:
+                    part = payload.get_payload(
+                        value, headers=headers, encoding=self._charset
+                    )
+            except Exception as exc:
+                raise TypeError(
+                    "Can not serialize value type: %r\n "
+                    "headers: %r\n value: %r" % (type(value), headers, value)
+                ) from exc
+
+            if dispparams:
+                part.set_content_disposition(
+                    "form-data", quote_fields=self._quote_fields, **dispparams
+                )
+                # FIXME cgi.FieldStorage doesn't likes body parts with
+                # Content-Length which were sent via chunked transfer encoding
+                assert part.headers is not None
+                part.headers.popall(hdrs.CONTENT_LENGTH, None)
+
+            self._writer.append_payload(part)
+
+        self._is_processed = True
+        return self._writer
 
     def add_www_form(self, name: str, value: any):
         """Add specific field to simple form data if needed."""

@@ -1,8 +1,8 @@
 import functools
-from typing import Sequence
+from typing import Sequence, AsyncIterable
 
 import async_timeout
-from aiohttp import JsonPayload, ClientSession, FormData
+from aiohttp import JsonPayload, ClientSession, hdrs
 from aiohttp.client_exceptions import ClientConnectorError, ContentTypeError
 from fastapi import HTTPException, params, status
 from fastapi.datastructures import Headers
@@ -10,6 +10,7 @@ from fastapi.requests import Request
 from fastapi.responses import StreamingResponse, JSONResponse, Response
 
 from gateway.conf import gateway_settings
+from gateway.models import GatewayFormData
 from gateway.utils import unzip_form_params, unzip_body_object, create_request_data
 
 
@@ -17,7 +18,7 @@ async def make_request(
         url: str,
         method: str,
         headers: Headers | dict,
-        data: JsonPayload | dict | FormData | None = None,
+        data: JsonPayload | dict | GatewayFormData | None = None,
         is_stream: bool = False,
 ) -> tuple[[JSONResponse | StreamingResponse], int]:
     """Make an asynchronous request by creating a temporary session.
@@ -46,10 +47,10 @@ async def make_request(
 
     with async_timeout.timeout(gateway_settings.GATEWAY_TIMEOUT):
         if is_stream:
-            async def process_response_stream():  # Need to keep session open while streaming response
+            async def process_response_stream() -> AsyncIterable:  # Need to keep session open while streaming response
                 async with ClientSession(headers=headers) as sess:
                     async with sess.request(url=url, method=method, data=data) as r:
-                        async for chunk in r.content.iter_chunks():  # iterates over chunks as received from the server
+                        async for chunk, _ in r.content.iter_chunks():  # iterates over chunks received from microsvc
                             yield chunk
 
             resp = StreamingResponse(process_response_stream(), media_type="application/octet-stream")
@@ -67,7 +68,6 @@ def route(
         path: str,
         service_url: str,
         status_code: int | None = None,
-        payload_key: str | None = None,  # None for GET reqs, otherwise POST and match payload_key to model
         form_params: list[str] | None = None,
         body_params: list[str] | None = None,
         response_model: str = None,
@@ -136,7 +136,7 @@ def route(
 
             downstream_path = scope['path']
 
-            content_type = str(request.headers.get('Content-Type'))
+            content_type = str(request.headers.get(hdrs.CONTENT_TYPE))
             www_request_form = await request.form() if 'x-www-form-urlencoded' in content_type else None
 
             # Prepare body and form data
@@ -145,13 +145,13 @@ def route(
                 additional_params=kwargs,
             )
 
-            request_from = await unzip_form_params(
+            request_form = await unzip_form_params(
                 request_form=www_request_form,  # Specific form passed
                 specified_params=form_params,  # Specific form keys passed i.e. uploaded file
                 additional_params=kwargs
             )
 
-            request_data = create_request_data(form=request_from, body=request_body)  # Either JSON or Form
+            request_data = create_request_data(form=request_form, body=request_body)  # Either JSON or Form
 
             microsvc_path = f"{service_url}{downstream_path}"
 
