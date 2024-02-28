@@ -1,17 +1,16 @@
 """EPs for Results service."""
 import uuid
 
-from fastapi import APIRouter, Security, UploadFile
+from fastapi import APIRouter, UploadFile
 from starlette import status
 from starlette.requests import Request
 from starlette.responses import Response
 
-from gateway.auth import oauth2_scheme
 from gateway.conf import gateway_settings
 from gateway.core import route
 
 results_router = APIRouter(
-    dependencies=[Security(oauth2_scheme)],
+    # dependencies=[Security(oauth2_scheme)],
     tags=["Results"],
     responses={404: {"description": "Not found"}},
 )
@@ -47,4 +46,22 @@ async def upload_to_scratch(
         request: Request,
         response: Response,
 ):
+    pass
+
+
+@route(
+    request_method=results_router.put,
+    path="/put",
+    status_code=status.HTTP_200_OK,
+    payload_key=None,  # TODO update
+    service_url="https://httpbin.org",
+    response_model=None,  # StreamingResponse
+    form_params=["file"],  # Must match param name
+)
+async def put_test(
+        file: UploadFile,
+        request: Request,
+        response: Response,
+):
+    """Testing put."""
     pass
