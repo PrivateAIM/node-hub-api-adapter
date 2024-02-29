@@ -139,6 +139,11 @@ def route(
             content_type = str(request.headers.get(hdrs.CONTENT_TYPE))
             www_request_form = await request.form() if 'x-www-form-urlencoded' in content_type else None
 
+            # Prune headers
+            request_headers = dict(request.headers)
+            request_headers.pop("content-length", None)  # Let aiohttp configure content-length
+            request_headers.pop("content-type", None)  # Let aiohttp configure content-type
+
             # Prepare body and form data
             request_body = await unzip_body_object(
                 specified_params=body_params,
@@ -160,7 +165,7 @@ def route(
                     url=microsvc_path,
                     method=method,
                     data=request_data,
-                    headers=request.headers,
+                    headers=request_headers,
                     is_stream=response_stream,
                 )
 
