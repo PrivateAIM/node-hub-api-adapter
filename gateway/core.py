@@ -1,5 +1,7 @@
 import functools
-from typing import Sequence, AsyncIterable
+import os
+import tempfile
+from typing import Sequence
 
 import async_timeout
 from aiohttp import JsonPayload, ClientSession, hdrs
@@ -7,7 +9,9 @@ from aiohttp.client_exceptions import ClientConnectorError, ContentTypeError
 from fastapi import HTTPException, params, status
 from fastapi.datastructures import Headers
 from fastapi.requests import Request
-from fastapi.responses import StreamingResponse, JSONResponse, Response
+from fastapi.responses import StreamingResponse, JSONResponse
+from starlette.background import BackgroundTask
+from starlette.responses import Response, FileResponse
 
 from gateway.conf import gateway_settings
 from gateway.models import GatewayFormData
@@ -19,7 +23,6 @@ async def make_request(
         method: str,
         headers: Headers | dict,
         data: JsonPayload | dict | GatewayFormData | None = None,
-        is_stream: bool = False,
 ) -> tuple[[JSONResponse | StreamingResponse], int]:
     """Make an asynchronous request by creating a temporary session.
 
@@ -33,8 +36,6 @@ async def make_request(
         A dictionary-like object defining the request headers
     data : Union[JsonPayload, dict]
         A dictionary-like object defining the payload
-    is_stream : bool
-        Whether the expected response is a stream
 
     Returns
     -------
@@ -46,21 +47,26 @@ async def make_request(
         data = {}
 
     with async_timeout.timeout(gateway_settings.GATEWAY_TIMEOUT):
-        if is_stream:
-            async def process_response_stream() -> AsyncIterable:  # Need to keep session open while streaming response
-                async with ClientSession(headers=headers) as sess:
-                    async with sess.request(url=url, method=method, data=data) as r:
-                        async for chunk, _ in r.content.iter_chunks():  # iterates over chunks received from microsvc
-                            yield chunk
-
-            resp = StreamingResponse(process_response_stream(), media_type="application/octet-stream")
-            return resp, resp.status_code
-
-        else:
-            async with ClientSession(headers=headers) as session:
-                async with session.request(url=url, method=method, data=data) as resp:
+        async with ClientSession(headers=headers) as session:
+            async with session.request(url=url, method=method, data=data) as resp:
+                if resp.headers[hdrs.CONTENT_TYPE] == 'application/json':
                     resp_data = await resp.json()
                     return resp_data, resp.status
+
+                elif resp.headers[hdrs.CONTENT_TYPE] == 'application/octet-stream':
+                    with tempfile.NamedTemporaryFile(mode="w+b", delete=False) as temp_file:
+                        async for chunk, _ in resp.content.iter_chunks():  # iterates over chunks received from microsvc
+                            temp_file.write(chunk)
+
+                    def cleanup():
+                        os.remove(temp_file.name)
+
+                    return FileResponse(
+                        temp_file.name,
+                        background=BackgroundTask(cleanup),
+                        # media_type='application/octet-stream',
+                        headers=resp.headers
+                    ), resp.status
 
 
 def route(
@@ -164,7 +170,6 @@ def route(
                     method=method,
                     data=request_data,
                     headers=request_headers,
-                    is_stream=response_stream,
                 )
 
             except ClientConnectorError:

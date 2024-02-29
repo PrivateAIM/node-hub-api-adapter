@@ -1,6 +1,7 @@
 """Utility methods."""
 
 import json
+import os
 
 from aiohttp import JsonPayload
 from fastapi.routing import serialize_response
@@ -49,3 +50,7 @@ async def unzip_form_params(
                 await body_form.upload(key=key, value=request_form[key])
 
         return body_form
+
+
+def remove_file(path: str) -> None:
+    os.unlink(path)

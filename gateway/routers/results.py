@@ -23,7 +23,6 @@ results_router = APIRouter(
     status_code=status.HTTP_200_OK,
     service_url=gateway_settings.RESULTS_SERVICE_URL,
     response_model=None,
-    response_stream=True,  # Required if response is a binary stream e.g. a file
 )
 async def read_from_scratch(
         object_id: uuid.UUID,
