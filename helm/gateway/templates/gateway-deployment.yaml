@@ -20,6 +20,10 @@ spec:
         - name: api-gateway
           image: ghcr.io/privateaim/node-hub-api-adapter:sha-61a1c36
           imagePullPolicy: IfNotPresent  # Maybe "Always" during debug
+          readinessProbe:
+          httpGet:
+            path: /healthy
+            port: 5000
           ports:
             - containerPort: 5000
           env:
