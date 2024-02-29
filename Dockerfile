@@ -24,3 +24,5 @@ COPY ./gateway/ ./gateway/
 EXPOSE 5000
 
 ENTRYPOINT ["python", "-m", "gateway.cli", "serve"]
+
+HEALTHCHECK CMD curl --fail http://localhost:5000/health || exit 1

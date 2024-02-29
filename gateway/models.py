@@ -6,6 +6,12 @@ from starlette.datastructures import UploadFile  # Needs to be from starlette el
 
 
 # Method models
+class HealthCheck(BaseModel):
+    """Response model to validate and return when performing a health check."""
+
+    status: str = "OK"
+
+
 class User(BaseModel):
     """Example User output"""
 
