@@ -91,8 +91,6 @@ def route(
         HTTP status code.
     service_url : str
         Root endpoint of the microservice for the forwarded request.
-    payload_key : str | None
-        Reference name for the forwarded request load in the body.
     form_params : list[str] | None
         Keys passed referencing form model parameters to be sent to downstream microservice
     body_params : list[str] | None
