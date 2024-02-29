@@ -46,20 +46,3 @@ async def upload_to_scratch(
         response: Response,
 ):
     pass
-
-
-@route(
-    request_method=results_router.put,
-    path="/put",
-    status_code=status.HTTP_200_OK,
-    service_url="https://httpbin.org",
-    response_model=None,  # StreamingResponse
-    form_params=["file"],  # Must match param name
-)
-async def put_test(
-        file: UploadFile,
-        request: Request,
-        response: Response,
-):
-    """Testing put."""
-    pass
