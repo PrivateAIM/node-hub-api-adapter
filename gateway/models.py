@@ -25,7 +25,7 @@ class User(BaseModel):
 
 
 class AuthConfiguration(BaseModel):
-    """Example auth config."""
+    """Auth config model."""
 
     server_url: str
     realm: str

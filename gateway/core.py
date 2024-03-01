@@ -64,7 +64,6 @@ async def make_request(
                     return FileResponse(
                         temp_file.name,
                         background=BackgroundTask(cleanup),
-                        # media_type='application/octet-stream',
                         headers=resp.headers
                     ), resp.status
 
