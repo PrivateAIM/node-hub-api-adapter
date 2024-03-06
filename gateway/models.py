@@ -12,6 +12,7 @@ class HealthCheck(BaseModel):
     status: str = "OK"
 
 
+# General
 class User(BaseModel):
     """Example User output"""
 
@@ -34,13 +35,6 @@ class AuthConfiguration(BaseModel):
     authorization_url: str
     token_url: str
     issuer_url: str
-
-
-class KeycloakConfig(BaseModel):
-    """Keycloak configuration."""
-    realm: str
-    url: str
-    clientId: str
 
 
 class GatewayFormData(FormData):
@@ -114,3 +108,24 @@ class GatewayFormData(FormData):
 
         elif isinstance(value, str):  # If simply a string, then add to form
             self.add_www_form(name=key, value=value)
+
+
+# Metadata models
+class KeycloakConfig(BaseModel):
+    """Keycloak configuration."""
+    realm: str
+    url: str
+    clientId: str
+
+
+class ContainerInfo(BaseModel):
+    """Formatted container information."""
+    id: int
+    name: str
+    job_id: int
+    image: str
+    state: str
+    status: str
+    next_tag: str
+    repo: str
+    train_class_id: int

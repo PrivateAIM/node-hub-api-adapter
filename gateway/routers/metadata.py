@@ -1,4 +1,4 @@
-"""EPs for various metata for the frontend."""
+"""EPs for various metadata for the frontend."""
 
 from fastapi import APIRouter
 
@@ -25,4 +25,4 @@ async def get_keycloak_config():
 @metadata_router.get("/metadata/version")
 async def get_node_version():
     """Return version of the node software/API."""
-    return "0.1.0-version"
+    return {"appVersion": "0.1.0-gatewayapi"}
