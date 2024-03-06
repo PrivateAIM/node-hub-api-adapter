@@ -2,10 +2,12 @@
 import uvicorn
 from fastapi import FastAPI
 from starlette import status
+from starlette.middleware.cors import CORSMiddleware
 
 from gateway.auth import idp_settings
 from gateway.models import HealthCheck
 from gateway.routers.k8s import k8s_router
+from gateway.routers.metadata import metadata_router
 from gateway.routers.results import results_router
 
 # API metadata
@@ -27,15 +29,14 @@ app = FastAPI(
     },
 )
 
-
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins="*",
-#     allow_credentials=True,
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-#     expose_headers=["*"],
-# )
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins="*",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["*"],
+)
 
 
 @app.get(
@@ -65,6 +66,10 @@ app.include_router(
 
 app.include_router(
     results_router,
+)
+
+app.include_router(
+    metadata_router,
 )
 
 if __name__ == "__main__":

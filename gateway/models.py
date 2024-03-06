@@ -36,6 +36,13 @@ class AuthConfiguration(BaseModel):
     issuer_url: str
 
 
+class KeycloakConfig(BaseModel):
+    """Keycloak configuration."""
+    realm: str
+    url: str
+    clientId: str
+
+
 class GatewayFormData(FormData):
     """Specialized form model with methods for parsing field data as well as uploaded files."""
 
