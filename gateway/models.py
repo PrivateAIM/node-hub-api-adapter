@@ -1,4 +1,6 @@
 """Models for API."""
+from typing import Optional
+from uuid import UUID
 
 from aiohttp import FormData, multipart, hdrs, payload
 from pydantic import BaseModel
@@ -118,14 +120,45 @@ class KeycloakConfig(BaseModel):
     clientId: str
 
 
-class ContainerInfo(BaseModel):
+class ContainerData(BaseModel):
     """Formatted container information."""
-    id: int
+    id: UUID
     name: str
-    job_id: int
-    image: str
+    job_id: UUID
+    image: UUID
     state: str
     status: str
     next_tag: str
     repo: str
-    train_class_id: int
+    train_class_id: str
+
+
+class ContainerResponse(BaseModel):
+    """Response model for container call."""
+    containers: list[ContainerData]
+
+
+class ImageData(BaseModel):
+    """Image data."""
+    id: UUID
+    train_class_id: str
+    repo_tag: str
+    job_id: UUID
+    status: str
+
+
+class PulledImageData(ImageData):
+    """Pulled image data."""
+    status: str = "pulled"
+    labels: Optional[dict] = None
+
+
+class ToPushImageData(ImageData):
+    """Data for images to be pushed."""
+    status: str = "waiting_to_push"
+
+
+class ImageDataResponse(BaseModel):
+    """Response model for image call."""
+    pullImages: list[PulledImageData]
+    pushImages: list[ToPushImageData]

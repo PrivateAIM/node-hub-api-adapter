@@ -6,6 +6,7 @@ from starlette.middleware.cors import CORSMiddleware
 
 from gateway.auth import idp_settings
 from gateway.models import HealthCheck
+from gateway.routers.hub import hub_router
 from gateway.routers.k8s import k8s_router
 from gateway.routers.metadata import metadata_router
 from gateway.routers.results import results_router
@@ -15,6 +16,7 @@ tags_metadata = [
     {"name": "Results", "description": "Endpoints for the Results service."},
     {"name": "Analysis", "description": "Endpoints for the Analysis service."},
     {"name": "PodOrc", "description": "Endpoints for the Pod Orchestration service."},
+    {"name": "Hub", "description": "Endpoints for the central Hub service."},
 ]
 
 app = FastAPI(
@@ -70,6 +72,10 @@ app.include_router(
 
 app.include_router(
     metadata_router,
+)
+
+app.include_router(
+    hub_router,
 )
 
 if __name__ == "__main__":

@@ -6,7 +6,6 @@ from fastapi import APIRouter, Path, Security
 
 from gateway.auth import oauth2_scheme
 from gateway.conf import gateway_settings
-from gateway.models import ContainerInfo
 
 k8s_router = APIRouter(
     dependencies=[Security(oauth2_scheme)],
@@ -53,12 +52,3 @@ async def get_k8s_svc_by_namespace(namespace: Annotated[str, Path(title="Namespa
     # TODO improve output and limit requested information
     # https://github.com/kubernetes-client/python/blob/master/kubernetes/docs/CoreV1Api.md
     return k8s_api.list_namespaced_service(namespace=namespace).to_dict()
-
-
-@k8s_router.get("/images", response_model=list[ContainerInfo])
-async def get_k8s_images():
-    """Get a list of k8s images."""
-    k8s_api = initialize_k8s_api_conn()
-    # https://github.com/kubernetes-client/python/blob/master/kubernetes/docs/CoreV1Api.md
-    # Add field selector: https://kubernetes.io/docs/tasks/access-application-cluster/list-all-running-container-images/
-    return k8s_api.list_namespaced_pod().to_dict()

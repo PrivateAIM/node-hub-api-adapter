@@ -25,4 +25,5 @@ async def get_keycloak_config():
 @metadata_router.get("/metadata/version")
 async def get_node_version():
     """Return version of the node software/API."""
+    # TODO: move version definition to frontend
     return {"appVersion": "0.1.0-gatewayapi"}
