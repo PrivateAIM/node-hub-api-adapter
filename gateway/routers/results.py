@@ -6,12 +6,12 @@ from starlette import status
 from starlette.requests import Request
 from starlette.responses import Response
 
-from gateway.auth import oauth2_scheme
+from gateway.auth import realm_oauth2_scheme
 from gateway.conf import gateway_settings
 from gateway.core import route
 
 results_router = APIRouter(
-    dependencies=[Security(oauth2_scheme)],
+    dependencies=[Security(realm_oauth2_scheme)],
     tags=["Results"],
     responses={404: {"description": "Not found"}},
 )

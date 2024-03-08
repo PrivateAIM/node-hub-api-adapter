@@ -25,11 +25,16 @@ class Settings(BaseModel):
     # Service URLs
     RESULTS_SERVICE_URL: str = os.getenv("RESULTS_SERVICE_URL", "http://localhost:8000")
     PODORC_SERVICE_URL: str = os.getenv("PODORC_SERVICE_URL")
-    HUB_SERVICE_URL: str = os.getenv("HUB_SERVICE_URL")
 
     # UI ID and secret
     UI_CLIENT_ID: str = os.getenv("UI_CLIENT_ID", "test-client")
     UI_CLIENT_SECRET: str = os.getenv("UI_CLIENT_SECRET", "someSecret")
+
+    # Hub
+    HUB_AUTH_SERVICE_URL: str = os.getenv("HUB_AUTH_SERVICE_URL", "https://auth.privateaim.net")
+    HUB_SERVICE_URL: str = os.getenv("HUB_AUTH_SERVICE_URL", "https://api.privateaim.net")
+    HUB_USERNAME: str = os.getenv("HUB_USERNAME", "admin")
+    HUB_PASSWORD: str = os.getenv("HUB_PASSWORD", "start123")
 
 
 gateway_settings = Settings()

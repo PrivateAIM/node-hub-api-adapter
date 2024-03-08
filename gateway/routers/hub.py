@@ -16,12 +16,13 @@ async def get_images():
     """Return list of images for the frontend."""
     # TODO: replace with data from https://api.privateaim.net/projects
     # TODO: add project specific call / filter?
+
     dummy_data = {
         "pullImages": [
             {
                 "id": "59081687-3dfe-46cf-afb5-07c562a002af",
                 "train_class_id": "choochoo",
-                "repo_tag": "Awesome tag",
+                "repo_tag": "0.5.23-pull",
                 "job_id": "49e79b47-686b-4fb8-9259-fd0035b0b7f6",
                 "status": "pulled"
             }
@@ -30,7 +31,7 @@ async def get_images():
             {
                 "id": "4a941577-46ce-4220-8ca0-181cf45abe29",
                 "train_class_id": "choochoo",
-                "repo_tag": "Awesome tag",
+                "repo_tag": "latest",
                 "job_id": "5efabb71-ba5d-4d00-9ed4-f27eb6a52e8f",
                 "status": "waiting_to_push"
             }
@@ -53,7 +54,7 @@ async def get_containers():
                 "image": "4a941577-46ce-4220-8ca0-181cf45abe29",
                 "state": "Running",
                 "status": "Active",
-                "next_tag": "Aachen",
+                "next_tag": "Köln",
                 "repo": "/data",
                 "train_class_id": "choochoo",
             }
@@ -71,7 +72,7 @@ async def get_vault_status():
         "authenticated": True,
         "config": {
             "stationID": "4c0e4a1a-795b",
-            "stationName": "Aachen Central",
+            "stationName": "Test FLAME Node Central",
         }
     }
     return dummy_data

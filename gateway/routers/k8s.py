@@ -4,11 +4,11 @@ from typing import Annotated
 import kubernetes.client
 from fastapi import APIRouter, Path, Security
 
-from gateway.auth import oauth2_scheme
+from gateway.auth import realm_oauth2_scheme
 from gateway.conf import gateway_settings
 
 k8s_router = APIRouter(
-    dependencies=[Security(oauth2_scheme)],
+    dependencies=[Security(realm_oauth2_scheme)],
     tags=["PodOrc"],
     responses={404: {"description": "Not found"}},
 )

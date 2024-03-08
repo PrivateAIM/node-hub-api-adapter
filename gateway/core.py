@@ -1,19 +1,15 @@
 import functools
-import os
-import tempfile
 from typing import Sequence
 
-import async_timeout
-from aiohttp import JsonPayload, ClientSession, hdrs
+import httpx
+from aiohttp import JsonPayload, hdrs
 from aiohttp.client_exceptions import ClientConnectorError, ContentTypeError
 from fastapi import HTTPException, params, status
 from fastapi.datastructures import Headers
 from fastapi.requests import Request
 from fastapi.responses import StreamingResponse, JSONResponse
-from starlette.background import BackgroundTask
-from starlette.responses import Response, FileResponse
+from starlette.responses import Response
 
-from gateway.conf import gateway_settings
 from gateway.models import GatewayFormData
 from gateway.utils import unzip_form_params, unzip_body_object, create_request_data
 
@@ -46,26 +42,32 @@ async def make_request(
     if not data:  # Always package data else error
         data = {}
 
-    with async_timeout.timeout(gateway_settings.GATEWAY_TIMEOUT):
-        async with ClientSession(headers=headers) as session:
-            async with session.request(url=url, method=method, data=data) as resp:
-                if resp.headers[hdrs.CONTENT_TYPE] == 'application/json':
-                    resp_data = await resp.json()
-                    return resp_data, resp.status
+    async with httpx.AsyncClient(headers=headers) as client:
+        r = await client.request(url=url, method=method, data=data)
+        resp_data = r.json()
+        return resp_data, r.status_code
 
-                elif resp.headers[hdrs.CONTENT_TYPE] == 'application/octet-stream':
-                    with tempfile.NamedTemporaryFile(mode="w+b", delete=False) as temp_file:
-                        async for chunk, _ in resp.content.iter_chunks():  # iterates over chunks received from microsvc
-                            temp_file.write(chunk)
-
-                    def cleanup():
-                        os.remove(temp_file.name)
-
-                    return FileResponse(
-                        temp_file.name,
-                        background=BackgroundTask(cleanup),
-                        headers=resp.headers
-                    ), resp.status
+    # with async_timeout.timeout(gateway_settings.GATEWAY_TIMEOUT):
+    # async with ClientSession(headers=headers) as session:
+    #     async with session.request(url=url, method=method, data=data) as resp:
+    #
+    #         if hdrs.CONTENT_TYPE not in resp.headers or resp.headers[hdrs.CONTENT_TYPE] == 'application/json':
+    #             resp_data = await resp.json()
+    #             return resp_data, resp.status
+    #
+    #         elif resp.headers[hdrs.CONTENT_TYPE] == 'application/octet-stream':
+    #             with tempfile.NamedTemporaryFile(mode="w+b", delete=False) as temp_file:
+    #                 async for chunk, _ in resp.content.iter_chunks():  # iterates over chunks received from microsvc
+    #                     temp_file.write(chunk)
+    #
+    #             def cleanup():
+    #                 os.remove(temp_file.name)
+    #
+    #             return FileResponse(
+    #                 temp_file.name,
+    #                 background=BackgroundTask(cleanup),
+    #                 headers=resp.headers
+    #             ), resp.status
 
 
 def route(
@@ -146,6 +148,7 @@ def route(
             request_headers = dict(request.headers)
             request_headers.pop("content-length", None)  # Let aiohttp configure content-length
             request_headers.pop("content-type", None)  # Let aiohttp configure content-type
+            request_headers.pop("host", None)
 
             # Prepare body and form data
             request_body = await unzip_body_object(
