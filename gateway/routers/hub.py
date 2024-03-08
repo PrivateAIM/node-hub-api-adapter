@@ -1,7 +1,13 @@
 """EPs for Hub provided information."""
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Security
+from starlette import status
+from starlette.requests import Request
+from starlette.responses import Response
 
+from gateway.auth import hub_oauth2_scheme
+from gateway.conf import gateway_settings
+from gateway.core import route
 from gateway.models import ImageDataResponse, ContainerResponse
 
 hub_router = APIRouter(
@@ -76,3 +82,20 @@ async def get_vault_status():
         }
     }
     return dummy_data
+
+
+@route(
+    request_method=hub_router.get,
+    path="/projects",
+    status_code=status.HTTP_200_OK,
+    service_url=gateway_settings.HUB_SERVICE_URL,
+    response_model=None,
+    dependencies=[
+        Security(hub_oauth2_scheme)  # TODO: move to router definition
+    ]
+)
+async def hub_projects(
+        request: Request,
+        response: Response,
+):
+    pass

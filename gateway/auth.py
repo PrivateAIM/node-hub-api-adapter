@@ -2,18 +2,18 @@
 from urllib.parse import urljoin
 
 import requests
-from fastapi import Security, HTTPException, Depends
-from fastapi.security import OAuth2AuthorizationCodeBearer
+from fastapi import Security, HTTPException
+from fastapi.security import OAuth2AuthorizationCodeBearer, OAuth2PasswordBearer
 from jose import jwt, JOSEError
 from starlette import status
 
 from gateway.conf import gateway_settings
-from gateway.models import AuthConfiguration, User
+from gateway.models import AuthConfiguration
 
 IDP_ISSUER_URL = urljoin(gateway_settings.IDP_URL, "/".join(["realms", gateway_settings.IDP_REALM]))
 
 # IDP i.e. Keycloak
-idp_settings = AuthConfiguration(
+realm_idp_settings = AuthConfiguration(
     server_url=gateway_settings.IDP_URL,
     # Take last part of issuer URL for realm
     realm=gateway_settings.IDP_REALM,
@@ -24,9 +24,14 @@ idp_settings = AuthConfiguration(
     issuer_url=IDP_ISSUER_URL,
 )
 
-oauth2_scheme = OAuth2AuthorizationCodeBearer(
-    authorizationUrl=idp_settings.authorization_url,
-    tokenUrl=idp_settings.token_url,
+realm_oauth2_scheme = OAuth2AuthorizationCodeBearer(
+    authorizationUrl=realm_idp_settings.authorization_url,
+    tokenUrl=realm_idp_settings.token_url,
+)
+
+hub_oauth2_scheme = OAuth2PasswordBearer(
+    # authorizationUrl=gateway_settings.HUB_AUTH_SERVICE_URL + "/authorize",
+    tokenUrl=gateway_settings.HUB_AUTH_SERVICE_URL + "/token",
 )
 
 
@@ -35,12 +40,12 @@ async def get_idp_public_key() -> str:
     """Get the public key."""
     return (
         "-----BEGIN PUBLIC KEY-----\n"
-        f"{requests.get(idp_settings.issuer_url).json().get('public_key')}"
+        f"{requests.get(realm_idp_settings.issuer_url).json().get('public_key')}"
         "\n-----END PUBLIC KEY-----"
     )
 
 
-async def get_token(token: str = Security(oauth2_scheme)) -> dict:
+async def verify_realm_idp_token(token: str = Security(realm_oauth2_scheme)) -> dict:
     """Decode the auth token using keycloak's public key."""
     try:
         return jwt.decode(
@@ -56,23 +61,27 @@ async def get_token(token: str = Security(oauth2_scheme)) -> dict:
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-
-async def get_user_info(payload: dict = Depends(get_token)) -> User:
-    """Return User info from the IDP. Mostly for debugging."""
-    try:
-        return User(
-            id=payload.get("sub"),
-            username=payload.get("preferred_username"),
-            email=payload.get("email"),
-            first_name=payload.get("given_name"),
-            last_name=payload.get("family_name"),
-            realm_roles=payload.get("realm_access", {}).get("roles", []),
-            client_roles=payload.get("realm_access", {}).get("roles", []),
-        )
-
-    except JOSEError as e:
+    except jwt.ExpiredSignatureError:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),  # Invalid authentication credentials
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+            status_code=401,
+            detail='Authorization token expired')
+
+    except jwt.JWTClaimsError:
+        raise HTTPException(
+            status_code=401,
+            detail='Incorrect claims, check the audience and issuer.')
+
+    except Exception:
+        raise HTTPException(
+            status_code=401,
+            detail='Unable to parse authentication token')
+
+
+async def get_hub_token():
+    """Get a JWT from the Hub."""
+    resp = requests.post(
+        gateway_settings.HUB_AUTH_SERVICE_URL + "/token",
+        data={"username": "admin", "password": "start123"}
+    )
+    token_data = resp.json()
+    return token_data

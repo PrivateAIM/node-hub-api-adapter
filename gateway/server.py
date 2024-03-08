@@ -1,10 +1,10 @@
 """Methods for verifying auth."""
+
 import uvicorn
 from fastapi import FastAPI
 from starlette import status
 from starlette.middleware.cors import CORSMiddleware
 
-from gateway.auth import idp_settings
 from gateway.models import HealthCheck
 from gateway.routers.hub import hub_router
 from gateway.routers.k8s import k8s_router
@@ -23,12 +23,12 @@ app = FastAPI(
     openapi_tags=tags_metadata,
     title="FLAME API",
     description="Test API for FLAME project",
-    swagger_ui_init_oauth={
-        "usePkceWithAuthorizationCodeGrant": True,
-        # Auth fill client ID for the docs with the below value
-        "clientId": idp_settings.client_id,  # default client-id is Keycloak
-        "clientSecret": idp_settings.client_secret,
-    },
+    # swagger_ui_init_oauth={
+    #     "usePkceWithAuthorizationCodeGrant": True,
+    #     # Auth fill client ID for the docs with the below value
+    #     "clientId": realm_idp_settings.client_id,  # default client-id is Keycloak
+    #     "clientSecret": realm_idp_settings.client_secret,
+    # },
 )
 
 app.add_middleware(
