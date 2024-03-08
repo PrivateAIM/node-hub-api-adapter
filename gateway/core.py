@@ -48,26 +48,26 @@ async def make_request(
         return resp_data, r.status_code
 
     # with async_timeout.timeout(gateway_settings.GATEWAY_TIMEOUT):
-    # async with ClientSession(headers=headers) as session:
-    #     async with session.request(url=url, method=method, data=data) as resp:
+    #     async with ClientSession(headers=headers) as session:
+    #         async with session.request(url=url, method=method, data=data) as resp:
     #
-    #         if hdrs.CONTENT_TYPE not in resp.headers or resp.headers[hdrs.CONTENT_TYPE] == 'application/json':
-    #             resp_data = await resp.json()
-    #             return resp_data, resp.status
+    #             if hdrs.CONTENT_TYPE not in resp.headers or resp.headers[hdrs.CONTENT_TYPE] == 'application/json':
+    #                 resp_data = await resp.json()
+    #                 return resp_data, resp.status
     #
-    #         elif resp.headers[hdrs.CONTENT_TYPE] == 'application/octet-stream':
-    #             with tempfile.NamedTemporaryFile(mode="w+b", delete=False) as temp_file:
-    #                 async for chunk, _ in resp.content.iter_chunks():  # iterates over chunks received from microsvc
-    #                     temp_file.write(chunk)
+    #             elif resp.headers[hdrs.CONTENT_TYPE] == 'application/octet-stream':
+    #                 with tempfile.NamedTemporaryFile(mode="w+b", delete=False) as temp_file:
+    #                     async for chunk, _ in resp.content.iter_chunks():  # iterates over chunks received from microsvc
+    #                         temp_file.write(chunk)
     #
-    #             def cleanup():
-    #                 os.remove(temp_file.name)
+    #                 def cleanup():
+    #                     os.remove(temp_file.name)
     #
-    #             return FileResponse(
-    #                 temp_file.name,
-    #                 background=BackgroundTask(cleanup),
-    #                 headers=resp.headers
-    #             ), resp.status
+    #                 return FileResponse(
+    #                     temp_file.name,
+    #                     background=BackgroundTask(cleanup),
+    #                     headers=resp.headers
+    #                 ), resp.status
 
 
 def route(
