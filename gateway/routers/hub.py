@@ -1,4 +1,5 @@
 """EPs for Hub provided information."""
+import uuid
 
 from fastapi import APIRouter, Security
 from starlette import status
@@ -8,7 +9,7 @@ from starlette.responses import Response
 from gateway.auth import hub_oauth2_scheme
 from gateway.conf import gateway_settings
 from gateway.core import route
-from gateway.models import ImageDataResponse, ContainerResponse
+from gateway.models import ImageDataResponse, ContainerResponse, ProjectResponse, AllProjects
 
 hub_router = APIRouter(
     # dependencies=[Security(oauth2_scheme)],
@@ -89,13 +90,33 @@ async def get_vault_status():
     path="/projects",
     status_code=status.HTTP_200_OK,
     service_url=gateway_settings.HUB_SERVICE_URL,
-    response_model=None,
+    response_model=AllProjects,
     dependencies=[
         Security(hub_oauth2_scheme)  # TODO: move to router definition
     ]
 )
-async def hub_projects(
+async def list_all_projects(
         request: Request,
         response: Response,
 ):
+    """List all projects."""
+    pass
+
+
+@route(
+    request_method=hub_router.get,
+    path="/projects/{project_id}",
+    status_code=status.HTTP_200_OK,
+    service_url=gateway_settings.HUB_SERVICE_URL,
+    response_model=ProjectResponse,
+    dependencies=[
+        Security(hub_oauth2_scheme)  # TODO: move to router definition
+    ]
+)
+async def list_specific_project(
+        project_id: uuid.UUID,
+        request: Request,
+        response: Response,
+):
+    """List project for a given UUID."""
     pass

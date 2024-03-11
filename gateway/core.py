@@ -2,23 +2,24 @@ import functools
 from typing import Sequence
 
 import httpx
-from aiohttp import JsonPayload, hdrs
-from aiohttp.client_exceptions import ClientConnectorError, ContentTypeError
 from fastapi import HTTPException, params, status
 from fastapi.datastructures import Headers
 from fastapi.requests import Request
 from fastapi.responses import StreamingResponse, JSONResponse
+from httpx import ConnectError, DecodingError
 from starlette.responses import Response
 
-from gateway.models import GatewayFormData
-from gateway.utils import unzip_form_params, unzip_body_object, create_request_data
+from gateway.constants import CONTENT_TYPE
+# from gateway.models import GatewayFormData
+from gateway.utils import unzip_form_params, unzip_body_object, create_request_data, unzip_query_params
 
 
 async def make_request(
         url: str,
         method: str,
         headers: Headers | dict,
-        data: JsonPayload | dict | GatewayFormData | None = None,
+        query: dict | None = None,
+        data: dict | None = None,
 ) -> tuple[[JSONResponse | StreamingResponse], int]:
     """Make an asynchronous request by creating a temporary session.
 
@@ -28,9 +29,11 @@ async def make_request(
         The URL of the forwarded microservice
     method : str
         HTTP method e.g. GET, POST, PUT, DELETE
-    headers : Union[Headers, dict]
+    headers : Headers | dict
         A dictionary-like object defining the request headers
-    data : Union[JsonPayload, dict]
+    query : dict | None
+        Serialized query parameters to be added to the request.
+    data : JsonPayload | dict | GatewayFormData | None
         A dictionary-like object defining the payload
 
     Returns
@@ -42,8 +45,11 @@ async def make_request(
     if not data:  # Always package data else error
         data = {}
 
+    if not query:
+        query = {}
+
     async with httpx.AsyncClient(headers=headers) as client:
-        r = await client.request(url=url, method=method, data=data)
+        r = await client.request(url=url, method=method, params=query, data=data)
         resp_data = r.json()
         return resp_data, r.status_code
 
@@ -75,14 +81,14 @@ def route(
         path: str,
         service_url: str,
         status_code: int | None = None,
+        query_params: list[str] | None = None,
         form_params: list[str] | None = None,
         body_params: list[str] | None = None,
-        response_model: str = None,
+        response_model: any = None,  # TODO: Make specific for pydantic models
         tags: list[str] = None,
         dependencies: Sequence[params.Depends] | None = None,
         summary: str | None = None,
         description: str | None = None,
-        response_stream: bool = False,
         # params from fastapi http methods can be added here later and then added to `request_method()`
 ):
     """A decorator for the FastAPI router, its purpose is to make FastAPI
@@ -98,6 +104,8 @@ def route(
         HTTP status code.
     service_url : str
         Root endpoint of the microservice for the forwarded request.
+    query_params : list[str] | None
+        Keys passed referencing query model parameters to be sent to downstream microservice
     form_params : list[str] | None
         Keys passed referencing form model parameters to be sent to downstream microservice
     body_params : list[str] | None
@@ -112,8 +120,6 @@ def route(
         Summary of the method (usually short).
     description: str | None
         Longer explanation of the method.
-    response_stream: bool
-        Whether the expected response from the microservice is a StreamingResponse
 
 
     Returns
@@ -141,7 +147,7 @@ def route(
 
             downstream_path = scope['path']
 
-            content_type = str(request.headers.get(hdrs.CONTENT_TYPE))
+            content_type = str(request.headers.get(CONTENT_TYPE))
             www_request_form = await request.form() if 'x-www-form-urlencoded' in content_type else None
 
             # Prune headers
@@ -149,6 +155,11 @@ def route(
             request_headers.pop("content-length", None)  # Let aiohttp configure content-length
             request_headers.pop("content-type", None)  # Let aiohttp configure content-type
             request_headers.pop("host", None)
+
+            # Prepare query params
+            request_query = await unzip_query_params(
+                necessary_params=query_params, all_params=kwargs
+            )
 
             # Prepare body and form data
             request_body = await unzip_body_object(
@@ -170,18 +181,19 @@ def route(
                 resp_data, status_code_from_service = await make_request(
                     url=microsvc_path,
                     method=method,
+                    query=request_query,
                     data=request_data,
                     headers=request_headers,
                 )
 
-            except ClientConnectorError:
+            except ConnectError:
                 raise HTTPException(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                     detail="Service is unavailable",
                     headers={"WWW-Authenticate": "Bearer"},
                 )
 
-            except ContentTypeError:
+            except DecodingError:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Service error",
