@@ -49,6 +49,9 @@ async def make_request(
         query = {}
 
     async with httpx.AsyncClient(headers=headers) as client:
+        print(url)
+        print(query)
+        print(data)
         r = await client.request(url=url, method=method, params=query, data=data)
         resp_data = r.json()
         return resp_data, r.status_code

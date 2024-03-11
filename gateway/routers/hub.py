@@ -1,7 +1,8 @@
 """EPs for Hub provided information."""
 import uuid
+from typing import Annotated
 
-from fastapi import APIRouter, Security
+from fastapi import APIRouter, Security, Query, Body, Path
 from starlette import status
 from starlette.requests import Request
 from starlette.responses import Response
@@ -9,10 +10,11 @@ from starlette.responses import Response
 from gateway.auth import hub_oauth2_scheme
 from gateway.conf import gateway_settings
 from gateway.core import route
-from gateway.models import ImageDataResponse, ContainerResponse, ProjectResponse, AllProjects
+from gateway.models import ImageDataResponse, ContainerResponse, ProjectResponse, AllProjects, \
+    ApprovalStatus, AnalysisOrProjectNodeResponse, ListAnalysisNodeResponse, ListAnalysisOrProjectNodeResponse
 
 hub_router = APIRouter(
-    # dependencies=[Security(oauth2_scheme)],
+    dependencies=[Security(hub_oauth2_scheme)],
     tags=["Hub"],
     responses={404: {"description": "Not found"}},
 )
@@ -91,13 +93,21 @@ async def get_vault_status():
     status_code=status.HTTP_200_OK,
     service_url=gateway_settings.HUB_SERVICE_URL,
     response_model=AllProjects,
-    dependencies=[
-        Security(hub_oauth2_scheme)  # TODO: move to router definition
-    ]
+    query_params=["filter_id", "filter_realm_id", "filter_user_id", "include"],
 )
 async def list_all_projects(
         request: Request,
         response: Response,
+        include: Annotated[
+            str | None,
+            Query(
+                description="Whether to include additional data. Can only be 'master_image' or null",
+                pattern="^master_image$",  # Must be "master_image",
+            ),
+        ] = None,
+        filter_id: Annotated[uuid.UUID, Query(description="Filter by object UUID.")] = None,
+        filter_realm_id: Annotated[uuid.UUID, Query(description="Filter by realm UUID.")] = None,
+        filter_user_id: Annotated[uuid.UUID, Query(description="Filter by user UUID.")] = None,
 ):
     """List all projects."""
     pass
@@ -109,14 +119,158 @@ async def list_all_projects(
     status_code=status.HTTP_200_OK,
     service_url=gateway_settings.HUB_SERVICE_URL,
     response_model=ProjectResponse,
-    dependencies=[
-        Security(hub_oauth2_scheme)  # TODO: move to router definition
-    ]
 )
 async def list_specific_project(
-        project_id: uuid.UUID,
+        project_id: Annotated[uuid.UUID, Path(description="Project UUID.")],
         request: Request,
         response: Response,
 ):
     """List project for a given UUID."""
+    pass
+
+
+@route(
+    request_method=hub_router.get,
+    path="/project-nodes",
+    status_code=status.HTTP_200_OK,
+    service_url=gateway_settings.HUB_SERVICE_URL,
+    response_model=ListAnalysisOrProjectNodeResponse,
+    query_params=["filter_id", "filter_approval_status", "filter_project_id", "filter_project_realm_id",
+                  "filter_node_id", "filter_node_realm_id"],
+)
+async def list_project_node(
+        request: Request,
+        response: Response,
+        filter_id: Annotated[
+            uuid.UUID | None,
+            Query(
+                description="Filter by ID of returned object.",
+            ),
+        ] = None,
+        filter_approval_status: Annotated[
+            uuid.UUID | None,
+            Query(
+                description="Filter by approval status of project.",
+            ),
+        ] = None,
+        filter_project_id: Annotated[
+            uuid.UUID | None,
+            Query(
+                description="Filter by project UUID.",
+            ),
+        ] = None,
+        filter_project_realm_id: Annotated[
+            uuid.UUID | None,
+            Query(
+                description="Filter by project realm UUID.",
+            ),
+        ] = None,
+        filter_node_id: Annotated[
+            uuid.UUID | None,
+            Query(
+                description="Filter by node UUID.",
+            ),
+        ] = None,
+        filter_node_realm_id: Annotated[
+            uuid.UUID | None,
+            Query(
+                description="Filter by node realm UUID.",
+            ),
+        ] = None,
+):
+    """List project for a node."""
+    pass
+
+
+@route(
+    request_method=hub_router.post,
+    path="/project-nodes",
+    status_code=status.HTTP_200_OK,
+    service_url=gateway_settings.HUB_SERVICE_URL,
+    response_model=AnalysisOrProjectNodeResponse,
+    body_params=["project_id", "node_id"],
+    query_params=["approval_status"],
+)
+async def create_project_node(
+        request: Request,
+        response: Response,
+        project_id: Annotated[uuid.UUID, Body(description="Project ID as UUID")],
+        node_id: Annotated[uuid.UUID, Body(description="Node ID as UUID")],
+        approval_status: Annotated[ApprovalStatus, Query(
+            description="Set the approval status of project for the node. Either 'rejected' or 'approved'"
+        )],
+):
+    """Create a project at a specific node and set the approval status."""
+    pass
+
+
+@route(
+    request_method=hub_router.get,
+    path="/analysis-nodes",
+    status_code=status.HTTP_200_OK,
+    service_url=gateway_settings.HUB_SERVICE_URL,
+    response_model=ListAnalysisNodeResponse,
+    query_params=["filter_id", "filter_approval_status", "filter_project_id", "filter_project_realm_id",
+                  "filter_node_id", "filter_node_realm_id", "include"],
+)
+async def list_analyses_of_node(
+        request: Request,
+        response: Response,
+        include: Annotated[
+            str | None,
+            Query(
+                description="Whether to include additional data for the given parameter",
+                pattern="^node$",  # Must be "node",
+            ),
+        ] = None,
+        filter_id: Annotated[
+            uuid.UUID | None,
+            Query(
+                description="Filter by ID of returned object.",
+            ),
+        ] = None,
+        filter_approval_status: Annotated[
+            uuid.UUID | None,
+            Query(
+                description="Filter by approval status of project.",
+            ),
+        ] = None,
+        filter_project_id: Annotated[
+            uuid.UUID | None,
+            Query(
+                description="Filter by project UUID.",
+            ),
+        ] = None,
+        filter_project_realm_id: Annotated[
+            uuid.UUID | None,
+            Query(
+                description="Filter by project realm UUID.",
+            ),
+        ] = None,
+        filter_node_id: Annotated[
+            uuid.UUID | None,
+            Query(
+                description="Filter by node UUID.",
+            ),
+        ] = None,
+        filter_node_realm_id: Annotated[
+            uuid.UUID | None,
+            Query(
+                description="Filter by node realm UUID.",
+            ),
+        ] = None,
+        filter_analysis_id: Annotated[
+            uuid.UUID | None,
+            Query(
+                description="Filter by analysis UUID.",
+            ),
+        ] = None,
+        filter_analysis_realm_id: Annotated[
+            uuid.UUID | None,
+            Query(
+                description="Filter by analysis realm UUID.",
+            ),
+        ] = None,
+):
+    """List analyses for a node."""
     pass

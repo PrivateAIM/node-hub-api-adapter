@@ -1,6 +1,7 @@
 """Models for API."""
 import datetime
 import uuid
+from enum import Enum
 from typing import Optional
 from uuid import UUID
 
@@ -169,18 +170,89 @@ class ImageDataResponse(BaseModel):
 
 
 # Hub Models
-class ProjectResponse(BaseModel):
-    """Single project response model."""
+## String Models
+class IncludeNode(BaseModel):
+    """Include node."""
+    include: str = "node"
+
+
+class ApprovalStatus(Enum):
+    """Status of project possibilities."""
+    approved: str = "approved"
+    rejected: str = "rejected"
+
+
+## Response Models
+class BaseHubResponse(BaseModel):
+    """Common attributes of Hub responses."""
     id: uuid.UUID
-    name: str
-    analyses: int
     created_at: datetime.datetime
     updated_at: datetime.datetime
+
+
+class MasterImage(BaseHubResponse):
+    """Master image details."""
+    path: str
+    virtual_path: str
+    group_virtual_path: str
+    name: str
+    command: str | None = None
+    command_arguments: str | None = None
+
+
+class ProjectResponse(BaseHubResponse):
+    """Single project response model."""
+    name: str
+    analyses: int
     realm_id: uuid.UUID
     user_id: uuid.UUID
     master_image_id: uuid.UUID | None = None
+    master_image: MasterImage | None = None
 
 
 class AllProjects(BaseModel):
     """List of all projects."""
     data: list[ProjectResponse]
+
+
+class NodeDetails(BaseHubResponse):
+    """Node details."""
+    external_name: str | None = None
+    name: str
+    hidden: bool
+    type: str
+    online: bool
+    registry_id: uuid.UUID | None = None
+    registry_project_id: uuid.UUID | None = None
+    robot_id: uuid.UUID
+    realm_id: uuid.UUID
+
+
+class AnalysisOrProjectNodeResponse(BaseHubResponse):
+    """Single project or analysis by node."""
+
+    approval_status: ApprovalStatus
+    comment: str | None = None
+    project_id: uuid.UUID | None = None
+    project_realm_id: uuid.UUID | None = None
+    node_id: uuid.UUID | None = None
+    node_realm_id: uuid.UUID | None = None
+
+
+class ListAnalysisOrProjectNodeResponse(BaseModel):
+    data: list[AnalysisOrProjectNodeResponse]
+
+
+class AnalysisNodeResponse(AnalysisOrProjectNodeResponse):
+    """Node analysis response model."""
+    run_status: str | None = None
+    index: int
+    artifact_tag: str | None = None
+    artifact_digest: str | None = None
+    analysis_id: uuid.UUID
+    analysis_realm_id: uuid.UUID
+    node: NodeDetails | None = None
+
+
+class ListAnalysisNodeResponse(BaseModel):
+    data: list[AnalysisNodeResponse]

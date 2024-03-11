@@ -39,6 +39,14 @@ async def unzip_query_params(
 
         for key in necessary_params:
             value = all_params.get(key)
+
+            if not value:  # if value is None, then skip
+                continue
+
+            if key.startswith("filter_"):  # convert filter_some_param -> filter[some_param] for hub
+                filter_kw, filter_param = key.split("_", 1)
+                key = f"{filter_kw}[{filter_param}]"
+
             serialized_dict = await serialize_query_content(key=key, value=value)
             response_query_params.update(serialized_dict)
 
@@ -58,7 +66,8 @@ async def unzip_body_object(
         for key in specified_params:
             value = additional_params.get(key)
             _body_dict = await serialize_response(response_content=value)
-            response_body_dict.update(_body_dict)
+            # response_body_dict.update(_body_dict)
+            response_body_dict[key] = _body_dict
 
         return response_body_dict
 
