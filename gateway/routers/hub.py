@@ -2,7 +2,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Security, Query, Body, Path
+from fastapi import APIRouter, Security, Query, Path
 from starlette import status
 from starlette.requests import Request
 from starlette.responses import Response
@@ -11,7 +11,7 @@ from gateway.auth import hub_oauth2_scheme
 from gateway.conf import gateway_settings
 from gateway.core import route
 from gateway.models import ImageDataResponse, ContainerResponse, Project, AllProjects, \
-    ApprovalStatus, AnalysisOrProjectNode, ListAnalysisNodes, ListAnalysisOrProjectNodes
+    ApprovalStatus, AnalysisOrProjectNode, ListAnalysisNodes, ListAnalysisOrProjectNodes, AnalysisNode
 
 hub_router = APIRouter(
     dependencies=[Security(hub_oauth2_scheme)],
@@ -138,7 +138,7 @@ async def list_specific_project(
     query_params=["filter_id", "filter_approval_status", "filter_project_id", "filter_project_realm_id",
                   "filter_node_id", "filter_node_realm_id"],
 )
-async def list_project_node(
+async def list_projects_and_nodes(
         request: Request,
         response: Response,
         filter_id: Annotated[
@@ -184,23 +184,21 @@ async def list_project_node(
 
 @route(
     request_method=hub_router.post,
-    path="/project-nodes",
+    path="/project-nodes/{project_id}",
     status_code=status.HTTP_200_OK,
     service_url=gateway_settings.HUB_SERVICE_URL,
     response_model=AnalysisOrProjectNode,
-    body_params=["project_id", "node_id"],
-    query_params=["approval_status"],
+    body_params=["approval_status"],
 )
-async def create_project_node(
+async def accept_reject_project_node(
         request: Request,
         response: Response,
-        project_id: Annotated[uuid.UUID, Body(description="Project ID as UUID")],
-        node_id: Annotated[uuid.UUID, Body(description="Node ID as UUID")],
+        project_id: Annotated[uuid.UUID, Path(description="Project object UUID (not project ID).")],
         approval_status: Annotated[ApprovalStatus, Query(
             description="Set the approval status of project for the node. Either 'rejected' or 'approved'"
         )],
 ):
-    """Create a project at a specific node and set the approval status."""
+    """Set the approval status of a project."""
     pass
 
 
@@ -213,7 +211,7 @@ async def create_project_node(
     query_params=["filter_id", "filter_approval_status", "filter_project_id", "filter_project_realm_id",
                   "filter_node_id", "filter_node_realm_id", "include"],
 )
-async def list_analyses_of_node(
+async def list_analyses_of_nodes(
         request: Request,
         response: Response,
         include: Annotated[
@@ -273,4 +271,40 @@ async def list_analyses_of_node(
         ] = None,
 ):
     """List analyses for a node."""
+    pass
+
+
+@route(
+    request_method=hub_router.get,
+    path="/analysis-nodes/{analysis_id}",
+    status_code=status.HTTP_200_OK,
+    service_url=gateway_settings.HUB_SERVICE_URL,
+    response_model=AnalysisNode,
+)
+async def list_specific_analysis(
+        analysis_id: Annotated[uuid.UUID, Path(description="Analysis UUID.")],
+        request: Request,
+        response: Response,
+):
+    """List project for a given UUID."""
+    pass
+
+
+@route(
+    request_method=hub_router.post,
+    path="/analysis-nodes/{analysis_id}",
+    status_code=status.HTTP_200_OK,
+    service_url=gateway_settings.HUB_SERVICE_URL,
+    response_model=AnalysisNode,
+    body_params=["approval_status"],
+)
+async def accept_reject_analysis_node(
+        request: Request,
+        response: Response,
+        analysis_id: Annotated[uuid.UUID, Path(description="Analysis object UUID (not analysis_id).")],
+        approval_status: Annotated[ApprovalStatus, Query(
+            description="Set the approval status of project for the node. Either 'rejected' or 'approved'"
+        )],
+):
+    """Set the approval status of a analysis."""
     pass

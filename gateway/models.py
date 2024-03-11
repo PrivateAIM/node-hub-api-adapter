@@ -171,26 +171,52 @@ class ImageDataResponse(BaseModel):
 
 # Hub Models
 ## String Models
-class IncludeNode(BaseModel):
-    """Include node."""
-    include: str = "node"
-
-
 class ApprovalStatus(Enum):
     """Status of project possibilities."""
     approved: str = "approved"
     rejected: str = "rejected"
 
 
-class AnalysisNodeRunStatus(Enum):
-    """Possible values for analysis run status."""
+class AnalysisBuildStatus(Enum):
+    """Possible values for analysis build status."""
     starting: str = "starting"
     started: str = "started"
-    running: str = "running"
     stopping: str = "stopping"
     stopped: str = "stopped"
     finished: str = "finished"
     failed: str = "failed"
+
+
+class AnalysisRunStatus(Enum):
+    """Possible values for analysis run status."""
+    running: str = "running"
+    starting: str = "starting"
+    started: str = "started"
+    stopping: str = "stopping"
+    stopped: str = "stopped"
+    finished: str = "finished"
+    failed: str = "failed"
+
+
+class AnalysisResultStatus(Enum):
+    """Possible values for analysis build status."""
+    started: str = "started"
+    downloading: str = "downloading"
+    downloaded: str = "downloaded"
+    extracting: str = "extracting"
+    extracted: str = "extracted"
+    finished: str = "finished"
+    failed: str = "failed"
+
+
+class ConfigurationStatus(Enum):
+    """"Possible values for configuration status."""
+    base: str = "base"
+    security_configured: str = "security_configured"
+    resource_configured: str = "resource_configured"
+    hash_generated: str = "hash_generated"
+    hash_signed: str = "hash_signed"
+    finished: str = "finished"
 
 
 ## Response Models
@@ -199,6 +225,14 @@ class BaseHubResponse(BaseModel):
     id: uuid.UUID
     created_at: datetime.datetime
     updated_at: datetime.datetime
+
+
+class Registry(BaseHubResponse):
+    """Details the registry information."""
+    name: str | None = None
+    host: str | None = None
+    account_name: str | None = None
+    account_secret: str | None = None
 
 
 class MasterImage(BaseHubResponse):
@@ -254,15 +288,38 @@ class ListAnalysisOrProjectNodes(BaseModel):
     data: list[AnalysisOrProjectNode]
 
 
+class Analysis(BaseHubResponse):
+    """Model representing a single analysis."""
+    name: str | None = None
+    nodes: int
+    configuration_status: ConfigurationStatus
+    build_status: AnalysisBuildStatus
+    run_status: AnalysisRunStatus
+    result_status: AnalysisResultStatus
+    registry: Registry | None = None
+    registry_id: uuid.UUID | None = None
+    realm_id: uuid.UUID
+    user_id: uuid.UUID
+    project_id: uuid.UUID
+    project: Project | None = None
+    master_image_id: uuid.UUID
+    master_image: MasterImage | None = None
+
+
 class AnalysisNode(AnalysisOrProjectNode):
     """Node analysis response model."""
-    run_status: AnalysisNodeRunStatus
+    run_status: AnalysisRunStatus | None = None
     index: int
     artifact_tag: str | None = None
     artifact_digest: str | None = None
     analysis_id: uuid.UUID
     analysis_realm_id: uuid.UUID
+    analysis: Analysis | None = None
     node: Node | None = None
+
+
+class PartialAnalysisNode(AnalysisNode):
+    """Node analysis"""
 
 
 class ListAnalysisNodes(BaseModel):
