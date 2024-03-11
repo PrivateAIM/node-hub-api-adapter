@@ -12,7 +12,6 @@ from pydantic import BaseModel
 # Method models
 class HealthCheck(BaseModel):
     """Response model to validate and return when performing a health check."""
-
     status: str = "OK"
 
 

@@ -23,8 +23,7 @@ hub_router = APIRouter(
 @hub_router.get("/hub/images", response_model=ImageDataResponse)
 async def get_images():
     """Return list of images for the frontend."""
-    # TODO: replace with data from https://api.privateaim.net/projects
-    # TODO: add project specific call / filter?
+    # TODO: replace with data from https://api.privateaim.net/master-images
 
     dummy_data = {
         "pullImages": [
@@ -135,7 +134,7 @@ async def list_specific_project(
     status_code=status.HTTP_200_OK,
     service_url=gateway_settings.HUB_SERVICE_URL,
     response_model=ListAnalysisOrProjectNodes,
-    query_params=["filter_id", "filter_approval_status", "filter_project_id", "filter_project_realm_id",
+    query_params=["filter_id", "filter_project_id", "filter_project_realm_id",
                   "filter_node_id", "filter_node_realm_id"],
 )
 async def list_projects_and_nodes(
@@ -145,12 +144,6 @@ async def list_projects_and_nodes(
             uuid.UUID | None,
             Query(
                 description="Filter by ID of returned object.",
-            ),
-        ] = None,
-        filter_approval_status: Annotated[
-            uuid.UUID | None,
-            Query(
-                description="Filter by approval status of project.",
             ),
         ] = None,
         filter_project_id: Annotated[
@@ -208,7 +201,7 @@ async def accept_reject_project_node(
     status_code=status.HTTP_200_OK,
     service_url=gateway_settings.HUB_SERVICE_URL,
     response_model=ListAnalysisNodes,
-    query_params=["filter_id", "filter_approval_status", "filter_project_id", "filter_project_realm_id",
+    query_params=["filter_id", "filter_project_id", "filter_project_realm_id",
                   "filter_node_id", "filter_node_realm_id", "include"],
 )
 async def list_analyses_of_nodes(
@@ -217,7 +210,7 @@ async def list_analyses_of_nodes(
         include: Annotated[
             str | None,
             Query(
-                description="Whether to include additional data for the given parameter",
+                description="Whether to include additional data for the given parameter. Can only be 'node' or null",
                 pattern="^node$",  # Must be "node",
             ),
         ] = None,
@@ -225,12 +218,6 @@ async def list_analyses_of_nodes(
             uuid.UUID | None,
             Query(
                 description="Filter by ID of returned object.",
-            ),
-        ] = None,
-        filter_approval_status: Annotated[
-            uuid.UUID | None,
-            Query(
-                description="Filter by approval status of project.",
             ),
         ] = None,
         filter_project_id: Annotated[

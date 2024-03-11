@@ -152,8 +152,8 @@ def route(
 
             # Prune headers
             request_headers = dict(request.headers)
-            request_headers.pop("content-length", None)  # Let aiohttp configure content-length
-            request_headers.pop("content-type", None)  # Let aiohttp configure content-type
+            request_headers.pop("content-length", None)  # Let httpx configure content-length
+            request_headers.pop("content-type", None)  # Let httpx configure content-type
             request_headers.pop("host", None)
 
             # Prepare query params
