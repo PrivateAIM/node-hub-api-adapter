@@ -10,8 +10,8 @@ from starlette.responses import Response
 from gateway.auth import hub_oauth2_scheme
 from gateway.conf import gateway_settings
 from gateway.core import route
-from gateway.models import ImageDataResponse, ContainerResponse, ProjectResponse, AllProjects, \
-    ApprovalStatus, AnalysisOrProjectNodeResponse, ListAnalysisNodeResponse, ListAnalysisOrProjectNodeResponse
+from gateway.models import ImageDataResponse, ContainerResponse, Project, AllProjects, \
+    ApprovalStatus, AnalysisOrProjectNode, ListAnalysisNodes, ListAnalysisOrProjectNodes
 
 hub_router = APIRouter(
     dependencies=[Security(hub_oauth2_scheme)],
@@ -118,7 +118,7 @@ async def list_all_projects(
     path="/projects/{project_id}",
     status_code=status.HTTP_200_OK,
     service_url=gateway_settings.HUB_SERVICE_URL,
-    response_model=ProjectResponse,
+    response_model=Project,
 )
 async def list_specific_project(
         project_id: Annotated[uuid.UUID, Path(description="Project UUID.")],
@@ -134,7 +134,7 @@ async def list_specific_project(
     path="/project-nodes",
     status_code=status.HTTP_200_OK,
     service_url=gateway_settings.HUB_SERVICE_URL,
-    response_model=ListAnalysisOrProjectNodeResponse,
+    response_model=ListAnalysisOrProjectNodes,
     query_params=["filter_id", "filter_approval_status", "filter_project_id", "filter_project_realm_id",
                   "filter_node_id", "filter_node_realm_id"],
 )
@@ -187,7 +187,7 @@ async def list_project_node(
     path="/project-nodes",
     status_code=status.HTTP_200_OK,
     service_url=gateway_settings.HUB_SERVICE_URL,
-    response_model=AnalysisOrProjectNodeResponse,
+    response_model=AnalysisOrProjectNode,
     body_params=["project_id", "node_id"],
     query_params=["approval_status"],
 )
@@ -209,7 +209,7 @@ async def create_project_node(
     path="/analysis-nodes",
     status_code=status.HTTP_200_OK,
     service_url=gateway_settings.HUB_SERVICE_URL,
-    response_model=ListAnalysisNodeResponse,
+    response_model=ListAnalysisNodes,
     query_params=["filter_id", "filter_approval_status", "filter_project_id", "filter_project_realm_id",
                   "filter_node_id", "filter_node_realm_id", "include"],
 )

@@ -182,6 +182,17 @@ class ApprovalStatus(Enum):
     rejected: str = "rejected"
 
 
+class AnalysisNodeRunStatus(Enum):
+    """Possible values for analysis run status."""
+    starting: str = "starting"
+    started: str = "started"
+    running: str = "running"
+    stopping: str = "stopping"
+    stopped: str = "stopped"
+    finished: str = "finished"
+    failed: str = "failed"
+
+
 ## Response Models
 class BaseHubResponse(BaseModel):
     """Common attributes of Hub responses."""
@@ -200,7 +211,7 @@ class MasterImage(BaseHubResponse):
     command_arguments: str | None = None
 
 
-class ProjectResponse(BaseHubResponse):
+class Project(BaseHubResponse):
     """Single project response model."""
     name: str
     analyses: int
@@ -212,10 +223,10 @@ class ProjectResponse(BaseHubResponse):
 
 class AllProjects(BaseModel):
     """List of all projects."""
-    data: list[ProjectResponse]
+    data: list[Project]
 
 
-class NodeDetails(BaseHubResponse):
+class Node(BaseHubResponse):
     """Node details."""
     external_name: str | None = None
     name: str
@@ -228,7 +239,7 @@ class NodeDetails(BaseHubResponse):
     realm_id: uuid.UUID
 
 
-class AnalysisOrProjectNodeResponse(BaseHubResponse):
+class AnalysisOrProjectNode(BaseHubResponse):
     """Single project or analysis by node."""
 
     approval_status: ApprovalStatus
@@ -239,20 +250,20 @@ class AnalysisOrProjectNodeResponse(BaseHubResponse):
     node_realm_id: uuid.UUID | None = None
 
 
-class ListAnalysisOrProjectNodeResponse(BaseModel):
-    data: list[AnalysisOrProjectNodeResponse]
+class ListAnalysisOrProjectNodes(BaseModel):
+    data: list[AnalysisOrProjectNode]
 
 
-class AnalysisNodeResponse(AnalysisOrProjectNodeResponse):
+class AnalysisNode(AnalysisOrProjectNode):
     """Node analysis response model."""
-    run_status: str | None = None
+    run_status: AnalysisNodeRunStatus
     index: int
     artifact_tag: str | None = None
     artifact_digest: str | None = None
     analysis_id: uuid.UUID
     analysis_realm_id: uuid.UUID
-    node: NodeDetails | None = None
+    node: Node | None = None
 
 
-class ListAnalysisNodeResponse(BaseModel):
-    data: list[AnalysisNodeResponse]
+class ListAnalysisNodes(BaseModel):
+    data: list[AnalysisNode]
