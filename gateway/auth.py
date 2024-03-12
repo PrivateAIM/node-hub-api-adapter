@@ -30,7 +30,6 @@ realm_oauth2_scheme = OAuth2AuthorizationCodeBearer(
 )
 
 hub_oauth2_scheme = OAuth2PasswordBearer(
-    # authorizationUrl=gateway_settings.HUB_AUTH_SERVICE_URL + "/authorize",
     tokenUrl=gateway_settings.HUB_AUTH_SERVICE_URL + "/token",
 )
 
@@ -75,13 +74,3 @@ async def verify_realm_idp_token(token: str = Security(realm_oauth2_scheme)) -> 
         raise HTTPException(
             status_code=401,
             detail='Unable to parse authentication token')
-
-
-async def get_hub_token():
-    """Get a JWT from the Hub."""
-    resp = requests.post(
-        gateway_settings.HUB_AUTH_SERVICE_URL + "/token",
-        data={"username": "admin", "password": "start123"}
-    )
-    token_data = resp.json()
-    return token_data
