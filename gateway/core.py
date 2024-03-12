@@ -158,7 +158,8 @@ def route(
 
             # Prepare query params
             request_query = await unzip_query_params(
-                necessary_params=query_params, all_params=kwargs
+                necessary_params=query_params,
+                all_params=kwargs
             )
 
             # Prepare body and form data

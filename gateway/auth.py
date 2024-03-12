@@ -24,7 +24,7 @@ realm_idp_settings = AuthConfiguration(
     issuer_url=IDP_ISSUER_URL,
 )
 
-realm_oauth2_scheme = OAuth2AuthorizationCodeBearer(
+idp_oauth2_scheme = OAuth2AuthorizationCodeBearer(
     authorizationUrl=realm_idp_settings.authorization_url,
     tokenUrl=realm_idp_settings.token_url,
 )
@@ -44,7 +44,7 @@ async def get_idp_public_key() -> str:
     )
 
 
-async def verify_realm_idp_token(token: str = Security(realm_oauth2_scheme)) -> dict:
+async def verify_realm_idp_token(token: str = Security(idp_oauth2_scheme)) -> dict:
     """Decode the auth token using keycloak's public key."""
     try:
         return jwt.decode(
