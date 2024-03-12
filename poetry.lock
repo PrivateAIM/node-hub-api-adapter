@@ -379,6 +379,27 @@ files = [
 ]
 
 [[package]]
+name = "kong-admin-client"
+version = "3.5.0"
+description = "Kong Admin API"
+optional = false
+python-versions = "^3.7"
+files = []
+develop = false
+
+[package.dependencies]
+pydantic = ">=2"
+python-dateutil = ">=2.8.2"
+typing-extensions = ">=4.7.1"
+urllib3 = ">= 1.25.3"
+
+[package.source]
+type = "git"
+url = "https://github.com/PrivateAIM/kong-admin-python-client.git"
+reference = "HEAD"
+resolved_reference = "65477d03b60b6afc741fa09a3394e3f4602ac99d"
+
+[[package]]
 name = "kubernetes"
 version = "29.0.0"
 description = "Kubernetes python client"
@@ -976,4 +997,4 @@ test = ["websockets"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "4dda93f096667c862761063086803f03e216cfe72df2912e4f3f15e0cfaa7433"
+content-hash = "d7dd0aeaa32f6080cf49148f1b69e732a5616cb9942f826cfa7cf6fe5c2c560a"
