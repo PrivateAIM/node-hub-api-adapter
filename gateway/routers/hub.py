@@ -10,8 +10,9 @@ from starlette.responses import Response
 from gateway.auth import hub_oauth2_scheme
 from gateway.conf import gateway_settings
 from gateway.core import route
-from gateway.models import ImageDataResponse, ContainerResponse, Project, AllProjects, \
-    ApprovalStatus, AnalysisOrProjectNode, ListAnalysisNodes, ListAnalysisOrProjectNodes, AnalysisNode
+from gateway.models.hub import Project, AllProjects, ApprovalStatus, AnalysisOrProjectNode, ListAnalysisNodes, \
+    ListAnalysisOrProjectNodes, AnalysisNode
+from gateway.models.k8s import ImageDataResponse, ContainerResponse
 
 hub_router = APIRouter(
     dependencies=[Security(hub_oauth2_scheme)],

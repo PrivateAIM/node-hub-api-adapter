@@ -6,10 +6,7 @@ from starlette import status
 from starlette.middleware.cors import CORSMiddleware
 
 from gateway.models import HealthCheck
-from gateway.routers.hub import hub_router
-from gateway.routers.k8s import k8s_router
-from gateway.routers.metadata import metadata_router
-from gateway.routers.results import results_router
+from gateway.routers.kong import kong_router
 
 # API metadata
 tags_metadata = [
@@ -62,20 +59,24 @@ def get_health() -> HealthCheck:
     return HealthCheck(status="OK")
 
 
-app.include_router(
-    k8s_router,
-)
+# app.include_router(
+#     k8s_router,
+# )
+#
+# app.include_router(
+#     results_router,
+# )
+#
+# app.include_router(
+#     metadata_router,
+# )
+#
+# app.include_router(
+#     hub_router,
+# )
 
 app.include_router(
-    results_router,
-)
-
-app.include_router(
-    metadata_router,
-)
-
-app.include_router(
-    hub_router,
+    kong_router,
 )
 
 if __name__ == "__main__":

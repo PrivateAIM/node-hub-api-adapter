@@ -3,7 +3,7 @@
 from fastapi import APIRouter
 
 from gateway.conf import gateway_settings
-from gateway.models import KeycloakConfig
+from gateway.models.conf import KeycloakConfig
 
 metadata_router = APIRouter(
     # dependencies=[Security(oauth2_scheme)],
