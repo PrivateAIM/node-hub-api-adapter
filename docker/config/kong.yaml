@@ -1,0 +1,58 @@
+# a very minimal declarative config file
+_format_version: "3.0"
+_transform: true
+
+services:
+  - name: kong-admin-service
+    url: http://127.0.0.1:8001
+    routes:
+      - name: kong-admin-route
+        paths:
+          - /admin-api
+        methods:
+          - GET
+          - POST
+          - PUT
+          - PATCH
+          - DELETE
+          - OPTIONS
+          - HEAD
+        plugins:
+          - name: acl
+            instance_name: kong-admin-acl
+            config:
+              allow:
+                - kong-admin-group
+              hide_groups_header: true
+            protocols:
+              - http
+              - https
+          - name: jwt
+            instance_name: kong-admin-jwt
+            config:
+              claims_to_verify:
+                - exp
+              key_claim_name: client_id
+              secret_is_base64: false
+              uri_param_names: []
+            protocols:
+              - http
+              - https
+
+consumers:
+  - username: pod-orchestrator-client
+    acls:
+      - group: kong-admin-group
+    jwt_secrets:
+      - key: pod-orchestrator-client
+        algorithm: RS256
+        rsa_public_key: |
+          -----BEGIN PUBLIC KEY-----
+          MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAg6Wkn6Zg7dJfANhrqJsz
+          Ra0NTY4YT1Av16tHd1kt69raaf/jXBlTQVokFIIaXZjZ/LRk5Inz5TdtB8sRvL8J
+          4efYu7LtWKy7WxhrK8P3wmw9mPyDuJLgqm7TBKohDg192ciHs3uGOkp8Wmx1Z1Ns
+          TPa3Lphh9DoijwfQ0V6H3tnwPpL+GPiZwR/s2BhEdstWPuWzjYt2TbYmr6ZbNy1K
+          cqVVdNXw5S26OFnjaAHfGYXeTDqj5uhiUpHB39j9KrCfpbQrij0+hsD1BUtr7w3E
+          FHGyaG65DCeRgpTKu/hJOuCU0/oNCUJr1c+ON5Sjg3cGOfBGkS927vrxPJhT02l+
+          kwIDAQAB
+          -----END PUBLIC KEY-----
