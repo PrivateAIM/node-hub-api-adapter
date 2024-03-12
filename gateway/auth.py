@@ -8,7 +8,7 @@ from jose import jwt, JOSEError
 from starlette import status
 
 from gateway.conf import gateway_settings
-from gateway.models import AuthConfiguration
+from gateway.models.conf import AuthConfiguration
 
 IDP_ISSUER_URL = urljoin(gateway_settings.IDP_URL, "/".join(["realms", gateway_settings.IDP_REALM]))
 
