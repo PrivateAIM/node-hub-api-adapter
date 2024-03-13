@@ -39,7 +39,7 @@ class LinkProjectAnalysis(BaseModel):
 class Disconnect(BaseModel):
     """Response from disconnecting a project from a datastore."""
     removed_routes: list[str] | None
-    status: str | None
+    status: int | None = None
 
 
 HttpMethodCode = constr(pattern=r"(GET|POST|PUT|PATCH|DELETE|OPTIONS|HEAD|CONNECT|TRACE|CUSTOM)")

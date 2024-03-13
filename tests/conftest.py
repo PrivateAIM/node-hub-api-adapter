@@ -83,8 +83,8 @@ def setup_kong(test_client):
         "protocols": ["http"],
     }
 
-    test_client.put("/datastore", auth=fakeauth, json=test_datastore)
-    test_client.put("/datastore/project", auth=fakeauth, json=test_project_link)
+    test_client.post("/datastore", auth=fakeauth, json=test_datastore)
+    test_client.post("/datastore/project", auth=fakeauth, json=test_project_link)
 
     yield
 

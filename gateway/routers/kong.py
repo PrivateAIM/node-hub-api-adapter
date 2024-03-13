@@ -87,7 +87,7 @@ async def list_data_stores_by_project(
 async def delete_data_store(
         data_store_name: Annotated[str, Path(description="Unique name of the data store.")]
 ):
-    """List all the data stores connected to this project."""
+    """Delete the listed data store."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
 
     try:
@@ -114,7 +114,7 @@ async def delete_data_store(
         )
 
 
-@kong_router.put("/datastore", response_model=Service, status_code=status.HTTP_201_CREATED)
+@kong_router.post("/datastore", response_model=Service, status_code=status.HTTP_201_CREATED)
 async def create_data_store(data: Annotated[ServiceRequest, Body(
     description="Required information for creating a new data store.",
     title="Data store metadata."
@@ -153,7 +153,7 @@ async def create_data_store(data: Annotated[ServiceRequest, Body(
         )
 
 
-@kong_router.put("/datestore/project", response_model=LinkDataStoreProject, status_code=status.HTTP_202_ACCEPTED)
+@kong_router.post("/datastore/project", response_model=LinkDataStoreProject)
 async def connect_project_to_datastore(
         data_store_id: Annotated[str, Body(description="UUID of the data store or 'gateway'")],
         project_id: Annotated[str, Body(description="UUID of the project")],
@@ -332,10 +332,10 @@ async def disconnect_project(
         )
 
 
-@kong_router.put("/project/analysis", response_model=LinkProjectAnalysis, status_code=status.HTTP_202_ACCEPTED)
+@kong_router.post("/project/analysis", response_model=LinkProjectAnalysis, status_code=status.HTTP_202_ACCEPTED)
 async def connect_analysis_to_project(
-        project_id: Annotated[str, Body(description="UUID of the project")],
-        analysis_id: Annotated[str, Body(description="UUID of the data store or 'gateway'")],
+        project_id: Annotated[str, Body(description="UUID or name of the project")],
+        analysis_id: Annotated[str, Body(description="UUID or name of the analysis")],
 ):
     """Create a new analysis and link it to a project."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
@@ -430,3 +430,34 @@ async def connect_analysis_to_project(
         )
 
     return response
+
+
+@kong_router.delete("/analysis/{analysis_id}", status_code=status.HTTP_200_OK)
+async def delete_analysis(
+        analysis_id: Annotated[str, Path(description="UUID or unique name of the analysis.")]
+):
+    """Delete the listed analysis."""
+    configuration = kong_admin_client.Configuration(host=kong_admin_url)
+
+    try:
+        with kong_admin_client.ApiClient(configuration) as api_client:
+            api_instance = kong_admin_client.ConsumersApi(api_client)
+            api_instance.delete_consumer(consumer_username_or_id=analysis_id)
+
+            logger.info(f"Analysis {analysis_id} deleted")
+
+            return status.HTTP_200_OK
+
+    except ApiException as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Service error: {e}",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
