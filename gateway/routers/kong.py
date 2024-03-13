@@ -9,9 +9,8 @@ from kong_admin_client import CreateServiceRequest, Service, CreateRouteRequest,
 from kong_admin_client.rest import ApiException
 from starlette import status
 
-# from gateway.auth import idp_oauth2_scheme
 from gateway.conf import gateway_settings
-from gateway.models.kong import Services, ServiceRequest, HttpMethodCode, ProtocolCode, LinkDataStoreProject, \
+from gateway.models.kong import ServiceRequest, HttpMethodCode, ProtocolCode, LinkDataStoreProject, \
     Disconnect, LinkProjectAnalysis
 
 kong_router = APIRouter(
@@ -24,7 +23,7 @@ logger = logging.getLogger(__name__)
 kong_admin_url = gateway_settings.KONG_ADMIN_SERVICE_URL
 
 
-@kong_router.get("/datastore", response_model=Services)
+@kong_router.get("/datastore", response_model=ListRoute200Response, status_code=status.HTTP_200_OK)
 async def list_data_stores():
     """List all available data stores."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
@@ -49,7 +48,7 @@ async def list_data_stores():
         )
 
 
-@kong_router.get("/datastore/{project_name}", status_code=status.HTTP_200_OK, response_model=ListRoute200Response)
+@kong_router.get("/datastore/{project_name}", response_model=ListRoute200Response, status_code=status.HTTP_200_OK)
 async def list_data_stores_by_project(
         project_name: Annotated[str, Path(description="Unique name of project.")]
 ):
@@ -68,6 +67,37 @@ async def list_data_stores_by_project(
                 logger.info("No data stores connected to project.")
 
             return api_response
+
+    except ApiException as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Service error: {e}",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+@kong_router.delete("/datastore/{data_store_name}", status_code=status.HTTP_200_OK)
+async def delete_data_store(
+        data_store_name: Annotated[str, Path(description="Unique name of the data store.")]
+):
+    """List all the data stores connected to this project."""
+    configuration = kong_admin_client.Configuration(host=kong_admin_url)
+
+    try:
+        with kong_admin_client.ApiClient(configuration) as api_client:
+            api_instance = kong_admin_client.ServicesApi(api_client)
+            api_instance.delete_service(service_id_or_name=data_store_name)
+
+            logger.info(f"Data store {data_store_name} deleted")
+
+            return status.HTTP_200_OK
 
     except ApiException as e:
         raise HTTPException(

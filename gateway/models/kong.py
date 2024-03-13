@@ -13,12 +13,6 @@ class DataStoreType(Enum):
     FHIR: str = "fhir"
 
 
-class Services(BaseModel):
-    """Data store list response model."""
-    data: list[Service]
-    offset: int | None = None
-
-
 class ServiceRequest(CreateServiceRequest):
     """Improved version of the CreateServiceRequest with better defaults."""
     protocol: str | None = "http"
@@ -27,6 +21,7 @@ class ServiceRequest(CreateServiceRequest):
     client_certificate: CreateServiceRequestClientCertificate | None = None
     tls_verify: bool | None = None
     ca_certificates: list[str] | None = None
+    enabled: bool = True
 
 
 class LinkDataStoreProject(BaseModel):

@@ -10,7 +10,8 @@ from fastapi.testclient import TestClient
 
 from gateway.conf import gateway_settings
 from gateway.server import app
-from tests.pseudo_auth import get_oid_test_jwk, BearerAuth
+from tests.constants import KONG_TEST_DS, KONG_TEST_PROJECT
+from tests.pseudo_auth import get_oid_test_jwk, BearerAuth, fakeauth
 
 
 @pytest.fixture(scope="package")
@@ -57,3 +58,35 @@ def hub_token() -> BearerAuth:
     assert token
 
     return BearerAuth(token)
+
+
+@pytest.fixture(scope="module")
+def setup_kong(test_client):
+    """Setup Kong instance with test data."""
+    test_datastore = {
+        "name": KONG_TEST_DS,
+        "protocol": "http",
+        "host": "server.fire.ly",
+        "port": 80,
+        "path": "/mydefinedpath",
+    }
+    test_project_link = {
+        "data_store_id": KONG_TEST_DS,
+        "project_id": KONG_TEST_PROJECT,
+        "methods": [
+            "GET",
+            "POST",
+            "PUT",
+            "DELETE"
+        ],
+        "ds_type": "fhir",
+        "protocols": ["http"],
+    }
+
+    test_client.put("/datastore", auth=fakeauth, json=test_datastore)
+    test_client.put("/datastore/project", auth=fakeauth, json=test_project_link)
+
+    yield
+
+    test_client.put(f"/disconnect/{KONG_TEST_PROJECT}", auth=fakeauth)
+    test_client.delete(f"/datastore/{KONG_TEST_DS}", auth=fakeauth)
