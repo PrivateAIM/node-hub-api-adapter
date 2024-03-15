@@ -13,7 +13,8 @@ realm and user using the [docker-compose file](./docker/docker-compose.yml) whic
 using the [instance export file](docker/test-realm.json).
 
 The API can be found at http://127.0.0.1:8081 with a GUI for the API available at http://127.0.0.1:8081/docs. Here,
-users must authorize themselves in keycloak to run protected endpoints:
+users must authorize themselves with the deployed keycloak instance
+(from the [docker-compose file](./docker/docker-compose.yml)) to run protected endpoints:
 
 * Test User: `flameuser`
 * Test pwd: `flamepwd`
@@ -31,4 +32,6 @@ RESULTS_SERVICE_URL="http://localhost:8000"  # URL to the Results service
 HUB_SERVICE_URL="http://localhost:8888"  # URL to the Hub API
 UI_CLIENT_ID=test-client  # Client name of UI as defined in keycloak
 UI_CLIENT_SECRET=lhjYYgU5e1GQtfrs3YsTiESGpzqE8YSb  # Client secret for UI
+HUB_USERNAME=hubusername  # Need to get credentials from myself or hub team
+HUB_PASSWORD=hubpassword  # These will be removed later once users are registered in both node and hub IDP
 ```
