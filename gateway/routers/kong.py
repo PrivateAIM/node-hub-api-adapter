@@ -3,18 +3,19 @@ import logging
 from typing import Annotated
 
 import kong_admin_client
-from fastapi import APIRouter, HTTPException, Body, Path
+from fastapi import APIRouter, HTTPException, Body, Path, Security
 from kong_admin_client import CreateServiceRequest, Service, CreateRouteRequest, CreatePluginForConsumerRequest, \
     ListRoute200Response, CreateConsumerRequest, CreateAclForConsumerRequest, CreateKeyAuthForConsumerRequest
 from kong_admin_client.rest import ApiException
 from starlette import status
 
+from gateway.auth import idp_oauth2_scheme
 from gateway.conf import gateway_settings
 from gateway.models.kong import ServiceRequest, HttpMethodCode, ProtocolCode, LinkDataStoreProject, \
     Disconnect, LinkProjectAnalysis
 
 kong_router = APIRouter(
-    # dependencies=[Security(idp_oauth2_scheme)],
+    dependencies=[Security(idp_oauth2_scheme)],
     tags=["Kong"],
     responses={404: {"description": "Not found"}},
 )
