@@ -10,8 +10,8 @@ from starlette.responses import Response
 from gateway.auth import hub_oauth2_scheme
 from gateway.conf import gateway_settings
 from gateway.core import route
-from gateway.models.hub import Project, AllProjects, ApprovalStatus, AnalysisOrProjectNode, ListAnalysisNodes, \
-    ListAnalysisOrProjectNodes, AnalysisNode
+from gateway.models.hub import Project, AllProjects, ApprovalStatus, AnalysisOrProjectNode, ListAnalysisOrProjectNodes, \
+    AnalysisNode
 from gateway.models.k8s import ImageDataResponse, ContainerResponse
 
 hub_router = APIRouter(
@@ -45,29 +45,6 @@ async def get_images():
                 "status": "waiting_to_push"
             }
         ],
-    }
-    return dummy_data
-
-
-@hub_router.get("/hub/containers", response_model=ContainerResponse)
-async def get_containers():
-    """Return list of containers for the frontend."""
-    # TODO: replace with data from https://api.privateaim.net/analysis-nodes
-    # TODO: add project specific call / filter?
-    dummy_data = {
-        "containers": [
-            {
-                "id": "d730b955-c476-40db-9dd1-5ea6b1cfe5bc",
-                "name": "FooBar",
-                "job_id": "4c0e4a1a-795b-4a23-a7ef-0a2473bcb670",
-                "image": "4a941577-46ce-4220-8ca0-181cf45abe29",
-                "state": "Running",
-                "status": "Active",
-                "next_tag": "Köln",
-                "repo": "/data",
-                "train_class_id": "choochoo",
-            }
-        ]
     }
     return dummy_data
 
@@ -201,9 +178,11 @@ async def accept_reject_project_node(
     path="/analysis-nodes",
     status_code=status.HTTP_200_OK,
     service_url=gateway_settings.HUB_SERVICE_URL,
-    response_model=ListAnalysisNodes,
+    # response_model=ListAnalysisNodes,
+    response_model=ContainerResponse,
     query_params=["filter_id", "filter_project_id", "filter_project_realm_id",
                   "filter_node_id", "filter_node_realm_id", "include"],
+    post_processing_func="parse_containers",  # Create new EP for getting containers
 )
 async def list_analyses_of_nodes(
         request: Request,
@@ -212,9 +191,9 @@ async def list_analyses_of_nodes(
             str | None,
             Query(
                 description="Whether to include additional data for the given parameter. Can only be 'node' or null",
-                pattern="^node$",  # Must be "node",
+                pattern="^(node|analysis)$",  # Must be "node",
             ),
-        ] = None,
+        ] = "analysis",
         filter_id: Annotated[
             uuid.UUID | None,
             Query(

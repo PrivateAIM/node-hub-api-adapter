@@ -9,8 +9,8 @@ from fastapi.responses import StreamingResponse, JSONResponse
 from httpx import ConnectError, DecodingError
 from starlette.responses import Response
 
+from gateway import post_processing
 from gateway.constants import CONTENT_TYPE
-# from gateway.models import GatewayFormData
 from gateway.utils import unzip_form_params, unzip_body_object, create_request_data, unzip_query_params
 
 
@@ -89,6 +89,7 @@ def route(
         dependencies: Sequence[params.Depends] | None = None,
         summary: str | None = None,
         description: str | None = None,
+        post_processing_func: str | None = None,
         # params from fastapi http methods can be added here later and then added to `request_method()`
 ):
     """A decorator for the FastAPI router, its purpose is to make FastAPI
@@ -120,6 +121,8 @@ def route(
         Summary of the method (usually short).
     description: str | None
         Longer explanation of the method.
+    post_processing_func: str | None
+        Method from the post_processing module to apply to the response. E.g. parse_something
 
 
     Returns
@@ -202,6 +205,10 @@ def route(
                 )
 
             response.status_code = status_code_from_service
+
+            if post_processing_func:
+                f = getattr(post_processing, post_processing_func)
+                resp_data = f(resp_data)
 
             return resp_data
 

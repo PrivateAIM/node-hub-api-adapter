@@ -10,9 +10,9 @@ class ContainerData(BaseModel):
     id: UUID
     name: str
     job_id: UUID
-    image: UUID
-    state: str
-    status: str
+    image: UUID | None = None  # TODO remove null allowance
+    state: str | None = None
+    status: str | None = None
     next_tag: str
     repo: str
     train_class_id: str
