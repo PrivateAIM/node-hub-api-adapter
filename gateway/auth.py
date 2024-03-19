@@ -15,10 +15,8 @@ IDP_ISSUER_URL = urljoin(gateway_settings.IDP_URL, "/".join(["realms", gateway_s
 # IDP i.e. Keycloak
 realm_idp_settings = AuthConfiguration(
     server_url=gateway_settings.IDP_URL,
-    # Take last part of issuer URL for realm
     realm=gateway_settings.IDP_REALM,
-    client_id=gateway_settings.UI_CLIENT_ID,
-    client_secret=gateway_settings.UI_CLIENT_SECRET,
+    client_id=gateway_settings.API_CLIENT_ID,
     authorization_url=IDP_ISSUER_URL + "/protocol/openid-connect/auth",
     token_url=IDP_ISSUER_URL + "/protocol/openid-connect/token",
     issuer_url=IDP_ISSUER_URL,
@@ -44,7 +42,7 @@ async def get_idp_public_key() -> str:
     )
 
 
-async def verify_realm_idp_token(token: str = Security(idp_oauth2_scheme)) -> dict:
+async def verify_token(token: str = Security(idp_oauth2_scheme)) -> dict:
     """Decode the auth token using keycloak's public key."""
     try:
         return jwt.decode(

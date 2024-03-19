@@ -9,13 +9,13 @@ from kong_admin_client import CreateServiceRequest, Service, CreateRouteRequest,
 from kong_admin_client.rest import ApiException
 from starlette import status
 
-from gateway.auth import idp_oauth2_scheme
+from gateway.auth import verify_token
 from gateway.conf import gateway_settings
 from gateway.models.kong import ServiceRequest, HttpMethodCode, ProtocolCode, LinkDataStoreProject, \
     Disconnect, LinkProjectAnalysis
 
 kong_router = APIRouter(
-    dependencies=[Security(idp_oauth2_scheme)],
+    dependencies=[Security(verify_token)],
     tags=["Kong"],
     responses={404: {"description": "Not found"}},
 )

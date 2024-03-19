@@ -11,11 +11,10 @@ class KeycloakConfig(BaseModel):
 
 class AuthConfiguration(BaseModel):
     """Auth config model."""
-
     server_url: str
     realm: str
     client_id: str
-    client_secret: str
+    # client_secret: str
     authorization_url: str
     token_url: str
     issuer_url: str

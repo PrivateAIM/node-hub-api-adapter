@@ -22,15 +22,13 @@ spec:
           imagePullPolicy: IfNotPresent  # Maybe "Always" during debug
           readinessProbe:
           httpGet:
-            path: /healthy
+            path: /healthz
             port: 5000
           ports:
             - containerPort: 5000
           env:
-            - name: UI_CLIENT_ID
-              value: "ui-client"  # To be replaced
-            - name: UI_CLIENT_SECRET
-              value: "someClientSecret"     # To be replaced
+            - name: API_CLIENT_ID
+              value: "api-client"  # To be replaced   # To be replaced
             - name: IDP_URL
               value: "https://idp.provider/"  # To be replaced
             - name: IDP_REALM

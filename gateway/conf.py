@@ -28,14 +28,13 @@ class Settings(BaseModel):
     KONG_ADMIN_SERVICE_URL: str = os.getenv("RESULTS_SERVICE_URL", "http://localhost:8001")
 
     # UI ID and secret
-    UI_CLIENT_ID: str = os.getenv("UI_CLIENT_ID", "test-client")
-    UI_CLIENT_SECRET: str = os.getenv("UI_CLIENT_SECRET", "someSecret")
+    API_CLIENT_ID: str = os.getenv("API_CLIENT_ID", "test-client")
 
     # Hub
     HUB_AUTH_SERVICE_URL: str = os.getenv("HUB_AUTH_SERVICE_URL", "https://auth.privateaim.net")
     HUB_SERVICE_URL: str = os.getenv("HUB_AUTH_SERVICE_URL", "https://api.privateaim.net")
-    HUB_USERNAME: str = os.getenv("HUB_USERNAME", "admin")
-    HUB_PASSWORD: str = os.getenv("HUB_PASSWORD", "start123")
+    HUB_USERNAME: str = os.getenv("HUB_USERNAME")
+    HUB_PASSWORD: str = os.getenv("HUB_PASSWORD")
 
 
 gateway_settings = Settings()

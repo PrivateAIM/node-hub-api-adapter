@@ -47,6 +47,7 @@ def setup_jwks_endpoint():
 def hub_token() -> BearerAuth:
     """Create an endpoint by which to test the valid JWKS."""
     load_dotenv(dotenv_path="../env/.env.dev")
+    # TODO: replace with robot account
     HUB_USERNAME, HUB_PASSWORD = os.getenv("HUB_USERNAME"), os.getenv("HUB_PASSWORD")
     HUB_AUTH_API = gateway_settings.HUB_AUTH_SERVICE_URL
     HUB_TOKEN_EP = HUB_AUTH_API + "/token"

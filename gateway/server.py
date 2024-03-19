@@ -19,6 +19,7 @@ tags_metadata = [
     {"name": "Analysis", "description": "Endpoints for the Analysis service."},
     {"name": "PodOrc", "description": "Endpoints for the Pod Orchestration service."},
     {"name": "Hub", "description": "Endpoints for the central Hub service."},
+    {"name": "Kong", "description": "Endpoints for the Kong gateway service."},
 ]
 
 app = FastAPI(
@@ -29,7 +30,6 @@ app = FastAPI(
         "usePkceWithAuthorizationCodeGrant": True,
         # Auth fill client ID for the docs with the below value
         "clientId": realm_idp_settings.client_id,  # default client-id is Keycloak
-        "clientSecret": realm_idp_settings.client_secret,
     },
 )
 
