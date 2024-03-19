@@ -28,14 +28,22 @@ spec:
             - containerPort: 5000
           env:
             - name: API_CLIENT_ID
-              value: "api-client"  # To be replaced   # To be replaced
+              value: "api-client"  # To be replaced
+            - name: API_CLIENT_SECRET
+              value: "clientSecret"  # Only needs to be filled in if using the /token ep
             - name: IDP_URL
               value: "https://idp.provider/"  # To be replaced
             - name: IDP_REALM
               value: "flame"  # To be replaced
             - name: RESULTS_SERVICE_URL
-              value: "https://results.service.de/"  # To be replaced
+              value: "https://results.service.de/"  # To be properly filled in
             - name: HUB_SERVICE_URL
-              value: "https://central.hub.service.de/"  # To be replaced
+              value: "https://api.privateaim.net"
+            - name: HUB_AUTH_SERVICE_URL
+              value: "https://auth.privateaim.net"
             - name: K8S_API_KEY
-              value: "apiSecret"  # To be replaced
+              value: "apiSecret"  # To be properly filled in
+            - name: HUB_USERNAME
+              value: "thehubusername"  # To be properly filled in
+            - name: HUB_PASSWORD
+              value: "thehubpassword"  # To be properly filled in
