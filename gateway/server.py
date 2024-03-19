@@ -20,7 +20,6 @@ from gateway.routers.results import results_router
 # API metadata
 tags_metadata = [
     {"name": "Results", "description": "Endpoints for the Results service."},
-    {"name": "Analysis", "description": "Endpoints for the Analysis service."},
     {"name": "PodOrc", "description": "Endpoints for the Pod Orchestration service."},
     {"name": "Hub", "description": "Endpoints for the central Hub service."},
     {"name": "Kong", "description": "Endpoints for the Kong gateway service."},
