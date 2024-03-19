@@ -1,11 +1,11 @@
 """Adapter API Settings."""
 import os
 
+from dotenv import load_dotenv
 # from dotenv import load_dotenv  # TODO remove
 from pydantic import BaseModel
 
-
-# load_dotenv(dotenv_path="../env/.env.dev")
+load_dotenv(dotenv_path="../env/.env.dev")
 
 
 class Settings(BaseModel):
@@ -29,6 +29,7 @@ class Settings(BaseModel):
 
     # UI ID and secret
     API_CLIENT_ID: str = os.getenv("API_CLIENT_ID", "test-client")
+    API_CLIENT_SECRET: str = os.getenv("API_CLIENT_SECRET")
 
     # Hub
     HUB_AUTH_SERVICE_URL: str = os.getenv("HUB_AUTH_SERVICE_URL", "https://auth.privateaim.net")

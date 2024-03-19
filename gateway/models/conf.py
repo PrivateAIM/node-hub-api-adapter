@@ -14,7 +14,16 @@ class AuthConfiguration(BaseModel):
     server_url: str
     realm: str
     client_id: str
-    # client_secret: str
+    client_secret: str
     authorization_url: str
     token_url: str
     issuer_url: str
+
+
+class Token(BaseModel):
+    """IDP token model."""
+    access_token: str
+    token_type: str
+    expires_in: int
+    refresh_token: str
+    refresh_expires_in: int

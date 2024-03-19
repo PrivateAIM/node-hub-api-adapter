@@ -17,10 +17,13 @@ realm_idp_settings = AuthConfiguration(
     server_url=gateway_settings.IDP_URL,
     realm=gateway_settings.IDP_REALM,
     client_id=gateway_settings.API_CLIENT_ID,
+    client_secret=gateway_settings.API_CLIENT_SECRET,
     authorization_url=IDP_ISSUER_URL + "/protocol/openid-connect/auth",
     token_url=IDP_ISSUER_URL + "/protocol/openid-connect/token",
     issuer_url=IDP_ISSUER_URL,
 )
+
+token_oauth2_scheme = OAuth2PasswordBearer(tokenUrl=realm_idp_settings.token_url)
 
 idp_oauth2_scheme = OAuth2AuthorizationCodeBearer(
     authorizationUrl=realm_idp_settings.authorization_url,
