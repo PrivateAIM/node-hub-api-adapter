@@ -26,12 +26,10 @@ The following environment variables need to be set for operation:
 ```bash
 IDP_URL="http://localhost:8080"  # e.g. Keycloak
 IDP_REALM="flame"  # If different realm used in keycloak else defaults to master
-K8S_API_KEY="foo"  # An API key for k8s is only needed if a sidecar proxy container isn't used
 PODORC_SERVICE_URL="http://localhost:18080"  # URL to Pod Orchestration service
 RESULTS_SERVICE_URL="http://localhost:8000"  # URL to the Results service
 HUB_SERVICE_URL="http://localhost:8888"  # URL to the Hub API
 API_CLIENT_ID=test-client  # Client name of UI as defined in keycloak
-API_CLIENT_SECRET=lhjYYgU5e1GQtfrs3YsTiESGpzqE8YSb  # Client secret for UI
 HUB_USERNAME=hubusername  # Need to get credentials from myself or hub team
 HUB_PASSWORD=hubpassword  # These will be removed later once users are registered in both node and hub IDP
 ```
