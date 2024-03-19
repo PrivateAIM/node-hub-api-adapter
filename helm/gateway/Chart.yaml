@@ -1,6 +1,6 @@
 apiVersion: v2
-name: pathme
-description: A Helm chart for the FALME API Gateway
+name: flame-gateway
+description: A Helm chart for the FLAME API Gateway
 
 # A chart can be either an 'application' or a 'library' chart.
 #
