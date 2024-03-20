@@ -66,7 +66,6 @@ async def unzip_body_object(
         for key in specified_params:
             value = additional_params.get(key)
             _body_dict = await serialize_response(response_content=value)
-            # response_body_dict.update(_body_dict)
             response_body_dict[key] = _body_dict
 
         return response_body_dict

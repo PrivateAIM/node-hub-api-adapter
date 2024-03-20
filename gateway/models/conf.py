@@ -26,4 +26,4 @@ class Token(BaseModel):
     token_type: str
     expires_in: int
     refresh_token: str
-    refresh_expires_in: int
+    refresh_expires_in: int | None = None

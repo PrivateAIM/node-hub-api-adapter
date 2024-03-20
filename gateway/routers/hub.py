@@ -2,12 +2,12 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Security, Query, Path
+from fastapi import APIRouter, Query, Path, Depends, Security
 from starlette import status
 from starlette.requests import Request
 from starlette.responses import Response
 
-from gateway.auth import hub_oauth2_scheme
+from gateway.auth import add_hub_jwt, verify_idp_token
 from gateway.conf import gateway_settings
 from gateway.core import route
 from gateway.models.hub import Project, AllProjects, ApprovalStatus, AnalysisOrProjectNode, ListAnalysisOrProjectNodes, \
@@ -15,7 +15,7 @@ from gateway.models.hub import Project, AllProjects, ApprovalStatus, AnalysisOrP
 from gateway.models.k8s import ImageDataResponse, ContainerResponse
 
 hub_router = APIRouter(
-    dependencies=[Security(hub_oauth2_scheme)],
+    dependencies=[Security(verify_idp_token), Depends(add_hub_jwt)],
     tags=["Hub"],
     responses={404: {"description": "Not found"}},
 )
