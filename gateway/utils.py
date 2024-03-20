@@ -6,9 +6,6 @@ from fastapi.routing import serialize_response
 from starlette.datastructures import FormData
 
 
-# from gateway.models import GatewayFormData
-
-
 def create_request_data(
         form: dict | None,
         body: dict | None
