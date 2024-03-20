@@ -37,5 +37,5 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }},privateaim/node-hub-api-adapter:latest
+          tags: ${{ steps.meta.outputs.tags }},ghcr.io/privateaim/node-hub-api-adapter:latest
           labels: ${{ steps.meta.outputs.labels }}
