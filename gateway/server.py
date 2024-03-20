@@ -1,4 +1,8 @@
 """Methods for verifying auth."""
+import json
+import logging.config
+from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Annotated
 
 import requests
@@ -17,6 +21,22 @@ from gateway.routers.kong import kong_router
 from gateway.routers.metadata import metadata_router
 from gateway.routers.results import results_router
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Actions for lifespan of API."""
+    root_dir = Path.cwd().parent
+    root_dir.joinpath("logs").mkdir(parents=True, exist_ok=True)
+
+    log_config_path = root_dir.joinpath("logging.json")
+    with open(log_config_path, "r") as logf:
+        log_config = json.load(logf)
+
+    logging.config.dictConfig(log_config)
+
+    yield
+
+
 # API metadata
 tags_metadata = [
     {"name": "Results", "description": "Endpoints for the Results service."},
@@ -34,6 +54,7 @@ app = FastAPI(
         # Auth fill client ID for the docs with the below value
         "clientId": realm_idp_settings.client_id,  # default client-id is Keycloak
     },
+    lifespan=lifespan
 )
 
 app.add_middleware(
