@@ -28,22 +28,18 @@ spec:
             - containerPort: 5000
           env:
             - name: API_CLIENT_ID
-              value: "api-client"  # To be replaced
-            - name: API_CLIENT_SECRET
-              value: "clientSecret"  # Only needs to be filled in if using the /token ep
+              value: {{ .Values.env.API_CLIENT_ID | default "api-client" | quote }}
             - name: IDP_URL
-              value: "https://idp.provider/"  # To be replaced
+              value: {{ .Values.env.IDP_URL | default "keycloak-svc" | quote }}  # To be replaced
             - name: IDP_REALM
-              value: "flame"  # To be replaced
+              value: {{ .Values.env.IDP_REALM | default "flame" | quote }}  # To be replaced
             - name: RESULTS_SERVICE_URL
-              value: "https://results.service.de/"  # To be properly filled in
+              value: {{ .Values.env.RESULTS_SERVICE_URL | default "results-svc" | quote }}  # To be properly filled in
             - name: HUB_SERVICE_URL
-              value: "https://api.privateaim.net"
+              value: {{ .Values.env.HUB_SERVICE_URL | default "https://api.privateaim.net" | quote }}
             - name: HUB_AUTH_SERVICE_URL
-              value: "https://auth.privateaim.net"
-            - name: K8S_API_KEY
-              value: "apiSecret"  # To be properly filled in
+              value: {{ .Values.env.HUB_AUTH_SERVICE_URL | default "https://auth.privateaim.net" | quote }}
             - name: HUB_USERNAME
-              value: "thehubusername"  # To be properly filled in
+              value: {{ .Values.env.HUB_USERNAME | default "thehubusername" | quote }}  # To be properly filled in
             - name: HUB_PASSWORD
-              value: "thehubpassword"  # To be properly filled in
+              value: {{ .Values.env.HUB_PASSWORD | default "thehubpassword" | quote }}

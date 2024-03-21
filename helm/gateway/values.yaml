@@ -1,3 +1,12 @@
 api:
   version: 0.1.0
   domain: localhost
+env:
+    API_CLIENT_ID: api-client
+    IDP_URL: keycloak-svc
+    IDP_REALM: flame
+    RESULTS_SERVICE_URL: results-svc
+    HUB_SERVICE_URL: https://api.privateaim.net
+    HUB_AUTH_SERVICE_URL: https://auth.privateaim.net
+    HUB_USERNAME: thehubusername
+    HUB_PASSWORD: thehubpassword

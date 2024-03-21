@@ -17,4 +17,4 @@ spec:
               service:
                 name: {{ .Release.Name }}-gateway-service
                 port:
-                  name: api
+                  number: 5000
