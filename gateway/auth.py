@@ -3,7 +3,7 @@ from urllib.parse import urljoin
 
 import requests
 from fastapi import Security, HTTPException
-from fastapi.security import OAuth2AuthorizationCodeBearer
+from fastapi.security import OAuth2AuthorizationCodeBearer, OAuth2PasswordBearer
 from jose import jwt, JOSEError
 from starlette import status
 from starlette.datastructures import MutableHeaders
@@ -29,6 +29,8 @@ idp_oauth2_scheme = OAuth2AuthorizationCodeBearer(
     authorizationUrl=realm_idp_settings.authorization_url,
     tokenUrl=realm_idp_settings.token_url,
 )
+
+idp_oauth2_scheme_pass = OAuth2PasswordBearer(tokenUrl=realm_idp_settings.token_url)
 
 
 # Debugging methods

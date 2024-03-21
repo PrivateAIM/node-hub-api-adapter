@@ -7,7 +7,7 @@ from starlette import status
 from starlette.requests import Request
 from starlette.responses import Response
 
-from gateway.auth import add_hub_jwt, verify_idp_token
+from gateway.auth import add_hub_jwt, verify_idp_token, idp_oauth2_scheme_pass
 from gateway.conf import gateway_settings
 from gateway.core import route
 from gateway.models.hub import Project, AllProjects, ApprovalStatus, AnalysisOrProjectNode, ListAnalysisOrProjectNodes, \
@@ -15,7 +15,7 @@ from gateway.models.hub import Project, AllProjects, ApprovalStatus, AnalysisOrP
 from gateway.models.k8s import ImageDataResponse, ContainerResponse
 
 hub_router = APIRouter(
-    dependencies=[Security(verify_idp_token), Depends(add_hub_jwt)],
+    dependencies=[Security(verify_idp_token), Depends(add_hub_jwt), Security(idp_oauth2_scheme_pass)],
     tags=["Hub"],
     responses={404: {"description": "Not found"}},
 )

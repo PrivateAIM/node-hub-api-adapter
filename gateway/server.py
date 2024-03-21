@@ -39,10 +39,11 @@ async def lifespan(app: FastAPI):
 
 # API metadata
 tags_metadata = [
-    {"name": "Results", "description": "Endpoints for the Results service."},
-    {"name": "PodOrc", "description": "Endpoints for the Pod Orchestration service."},
+    {"name": "Auth", "description": "Endpoints for authorization specific tasks."},
     {"name": "Hub", "description": "Endpoints for the central Hub service."},
     {"name": "Kong", "description": "Endpoints for the Kong gateway service."},
+    {"name": "PodOrc", "description": "Endpoints for the Pod Orchestration service."},
+    {"name": "Results", "description": "Endpoints for the Results service."},
 ]
 
 app = FastAPI(
@@ -50,7 +51,7 @@ app = FastAPI(
     title="FLAME API",
     description="Test API for FLAME project",
     swagger_ui_init_oauth={
-        "usePkceWithAuthorizationCodeGrant": True,
+        # "usePkceWithAuthorizationCodeGrant": True,
         # Auth fill client ID for the docs with the below value
         "clientId": realm_idp_settings.client_id,  # default client-id is Keycloak
     },
@@ -91,6 +92,7 @@ def get_health() -> HealthCheck:
 @app.post(
     "/token",
     summary="Get a token from the IDP",
+    tags=["Auth"],
     status_code=status.HTTP_200_OK,
     response_model=Token,
 )

@@ -28,7 +28,7 @@ class Settings(BaseModel):
     KONG_ADMIN_SERVICE_URL: str = os.getenv("RESULTS_SERVICE_URL", "http://localhost:8001")
 
     # UI ID and secret
-    API_CLIENT_ID: str = os.getenv("API_CLIENT_ID", "test-client")
+    API_CLIENT_ID: str = os.getenv("API_CLIENT_ID", "api-client")
     API_CLIENT_SECRET: str = os.getenv("API_CLIENT_SECRET")
 
     # Hub
