@@ -18,6 +18,7 @@ FROM python:3.11-alpine
 COPY --from=builder /app/.venv /app/.venv
 ENV PATH="/app/.venv/bin:$PATH"
 
+COPY ./logging.json .
 COPY ./gateway/ ./gateway/
 
 # API server port
