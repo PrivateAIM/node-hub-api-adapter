@@ -1,5 +1,4 @@
 """Handle the authorization and authentication of services."""
-from urllib.parse import urljoin
 
 import requests
 from fastapi import Security, HTTPException
@@ -12,7 +11,7 @@ from starlette.requests import Request
 from gateway.conf import gateway_settings
 from gateway.models.conf import AuthConfiguration, Token
 
-IDP_ISSUER_URL = urljoin(gateway_settings.IDP_URL, "/".join(["realms", gateway_settings.IDP_REALM]))
+IDP_ISSUER_URL = gateway_settings.IDP_URL.rstrip("/") + "/" + "/".join(["realms", gateway_settings.IDP_REALM])
 
 # IDP i.e. Keycloak
 realm_idp_settings = AuthConfiguration(
@@ -45,7 +44,7 @@ async def get_idp_public_key() -> str:
 
 async def get_hub_public_key() -> dict:
     """Get the central hub service public key."""
-    hub_jwks_ep = urljoin(gateway_settings.HUB_AUTH_SERVICE_URL, "/jwks")
+    hub_jwks_ep = gateway_settings.HUB_AUTH_SERVICE_URL.rstrip("/") + "/jwks"
     return requests.get(hub_jwks_ep).json()
 
 
@@ -85,7 +84,7 @@ async def get_hub_token() -> dict:
     """Automated method for getting a token from the central Hub service."""
     hub_user, hub_pwd = gateway_settings.HUB_USERNAME, gateway_settings.HUB_PASSWORD
     payload = {"username": hub_user, "password": hub_pwd}
-    token_route = urljoin(gateway_settings.HUB_AUTH_SERVICE_URL, "/token")
+    token_route = gateway_settings.HUB_AUTH_SERVICE_URL.rstrip("/") + "/token"
     resp = requests.post(token_route, data=payload)
 
     if not resp.ok:
