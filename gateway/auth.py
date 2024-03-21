@@ -12,7 +12,7 @@ from starlette.requests import Request
 from gateway.conf import gateway_settings
 from gateway.models.conf import AuthConfiguration, Token
 
-IDP_ISSUER_URL = gateway_settings.IDP_URL.rstrip("/") + "/".join(["realms", gateway_settings.IDP_REALM])
+IDP_ISSUER_URL = gateway_settings.IDP_URL.rstrip("/") + "/" + "/".join(["realms", gateway_settings.IDP_REALM])
 
 # IDP i.e. Keycloak
 realm_idp_settings = AuthConfiguration(
