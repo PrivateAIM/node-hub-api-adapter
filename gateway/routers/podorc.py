@@ -3,7 +3,6 @@ import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Path, Security
-from fastapi.responses import JSONResponse
 from starlette import status
 from starlette.requests import Request
 from starlette.responses import Response
@@ -25,7 +24,6 @@ logger = logging.getLogger(__name__)
     path="/{analysis_id}",
     status_code=status.HTTP_200_OK,
     service_url=gateway_settings.PODORC_SERVICE_URL,
-    response_class=JSONResponse,
 )
 async def create_analysis(
         request: Request,
@@ -41,7 +39,6 @@ async def create_analysis(
     path="/{analysis_id}/logs",
     status_code=status.HTTP_200_OK,
     service_url=gateway_settings.PODORC_SERVICE_URL,
-    response_class=JSONResponse,
 )
 async def get_analysis_logs(
         request: Request,
@@ -57,7 +54,6 @@ async def get_analysis_logs(
     path="/{analysis_id}/status",
     status_code=status.HTTP_200_OK,
     service_url=gateway_settings.PODORC_SERVICE_URL,
-    response_class=JSONResponse,
 )
 async def get_analysis_status(
         request: Request,
@@ -73,7 +69,6 @@ async def get_analysis_status(
     path="/{analysis_id}/pods",
     status_code=status.HTTP_200_OK,
     service_url=gateway_settings.PODORC_SERVICE_URL,
-    response_class=JSONResponse,
 )
 async def get_analysis_pods(
         request: Request,
@@ -89,7 +84,6 @@ async def get_analysis_pods(
     path="/{analysis_id}/stop",
     status_code=status.HTTP_200_OK,
     service_url=gateway_settings.PODORC_SERVICE_URL,
-    response_class=JSONResponse,
 )
 async def stop_analysis(
         request: Request,
@@ -105,7 +99,6 @@ async def stop_analysis(
     path="/{analysis_id}/delete",
     status_code=status.HTTP_200_OK,
     service_url=gateway_settings.PODORC_SERVICE_URL,
-    response_class=JSONResponse,
 )
 async def delete_analysis(
         request: Request,

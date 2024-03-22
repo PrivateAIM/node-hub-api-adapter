@@ -85,7 +85,6 @@ def route(
         form_params: list[str] | None = None,
         body_params: list[str] | None = None,
         response_model: any = None,  # TODO: Make specific for pydantic models
-        response_class: any = None,  # TODO: Make specific for pydantic response classes
         tags: list[str] = None,
         dependencies: Sequence[params.Depends] | None = None,
         summary: str | None = None,
@@ -138,7 +137,6 @@ def route(
         path,
         status_code=status_code,
         response_model=response_model,
-        response_class=response_class,
         tags=tags,
         dependencies=dependencies,
         summary=summary,
