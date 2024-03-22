@@ -85,6 +85,7 @@ def route(
         form_params: list[str] | None = None,
         body_params: list[str] | None = None,
         response_model: any = None,  # TODO: Make specific for pydantic models
+        response_class: any = None,  # TODO: Make specific for pydantic response classes
         tags: list[str] = None,
         dependencies: Sequence[params.Depends] | None = None,
         summary: str | None = None,
@@ -113,6 +114,8 @@ def route(
         Keys passed referencing body data parameters to be sent to downstream microservice
     response_model
         Response model of the forwarded request. Can be imported from other packages.
+    response_class
+        Response class of the forwarded request. Can be imported from other packages.
     tags : list[str]
         List of tags used to classify methods
     dependencies: Sequence[params.Depends] | None
@@ -135,6 +138,7 @@ def route(
         path,
         status_code=status_code,
         response_model=response_model,
+        response_class=response_class,
         tags=tags,
         dependencies=dependencies,
         summary=summary,

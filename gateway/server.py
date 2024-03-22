@@ -16,9 +16,9 @@ from gateway.auth import realm_idp_settings
 from gateway.models import HealthCheck
 from gateway.models.conf import Token
 from gateway.routers.hub import hub_router
-from gateway.routers.k8s import k8s_router
 from gateway.routers.kong import kong_router
 from gateway.routers.metadata import metadata_router
+from gateway.routers.podorc import po_router
 from gateway.routers.results import results_router
 
 
@@ -118,7 +118,7 @@ def get_token(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]) -> Tok
 
 
 app.include_router(
-    k8s_router,
+    po_router,
 )
 
 app.include_router(
