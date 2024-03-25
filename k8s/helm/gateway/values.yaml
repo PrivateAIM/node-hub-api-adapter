@@ -3,9 +3,10 @@ api:
   domain: localhost
 env:
     API_CLIENT_ID: api-client
-    IDP_URL: keycloak-svc
     IDP_REALM: flame
-    RESULTS_SERVICE_URL: results-svc
+    IDP_URL: http://keycloak-service:8080
+    RESULTS_SERVICE_URL: http://results-service:5000
+    PODORC_SERVICE_URL: http://po-service:8000
     HUB_SERVICE_URL: https://api.privateaim.net
     HUB_AUTH_SERVICE_URL: https://auth.privateaim.net
     HUB_USERNAME: thehubusername
