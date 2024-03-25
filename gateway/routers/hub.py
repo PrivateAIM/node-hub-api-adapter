@@ -12,7 +12,7 @@ from gateway.conf import gateway_settings
 from gateway.core import route
 from gateway.models.hub import Project, AllProjects, ApprovalStatus, AnalysisOrProjectNode, ListAnalysisOrProjectNodes, \
     AnalysisNode
-from gateway.models.k8s import ImageDataResponse, ContainerResponse
+from gateway.models.podorc import ImageDataResponse, ContainerResponse
 
 hub_router = APIRouter(
     dependencies=[Security(verify_idp_token), Depends(add_hub_jwt), Security(idp_oauth2_scheme_pass),

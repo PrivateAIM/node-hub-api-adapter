@@ -225,7 +225,7 @@ def route(
 
             response.status_code = status_code_from_service
 
-            if post_processing_func:
+            if post_processing_func:  # all used pp functions found in post_processing
                 f = getattr(post_processing, post_processing_func)
                 resp_data = f(resp_data)
 
