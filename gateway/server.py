@@ -48,7 +48,7 @@ tags_metadata = [
 app = FastAPI(
     openapi_tags=tags_metadata,
     title="FLAME API",
-    description="Test API for FLAME project",
+    description="FLAME project API for interacting with various microservices within the node for the UI.",
     swagger_ui_init_oauth={
         # "usePkceWithAuthorizationCodeGrant": True,
         # Auth fill client ID for the docs with the below value
