@@ -2,7 +2,7 @@
 
 import requests
 from fastapi import Security, HTTPException
-from fastapi.security import OAuth2AuthorizationCodeBearer, OAuth2PasswordBearer
+from fastapi.security import OAuth2AuthorizationCodeBearer, OAuth2PasswordBearer, HTTPBearer
 from jose import jwt, JOSEError
 from starlette import status
 from starlette.datastructures import MutableHeaders
@@ -30,6 +30,11 @@ idp_oauth2_scheme = OAuth2AuthorizationCodeBearer(
 )
 
 idp_oauth2_scheme_pass = OAuth2PasswordBearer(tokenUrl=realm_idp_settings.token_url)
+
+httpbearer = HTTPBearer(
+    scheme_name="JWT",
+    description="Pass a valid JWT here for authentication. Can be obtained from /token endpoint."
+)
 
 
 # Debugging methods

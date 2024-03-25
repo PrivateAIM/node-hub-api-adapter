@@ -7,8 +7,7 @@ from typing import Annotated
 
 import requests
 import uvicorn
-from fastapi import FastAPI, Depends, HTTPException
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi import FastAPI, HTTPException, Query
 from starlette import status
 from starlette.middleware.cors import CORSMiddleware
 
@@ -55,7 +54,12 @@ app = FastAPI(
         # Auth fill client ID for the docs with the below value
         "clientId": realm_idp_settings.client_id,  # default client-id is Keycloak
     },
-    lifespan=lifespan
+    lifespan=lifespan,
+    license_info={
+        "name": "Apache 2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0.html",
+        "identifier": "Apache-2.0",
+    },
 )
 
 app.add_middleware(
@@ -96,11 +100,14 @@ def get_health() -> HealthCheck:
     status_code=status.HTTP_200_OK,
     response_model=Token,
 )
-def get_token(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]) -> Token:
+def get_token(
+        username: Annotated[str, Query()],
+        password: Annotated[str, Query()],
+) -> Token:
     """Get a token from the IDP."""
     payload = {
-        "username": form_data.username,
-        "password": form_data.password,
+        "username": username,
+        "password": password,
         "client_id": realm_idp_settings.client_id,
         "client_secret": realm_idp_settings.client_secret,
         "grant_type": "password",

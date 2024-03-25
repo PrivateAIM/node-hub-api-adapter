@@ -6,13 +6,13 @@ from starlette import status
 from starlette.requests import Request
 from starlette.responses import Response
 
-from gateway.auth import verify_idp_token, idp_oauth2_scheme_pass
+from gateway.auth import verify_idp_token, idp_oauth2_scheme_pass, httpbearer
 from gateway.conf import gateway_settings
 from gateway.core import route
 from gateway.models.results import ResultsUploadResponse
 
 results_router = APIRouter(
-    dependencies=[Security(verify_idp_token), Security(idp_oauth2_scheme_pass)],
+    dependencies=[Security(verify_idp_token), Security(idp_oauth2_scheme_pass), Security(httpbearer)],
     tags=["Results"],
     responses={404: {"description": "Not found"}},
 )
