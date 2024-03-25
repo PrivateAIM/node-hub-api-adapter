@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 @route(
     request_method=po_router.post,
-    path="/{analysis_id}",
+    path="/po/{analysis_id}",
     status_code=status.HTTP_200_OK,
     service_url=gateway_settings.PODORC_SERVICE_URL,
 )
@@ -36,7 +36,7 @@ async def create_analysis(
 
 @route(
     request_method=po_router.get,
-    path="/{analysis_id}/logs",
+    path="/po/{analysis_id}/logs",
     status_code=status.HTTP_200_OK,
     service_url=gateway_settings.PODORC_SERVICE_URL,
 )
@@ -51,7 +51,7 @@ async def get_analysis_logs(
 
 @route(
     request_method=po_router.get,
-    path="/{analysis_id}/status",
+    path="/po/{analysis_id}/status",
     status_code=status.HTTP_200_OK,
     service_url=gateway_settings.PODORC_SERVICE_URL,
 )
@@ -66,7 +66,7 @@ async def get_analysis_status(
 
 @route(
     request_method=po_router.get,
-    path="/{analysis_id}/pods",
+    path="/po/{analysis_id}/pods",
     status_code=status.HTTP_200_OK,
     service_url=gateway_settings.PODORC_SERVICE_URL,
 )
@@ -81,7 +81,7 @@ async def get_analysis_pods(
 
 @route(
     request_method=po_router.put,
-    path="/{analysis_id}/stop",
+    path="/po/{analysis_id}/stop",
     status_code=status.HTTP_200_OK,
     service_url=gateway_settings.PODORC_SERVICE_URL,
 )
@@ -96,7 +96,7 @@ async def stop_analysis(
 
 @route(
     request_method=po_router.delete,
-    path="/{analysis_id}/delete",
+    path="/po/{analysis_id}/delete",
     status_code=status.HTTP_200_OK,
     service_url=gateway_settings.PODORC_SERVICE_URL,
 )
