@@ -1,4 +1,6 @@
 import functools
+import os
+import tempfile
 from typing import Sequence
 
 import httpx
@@ -7,11 +9,12 @@ from fastapi.datastructures import Headers
 from fastapi.requests import Request
 from fastapi.responses import StreamingResponse, JSONResponse
 from httpx import ConnectError, DecodingError
-from starlette.responses import Response
+from starlette.responses import Response, FileResponse
 
 from gateway import post_processing
 from gateway.constants import CONTENT_TYPE
-from gateway.utils import unzip_form_params, unzip_body_object, create_request_data, unzip_query_params
+from gateway.utils import unzip_form_params, unzip_body_object, create_request_data, unzip_query_params, \
+    unzip_file_params
 
 
 async def make_request(
@@ -20,6 +23,8 @@ async def make_request(
         headers: Headers | dict,
         query: dict | None = None,
         data: dict | None = None,
+        files: dict | None = None,
+        file_response: bool = False,
 ) -> tuple[[JSONResponse | StreamingResponse], int]:
     """Make an asynchronous request by creating a temporary session.
 
@@ -33,8 +38,10 @@ async def make_request(
         A dictionary-like object defining the request headers
     query : dict | None
         Serialized query parameters to be added to the request.
-    data : JsonPayload | dict | GatewayFormData | None
+    data : JsonPayload | dict | None
         A dictionary-like object defining the payload
+    files : dict | Nones
+        For passing on uploaded files. Should be packaged using the same form param and the read bytes
 
     Returns
     -------
@@ -48,32 +55,31 @@ async def make_request(
     if not query:
         query = {}
 
-    async with httpx.AsyncClient(headers=headers) as client:
-        r = await client.request(url=url, method=method, params=query, data=data)
-        resp_data = r.json()
-        return resp_data, r.status_code
+    if not files:
+        files = {}
 
-    # with async_timeout.timeout(gateway_settings.GATEWAY_TIMEOUT):
-    #     async with ClientSession(headers=headers) as session:
-    #         async with session.request(url=url, method=method, data=data) as resp:
-    #
-    #             if hdrs.CONTENT_TYPE not in resp.headers or resp.headers[hdrs.CONTENT_TYPE] == 'application/json':
-    #                 resp_data = await resp.json()
-    #                 return resp_data, resp.status
-    #
-    #             elif resp.headers[hdrs.CONTENT_TYPE] == 'application/octet-stream':
-    #                 with tempfile.NamedTemporaryFile(mode="w+b", delete=False) as temp_file:
-    #                     async for chunk, _ in resp.content.iter_chunks():  # iterates over chunks received from microsvc
-    #                         temp_file.write(chunk)
-    #
-    #                 def cleanup():
-    #                     os.remove(temp_file.name)
-    #
-    #                 return FileResponse(
-    #                     temp_file.name,
-    #                     background=BackgroundTask(cleanup),
-    #                     headers=resp.headers
-    #                 ), resp.status
+    async with httpx.AsyncClient(headers=headers) as client:
+        r = await client.request(url=url, method=method, params=query, data=data, files=files, follow_redirects=True)
+        r.raise_for_status()
+
+        if file_response:
+            with tempfile.NamedTemporaryFile(mode="w+b", delete=False) as temp_file:
+                temp_file.write(r.content)
+
+            def cleanup():
+                os.remove(temp_file.name)
+
+            filename = url.split("/")[-1]  # Get the UUID of object
+            return FileResponse(
+                temp_file.name,
+                # background=BackgroundTask(cleanup),
+                headers=r.headers,
+                filename=filename,
+            ), r.status_code
+
+        else:  # Hopefully a JSONResponse
+            resp_data = r.json()
+            return resp_data, r.status_code
 
 
 def route(
@@ -84,6 +90,8 @@ def route(
         query_params: list[str] | None = None,
         form_params: list[str] | None = None,
         body_params: list[str] | None = None,
+        file_params: list[str] | None = None,
+        file_response: bool = False,
         response_model: any = None,  # TODO: Make specific for pydantic models
         tags: list[str] = None,
         dependencies: Sequence[params.Depends] | None = None,
@@ -111,10 +119,12 @@ def route(
         Keys passed referencing form model parameters to be sent to downstream microservice
     body_params : list[str] | None
         Keys passed referencing body data parameters to be sent to downstream microservice
+    file_params : list[str] | None
+        Keys passed referencing uploaded files parameters to be sent to downstream microservice
+    file_response : bool
+        Whether the downstream microservice will return a file response
     response_model
         Response model of the forwarded request. Can be imported from other packages.
-    response_class
-        Response class of the forwarded request. Can be imported from other packages.
     tags : list[str]
         List of tags used to classify methods
     dependencies: Sequence[params.Depends] | None
@@ -179,6 +189,11 @@ def route(
                 additional_params=kwargs
             )
 
+            request_files = await unzip_file_params(
+                specified_params=file_params,
+                additional_params=kwargs
+            )
+
             request_data = create_request_data(form=request_form, body=request_body)  # Either JSON or Form
 
             microsvc_path = f"{service_url}{downstream_path}"
@@ -190,6 +205,8 @@ def route(
                     query=request_query,
                     data=request_data,
                     headers=request_headers,
+                    files=request_files,
+                    file_response=file_response,
                 )
 
             except ConnectError:

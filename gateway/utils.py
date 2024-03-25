@@ -2,6 +2,7 @@
 
 import os
 
+from fastapi import UploadFile
 from fastapi.routing import serialize_response
 from starlette.datastructures import FormData
 
@@ -79,15 +80,27 @@ async def unzip_form_params(
         if specified_params:
             for key in specified_params:
                 value = additional_params.get(key)
-                # await body_form.upload(key=key, value=value)
                 body_form[key] = value
 
         if request_form:
             for key in request_form:
-                # await body_form.upload(key=key, value=request_form[key])
                 body_form[key] = request_form[key]
 
         return body_form
+
+
+async def unzip_file_params(
+        additional_params: dict[str, any],
+        specified_params: list[str] | None = None,
+) -> dict | None:
+    """Gather binary or text data and package for forwarding."""
+    if specified_params:
+        files = {}
+        for key in specified_params:
+            file: UploadFile = additional_params.get(key)
+            files[key] = file.file.read()
+
+        return files
 
 
 def remove_file(path: str) -> None:
