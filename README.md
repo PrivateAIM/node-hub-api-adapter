@@ -28,8 +28,9 @@ IDP_URL="http://localhost:8080"  # e.g. Keycloak
 IDP_REALM="flame"  # If different realm used in keycloak else defaults to master
 PODORC_SERVICE_URL="http://localhost:18080"  # URL to Pod Orchestration service
 RESULTS_SERVICE_URL="http://localhost:8000"  # URL to the Results service
-HUB_SERVICE_URL="http://localhost:8888"  # URL to the Hub API
-API_CLIENT_ID=api-client  # Client name of this API as defined in keycloak
+HUB_AUTH_SERVICE_URL="https://auth.privateaim.net"
+HUB_SERVICE_URL="https://api.privateaim.net"
 HUB_USERNAME=hubusername  # Need to get credentials from myself or hub team
 HUB_PASSWORD=hubpassword  # These will be removed later once users are registered in both node and hub IDP
+API_CLIENT_ID=api-client  # Client name of this API as defined in keycloak
 ```
