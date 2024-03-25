@@ -30,7 +30,6 @@ PODORC_SERVICE_URL="http://localhost:18080"  # URL to Pod Orchestration service
 RESULTS_SERVICE_URL="http://localhost:8000"  # URL to the Results service
 HUB_SERVICE_URL="http://localhost:8888"  # URL to the Hub API
 API_CLIENT_ID=api-client  # Client name of this API as defined in keycloak
-API_CLIENT_SECRET=someSecret  # Client secret of this API as defined in keycloak
 HUB_USERNAME=hubusername  # Need to get credentials from myself or hub team
 HUB_PASSWORD=hubpassword  # These will be removed later once users are registered in both node and hub IDP
 ```
