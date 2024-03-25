@@ -30,11 +30,11 @@ spec:
             - name: API_CLIENT_ID
               value: "api-client"
             - name: IDP_URL
-              value: "keycloak-svc"  # To be replaced
+              value: "http://keycloak-service:8080"  # To be replaced
             - name: IDP_REALM
               value: "flame"
             - name: RESULTS_SERVICE_URL
-              value: "results-svc"  # To be properly filled in
+              value: "http://node-result-service:8080"  # To be properly filled in
             - name: HUB_SERVICE_URL
               value: "https://api.privateaim.net"
             - name: HUB_AUTH_SERVICE_URL

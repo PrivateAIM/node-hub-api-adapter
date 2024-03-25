@@ -30,11 +30,11 @@ spec:
             - name: API_CLIENT_ID
               value: {{ .Values.env.API_CLIENT_ID | default "api-client" | quote }}
             - name: IDP_URL
-              value: {{ .Values.env.IDP_URL | default "keycloak-svc" | quote }}  # To be replaced
+              value: {{ .Values.env.IDP_URL | default "http://keycloak-service:8080" | quote }}  # To be replaced
             - name: IDP_REALM
               value: {{ .Values.env.IDP_REALM | default "flame" | quote }}  # To be replaced
             - name: RESULTS_SERVICE_URL
-              value: {{ .Values.env.RESULTS_SERVICE_URL | default "results-svc" | quote }}  # To be properly filled in
+              value: {{ .Values.env.RESULTS_SERVICE_URL | default "http://node-result-service:8080" | quote }}  # To be properly filled in
             - name: HUB_SERVICE_URL
               value: {{ .Values.env.HUB_SERVICE_URL | default "https://api.privateaim.net" | quote }}
             - name: HUB_AUTH_SERVICE_URL
