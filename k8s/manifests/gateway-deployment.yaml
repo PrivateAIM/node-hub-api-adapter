@@ -43,3 +43,15 @@ spec:
               value: "thehubusername"  # To be properly filled in
             - name: HUB_PASSWORD
               value: "thehubpassword"
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http-result-srv
+            failureThreshold: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http-result-srv
+            failureThreshold: 3
+            periodSeconds: 10
