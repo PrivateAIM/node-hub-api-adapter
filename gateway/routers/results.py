@@ -53,7 +53,7 @@ async def upload_to_scratch(
 @route(
     request_method=results_router.put,
     path="/upload",
-    status_code=status.HTTP_204_NO_CONTENT,
+    status_code=status.HTTP_200_OK,
     service_url=gateway_settings.RESULTS_SERVICE_URL,
     response_model=ResultsUploadResponse,
     file_params=["file"],
