@@ -162,7 +162,7 @@ services:
       always
 
   minio:
-    image: quay.io/minio/minio:RELEASE.2024-01-16T16-07-38Z
+    image: bitnami/minio:2024.1.16
     environment:
       - MINIO_ROOT_USER=admin
       - MINIO_ROOT_PASSWORD=s3cr3t_p4ssw0rd
@@ -171,7 +171,6 @@ services:
     ports:
       - "9000:9000"  # s3 api
       - "9001:9001"  # web console
-    command: [ "server", "--address", ":9000", "--console-address", ":9001" ]
 
 volumes:
   kong_data: {}
