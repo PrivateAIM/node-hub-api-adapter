@@ -101,10 +101,11 @@ def get_health() -> HealthCheck:
     response_model=Token,
 )
 def get_token(
-        username: Annotated[str, Query()],
-        password: Annotated[str, Query()],
+        username: Annotated[str, Query(description="Keycloak username")],
+        password: Annotated[str, Query(description="Keycloak password")],
 ) -> Token:
-    """Get a token from the IDP."""
+    """Get a JWT from the IDP by passing a valid username and password. This token can then be used to authenticate
+    yourself with this API."""
     payload = {
         "username": username,
         "password": password,
