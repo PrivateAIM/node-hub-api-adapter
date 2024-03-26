@@ -28,7 +28,7 @@ spec:
             - containerPort: 5000
           env:
             - name: API_CLIENT_ID
-              value: "api-client"
+              value: "hub-adapter"
             - name: IDP_URL
               value: "http://keycloak-service:8080"  # To be replaced
             - name: IDP_REALM

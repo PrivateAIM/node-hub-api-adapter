@@ -25,7 +25,7 @@ spec:
               name: http-result-srv
           env:
             - name: API_CLIENT_ID
-              value: {{ .Values.env.API_CLIENT_ID | default "api-client" | quote }}
+              value: {{ .Values.env.API_CLIENT_ID | default "hub-adapter" | quote }}
             - name: IDP_URL
               value: {{ .Values.env.IDP_URL | default "http://keycloak-service:8080" | quote }}  # To be replaced
             - name: IDP_REALM
