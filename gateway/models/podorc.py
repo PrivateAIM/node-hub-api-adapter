@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel
 
 
+# Fake models for frontend
 class ContainerData(BaseModel):
     """Formatted container information."""
     id: UUID

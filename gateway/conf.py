@@ -29,7 +29,7 @@ class Settings(BaseModel):
 
     # UI ID and secret
     API_CLIENT_ID: str = os.getenv("API_CLIENT_ID", "api-client")
-    API_CLIENT_SECRET: str = os.getenv("API_CLIENT_SECRET")
+    API_CLIENT_SECRET: str = os.getenv("API_CLIENT_SECRET")  # Not used currently
 
     # Hub
     HUB_AUTH_SERVICE_URL: str = os.getenv("HUB_AUTH_SERVICE_URL", "https://auth.privateaim.net")

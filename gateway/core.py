@@ -42,6 +42,8 @@ async def make_request(
         A dictionary-like object defining the payload
     files : dict | Nones
         For passing on uploaded files. Should be packaged using the same form param and the read bytes
+    file_response : bool
+        Whether a file or stream data is expected as the response. Defaults to False
 
     Returns
     -------
@@ -59,7 +61,7 @@ async def make_request(
         files = {}
 
     async with httpx.AsyncClient(headers=headers) as client:
-        r = await client.request(url=url, method=method, params=query, data=data, files=files, follow_redirects=True)
+        r = await client.request(url=url, method=method, params=query, json=data, files=files, follow_redirects=True)
         r.raise_for_status()
 
         if file_response:

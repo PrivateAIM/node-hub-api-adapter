@@ -1,7 +1,7 @@
 """Unit tests for the kong endpoints."""
 from starlette import status
 
-from tests.constants import KONG_TEST_DS, KONG_TEST_PROJECT
+from tests.constants import TEST_DS, TEST_PROJECT
 from tests.pseudo_auth import fakeauth
 
 
@@ -21,11 +21,11 @@ class TestKong:
         assert len(data) > 0  # minimum 1
 
         data_store_names = [ds["name"] for ds in data]
-        assert KONG_TEST_DS in data_store_names
+        assert TEST_DS in data_store_names
 
     def test_list_data_stores_by_project(self, test_client, setup_kong):
         """Test the list_data_stores_by_project method."""
-        r = test_client.get(f"/datastore/{KONG_TEST_PROJECT}", auth=fakeauth)
+        r = test_client.get(f"/datastore/{TEST_PROJECT}", auth=fakeauth)
         assert r.status_code == status.HTTP_200_OK
 
         json_data = r.json()
@@ -36,7 +36,7 @@ class TestKong:
         data_store = data[0]
 
         assert data_store["protocols"] == ["http"]
-        assert data_store["name"] == KONG_TEST_PROJECT
+        assert data_store["name"] == TEST_PROJECT
         assert data_store["methods"] == ["GET", "POST", "PUT", "DELETE"]
 
     def test_create_delete_data_store(self, test_client, setup_kong):
@@ -63,7 +63,7 @@ class TestKong:
         """Test the connect_project_to_datastore and disconnect_project methods."""
         test_project_name = "Manhattan"
         proj_specs = {
-            "data_store_id": KONG_TEST_DS,
+            "data_store_id": TEST_DS,
             "project_id": test_project_name,
             "methods": [
                 "GET",
@@ -95,7 +95,7 @@ class TestKong:
         """Test the connect_analysis_to_project method."""
         test_analysis = "datalore"
         analysis_request = {
-            "project_id": KONG_TEST_PROJECT,
+            "project_id": TEST_PROJECT,
             "analysis_id": test_analysis,
         }
         r = test_client.post("/project/analysis", auth=fakeauth, json=analysis_request)
@@ -107,7 +107,7 @@ class TestKong:
         found_keys = [key in expected_keys for key in link_data.keys()]
         assert all(found_keys)
         assert link_data["consumer"]["username"] == test_analysis
-        assert link_data["consumer"]["tags"] == [KONG_TEST_PROJECT]
+        assert link_data["consumer"]["tags"] == [TEST_PROJECT]
 
         d = test_client.delete(f"/analysis/{test_analysis}", auth=fakeauth)
         assert d.status_code == status.HTTP_200_OK

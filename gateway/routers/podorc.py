@@ -2,7 +2,7 @@
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Path, Security
+from fastapi import APIRouter, Path, Body, Security
 from starlette import status
 from starlette.requests import Request
 from starlette.responses import Response
@@ -21,14 +21,16 @@ logger = logging.getLogger(__name__)
 
 @route(
     request_method=po_router.post,
-    path="/po/{analysis_id}",
+    path="/po",
     status_code=status.HTTP_200_OK,
     service_url=gateway_settings.PODORC_SERVICE_URL,
+    body_params=["analysis_id", "project_id"],
 )
 async def create_analysis(
         request: Request,
         response: Response,
-        analysis_id: Annotated[str | None, Path(description="UUID of the analysis.")],
+        analysis_id: Annotated[str, Body(description="UUID of the analysis.")],
+        project_id: Annotated[str, Body(description="UUID of the analysis.")],
 ):
     """Get the logs for a specific analysis run."""
     pass

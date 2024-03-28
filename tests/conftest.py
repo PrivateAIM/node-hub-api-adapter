@@ -1,16 +1,18 @@
 """Test FastAPI app instance."""
 import os
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pytest
 import requests
 from dotenv import load_dotenv
 from fastapi.testclient import TestClient
+from starlette import status
 
 from gateway.conf import gateway_settings
 from gateway.server import app
-from tests.constants import KONG_TEST_DS, KONG_TEST_PROJECT
+from tests.constants import TEST_DS, TEST_PROJECT, TEST_ANALYSIS
 from tests.pseudo_auth import get_oid_test_jwk, BearerAuth, fakeauth
 
 
@@ -48,11 +50,11 @@ def hub_token() -> BearerAuth:
     """Create an endpoint by which to test the valid JWKS."""
     load_dotenv(dotenv_path="../env/.env.dev")
     # TODO: replace with robot account
-    HUB_USERNAME, HUB_PASSWORD = os.getenv("HUB_USERNAME"), os.getenv("HUB_PASSWORD")
-    HUB_AUTH_API = gateway_settings.HUB_AUTH_SERVICE_URL
-    HUB_TOKEN_EP = HUB_AUTH_API + "/token"
+    hub_username, hub_password = os.getenv("HUB_USERNAME"), os.getenv("HUB_PASSWORD")
+    hub_auth_api = gateway_settings.HUB_AUTH_SERVICE_URL
+    hub_token_ep = hub_auth_api + "/token"
 
-    resp = requests.post(HUB_TOKEN_EP, data={"username": HUB_USERNAME, "password": HUB_PASSWORD})
+    resp = requests.post(hub_token_ep, data={"username": hub_username, "password": hub_password})
     assert resp.ok
 
     token = resp.json()["access_token"]
@@ -65,15 +67,15 @@ def hub_token() -> BearerAuth:
 def setup_kong(test_client):
     """Setup Kong instance with test data."""
     test_datastore = {
-        "name": KONG_TEST_DS,
+        "name": TEST_DS,
         "protocol": "http",
         "host": "server.fire.ly",
         "port": 80,
         "path": "/mydefinedpath",
     }
     test_project_link = {
-        "data_store_id": KONG_TEST_DS,
-        "project_id": KONG_TEST_PROJECT,
+        "data_store_id": TEST_DS,
+        "project_id": TEST_PROJECT,
         "methods": [
             "GET",
             "POST",
@@ -89,5 +91,22 @@ def setup_kong(test_client):
 
     yield
 
-    test_client.put(f"/disconnect/{KONG_TEST_PROJECT}", auth=fakeauth)
-    test_client.delete(f"/datastore/{KONG_TEST_DS}", auth=fakeauth)
+    test_client.put(f"/disconnect/{TEST_PROJECT}", auth=fakeauth)
+    test_client.delete(f"/datastore/{TEST_DS}", auth=fakeauth)
+
+
+@pytest.fixture(scope="module")
+def setup_po(test_client):
+    """Setup pod orchestrator instance with test data."""
+    test_pod = {
+        "analysis_id": TEST_ANALYSIS,
+        "project_id": TEST_PROJECT,
+    }
+
+    r = test_client.post("/po", auth=fakeauth, json=test_pod)
+    assert r.status_code == status.HTTP_200_OK
+    time.sleep(2)  # Need time for k8s
+
+    yield
+
+    test_client.delete(f"/po/{TEST_ANALYSIS}/delete", auth=fakeauth)

@@ -7,7 +7,7 @@ from typing import Annotated
 
 import requests
 import uvicorn
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Form
 from starlette import status
 from starlette.middleware.cors import CORSMiddleware
 
@@ -101,8 +101,8 @@ def get_health() -> HealthCheck:
     response_model=Token,
 )
 def get_token(
-        username: Annotated[str, Query(description="Keycloak username")],
-        password: Annotated[str, Query(description="Keycloak password")],
+        username: Annotated[str, Form(description="Keycloak username")],
+        password: Annotated[str, Form(description="Keycloak password")],
 ) -> Token:
     """Get a JWT from the IDP by passing a valid username and password. This token can then be used to authenticate
     yourself with this API."""
