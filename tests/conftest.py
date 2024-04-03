@@ -19,6 +19,17 @@ def test_client():
         yield test_client
 
 
+@pytest.fixture(scope="package")
+def test_token(test_client) -> BearerAuth:
+    """Get a new access token from the IDP."""
+    test_user, test_pwd = "flameuser", "flamepwd"
+
+    resp = test_client.post("/token", data={"username": test_user, "password": test_pwd})
+    assert resp.status_code == httpx.codes.OK
+    token = resp.json()["access_token"]
+    return BearerAuth(token=token)
+
+
 @pytest.fixture(scope="module")
 def hub_token() -> BearerAuth:
     """Create an endpoint by which to test the valid JWKS."""
@@ -34,17 +45,6 @@ def hub_token() -> BearerAuth:
     assert token
 
     return BearerAuth(token)
-
-
-@pytest.fixture(scope="package")
-def test_token(test_client) -> BearerAuth:
-    """Get a new access token from the IDP."""
-    test_user, test_pwd = "flameuser", "flamepwd"
-
-    resp = test_client.post("/token", data={"username": test_user, "password": test_pwd})
-    assert resp.status_code == httpx.codes.OK
-    token = resp.json()["access_token"]
-    return BearerAuth(token=token)
 
 
 @pytest.fixture(scope="module")
