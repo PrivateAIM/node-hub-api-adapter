@@ -21,7 +21,7 @@ class Settings(BaseModel):
     # Service URLs
     RESULTS_SERVICE_URL: str = os.getenv("RESULTS_SERVICE_URL", "http://localhost:8000")
     KONG_ADMIN_SERVICE_URL: str = os.getenv("RESULTS_SERVICE_URL", "http://localhost:8001")
-    PODORC_SERVICE_URL: str = os.getenv("PODORC_SERVICE_URL", "http://localhost:8002")
+    PODORC_SERVICE_URL: str = os.getenv("PODORC_SERVICE_URL", "http://localhost:18080")
 
     # UI ID and secret
     API_CLIENT_ID: str = os.getenv("API_CLIENT_ID", "api-client")

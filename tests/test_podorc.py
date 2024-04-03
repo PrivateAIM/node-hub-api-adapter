@@ -4,15 +4,14 @@ import time
 from starlette import status
 
 from tests.constants import TEST_ANALYSIS
-from tests.pseudo_auth import fakeauth
 
 
 class TestPodOrc:
     """Pod orchestration tests."""
 
-    def test_get_po_status(self, test_client, setup_po):
+    def test_get_po_status(self, test_client, setup_po, test_token):
         """Test the get_analysis_status method."""
-        r = test_client.get(f"/po/{TEST_ANALYSIS}/status", auth=fakeauth)
+        r = test_client.get(f"/po/{TEST_ANALYSIS}/status", auth=test_token)
         assert r.status_code == status.HTTP_200_OK
 
         resp = r.json()
@@ -22,9 +21,9 @@ class TestPodOrc:
             assert pod_name.startswith(TEST_ANALYSIS)
             assert pod_status == "running"
 
-    def test_get_po_logs(self, test_client, setup_po):
+    def test_get_po_logs(self, test_client, setup_po, test_token):
         """Test the get_analysis_logs method."""
-        r = test_client.get(f"/po/{TEST_ANALYSIS}/logs", auth=fakeauth)
+        r = test_client.get(f"/po/{TEST_ANALYSIS}/logs", auth=test_token)
         assert r.status_code == status.HTTP_200_OK
 
         resp = r.json()
@@ -34,9 +33,9 @@ class TestPodOrc:
             assert pod_name.startswith(TEST_ANALYSIS)
             assert isinstance(pod_log, list)
 
-    def test_get_po_pods(self, test_client, setup_po):
+    def test_get_po_pods(self, test_client, setup_po, test_token):
         """Test the get_analysis_pods method."""
-        r = test_client.get(f"/po/{TEST_ANALYSIS}/pods", auth=fakeauth)
+        r = test_client.get(f"/po/{TEST_ANALYSIS}/pods", auth=test_token)
         assert r.status_code == status.HTTP_200_OK
 
         resp = r.json()
@@ -45,7 +44,7 @@ class TestPodOrc:
         assert isinstance(pods, list)
         assert len(pods) == 1
 
-    def test_create_stop_delete_pod(self, test_client):
+    def test_create_stop_delete_pod(self, test_client, test_token):
         """Test the create_analysis, stop_analysis, and delete_analysis methods."""
         analysis_test = "podorcanalysistest"  # Must be all lower case for podorc unittests
         test_deploy = {
@@ -54,7 +53,7 @@ class TestPodOrc:
         }
 
         # Create pod
-        create_r = test_client.post("/po", auth=fakeauth, json=test_deploy)
+        create_r = test_client.post("/po", auth=test_token, json=test_deploy)
         assert create_r.status_code == status.HTTP_200_OK
 
         pod_creation_status = create_r.json()
@@ -63,7 +62,7 @@ class TestPodOrc:
         time.sleep(2)
 
         # Stop pod
-        stop_r = test_client.put(f"/po/{analysis_test}/stop", auth=fakeauth)
+        stop_r = test_client.put(f"/po/{analysis_test}/stop", auth=test_token)
         assert stop_r.status_code == status.HTTP_200_OK
 
         pod_stop_resp = stop_r.json()
@@ -76,7 +75,7 @@ class TestPodOrc:
         time.sleep(2)
 
         # Delete pod
-        delete_r = test_client.delete(f"/po/{analysis_test}/delete", auth=fakeauth)
+        delete_r = test_client.delete(f"/po/{analysis_test}/delete", auth=test_token)
         assert delete_r.status_code == status.HTTP_200_OK
 
         pod_delete_resp = delete_r.json()

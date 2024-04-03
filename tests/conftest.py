@@ -12,9 +12,6 @@ from tests.constants import TEST_DS, TEST_PROJECT, TEST_ANALYSIS
 from tests.pseudo_auth import BearerAuth
 
 
-# from tests.pseudo_auth import fakeauth
-
-
 @pytest.fixture(scope="session")
 def test_client():
     """Test API client."""
