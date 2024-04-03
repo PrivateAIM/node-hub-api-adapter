@@ -1,48 +1,26 @@
 """Test FastAPI app instance."""
 import os
-import threading
 import time
-from http.server import BaseHTTPRequestHandler, HTTPServer
 
+import httpx
 import pytest
-import requests
 from dotenv import load_dotenv
 from fastapi.testclient import TestClient
-from starlette import status
 
 from gateway.conf import gateway_settings
 from gateway.server import app
 from tests.constants import TEST_DS, TEST_PROJECT, TEST_ANALYSIS
-from tests.pseudo_auth import get_oid_test_jwk, BearerAuth, fakeauth
+from tests.pseudo_auth import BearerAuth
 
 
-@pytest.fixture(scope="package")
+# from tests.pseudo_auth import fakeauth
+
+
+@pytest.fixture(scope="session")
 def test_client():
     """Test API client."""
     with TestClient(app) as test_client:
         yield test_client
-
-
-@pytest.fixture(scope="package", autouse=True)
-def setup_jwks_endpoint():
-    """Create an endpoint by which to test the valid JWKS."""
-    jwks = get_oid_test_jwk()
-
-    class JWKSHandler(BaseHTTPRequestHandler):
-        def do_GET(self):
-            self.send_response(200)
-            self.send_header("Content-type", "application/json")
-            self.end_headers()
-            self.wfile.write(str(jwks).encode("utf-8"))
-
-    httpd = HTTPServer(("localhost", 18554), JWKSHandler)
-
-    t = threading.Thread(target=httpd.serve_forever)
-    t.start()
-
-    yield
-
-    httpd.shutdown()
 
 
 @pytest.fixture(scope="module")
@@ -54,8 +32,8 @@ def hub_token() -> BearerAuth:
     hub_auth_api = gateway_settings.HUB_AUTH_SERVICE_URL
     hub_token_ep = hub_auth_api + "/token"
 
-    resp = requests.post(hub_token_ep, data={"username": hub_username, "password": hub_password})
-    assert resp.ok
+    resp = httpx.post(hub_token_ep, data={"username": hub_username, "password": hub_password})
+    assert resp.status_code == httpx.codes.OK
 
     token = resp.json()["access_token"]
     assert token
@@ -63,8 +41,19 @@ def hub_token() -> BearerAuth:
     return BearerAuth(token)
 
 
+@pytest.fixture(scope="package")
+def test_token(test_client) -> BearerAuth:
+    """Get a new access token from the IDP."""
+    test_user, test_pwd = "flameuser", "flamepwd"
+
+    resp = test_client.post("/token", data={"username": test_user, "password": test_pwd})
+    assert resp.status_code == httpx.codes.OK
+    token = resp.json()["access_token"]
+    return BearerAuth(token=token)
+
+
 @pytest.fixture(scope="module")
-def setup_kong(test_client):
+def setup_kong(test_client, test_token):
     """Setup Kong instance with test data."""
     test_datastore = {
         "name": TEST_DS,
@@ -86,27 +75,27 @@ def setup_kong(test_client):
         "protocols": ["http"],
     }
 
-    test_client.post("/datastore", auth=fakeauth, json=test_datastore)
-    test_client.post("/datastore/project", auth=fakeauth, json=test_project_link)
+    test_client.post("/datastore", auth=test_token, json=test_datastore)
+    test_client.post("/datastore/project", auth=test_token, json=test_project_link)
 
     yield
 
-    test_client.put(f"/disconnect/{TEST_PROJECT}", auth=fakeauth)
-    test_client.delete(f"/datastore/{TEST_DS}", auth=fakeauth)
+    test_client.put(f"/disconnect/{TEST_PROJECT}", auth=test_token)
+    test_client.delete(f"/datastore/{TEST_DS}", auth=test_token)
 
 
 @pytest.fixture(scope="module")
-def setup_po(test_client):
+def setup_po(test_client, test_token):
     """Setup pod orchestrator instance with test data."""
     test_pod = {
         "analysis_id": TEST_ANALYSIS,
         "project_id": TEST_PROJECT,
     }
 
-    r = test_client.post("/po", auth=fakeauth, json=test_pod)
-    assert r.status_code == status.HTTP_200_OK
+    r = test_client.post("/po", auth=test_token, json=test_pod)
+    assert r.status_code == httpx.codes.OK
     time.sleep(2)  # Need time for k8s
 
     yield
 
-    test_client.delete(f"/po/{TEST_ANALYSIS}/delete", auth=fakeauth)
+    test_client.delete(f"/po/{TEST_ANALYSIS}/delete", auth=test_token)
