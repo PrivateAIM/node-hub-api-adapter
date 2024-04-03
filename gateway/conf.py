@@ -1,11 +1,7 @@
 """Adapter API Settings."""
 import os
 
-# from dotenv import load_dotenv
 from pydantic import BaseModel
-
-
-# load_dotenv(dotenv_path="../env/.env.dev")
 
 
 class Settings(BaseModel):
