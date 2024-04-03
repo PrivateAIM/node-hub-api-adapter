@@ -27,7 +27,7 @@
     }
   },
   "loggers": {
-    "root": {
+    "gateway": {
       "level": "DEBUG",
       "handlers": [
         "stderr",

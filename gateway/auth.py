@@ -1,4 +1,6 @@
 """Handle the authorization and authentication of services."""
+import logging
+
 import httpx
 from fastapi import Security, HTTPException
 from fastapi.security import OAuth2AuthorizationCodeBearer, OAuth2PasswordBearer, HTTPBearer
@@ -9,6 +11,8 @@ from starlette.requests import Request
 
 from gateway.conf import gateway_settings
 from gateway.models.conf import AuthConfiguration, Token
+
+logger = logging.getLogger(__name__)
 
 IDP_ISSUER_URL = gateway_settings.IDP_URL.rstrip("/") + "/" + "/".join(["realms", gateway_settings.IDP_REALM])
 
@@ -62,6 +66,7 @@ async def verify_idp_token(token: str = Security(idp_oauth2_scheme)) -> dict:
         )
 
     except JOSEError as e:
+        logger.error(f"{status.HTTP_401_UNAUTHORIZED} - {e}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(e),  # Invalid authentication credentials
@@ -69,19 +74,28 @@ async def verify_idp_token(token: str = Security(idp_oauth2_scheme)) -> dict:
         )
 
     except jwt.ExpiredSignatureError:
+        err_msg = "Authorization token expired"
+        logger.error(f"{status.HTTP_401_UNAUTHORIZED} - {err_msg}")
         raise HTTPException(
             status_code=401,
-            detail='Authorization token expired')
+            detail=err_msg
+        )
 
     except jwt.JWTClaimsError:
+        err_msg = "Incorrect claims, check the audience and issuer."
+        logger.error(f"{status.HTTP_401_UNAUTHORIZED} - {err_msg}")
         raise HTTPException(
             status_code=401,
-            detail='Incorrect claims, check the audience and issuer.')
+            detail=err_msg
+        )
 
     except Exception:
+        err_msg = "Unable to parse authentication token"
+        logger.error(f"{status.HTTP_401_UNAUTHORIZED} - {err_msg}")
         raise HTTPException(
             status_code=401,
-            detail='Unable to parse authentication token')
+            detail=err_msg,
+        )
 
 
 async def get_hub_token() -> dict:

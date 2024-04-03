@@ -1,5 +1,5 @@
 import functools
-import os
+import logging
 import tempfile
 from typing import Sequence
 
@@ -15,6 +15,8 @@ from gateway import post_processing
 from gateway.constants import CONTENT_TYPE
 from gateway.utils import unzip_form_params, unzip_body_object, create_request_data, unzip_query_params, \
     unzip_file_params
+
+logger = logging.getLogger(__name__)
 
 
 async def make_request(
@@ -62,19 +64,20 @@ async def make_request(
 
     async with httpx.AsyncClient(headers=headers) as client:
         r = await client.request(url=url, method=method, params=query, json=data, files=files, follow_redirects=True)
+
+        logger.info(
+            f'HTTP Request: {method.upper()} {url} "{r.http_version} {r.status_code} {r.reason_phrase}"',
+        )
+
         r.raise_for_status()
 
         if file_response:
             with tempfile.NamedTemporaryFile(mode="w+b", delete=False) as temp_file:
                 temp_file.write(r.content)
 
-            def cleanup():
-                os.remove(temp_file.name)
-
             filename = url.split("/")[-1]  # Get the UUID of object
             return FileResponse(
                 temp_file.name,
-                # background=BackgroundTask(cleanup),
                 headers=r.headers,
                 filename=filename,
             ), r.status_code
@@ -161,7 +164,7 @@ def route(
         async def inner(request: Request, response: Response, **kwargs):
             scope = request.scope
             method = scope["method"].lower()
-
+            tags = scope["route"].tags
             downstream_path = scope['path']
 
             content_type = str(request.headers.get(CONTENT_TYPE))
@@ -212,13 +215,21 @@ def route(
                 )
 
             except ConnectError:
+                err_msg = (f'HTTP Request: {method.upper()} {microsvc_path} '
+                           f'{status.HTTP_503_SERVICE_UNAVAILABLE} Service is unavailable. '
+                           f'Check the {tags.pop()} service at {service_url}')
+                logger.error(err_msg)
                 raise HTTPException(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail="Service is unavailable",
+                    detail=err_msg,
                     headers={"WWW-Authenticate": "Bearer"},
                 )
 
             except DecodingError:
+                logger.error(
+                    f'HTTP Request: {method.upper()} {microsvc_path} '
+                    f'"{status.HTTP_500_INTERNAL_SERVER_ERROR} Service error"',
+                )
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Service error",
