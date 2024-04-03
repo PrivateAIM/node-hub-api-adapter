@@ -4,7 +4,6 @@ import time
 
 import httpx
 import pytest
-from dotenv import load_dotenv
 from fastapi.testclient import TestClient
 
 from gateway.conf import gateway_settings
@@ -26,7 +25,6 @@ def test_client():
 @pytest.fixture(scope="module")
 def hub_token() -> BearerAuth:
     """Create an endpoint by which to test the valid JWKS."""
-    load_dotenv(dotenv_path="../env/.env.dev")
     # TODO: replace with robot account
     hub_username, hub_password = os.getenv("HUB_USERNAME"), os.getenv("HUB_PASSWORD")
     hub_auth_api = gateway_settings.HUB_AUTH_SERVICE_URL
