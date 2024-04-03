@@ -5,9 +5,10 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated
 
-import requests
+import httpx
 import uvicorn
 from fastapi import FastAPI, HTTPException, Form
+from jose import jwt
 from starlette import status
 from starlette.middleware.cors import CORSMiddleware
 
@@ -114,8 +115,8 @@ def get_token(
         "grant_type": "password",
         "scope": "openid",
     }
-    resp = requests.post(realm_idp_settings.token_url, data=payload)
-    if not resp.ok:
+    resp = httpx.post(realm_idp_settings.token_url, data=payload)
+    if not resp.status_code == httpx.codes.OK:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=resp.json(),  # Invalid authentication credentials
@@ -123,6 +124,29 @@ def get_token(
         )
     token_data = resp.json()
     return Token(**token_data)
+
+
+@app.post(
+    "/token/inspect",
+    summary="Get information about a provided token from the IDP",
+    tags=["Auth"],
+    status_code=status.HTTP_200_OK,
+)
+def inspect_token(
+        token: Annotated[str, Form(description="JSON web token")],
+) -> dict:
+    """Return information about the provided token."""
+    public_key = (
+        "-----BEGIN PUBLIC KEY-----\n"
+        f"{httpx.get(realm_idp_settings.issuer_url).json().get('public_key')}"
+        "\n-----END PUBLIC KEY-----"
+    )
+    decoded = jwt.decode(
+        token,
+        key=public_key,
+        options={"verify_signature": True, "verify_aud": False, "exp": True},
+    )
+    return decoded
 
 
 app.include_router(

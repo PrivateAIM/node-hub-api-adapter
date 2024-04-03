@@ -1,6 +1,5 @@
 """Handle the authorization and authentication of services."""
-
-import requests
+import httpx
 from fastapi import Security, HTTPException
 from fastapi.security import OAuth2AuthorizationCodeBearer, OAuth2PasswordBearer, HTTPBearer
 from jose import jwt, JOSEError
@@ -42,7 +41,7 @@ async def get_idp_public_key() -> str:
     """Get the IDP public key."""
     return (
         "-----BEGIN PUBLIC KEY-----\n"
-        f"{requests.get(realm_idp_settings.issuer_url).json().get('public_key')}"
+        f"{httpx.get(realm_idp_settings.issuer_url).json().get('public_key')}"
         "\n-----END PUBLIC KEY-----"
     )
 
@@ -50,7 +49,7 @@ async def get_idp_public_key() -> str:
 async def get_hub_public_key() -> dict:
     """Get the central hub service public key."""
     hub_jwks_ep = gateway_settings.HUB_AUTH_SERVICE_URL.rstrip("/") + "/jwks"
-    return requests.get(hub_jwks_ep).json()
+    return httpx.get(hub_jwks_ep).json()
 
 
 async def verify_idp_token(token: str = Security(idp_oauth2_scheme)) -> dict:
@@ -90,9 +89,9 @@ async def get_hub_token() -> dict:
     hub_user, hub_pwd = gateway_settings.HUB_USERNAME, gateway_settings.HUB_PASSWORD
     payload = {"username": hub_user, "password": hub_pwd}
     token_route = gateway_settings.HUB_AUTH_SERVICE_URL.rstrip("/") + "/token"
-    resp = requests.post(token_route, data=payload)
+    resp = httpx.post(token_route, data=payload)
 
-    if not resp.ok:
+    if not resp.status_code == httpx.codes.OK:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=resp.json(),  # Invalid authentication credentials
