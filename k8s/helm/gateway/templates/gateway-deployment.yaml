@@ -20,13 +20,13 @@ spec:
         - name: api-gateway
           image: ghcr.io/privateaim/node-hub-api-adapter:latest
           imagePullPolicy: IfNotPresent  # Maybe "Always" during debug
-          readinessProbe:
-            httpGet:
-              path: /healthz
-              port: 5000
           ports:
             - containerPort: 5000
               name: http-result-srv
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http-result-srv
           env:
             - name: API_CLIENT_ID
               value: {{ .Values.env.API_CLIENT_ID | default "hub-adapter" | quote }}
