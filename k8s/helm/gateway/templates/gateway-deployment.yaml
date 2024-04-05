@@ -1,18 +1,18 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-gateway-deployment
+  name: {{ .Release.Name }}-hub-adapter-deployment
 spec:
   selector:
     matchLabels:
-      component: gateway-service
+      component: hub-adapter-service
       version: {{ .Chart.AppVersion }}
       deployment-id:  {{ .Release.Name }}
   replicas: 1
   template:
     metadata:
       labels:
-        component: gateway-service
+        component: hub-adapter-service
         version: {{ .Chart.AppVersion }}
         deployment-id:  {{ .Release.Name }}
     spec:
@@ -20,6 +20,10 @@ spec:
         - name: api-gateway
           image: ghcr.io/privateaim/node-hub-api-adapter:latest
           imagePullPolicy: IfNotPresent  # Maybe "Always" during debug
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 5000
           ports:
             - containerPort: 5000
               name: http-result-srv

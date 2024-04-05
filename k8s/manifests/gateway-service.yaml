@@ -1,16 +1,16 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: hub-adaptor-gateway-service
+  name: hub-adapter-gateway-service
   labels:
-    component: gateway-service
+    component: hub-adapter-service
     version: 0.1.0
-    deployment-id:  hub-adaptor
+    deployment-id:  hub-adapter
 spec:
   ports:
   - name: api
     port: 5000
   selector:
-    component: gateway-service
+    component: hub-adapter-service
     version: 0.1.0
-    deployment-id:  hub-adaptor
+    deployment-id:  hub-adapter

@@ -1,29 +1,29 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: hub-adaptor-gateway-deployment
+  name: hub-adapter-gateway-deployment
 spec:
   selector:
     matchLabels:
-      component: gateway-service
+      component: hub-adapter-service
       version: 0.1.0
-      deployment-id:  hub-adaptor
+      deployment-id:  hub-adapter
   replicas: 1
   template:
     metadata:
       labels:
-        component: gateway-service
+        component: hub-adapter-service
         version: 0.1.0
-        deployment-id:  hub-adaptor
+        deployment-id:  hub-adapter
     spec:
       containers:
         - name: api-gateway
           image: ghcr.io/privateaim/node-hub-api-adapter:latest
           imagePullPolicy: IfNotPresent  # Maybe "Always" during debug
           readinessProbe:
-          httpGet:
-            path: /healthz
-            port: 5000
+            httpGet:
+              path: /healthz
+              port: 5000
           ports:
             - containerPort: 5000
           env:

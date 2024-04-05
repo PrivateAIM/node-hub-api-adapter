@@ -1,9 +1,9 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ .Release.Name }}-gateway-ingress
+  name: {{ .Release.Name }}-hub-adapter-ingress
   labels:
-    component: gateway-service
+    component: hub-adapter-service
     version: {{ .Chart.AppVersion }}
     deployment-id:  {{ .Release.Name }}
 spec:
@@ -15,6 +15,6 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: {{ .Release.Name }}-gateway-service
+                name: {{ .Release.Name }}-hub-adapter-service
                 port:
                   number: 5000
