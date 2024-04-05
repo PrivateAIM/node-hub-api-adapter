@@ -13,8 +13,8 @@ from starlette import status
 from starlette.middleware.cors import CORSMiddleware
 
 from gateway.auth import realm_idp_settings
-from gateway.models import HealthCheck
 from gateway.models.conf import Token
+from gateway.routers.health import health_router
 from gateway.routers.hub import hub_router
 from gateway.routers.kong import kong_router
 from gateway.routers.metadata import metadata_router
@@ -40,6 +40,7 @@ async def lifespan(app: FastAPI):
 # API metadata
 tags_metadata = [
     {"name": "Auth", "description": "Endpoints for authorization specific tasks."},
+    {"name": "Health", "description": "Endpoints for checking the health of this API and the downstream services."},
     {"name": "Hub", "description": "Endpoints for the central Hub service."},
     {"name": "Kong", "description": "Endpoints for the Kong gateway service."},
     {"name": "PodOrc", "description": "Endpoints for the Pod Orchestration service."},
@@ -71,27 +72,6 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["*"],
 )
-
-
-@app.get(
-    "/healthz",
-    tags=["healthcheck"],
-    summary="Perform a Health Check",
-    response_description="Return HTTP Status Code 200 (OK)",
-    status_code=status.HTTP_200_OK,
-    response_model=HealthCheck,
-)
-def get_health() -> HealthCheck:
-    """
-    ## Perform a Health Check
-    Endpoint to perform a healthcheck on. This endpoint can primarily be used Docker
-    to ensure a robust container orchestration and management is in place. Other
-    services which rely on proper functioning of the API service will not deploy if this
-    endpoint returns any other HTTP status code except 200 (OK).
-    Returns:
-        HealthCheck: Returns a JSON response with the health status
-    """
-    return HealthCheck(status="OK")
 
 
 @app.post(
@@ -149,25 +129,10 @@ def inspect_token(
     return decoded
 
 
-app.include_router(
-    po_router,
-)
+routers = (po_router, results_router, metadata_router, hub_router, kong_router, health_router)
 
-app.include_router(
-    results_router,
-)
-
-app.include_router(
-    metadata_router,
-)
-
-app.include_router(
-    hub_router,
-)
-
-app.include_router(
-    kong_router,
-)
+for router in routers:
+    app.include_router(router)
 
 if __name__ == "__main__":
     uvicorn.run("server:app", host="127.0.0.1", port=8081)
