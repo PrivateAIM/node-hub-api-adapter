@@ -1,8 +1,8 @@
 """Models for the Kong microservice."""
 from enum import Enum
 
-from kong_admin_client import CreateServiceRequest, CreateServiceRequestClientCertificate, Plugin, Consumer, KeyAuth, \
-    ACL
+from kong_admin_client import CreateServiceRequest, Plugin, Consumer, KeyAuth, \
+    ACL, CreateServiceRequestClientCertificate
 from kong_admin_client.models.service import Service
 from pydantic import BaseModel, constr
 
@@ -15,6 +15,7 @@ class DataStoreType(Enum):
 
 class ServiceRequest(CreateServiceRequest):
     """Improved version of the CreateServiceRequest with better defaults."""
+
     protocol: str | None = "http"
     port: int | None = 80
     path: str | None = "/somewhere"
@@ -22,6 +23,32 @@ class ServiceRequest(CreateServiceRequest):
     tls_verify: bool | None = None
     ca_certificates: list[str] | None = None
     enabled: bool = True
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "name": "myNewDatastore",
+                    "retries": 5,
+                    "protocol": "http",
+                    "host": "whonnock",
+                    "port": 443,
+                    "path": "/upload",
+                    "connect_timeout": 6000,
+                    "write_timeout": 6000,
+                    "read_timeout": 6000,
+                    "tags": [
+                        "example"
+                    ],
+                    "client_certificate": None,
+                    "tls_verify": None,
+                    "tls_verify_depth": None,
+                    "ca_certificates": None,
+                    "enabled": True
+                }
+            ]
+        }
+    }
 
 
 class LinkDataStoreProject(BaseModel):

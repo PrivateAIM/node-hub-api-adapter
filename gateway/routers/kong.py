@@ -116,10 +116,12 @@ async def delete_data_store(
 
 
 @kong_router.post("/datastore", response_model=Service, status_code=status.HTTP_201_CREATED)
-async def create_data_store(data: Annotated[ServiceRequest, Body(
-    description="Required information for creating a new data store.",
-    title="Data store metadata."
-)]):
+async def create_data_store(
+        data: Annotated[ServiceRequest, Body(
+            description="Required information for creating a new data store.",
+            title="Data store metadata."
+        )]
+):
     """Create a datastore by providing necessary metadata."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
 
