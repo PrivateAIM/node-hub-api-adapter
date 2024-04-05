@@ -70,13 +70,13 @@ def setup_kong(test_client, test_token):
         "protocols": ["http"],
     }
 
-    test_client.post("/datastore", auth=test_token, json=test_datastore)
-    test_client.post("/datastore/project", auth=test_token, json=test_project_link)
+    test_client.post("/kong/datastore", auth=test_token, json=test_datastore)
+    test_client.post("/kong/datastore/project", auth=test_token, json=test_project_link)
 
     yield
 
-    test_client.put(f"/disconnect/{TEST_PROJECT}", auth=test_token)
-    test_client.delete(f"/datastore/{TEST_DS}", auth=test_token)
+    test_client.put(f"/kong/disconnect/{TEST_PROJECT}", auth=test_token)
+    test_client.delete(f"/kong/datastore/{TEST_DS}", auth=test_token)
 
 
 @pytest.fixture(scope="module")

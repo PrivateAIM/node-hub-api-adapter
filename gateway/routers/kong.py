@@ -18,6 +18,7 @@ kong_router = APIRouter(
     dependencies=[Security(verify_idp_token), Security(idp_oauth2_scheme_pass), Security(httpbearer)],
     tags=["Kong"],
     responses={404: {"description": "Not found"}},
+    prefix="/kong"
 )
 
 logger = logging.getLogger(__name__)
