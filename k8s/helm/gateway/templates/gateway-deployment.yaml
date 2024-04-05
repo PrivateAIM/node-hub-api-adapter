@@ -34,6 +34,8 @@ spec:
               value: {{ .Values.env.RESULTS_SERVICE_URL | default "http://node-result-service:5000" | quote }}  # To be properly filled in
             - name: PODORC_SERVICE_URL
               value: {{ .Values.env.PODORC_SERVICE_URL | default "http://po-service:8000" | quote }}  # To be properly filled in
+            - name: KONG_ADMIN_SERVICE_URL
+              value: {{ .Values.env.KONG_ADMIN_SERVICE_URL | default "http://kong-service:8000" | quote }}  # To be properly filled in
             - name: HUB_SERVICE_URL
               value: {{ .Values.env.HUB_SERVICE_URL | default "https://api.privateaim.net" | quote }}
             - name: HUB_AUTH_SERVICE_URL
