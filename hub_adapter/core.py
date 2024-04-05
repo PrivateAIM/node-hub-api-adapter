@@ -11,9 +11,9 @@ from fastapi.responses import StreamingResponse, JSONResponse
 from httpx import ConnectError, DecodingError
 from starlette.responses import Response, FileResponse
 
-from gateway import post_processing
-from gateway.constants import CONTENT_TYPE
-from gateway.utils import unzip_form_params, unzip_body_object, create_request_data, unzip_query_params, \
+from hub_adapter import post_processing
+from hub_adapter.constants import CONTENT_TYPE
+from hub_adapter.utils import unzip_form_params, unzip_body_object, create_request_data, unzip_query_params, \
     unzip_file_params
 
 logger = logging.getLogger(__name__)

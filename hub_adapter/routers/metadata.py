@@ -2,8 +2,8 @@
 
 from fastapi import APIRouter
 
-from gateway.conf import gateway_settings
-from gateway.models.conf import KeycloakConfig
+from hub_adapter.conf import hub_adapter_settings
+from hub_adapter.models.conf import KeycloakConfig
 
 metadata_router = APIRouter(
     # dependencies=[Security(oauth2_scheme)],
@@ -16,8 +16,8 @@ metadata_router = APIRouter(
 async def get_keycloak_config():
     """Return keycloak metadata for the frontend."""
     return {
-        "realm": gateway_settings.IDP_REALM,
-        "url": gateway_settings.IDP_URL,
+        "realm": hub_adapter_settings.IDP_REALM,
+        "url": hub_adapter_settings.IDP_URL,
         "clientId": "node-ui-app",
     }
 

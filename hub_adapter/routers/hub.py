@@ -7,12 +7,13 @@ from starlette import status
 from starlette.requests import Request
 from starlette.responses import Response
 
-from gateway.auth import add_hub_jwt, verify_idp_token, idp_oauth2_scheme_pass, httpbearer
-from gateway.conf import gateway_settings
-from gateway.core import route
-from gateway.models.hub import Project, AllProjects, ApprovalStatus, AnalysisOrProjectNode, ListAnalysisOrProjectNodes, \
+from hub_adapter.auth import add_hub_jwt, verify_idp_token, idp_oauth2_scheme_pass, httpbearer
+from hub_adapter.conf import hub_adapter_settings
+from hub_adapter.core import route
+from hub_adapter.models.hub import Project, AllProjects, ApprovalStatus, AnalysisOrProjectNode, \
+    ListAnalysisOrProjectNodes, \
     AnalysisNode
-from gateway.models.podorc import ImageDataResponse, ContainerResponse
+from hub_adapter.models.podorc import ImageDataResponse, ContainerResponse
 
 hub_router = APIRouter(
     dependencies=[Security(verify_idp_token), Depends(add_hub_jwt), Security(idp_oauth2_scheme_pass),
@@ -69,7 +70,7 @@ async def get_vault_status():
     request_method=hub_router.get,
     path="/projects",
     status_code=status.HTTP_200_OK,
-    service_url=gateway_settings.HUB_SERVICE_URL,
+    service_url=hub_adapter_settings.HUB_SERVICE_URL,
     response_model=AllProjects,
     query_params=["filter_id", "filter_realm_id", "filter_user_id", "include"],
 )
@@ -95,7 +96,7 @@ async def list_all_projects(
     request_method=hub_router.get,
     path="/projects/{project_id}",
     status_code=status.HTTP_200_OK,
-    service_url=gateway_settings.HUB_SERVICE_URL,
+    service_url=hub_adapter_settings.HUB_SERVICE_URL,
     response_model=Project,
 )
 async def list_specific_project(
@@ -111,7 +112,7 @@ async def list_specific_project(
     request_method=hub_router.get,
     path="/project-nodes",
     status_code=status.HTTP_200_OK,
-    service_url=gateway_settings.HUB_SERVICE_URL,
+    service_url=hub_adapter_settings.HUB_SERVICE_URL,
     response_model=ListAnalysisOrProjectNodes,
     query_params=["filter_id", "filter_project_id", "filter_project_realm_id",
                   "filter_node_id", "filter_node_realm_id"],
@@ -158,7 +159,7 @@ async def list_projects_and_nodes(
     request_method=hub_router.post,
     path="/project-nodes/{project_id}",
     status_code=status.HTTP_200_OK,
-    service_url=gateway_settings.HUB_SERVICE_URL,
+    service_url=hub_adapter_settings.HUB_SERVICE_URL,
     response_model=AnalysisOrProjectNode,
     body_params=["approval_status"],
 )
@@ -178,7 +179,7 @@ async def accept_reject_project_node(
     request_method=hub_router.get,
     path="/analysis-nodes",
     status_code=status.HTTP_200_OK,
-    service_url=gateway_settings.HUB_SERVICE_URL,
+    service_url=hub_adapter_settings.HUB_SERVICE_URL,
     # response_model=ListAnalysisNodes,
     response_model=ContainerResponse,
     query_params=["filter_id", "filter_project_id", "filter_project_realm_id",
@@ -246,7 +247,7 @@ async def list_analyses_of_nodes(
     request_method=hub_router.get,
     path="/analysis-nodes/{analysis_id}",
     status_code=status.HTTP_200_OK,
-    service_url=gateway_settings.HUB_SERVICE_URL,
+    service_url=hub_adapter_settings.HUB_SERVICE_URL,
     response_model=AnalysisNode,
 )
 async def list_specific_analysis(
@@ -262,7 +263,7 @@ async def list_specific_analysis(
     request_method=hub_router.post,
     path="/analysis-nodes/{analysis_id}",
     status_code=status.HTTP_200_OK,
-    service_url=gateway_settings.HUB_SERVICE_URL,
+    service_url=hub_adapter_settings.HUB_SERVICE_URL,
     response_model=AnalysisNode,
     body_params=["approval_status"],
 )

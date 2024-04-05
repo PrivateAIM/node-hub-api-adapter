@@ -1,5 +1,9 @@
 """Adapter API Settings."""
+import logging
+import logging.handlers as handlers
 import os
+import sys
+from pathlib import Path
 
 from pydantic import BaseModel
 
@@ -10,9 +14,6 @@ class Settings(BaseModel):
     # API Gateway settings
     ACCESS_TOKEN_DEFAULT_EXPIRE_MINUTES: int = 360
     GATEWAY_TIMEOUT: int = 59
-
-    # K8s
-    K8S_API_KEY: str = os.getenv("K8S_API_KEY")
 
     # IDP Settings
     IDP_URL: str = os.getenv("IDP_URL", "http://localhost:8080")
@@ -34,4 +35,31 @@ class Settings(BaseModel):
     HUB_PASSWORD: str = os.getenv("HUB_PASSWORD")
 
 
-gateway_settings = Settings()
+hub_adapter_settings = Settings()
+
+# Logging
+root_dir = Path(__file__).parent.resolve()
+log_dir = root_dir.joinpath("logs")
+log_dir.mkdir(parents=True, exist_ok=True)
+
+main_logger = logging.getLogger("hub_adapter")
+
+# Log Handler
+logHandler = handlers.RotatingFileHandler(
+    filename=log_dir.joinpath("node_hub_api_adapter.log"),
+    mode="a",
+    maxBytes=4098 * 10,  # 4MB file max
+    backupCount=5,
+)
+logh_format = logging.Formatter("%(levelname)s - %(module)s:L%(lineno)d - %(asctime)s - %(message)s")
+logHandler.setFormatter(logh_format)
+logHandler.setLevel(logging.DEBUG)
+
+# Console Handler
+streamHandler = logging.StreamHandler(stream=sys.stderr)
+stream_format = logging.Formatter("%(asctime)s - %(levelname)s: %(message)s")
+streamHandler.setFormatter(stream_format)
+streamHandler.setLevel(logging.WARNING)
+
+main_logger.addHandler(logHandler)
+main_logger.addHandler(streamHandler)

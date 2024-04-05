@@ -9,9 +9,9 @@ from kong_admin_client import CreateServiceRequest, Service, CreateRouteRequest,
 from kong_admin_client.rest import ApiException
 from starlette import status
 
-from gateway.auth import verify_idp_token, idp_oauth2_scheme_pass, httpbearer
-from gateway.conf import gateway_settings
-from gateway.models.kong import ServiceRequest, HttpMethodCode, ProtocolCode, LinkDataStoreProject, \
+from hub_adapter.auth import verify_idp_token, idp_oauth2_scheme_pass, httpbearer
+from hub_adapter.conf import hub_adapter_settings
+from hub_adapter.models.kong import ServiceRequest, HttpMethodCode, ProtocolCode, LinkDataStoreProject, \
     Disconnect, LinkProjectAnalysis
 
 kong_router = APIRouter(
@@ -22,7 +22,7 @@ kong_router = APIRouter(
 )
 
 logger = logging.getLogger(__name__)
-kong_admin_url = gateway_settings.KONG_ADMIN_SERVICE_URL
+kong_admin_url = hub_adapter_settings.KONG_ADMIN_SERVICE_URL
 
 
 @kong_router.get("/datastore", response_model=ListRoute200Response, status_code=status.HTTP_200_OK)

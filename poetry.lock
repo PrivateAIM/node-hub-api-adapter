@@ -379,7 +379,7 @@ files = [
 ]
 
 [[package]]
-name = "kong-admin-client"
+name = "kongadminclient"
 version = "3.5.0"
 description = "Kong Admin API"
 optional = false
@@ -1011,4 +1011,4 @@ test = ["websockets"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "8914a03bb472db5fb33fbba028fa6de3efbef62b306fd872e5bf3602fdd81db3"
+content-hash = "114204d063718302469606d48ca9c2ea809bc87de0f88354c151c796926cca17"

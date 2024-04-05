@@ -4,8 +4,8 @@ import logging
 from fastapi import APIRouter
 from starlette import status
 
-from gateway.conf import gateway_settings
-from gateway.models.health import HealthCheck, DownstreamHealthCheck
+from hub_adapter.conf import hub_adapter_settings
+from hub_adapter.models.health import HealthCheck, DownstreamHealthCheck
 
 health_router = APIRouter(
     tags=["Health"],
@@ -44,9 +44,9 @@ def get_health() -> HealthCheck:
 def get_health_downstream_services() -> DownstreamHealthCheck:
     """Return the health of the downstream microservices."""
     health_eps = {
-        "po": gateway_settings.PODORC_SERVICE_URL.rstrip("/") + "/healthz",
-        "results": gateway_settings.RESULTS_SERVICE_URL.rstrip("/") + "/healthz",
-        "hub": gateway_settings.HUB_SERVICE_URL,
-        "kong": gateway_settings.KONG_ADMIN_SERVICE_URL,
+        "po": hub_adapter_settings.PODORC_SERVICE_URL.rstrip("/") + "/healthz",
+        "results": hub_adapter_settings.RESULTS_SERVICE_URL.rstrip("/") + "/healthz",
+        "hub": hub_adapter_settings.HUB_SERVICE_URL,
+        "kong": hub_adapter_settings.KONG_ADMIN_SERVICE_URL,
     }
     return health_eps

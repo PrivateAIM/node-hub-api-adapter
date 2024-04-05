@@ -7,9 +7,9 @@ from starlette import status
 from starlette.requests import Request
 from starlette.responses import Response
 
-from gateway.auth import verify_idp_token, idp_oauth2_scheme_pass, httpbearer
-from gateway.conf import gateway_settings
-from gateway.core import route
+from hub_adapter.auth import verify_idp_token, idp_oauth2_scheme_pass, httpbearer
+from hub_adapter.conf import hub_adapter_settings
+from hub_adapter.core import route
 
 po_router = APIRouter(
     dependencies=[Security(verify_idp_token), Security(idp_oauth2_scheme_pass), Security(httpbearer)],
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
     request_method=po_router.post,
     path="/po",
     status_code=status.HTTP_200_OK,
-    service_url=gateway_settings.PODORC_SERVICE_URL,
+    service_url=hub_adapter_settings.PODORC_SERVICE_URL,
     body_params=["analysis_id", "project_id"],
 )
 async def create_analysis(
@@ -41,7 +41,7 @@ async def create_analysis(
     request_method=po_router.get,
     path="/po/{analysis_id}/logs",
     status_code=status.HTTP_200_OK,
-    service_url=gateway_settings.PODORC_SERVICE_URL,
+    service_url=hub_adapter_settings.PODORC_SERVICE_URL,
 )
 async def get_analysis_logs(
         request: Request,
@@ -56,7 +56,7 @@ async def get_analysis_logs(
     request_method=po_router.get,
     path="/po/{analysis_id}/status",
     status_code=status.HTTP_200_OK,
-    service_url=gateway_settings.PODORC_SERVICE_URL,
+    service_url=hub_adapter_settings.PODORC_SERVICE_URL,
 )
 async def get_analysis_status(
         request: Request,
@@ -71,7 +71,7 @@ async def get_analysis_status(
     request_method=po_router.get,
     path="/po/{analysis_id}/pods",
     status_code=status.HTTP_200_OK,
-    service_url=gateway_settings.PODORC_SERVICE_URL,
+    service_url=hub_adapter_settings.PODORC_SERVICE_URL,
 )
 async def get_analysis_pods(
         request: Request,
@@ -86,7 +86,7 @@ async def get_analysis_pods(
     request_method=po_router.put,
     path="/po/{analysis_id}/stop",
     status_code=status.HTTP_200_OK,
-    service_url=gateway_settings.PODORC_SERVICE_URL,
+    service_url=hub_adapter_settings.PODORC_SERVICE_URL,
 )
 async def stop_analysis(
         request: Request,
@@ -101,7 +101,7 @@ async def stop_analysis(
     request_method=po_router.delete,
     path="/po/{analysis_id}/delete",
     status_code=status.HTTP_200_OK,
-    service_url=gateway_settings.PODORC_SERVICE_URL,
+    service_url=hub_adapter_settings.PODORC_SERVICE_URL,
 )
 async def delete_analysis(
         request: Request,

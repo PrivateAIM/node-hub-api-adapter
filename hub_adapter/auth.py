@@ -9,19 +9,19 @@ from starlette import status
 from starlette.datastructures import MutableHeaders
 from starlette.requests import Request
 
-from gateway.conf import gateway_settings
-from gateway.models.conf import AuthConfiguration, Token
+from hub_adapter.conf import hub_adapter_settings
+from hub_adapter.models.conf import AuthConfiguration, Token
 
 logger = logging.getLogger(__name__)
 
-IDP_ISSUER_URL = gateway_settings.IDP_URL.rstrip("/") + "/" + "/".join(["realms", gateway_settings.IDP_REALM])
+IDP_ISSUER_URL = hub_adapter_settings.IDP_URL.rstrip("/") + "/" + "/".join(["realms", hub_adapter_settings.IDP_REALM])
 
 # IDP i.e. Keycloak
 realm_idp_settings = AuthConfiguration(
-    server_url=gateway_settings.IDP_URL,
-    realm=gateway_settings.IDP_REALM,
-    client_id=gateway_settings.API_CLIENT_ID,
-    client_secret=gateway_settings.API_CLIENT_SECRET,
+    server_url=hub_adapter_settings.IDP_URL,
+    realm=hub_adapter_settings.IDP_REALM,
+    client_id=hub_adapter_settings.API_CLIENT_ID,
+    client_secret=hub_adapter_settings.API_CLIENT_SECRET,
     authorization_url=IDP_ISSUER_URL + "/protocol/openid-connect/auth",
     token_url=IDP_ISSUER_URL + "/protocol/openid-connect/token",
     issuer_url=IDP_ISSUER_URL,
@@ -52,7 +52,7 @@ async def get_idp_public_key() -> str:
 
 async def get_hub_public_key() -> dict:
     """Get the central hub service public key."""
-    hub_jwks_ep = gateway_settings.HUB_AUTH_SERVICE_URL.rstrip("/") + "/jwks"
+    hub_jwks_ep = hub_adapter_settings.HUB_AUTH_SERVICE_URL.rstrip("/") + "/jwks"
     return httpx.get(hub_jwks_ep).json()
 
 
@@ -100,9 +100,9 @@ async def verify_idp_token(token: str = Security(idp_oauth2_scheme)) -> dict:
 
 async def get_hub_token() -> dict:
     """Automated method for getting a token from the central Hub service."""
-    hub_user, hub_pwd = gateway_settings.HUB_USERNAME, gateway_settings.HUB_PASSWORD
+    hub_user, hub_pwd = hub_adapter_settings.HUB_USERNAME, hub_adapter_settings.HUB_PASSWORD
     payload = {"username": hub_user, "password": hub_pwd}
-    token_route = gateway_settings.HUB_AUTH_SERVICE_URL.rstrip("/") + "/token"
+    token_route = hub_adapter_settings.HUB_AUTH_SERVICE_URL.rstrip("/") + "/token"
     resp = httpx.post(token_route, data=payload)
 
     if not resp.status_code == httpx.codes.OK:

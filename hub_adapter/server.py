@@ -1,8 +1,4 @@
 """Methods for verifying auth."""
-import json
-import logging.config
-from contextlib import asynccontextmanager
-from pathlib import Path
 from typing import Annotated
 
 import httpx
@@ -12,30 +8,14 @@ from jose import jwt
 from starlette import status
 from starlette.middleware.cors import CORSMiddleware
 
-from gateway.auth import realm_idp_settings
-from gateway.models.conf import Token
-from gateway.routers.health import health_router
-from gateway.routers.hub import hub_router
-from gateway.routers.kong import kong_router
-from gateway.routers.metadata import metadata_router
-from gateway.routers.podorc import po_router
-from gateway.routers.results import results_router
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Actions for lifespan of API."""
-    root_dir = Path.cwd().parent
-    root_dir.joinpath("logs").mkdir(parents=True, exist_ok=True)
-
-    log_config_path = root_dir.joinpath("logging.json")
-    with open(log_config_path, "r") as logf:
-        log_config = json.load(logf)
-
-    logging.config.dictConfig(log_config)
-
-    yield
-
+from hub_adapter.auth import realm_idp_settings
+from hub_adapter.models.conf import Token
+from hub_adapter.routers.health import health_router
+from hub_adapter.routers.hub import hub_router
+from hub_adapter.routers.kong import kong_router
+from hub_adapter.routers.metadata import metadata_router
+from hub_adapter.routers.podorc import po_router
+from hub_adapter.routers.results import results_router
 
 # API metadata
 tags_metadata = [
@@ -56,7 +36,6 @@ app = FastAPI(
         # Auth fill client ID for the docs with the below value
         "clientId": realm_idp_settings.client_id,  # default client-id is Keycloak
     },
-    lifespan=lifespan,
     license_info={
         "name": "Apache 2.0",
         "url": "https://www.apache.org/licenses/LICENSE-2.0.html",

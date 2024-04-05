@@ -1,11 +1,11 @@
 [tool.poetry]
-name = "flame-gateway"
+name = "hub-adapter"
 version = "0.1.0"
 description = "API gateway interface for the Node UI to interact with the other node services and the hub."
 authors = ["Bruce Schultz <bruce.schultz@uk-koeln.de>"]
 readme = "README.md"
 license = "Apache 2.0"
-packages = [{ include = "gateway" }]
+packages = [{ include = "hub_adapter" }]
 
 [tool.poetry.dependencies]
 python = "^3.11"
@@ -17,7 +17,7 @@ kubernetes = "^29.0.0"
 click = "^8.1.7"
 python-multipart = "^0.0.9"
 httpx = "^0.27.0"
-kong-admin-client = { git = "https://github.com/PrivateAIM/kong-admin-python-client.git" }
+kongadminclient = { git = "https://github.com/PrivateAIM/kong-admin-python-client.git" }
 python-dotenv = "^1.0.1"
 
 [tool.poetry.group.dev.dependencies]
@@ -30,4 +30,4 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-flame-gateway = "gateway.cli:main"
+hub-adapter = "hub_adapter.cli:main"

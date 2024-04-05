@@ -21,7 +21,7 @@ def main():
 @click.option("-r", "--reload", is_flag=True, default=False, help="Enable reload")
 def serve(host, port, reload):
     """Start the API RESTful server."""
-    uvicorn.run("gateway.server:app", host=host, port=int(port), reload=reload)
+    uvicorn.run("hub_adapter.server:app", host=host, port=int(port), reload=reload)
 
 
 if __name__ == "__main__":
