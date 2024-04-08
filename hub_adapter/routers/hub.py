@@ -191,8 +191,8 @@ async def list_analyses_of_nodes(
         include: Annotated[
             str | None,
             Query(
-                description="Whether to include additional data for the given parameter. Can only be 'node' or null",
-                pattern="^(node|analysis)$",  # Must be "node",
+                description="Whether to include additional data for the given parameter. Can only be 'node'/'analysis'",
+                pattern="^(node|analysis)$",  # Must be "node" or "analysis" or null,
             ),
         ] = "analysis",
         filter_id: Annotated[
