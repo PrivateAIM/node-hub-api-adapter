@@ -6,6 +6,8 @@ from enum import Enum
 
 from pydantic import BaseModel
 
+from hub_adapter.models.podorc import ContainerData
+
 
 class ApprovalStatus(Enum):
     """Status of project possibilities."""
@@ -127,10 +129,10 @@ class Analysis(BaseHubResponse):
     """Model representing a single analysis."""
     name: str | None = None
     nodes: int
-    configuration_status: ConfigurationStatus
+    configuration_status: ConfigurationStatus | None = None
     build_status: AnalysisBuildStatus
-    run_status: AnalysisRunStatus
-    result_status: AnalysisResultStatus
+    run_status: AnalysisRunStatus | None = None
+    result_status: AnalysisResultStatus | None = None
     registry: Registry | None = None
     registry_id: uuid.UUID | None = None
     realm_id: uuid.UUID
@@ -159,3 +161,7 @@ class PartialAnalysisNode(AnalysisNode):
 
 class ListAnalysisNodes(BaseModel):
     data: list[AnalysisNode]
+
+
+class ListContainers(BaseModel):
+    containers: list[ContainerData]

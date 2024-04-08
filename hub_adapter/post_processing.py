@@ -19,7 +19,3 @@ def parse_containers(analysis_response: dict) -> dict:
         containers.append(data)
 
     return {"containers": containers}
-
-
-def test_print():
-    print("test")

@@ -12,8 +12,8 @@ from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.core import route
 from hub_adapter.models.hub import Project, AllProjects, ApprovalStatus, AnalysisOrProjectNode, \
     ListAnalysisOrProjectNodes, \
-    AnalysisNode
-from hub_adapter.models.podorc import ImageDataResponse, ContainerResponse
+    AnalysisNode, ListAnalysisNodes
+from hub_adapter.models.podorc import ImageDataResponse
 
 hub_router = APIRouter(
     dependencies=[Security(verify_idp_token), Depends(add_hub_jwt), Security(idp_oauth2_scheme_pass),
@@ -180,11 +180,10 @@ async def accept_reject_project_node(
     path="/analysis-nodes",
     status_code=status.HTTP_200_OK,
     service_url=hub_adapter_settings.HUB_SERVICE_URL,
-    # response_model=ListAnalysisNodes,
-    response_model=ContainerResponse,
+    response_model=ListAnalysisNodes,
     query_params=["filter_id", "filter_project_id", "filter_project_realm_id",
                   "filter_node_id", "filter_node_realm_id", "include"],
-    post_processing_func="parse_containers",  # Create new EP for getting containers
+    # post_processing_func="parse_containers",  # Create new EP for getting containers
 )
 async def list_analyses_of_nodes(
         request: Request,

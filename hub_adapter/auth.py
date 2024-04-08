@@ -113,7 +113,6 @@ async def get_hub_token() -> dict:
         )
     token_data = resp.json()
     token = Token(**token_data)
-    # return {b"Authorization": bytes(bearer.encode())}
     return {"Authorization": f"Bearer {token.access_token}"}
 
 

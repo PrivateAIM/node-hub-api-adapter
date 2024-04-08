@@ -9,7 +9,7 @@ from pydantic import BaseModel
 class ContainerData(BaseModel):
     """Formatted container information."""
     id: UUID
-    name: str
+    name: str | None = None
     job_id: UUID
     image: UUID | None = None  # TODO remove null allowance
     state: str | None = None
