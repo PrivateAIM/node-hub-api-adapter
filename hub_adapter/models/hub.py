@@ -165,3 +165,18 @@ class ListAnalysisNodes(BaseModel):
 
 class ListContainers(BaseModel):
     containers: list[ContainerData]
+
+
+class RegistryProject(BaseHubResponse):
+    name: str | None = None
+    type: str
+    public: bool
+    external_name: str | None = None
+    external_id: str | None = None
+    webhook_name: str | None = None
+    webhook_exists: bool | None = None
+    account_name: str | None = None
+    account_secret: str | None = None
+    registry_id: uuid.UUID | None = None
+    registry: Registry | None = None
+    realm_id: uuid.UUID | None = None

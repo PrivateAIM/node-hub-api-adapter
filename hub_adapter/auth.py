@@ -101,7 +101,13 @@ async def verify_idp_token(token: str = Security(idp_oauth2_scheme)) -> dict:
 async def get_hub_token() -> dict:
     """Automated method for getting a token from the central Hub service."""
     hub_user, hub_pwd = hub_adapter_settings.HUB_USERNAME, hub_adapter_settings.HUB_PASSWORD
-    payload = {"username": hub_user, "password": hub_pwd}
+    payload = {"username": hub_user, "password": hub_pwd}  # For testing
+
+    # TODO move to robot
+    # robot_user, robot_secret = hub_adapter_settings.HUB_ROBOT_USER, hub_adapter_settings.HUB_ROBOT_SECRET
+    # {"grant_type": 'robot_credentials', "id": '<robot-id>|<robot-name>', "secret": '<robot-secret>'}
+    # payload = {"grant_type": 'robot_credentials', "id": robot_user, "secret": robot_secret}
+
     token_route = hub_adapter_settings.HUB_AUTH_SERVICE_URL.rstrip("/") + "/token"
     resp = httpx.post(token_route, data=payload)
 
