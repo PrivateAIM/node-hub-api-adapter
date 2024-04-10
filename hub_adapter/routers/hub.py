@@ -2,17 +2,18 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Query, Path, Depends
+import httpx
+from fastapi import APIRouter, Query, Path, Depends, HTTPException
 from starlette import status
 from starlette.requests import Request
-from starlette.responses import Response, RedirectResponse
+from starlette.responses import Response
 
 from hub_adapter.auth import add_hub_jwt
 from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.core import route
 from hub_adapter.models.hub import Project, AllProjects, ApprovalStatus, AnalysisOrProjectNode, \
     ListAnalysisOrProjectNodes, \
-    AnalysisNode, ListAnalysisNodes, RegistryProject
+    AnalysisNode, ListAnalysisNodes, RegistryProject, AnalysisImageUrl
 
 hub_router = APIRouter(
     # dependencies=[Security(verify_idp_token), Depends(add_hub_jwt), Security(idp_oauth2_scheme_pass),
@@ -309,49 +310,87 @@ async def get_registry_metadata_for_project(
     pass
 
 
-def get_analysis_metadata_for_url(analysis_id: uuid.UUID = Path(description="UUID of analysis.")):
+def get_analysis_metadata_for_url(
+        request: Request,
+        analysis_id: uuid.UUID = Path(description="UUID of analysis."),
+):
     """Get analysis metadata for a given UUID to be used in creating analysis image URL."""
-    analysis_url = hub_router.url_path_for("list_specific_analysis", analysis_id=analysis_id)
-    analysis_resp = RedirectResponse(analysis_url + "?include=analysis,node")
-    return analysis_resp
+    headers = {k: v for k, v in request.headers.items() if k != "host"}
+    analysis_url = hub_adapter_settings.HUB_SERVICE_URL + f"/analysis-nodes/{analysis_id}?include=analysis,node"
+    analysis_resp = httpx.get(analysis_url, headers=headers)
+    analysis_metadata = analysis_resp.json()
+
+    if analysis_resp.status_code == status.HTTP_404_NOT_FOUND:
+        analysis_metadata["message"] = "UUID not found"
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=analysis_metadata,
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if "node" not in analysis_metadata or not analysis_metadata["node"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No node associated with analysis UUID",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if "registry_project_id" not in analysis_metadata["node"] or not analysis_metadata["node"]["registry_project_id"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No registry associated with node for the analysis UUID",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return analysis_metadata, headers
 
 
-def get_registry_metadata_for_url(analysis_metadata: dict = Depends(get_analysis_metadata_for_url)):
+def get_registry_metadata_for_url(
+        analysis_results: dict = Depends(get_analysis_metadata_for_url)
+):
     """Get registry metadata for a given UUID to be used in creating analysis image URL."""
+    analysis_metadata, headers = analysis_results
     registry_project_id = analysis_metadata["node"]["registry_project_id"]
-    registry_url = hub_router.url_path_for(
-        "get_registry_metadata_for_project",
-        registry_project_id=registry_project_id
-    )
-    registry_resp = RedirectResponse(
-        registry_url + "?include=registry&fields=+account_id,+account_name,+account_secret"
-    )
-    return registry_resp
 
+    registry_url_prefix = hub_adapter_settings.HUB_SERVICE_URL + f"/registry-projects/{registry_project_id}"
+    registry_url = registry_url_prefix + "?include=registry&fields=+account_id,+account_name,+account_secret"
+    registry_resp = httpx.get(registry_url, headers=headers)
+    registry_metadata = registry_resp.json()
 
-@hub_router.get("/analysis/image/{analysis_id}", response_class=RedirectResponse)
-async def get_analysis_image_url(
-        # analysis_id: Annotated[uuid.UUID, Path(description="UUID of analysis.")],
-        registry_metadata: dict = Depends(get_registry_metadata_for_url),
+    if registry_resp.status_code == status.HTTP_404_NOT_FOUND:
+        registry_metadata["message"] = "Registry Project UUID not found"
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=registry_metadata,
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
-) -> dict:
-    """Build an analysis image URL using its metadata from the Hub."""
-    aid = 2
-    # analysis_url = hub_router.url_path_for("list_specific_analysis", analysis_id=analysis_id)
-    # analysis_resp = RedirectResponse(analysis_url + "?include=analysis,node")
+    if "external_name" not in registry_metadata or not registry_metadata["external_name"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No external name for node",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
-    # analysis_resp = get_analysis_metadata_for_url(analysis_id)
+    node_external_name = registry_metadata["external_name"]
 
-    # registry_project_id = analysis_metadata["node"]["registry_project_id"]
+    if "registry" not in registry_metadata or "host" not in registry_metadata["registry"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"No registry is associated with node {node_external_name}",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
-    # registry_url = hub_router.url_path_for(
-    #     "get_registry_metadata_for_project",
-    #     registry_project_id=registry_project_id
-    # )
-    # registry_resp = RedirectResponse(
-    #     registry_url + "?include=registry&fields=+account_id,+account_name,+account_secret"
-    # )
-    registry_external_name = registry_metadata["external_name"]
     host = registry_metadata["registry"]["host"]
 
-    return {"image_url": f"{host}/{registry_external_name}/{aid}"}
+    return host, node_external_name, analysis_metadata["id"]
+
+
+@hub_router.get("/analysis/image/{analysis_id}", response_model=AnalysisImageUrl)
+async def get_analysis_image_url(
+        compiled_info: tuple = Depends(get_registry_metadata_for_url),
+) -> dict:
+    """Build an analysis image URL using its metadata from the Hub."""
+    host, node_external_name, analysis_id = compiled_info
+    compiled_url = {"image_url": f"{host}/{node_external_name}/{analysis_id}"}
+    return compiled_url

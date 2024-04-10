@@ -130,7 +130,7 @@ class Analysis(BaseHubResponse):
     name: str | None = None
     nodes: int
     configuration_status: ConfigurationStatus | None = None
-    build_status: AnalysisBuildStatus
+    build_status: AnalysisBuildStatus | None = None
     run_status: AnalysisRunStatus | None = None
     result_status: AnalysisResultStatus | None = None
     registry: Registry | None = None
@@ -139,7 +139,7 @@ class Analysis(BaseHubResponse):
     user_id: uuid.UUID
     project_id: uuid.UUID
     project: Project | None = None
-    master_image_id: uuid.UUID
+    master_image_id: uuid.UUID | None = None
     master_image: MasterImage | None = None
 
 
@@ -180,3 +180,7 @@ class RegistryProject(BaseHubResponse):
     registry_id: uuid.UUID | None = None
     registry: Registry | None = None
     realm_id: uuid.UUID | None = None
+
+
+class AnalysisImageUrl(BaseModel):
+    image_url: str
