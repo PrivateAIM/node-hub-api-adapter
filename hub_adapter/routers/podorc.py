@@ -33,7 +33,7 @@ async def create_analysis(
         analysis_id: Annotated[str, Body(description="UUID of the analysis.")],
         project_id: Annotated[str, Body(description="UUID of the analysis.")],
 ):
-    """Get the logs for a specific analysis run."""
+    """Create an analysis pod."""
     pass
 
 
