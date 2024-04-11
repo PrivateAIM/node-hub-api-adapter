@@ -10,6 +10,7 @@ from starlette.responses import Response
 
 from hub_adapter.auth import add_hub_jwt
 from hub_adapter.conf import hub_adapter_settings
+from hub_adapter.constants import NODE, REGISTRY_PROJECT_ID, EXTERNAL_NAME, HOST, ID
 from hub_adapter.core import route
 from hub_adapter.models.hub import Project, AllProjects, ApprovalStatus, AnalysisOrProjectNode, \
     ListAnalysisOrProjectNodes, \
@@ -315,7 +316,7 @@ def get_analysis_metadata_for_url(
         analysis_id: uuid.UUID = Path(description="UUID of analysis."),
 ):
     """Get analysis metadata for a given UUID to be used in creating analysis image URL."""
-    headers = {k: v for k, v in request.headers.items() if k != "host"}
+    headers = {k: v for k, v in request.headers.items() if k != HOST}
     analysis_url = hub_adapter_settings.HUB_SERVICE_URL + f"/analysis-nodes/{analysis_id}?include=analysis,node"
     analysis_resp = httpx.get(analysis_url, headers=headers)
     analysis_metadata = analysis_resp.json()
@@ -328,14 +329,14 @@ def get_analysis_metadata_for_url(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    if "node" not in analysis_metadata or not analysis_metadata["node"]:
+    if NODE not in analysis_metadata or not analysis_metadata[NODE]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No node associated with analysis UUID",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    if "registry_project_id" not in analysis_metadata["node"] or not analysis_metadata["node"]["registry_project_id"]:
+    if REGISTRY_PROJECT_ID not in analysis_metadata[NODE] or not analysis_metadata[NODE][REGISTRY_PROJECT_ID]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No registry associated with node for the analysis UUID",
@@ -350,7 +351,7 @@ def get_registry_metadata_for_url(
 ):
     """Get registry metadata for a given UUID to be used in creating analysis image URL."""
     analysis_metadata, headers = analysis_results
-    registry_project_id = analysis_metadata["node"]["registry_project_id"]
+    registry_project_id = analysis_metadata[NODE][REGISTRY_PROJECT_ID]
 
     registry_url_prefix = hub_adapter_settings.HUB_SERVICE_URL + f"/registry-projects/{registry_project_id}"
     registry_url = registry_url_prefix + "?include=registry&fields=+account_id,+account_name,+account_secret"
@@ -365,25 +366,25 @@ def get_registry_metadata_for_url(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    if "external_name" not in registry_metadata or not registry_metadata["external_name"]:
+    if EXTERNAL_NAME not in registry_metadata or not registry_metadata[EXTERNAL_NAME]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No external name for node",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    node_external_name = registry_metadata["external_name"]
+    node_external_name = registry_metadata[EXTERNAL_NAME]
 
-    if "registry" not in registry_metadata or "host" not in registry_metadata["registry"]:
+    if "registry" not in registry_metadata or HOST not in registry_metadata["registry"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"No registry is associated with node {node_external_name}",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    host = registry_metadata["registry"]["host"]
+    host = registry_metadata["registry"][HOST]
 
-    return host, node_external_name, analysis_metadata["id"]
+    return host, node_external_name, analysis_metadata[ID]
 
 
 @hub_router.get("/analysis/image/{analysis_id}", response_model=AnalysisImageUrl)
