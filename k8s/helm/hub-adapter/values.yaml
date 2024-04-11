@@ -5,7 +5,7 @@ env:
     API_CLIENT_ID: api-client
     IDP_REALM: flame
     IDP_URL: http://keycloak-service:8080
-    RESULTS_SERVICE_URL: http://results-service:5000
+    RESULTS_SERVICE_URL: http://node-result-service:8080
     KONG_ADMIN_SERVICE_URL: http://kong-service:8000
     PODORC_SERVICE_URL: http://po-service:8000
     HUB_SERVICE_URL: https://privateaim.net/core

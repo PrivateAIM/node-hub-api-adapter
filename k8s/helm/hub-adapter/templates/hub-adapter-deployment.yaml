@@ -35,7 +35,7 @@ spec:
             - name: IDP_REALM
               value: {{ .Values.env.IDP_REALM | default "flame" | quote }}  # To be replaced
             - name: RESULTS_SERVICE_URL
-              value: {{ .Values.env.RESULTS_SERVICE_URL | default "http://node-result-service:5000" | quote }}  # To be properly filled in
+              value: {{ .Values.env.RESULTS_SERVICE_URL | default "http://node-result-service:8080" | quote }}  # To be properly filled in
             - name: PODORC_SERVICE_URL
               value: {{ .Values.env.PODORC_SERVICE_URL | default "http://po-service:8000" | quote }}  # To be properly filled in
             - name: KONG_ADMIN_SERVICE_URL
