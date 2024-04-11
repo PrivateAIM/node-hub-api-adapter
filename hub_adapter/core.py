@@ -91,6 +91,7 @@ def route(
         request_method,
         path: str,
         service_url: str,
+        modified_path: str | None = None,
         status_code: int | None = None,
         query_params: list[str] | None = None,
         form_params: list[str] | None = None,
@@ -118,6 +119,8 @@ def route(
         HTTP status code.
     service_url : str
         Root endpoint of the microservice for the forwarded request.
+    modified_path : str | None
+        Alternative endpoint path to be used instead of downstream path.
     query_params : list[str] | None
         Keys passed referencing query model parameters to be sent to downstream microservice
     form_params : list[str] | None
@@ -149,7 +152,7 @@ def route(
     """
 
     restful_call = request_method(
-        path,
+        modified_path or path,
         status_code=status_code,
         response_model=response_model,
         tags=tags,
@@ -165,7 +168,7 @@ def route(
             scope = request.scope
             method = scope["method"].lower()
             tags = scope["route"].tags
-            downstream_path = scope['path']
+            downstream_path = path or scope['path']
 
             content_type = str(request.headers.get(CONTENT_TYPE))
             www_request_form = await request.form() if 'x-www-form-urlencoded' in content_type else None
