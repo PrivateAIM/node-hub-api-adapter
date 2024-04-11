@@ -1,5 +1,6 @@
 """EPs for the pod orchestrator."""
 import logging
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Path, Body, Security
@@ -30,8 +31,8 @@ logger = logging.getLogger(__name__)
 async def create_analysis(
         request: Request,
         response: Response,
-        analysis_id: Annotated[str, Body(description="UUID of the analysis.")],
-        project_id: Annotated[str, Body(description="UUID of the analysis.")],
+        analysis_id: Annotated[uuid.UUID, Body(description="UUID of the analysis.")],
+        project_id: Annotated[uuid.UUID, Body(description="UUID of the analysis.")],
 ):
     """Create an analysis pod."""
     pass
@@ -42,11 +43,12 @@ async def create_analysis(
     path="/po/{analysis_id}/logs",
     status_code=status.HTTP_200_OK,
     service_url=hub_adapter_settings.PODORC_SERVICE_URL,
+    query_params=["analysis_id"],
 )
 async def get_analysis_logs(
         request: Request,
         response: Response,
-        analysis_id: Annotated[str | None, Path(description="UUID of the analysis.")],
+        analysis_id: Annotated[uuid.UUID | None, Path(description="UUID of the analysis.")],
 ):
     """Get the logs for a specific analysis run."""
     pass
@@ -61,7 +63,7 @@ async def get_analysis_logs(
 async def get_analysis_status(
         request: Request,
         response: Response,
-        analysis_id: Annotated[str | None, Path(description="UUID of the analysis.")],
+        analysis_id: Annotated[uuid.UUID | None, Path(description="UUID of the analysis.")],
 ):
     """Get the status for a specific analysis run."""
     pass
@@ -76,7 +78,7 @@ async def get_analysis_status(
 async def get_analysis_pods(
         request: Request,
         response: Response,
-        analysis_id: Annotated[str | None, Path(description="UUID of the analysis.")],
+        analysis_id: Annotated[uuid.UUID | None, Path(description="UUID of the analysis.")],
 ):
     """Get the pods for a specific analysis run."""
     pass
@@ -91,7 +93,7 @@ async def get_analysis_pods(
 async def stop_analysis(
         request: Request,
         response: Response,
-        analysis_id: Annotated[str | None, Path(description="UUID of the analysis.")],
+        analysis_id: Annotated[uuid.UUID | None, Path(description="UUID of the analysis.")],
 ):
     """Stop a specific analysis run."""
     pass
@@ -106,7 +108,7 @@ async def stop_analysis(
 async def delete_analysis(
         request: Request,
         response: Response,
-        analysis_id: Annotated[str | None, Path(description="UUID of the analysis.")],
+        analysis_id: Annotated[uuid.UUID | None, Path(description="UUID of the analysis.")],
 ):
     """Delete a specific analysis run."""
     pass
