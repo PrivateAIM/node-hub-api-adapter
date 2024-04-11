@@ -8,7 +8,7 @@ env:
     RESULTS_SERVICE_URL: http://results-service:5000
     KONG_ADMIN_SERVICE_URL: http://kong-service:8000
     PODORC_SERVICE_URL: http://po-service:8000
-    HUB_SERVICE_URL: https://api.privateaim.net
-    HUB_AUTH_SERVICE_URL: https://auth.privateaim.net
+    HUB_SERVICE_URL: https://privateaim.net/core
+    HUB_AUTH_SERVICE_URL: https://privateaim.net/auth
     HUB_USERNAME: thehubusername
     HUB_PASSWORD: thehubpassword
