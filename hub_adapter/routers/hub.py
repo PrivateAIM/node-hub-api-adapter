@@ -8,9 +8,8 @@ from starlette import status
 from starlette.requests import Request
 from starlette.responses import Response
 
-from hub_adapter.auth import add_hub_jwt
 from hub_adapter.conf import hub_adapter_settings
-from hub_adapter.constants import NODE, REGISTRY_PROJECT_ID, EXTERNAL_NAME, HOST, ID
+from hub_adapter.constants import NODE, REGISTRY_PROJECT_ID, EXTERNAL_NAME, HOST, ID, REGISTRY
 from hub_adapter.core import route
 from hub_adapter.models.hub import Project, AllProjects, ApprovalStatus, AnalysisOrProjectNode, \
     ListAnalysisOrProjectNodes, \
@@ -19,7 +18,7 @@ from hub_adapter.models.hub import Project, AllProjects, ApprovalStatus, Analysi
 hub_router = APIRouter(
     # dependencies=[Security(verify_idp_token), Depends(add_hub_jwt), Security(idp_oauth2_scheme_pass),
     #               Security(httpbearer)],
-    dependencies=[Depends(add_hub_jwt)],
+    # dependencies=[Depends(add_hub_jwt)],
     tags=["Hub"],
     responses={404: {"description": "Not found"}},
 )
@@ -305,7 +304,7 @@ async def get_registry_metadata_for_project(
                 description="Whether to include additional registry data. Can only be 'registry'",
                 pattern="^registry$",  # Must be "registry" or null,
             ),
-        ] = "registry",
+        ] = REGISTRY,
 ):
     """List registry data for a project."""
     pass
@@ -375,14 +374,14 @@ def get_registry_metadata_for_url(
 
     node_external_name = registry_metadata[EXTERNAL_NAME]
 
-    if "registry" not in registry_metadata or HOST not in registry_metadata["registry"]:
+    if REGISTRY not in registry_metadata or HOST not in registry_metadata[REGISTRY]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"No registry is associated with node {node_external_name}",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    host = registry_metadata["registry"][HOST]
+    host = registry_metadata[REGISTRY][HOST]
 
     return host, node_external_name, analysis_metadata[ID]
 
