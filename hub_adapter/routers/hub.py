@@ -8,17 +8,19 @@ from starlette import status
 from starlette.requests import Request
 from starlette.responses import Response
 
-from hub_adapter.auth import verify_idp_token, httpbearer, idp_oauth2_scheme_pass, add_hub_jwt
+from hub_adapter.auth import add_hub_jwt, verify_idp_token, idp_oauth2_scheme_pass, httpbearer
 from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.constants import NODE, REGISTRY_PROJECT_ID, EXTERNAL_NAME, HOST, ID, REGISTRY
 from hub_adapter.core import route
 from hub_adapter.models.hub import Project, AllProjects, ApprovalStatus, AnalysisOrProjectNode, \
     ListAnalysisOrProjectNodes, \
-    AnalysisNode, ListAnalysisNodes, RegistryProject, AnalysisImageUrl, ListContainers
+    AnalysisNode, ListAnalysisNodes, RegistryProject, AnalysisImageUrl
 
 hub_router = APIRouter(
-    dependencies=[Security(verify_idp_token), Depends(add_hub_jwt), Security(idp_oauth2_scheme_pass),
-                  Security(httpbearer)],
+    dependencies=[
+        Security(verify_idp_token), Security(idp_oauth2_scheme_pass), Security(httpbearer),
+        Depends(add_hub_jwt),
+    ],
     tags=["Hub"],
     responses={404: {"description": "Not found"}},
 )
@@ -351,28 +353,3 @@ async def get_analysis_image_url(
     host, registry_project_external_name, analysis_id = compiled_info
     compiled_url = {"image_url": f"{host}/{registry_project_external_name}/{analysis_id}"}
     return compiled_url
-
-
-@route(
-    request_method=hub_router.get,
-    path="/analysis-nodes",
-    modified_path="/containers",
-    status_code=status.HTTP_200_OK,
-    service_url=hub_adapter_settings.HUB_SERVICE_URL,
-    response_model=ListContainers,
-    query_params=["include"],
-    post_processing_func="parse_containers",
-)
-async def list_analyses_as_containers(
-        request: Request,
-        response: Response,
-        include: Annotated[
-            str | None,
-            Query(
-                description="Whether to include additional data for the given parameter. Can only be 'node'/'analysis'",
-                pattern="^(node|analysis)$",  # Must be "node" or "analysis" or null,
-            ),
-        ] = "analysis",
-):
-    """Gets all analyses and formats the data for the UI as "containers"."""
-    pass

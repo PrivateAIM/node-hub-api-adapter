@@ -28,23 +28,6 @@ def test_token(test_client) -> BearerAuth:
     return BearerAuth(token=token)
 
 
-# @pytest.fixture(scope="module")
-# def hub_token() -> BearerAuth:
-#     """Get a token from the Hub for the tests."""
-#     # TODO: replace with robot account
-#     hub_username, hub_password = os.getenv("HUB_USERNAME"), os.getenv("HUB_PASSWORD")
-#     hub_auth_api = hub_adapter_settings.HUB_AUTH_SERVICE_URL
-#     hub_token_ep = hub_auth_api + "/token"
-#
-#     resp = httpx.post(hub_token_ep, data={"username": hub_username, "password": hub_password})
-#     assert resp.status_code == httpx.codes.OK
-#
-#     token = resp.json()["access_token"]
-#     assert token
-#
-#     return BearerAuth(token)
-
-
 @pytest.fixture(scope="module")
 def setup_kong(test_client, test_token):
     """Setup Kong instance with test data."""
