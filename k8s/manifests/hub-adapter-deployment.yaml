@@ -41,9 +41,9 @@ spec:
             - name: KONG_ADMIN_SERVICE_URL
               value: "http://kong-service:8000"  # To be properly filled in
             - name: HUB_SERVICE_URL
-              value: "https://api.privateaim.net"
+              value: "https://privateaim.net/core"
             - name: HUB_AUTH_SERVICE_URL
-              value: "https://auth.privateaim.net"
+              value: "https://privateaim.net/auth"
             - name: HUB_USERNAME
               value: "thehubusername"  # To be properly filled in
             - name: HUB_PASSWORD

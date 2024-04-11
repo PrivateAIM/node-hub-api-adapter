@@ -41,9 +41,9 @@ spec:
             - name: KONG_ADMIN_SERVICE_URL
               value: {{ .Values.env.KONG_ADMIN_SERVICE_URL | default "http://kong-service:8000" | quote }}  # To be properly filled in
             - name: HUB_SERVICE_URL
-              value: {{ .Values.env.HUB_SERVICE_URL | default "https://api.privateaim.net" | quote }}
+              value: {{ .Values.env.HUB_SERVICE_URL | default "https://privateaim.net/core" | quote }}
             - name: HUB_AUTH_SERVICE_URL
-              value: {{ .Values.env.HUB_AUTH_SERVICE_URL | default "https://auth.privateaim.net" | quote }}
+              value: {{ .Values.env.HUB_AUTH_SERVICE_URL | default "https://privateaim.net/auth" | quote }}
             - name: HUB_USERNAME
               value: {{ .Values.env.HUB_USERNAME | default "thehubusername" | quote }}  # To be properly filled in
             - name: HUB_PASSWORD
