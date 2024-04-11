@@ -3,11 +3,12 @@ import uuid
 from typing import Annotated
 
 import httpx
-from fastapi import APIRouter, Query, Path, Depends, HTTPException
+from fastapi import APIRouter, Query, Path, Depends, HTTPException, Security
 from starlette import status
 from starlette.requests import Request
 from starlette.responses import Response
 
+from hub_adapter.auth import verify_idp_token, httpbearer, idp_oauth2_scheme_pass, add_hub_jwt
 from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.constants import NODE, REGISTRY_PROJECT_ID, EXTERNAL_NAME, HOST, ID, REGISTRY
 from hub_adapter.core import route
@@ -16,8 +17,8 @@ from hub_adapter.models.hub import Project, AllProjects, ApprovalStatus, Analysi
     AnalysisNode, ListAnalysisNodes, RegistryProject, AnalysisImageUrl
 
 hub_router = APIRouter(
-    # dependencies=[Security(verify_idp_token), Depends(add_hub_jwt), Security(idp_oauth2_scheme_pass),
-    #               Security(httpbearer)],
+    dependencies=[Security(verify_idp_token), Depends(add_hub_jwt), Security(idp_oauth2_scheme_pass),
+                  Security(httpbearer)],
     # dependencies=[Depends(add_hub_jwt)],
     tags=["Hub"],
     responses={404: {"description": "Not found"}},
