@@ -8,7 +8,7 @@ from fastapi import HTTPException, params, status
 from fastapi.datastructures import Headers
 from fastapi.requests import Request
 from fastapi.responses import StreamingResponse, JSONResponse
-from httpx import ConnectError, DecodingError
+from httpx import ConnectError, DecodingError, HTTPStatusError
 from starlette.responses import Response, FileResponse
 
 from hub_adapter import post_processing
@@ -216,7 +216,7 @@ def route(
 
             except ConnectError:
                 err_msg = (f'HTTP Request: {method.upper()} {microsvc_path} '
-                           f'{status.HTTP_503_SERVICE_UNAVAILABLE} Service is unavailable. '
+                           f'- HTTP Status: {status.HTTP_503_SERVICE_UNAVAILABLE} - Service is unavailable. '
                            f'Check the {tags.pop()} service at {service_url}')
                 logger.error(err_msg)
                 raise HTTPException(
@@ -228,11 +228,20 @@ def route(
             except DecodingError:
                 logger.error(
                     f'HTTP Request: {method.upper()} {microsvc_path} '
-                    f'"{status.HTTP_500_INTERNAL_SERVER_ERROR} Service error"',
+                    f'"- HTTP Status: {status.HTTP_500_INTERNAL_SERVER_ERROR} - Service error"',
                 )
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Service error",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+
+            except HTTPStatusError as http_error:
+                err_msg = f'HTTP Request: {method.upper()} {microsvc_path} - {http_error}'
+                logger.error(err_msg)
+                raise HTTPException(
+                    status_code=http_error.response.status_code,
+                    detail=err_msg,
                     headers={"WWW-Authenticate": "Bearer"},
                 )
 
