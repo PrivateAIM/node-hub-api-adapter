@@ -3,7 +3,7 @@
 ## Description
 
 Service that proxies certain resources from the Hub Core API (projects, analysis, nodes) and queries other node
-services (Results, Pod Orchestration, Data) for the Node UI. Needs to check for authorization, e.g. analysis should only
+services (Results, Pod Orchestration, Kong) for the Node UI. Needs to check for authorization, e.g. analysis should only
 be allowed to see other nodes participating in the current analysis.
 
 ## Testing
@@ -12,7 +12,8 @@ This module assumes there is a running Keycloak instance available. One can be q
 realm and user using the [docker-compose file](./docker/docker-compose.yml) which will populate the keycloak instance
 using the [instance export file](docker/test-realm.json).
 
-The API can be found at http://127.0.0.1:8081 with a GUI for the API available at http://127.0.0.1:8081/docs. Here,
+Once started, the API can be found at http://127.0.0.1:8081 with a GUI for the API available
+at http://127.0.0.1:8081/docs. Here,
 users must authorize themselves with the deployed keycloak instance
 (from the [docker-compose file](./docker/docker-compose.yml)) to run protected endpoints:
 
