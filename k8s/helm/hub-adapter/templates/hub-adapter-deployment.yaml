@@ -22,11 +22,11 @@ spec:
           imagePullPolicy: IfNotPresent  # Maybe "Always" during debug
           ports:
             - containerPort: 5000
-              name: http-result-srv
+              name: healthcp
           readinessProbe:
             httpGet:
               path: /healthz
-              port: http-result-srv
+              port: healthcp
           env:
             - name: API_CLIENT_ID
               value: {{ .Values.env.API_CLIENT_ID | default "hub-adapter" | quote }}
@@ -50,18 +50,18 @@ spec:
             - name: HUB_AUTH_SERVICE_URL
               value: {{ .Values.env.HUB_AUTH_SERVICE_URL | default "https://privateaim.net/auth" | quote }}
             - name: HUB_USERNAME
-              value: {{ .Values.env.HUB_USERNAME | default "thehubusername" | quote }}  # To be properly filled in
+              value: {{ .Values.env.HUB_USERNAME | default "" | quote }}  # To be properly filled in
             - name: HUB_PASSWORD
-              value: {{ .Values.env.HUB_PASSWORD | default "thehubpassword" | quote }}
+              value: {{ .Values.env.HUB_PASSWORD | default "" | quote }}
           startupProbe:
             httpGet:
               path: /healthz
-              port: http-result-srv
+              port: healthcp
             failureThreshold: 5
             periodSeconds: 5
           livenessProbe:
             httpGet:
               path: /healthz
-              port: http-result-srv
+              port: healthcp
             failureThreshold: 3
             periodSeconds: 10

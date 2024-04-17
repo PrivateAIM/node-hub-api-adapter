@@ -10,5 +10,5 @@ env:
     PODORC_SERVICE_URL: http://po-service:8000
     HUB_SERVICE_URL: https://privateaim.net/core
     HUB_AUTH_SERVICE_URL: https://privateaim.net/auth
-    HUB_USERNAME: thehubusername
-    HUB_PASSWORD: thehubpassword
+    HUB_USERNAME: ""
+    HUB_PASSWORD: ""
