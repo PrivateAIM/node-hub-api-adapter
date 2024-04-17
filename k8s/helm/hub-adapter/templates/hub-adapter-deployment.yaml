@@ -30,6 +30,11 @@ spec:
           env:
             - name: API_CLIENT_ID
               value: {{ .Values.env.API_CLIENT_ID | default "hub-adapter" | quote }}
+            - name: API_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: hub-adapter-keycloak-secret
+                  key: kcsecret
             - name: IDP_URL
               value: {{ .Values.env.IDP_URL | default "http://keycloak-service:8080" | quote }}  # To be replaced
             - name: IDP_REALM
