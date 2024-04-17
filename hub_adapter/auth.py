@@ -108,6 +108,13 @@ async def get_hub_token() -> dict:
     # {"grant_type": 'robot_credentials', "id": '<robot-id>|<robot-name>', "secret": '<robot-secret>'}
     # payload = {"grant_type": 'robot_credentials', "id": robot_user, "secret": robot_secret}
 
+    if not hub_user or not hub_pwd:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No credentials provided for the hub. Check that the environment variables are set properly",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     token_route = hub_adapter_settings.HUB_AUTH_SERVICE_URL.rstrip("/") + "/token"
     resp = httpx.post(token_route, data=payload)
 
