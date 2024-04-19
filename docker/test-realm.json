@@ -2771,7 +2771,7 @@
             "attributes": {}
           }
         ],
-        "api-client": [
+        "hub-adapter": [
           {
             "id": "2ef969e3-aa71-493e-8c10-98c0dfb760cb",
             "name": "uma_protection",
@@ -2968,12 +2968,12 @@
       },
       {
         "id": "68a7e396-3236-478a-b344-e4153c369fd5",
-        "username": "service-account-api-client",
+        "username": "service-account-hub-adapter",
         "emailVerified": false,
         "createdTimestamp": 1710851147049,
         "enabled": true,
         "totp": false,
-        "serviceAccountClientId": "api-client",
+        "serviceAccountClientId": "hub-adapter",
         "credentials": [],
         "disableableCredentialTypes": [],
         "requiredActions": [],
@@ -2981,7 +2981,7 @@
           "default-roles-flame"
         ],
         "clientRoles": {
-          "api-client": [
+          "hub-adapter": [
             "uma_protection"
           ]
         },
@@ -3148,7 +3148,7 @@
       },
       {
         "id": "0a8ebac0-a08e-44a0-b6fa-12be88fe6e20",
-        "clientId": "api-client",
+        "clientId": "hub-adapter",
         "name": "Node UI Gateway API ",
         "description": "",
         "rootUrl": "http://localhost:8081/",
