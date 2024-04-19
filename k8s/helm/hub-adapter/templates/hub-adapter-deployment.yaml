@@ -53,15 +53,10 @@ spec:
               value: {{ .Values.env.HUB_USERNAME | default "" | quote }}  # To be properly filled in
             - name: HUB_PASSWORD
               value: {{ .Values.env.HUB_PASSWORD | default "" | quote }}
-          startupProbe:
-            httpGet:
-              path: /healthz
-              port: healthcp
-            failureThreshold: 5
-            periodSeconds: 5
           livenessProbe:
             httpGet:
               path: /healthz
               port: healthcp
             failureThreshold: 3
             periodSeconds: 10
+            initialDelaySeconds: 30
