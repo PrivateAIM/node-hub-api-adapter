@@ -1,17 +1,4 @@
 {{/*
-Create a default fully qualified app name.
-Truncated at 63 chars because some k8s name fields are limited to this (by the DNS naming spec).
-*/}}
-{{- define "common.names.fullname" -}}
-{{- $name := default .Chart.Name .Values.nameOverride -}}
-{{- if contains $name .Release.Name -}}
-{{- .Release.Name | trunc 63 | trimSuffix "-" -}}
-{{- else -}}
-{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" -}}
-{{- end -}}
-{{- end -}}
-
-{{/*
 Return the secret containing the Keycloak client secret
 */}}
 {{- define "adapter.keycloak.secretName" -}}
