@@ -16,11 +16,22 @@ Return the secret key that contains the Keycloak client secret
 {{- define "adapter.keycloak.secretKey" -}}
 {{- $secretName := .Values.idp.existingSecret -}}
 {{- if .Values.idp.debug -}}
-    {{- print "static" -}}
+    {{- print "hubAdapterClientSecret" -}}
 {{- else if and $secretName .Values.idp.existingSecretKey -}}
     {{- printf "%s" .Values.idp.existingSecretKey -}}
 {{- else -}}
-    {{- print "hub-adapter-kc-secret" -}}
+    {{- print "hubAdapterClientSecret" -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Generate a random clientSecret value for the hub-adapter client in keycloak if none provided
+*/}}
+{{- define "adapter.keycloak.clientSecret" -}}
+{{- if .Values.idp.debug -}}
+    {{- print "cFR2THJCS3V5MHZ4cnV2VXByd3NYcEV0dzg0ZEROOUM=" -}}
+{{- else -}}
+    {{- printf "%s" ( randAlphaNum 22 | b64enc | quote ) -}}
 {{- end -}}
 {{- end -}}
 
@@ -53,7 +64,7 @@ Return the Kong admin service endpoint
 {{- if .Values.node.kong -}}
     {{- .Values.node.kong -}}
 {{- else -}}
-    {{- printf "http://%s-kong-service:8000" .Release.Name -}}
+    {{- printf "http://%s-kong-service" .Release.Name -}}
 {{- end -}}
 {{- end -}}
 

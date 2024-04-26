@@ -1,6 +1,3 @@
-## @param nameOverride String to partially override common.names.fullname template (will maintain the release name)
-nameOverride: ""
-
 ## For defining ingress specific metadata
 ingress:
   domain: localhost
@@ -43,5 +40,5 @@ hub:
   authApi: https://privateaim.net/auth
   ## Credentials used for retrieving a valid token from the hub
   auth:
-      username: ""
-      password: ""
+    username: ""
+    password: ""
