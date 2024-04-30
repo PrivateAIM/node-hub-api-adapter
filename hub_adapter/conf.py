@@ -31,8 +31,6 @@ class Settings(BaseModel):
     # Hub
     HUB_AUTH_SERVICE_URL: str = os.getenv("HUB_AUTH_SERVICE_URL", "https://privateaim.net/auth")
     HUB_SERVICE_URL: str = os.getenv("HUB_SERVICE_URL", "https://privateaim.net/core")
-    HUB_USERNAME: str = os.getenv("HUB_USERNAME")
-    HUB_PASSWORD: str = os.getenv("HUB_PASSWORD")
     HUB_ROBOT_USER: str = os.getenv("HUB_ROBOT_USER")
     HUB_ROBOT_SECRET: str = os.getenv("HUB_ROBOT_SECRET")
 
