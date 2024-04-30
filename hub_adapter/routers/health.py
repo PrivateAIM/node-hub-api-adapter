@@ -1,6 +1,7 @@
 """EPs for checking the API health and the health of the downstream microservices."""
 import logging
 
+import httpx
 from fastapi import APIRouter
 from starlette import status
 
@@ -41,12 +42,17 @@ def get_health() -> HealthCheck:
     status_code=status.HTTP_200_OK,
     response_model=DownstreamHealthCheck,
 )
-def get_health_downstream_services() -> DownstreamHealthCheck:
+def get_health_downstream_services():
     """Return the health of the downstream microservices."""
     health_eps = {
-        "po": hub_adapter_settings.PODORC_SERVICE_URL.rstrip("/") + "/healthz",
+        "po": hub_adapter_settings.PODORC_SERVICE_URL.rstrip("/") + "/po/healthz",
         "results": hub_adapter_settings.RESULTS_SERVICE_URL.rstrip("/") + "/healthz",
-        "hub": hub_adapter_settings.HUB_SERVICE_URL,
-        "kong": hub_adapter_settings.KONG_ADMIN_SERVICE_URL,
+        # "hub": hub_adapter_settings.HUB_SERVICE_URL,
+        "kong": hub_adapter_settings.KONG_ADMIN_SERVICE_URL.rstrip("/") + "/status",
     }
-    return health_eps
+
+    health_checks = {}
+    for service, ep in health_eps.items():
+        health_checks[service] = httpx.get(ep).json()
+
+    return health_checks
