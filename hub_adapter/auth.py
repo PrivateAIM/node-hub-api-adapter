@@ -107,7 +107,7 @@ async def get_hub_token() -> dict:
     if not robot_user or not robot_secret:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="No credentials provided for the hub. Check that the environment variables are set properly",
+            detail="No credentials provided for the hub robot. Check that the environment variables are set properly",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
