@@ -8,7 +8,7 @@ class HealthCheck(BaseModel):
 
 class DownstreamHealthCheck(BaseModel):
     """Response model for downstream health checks."""
-    po: dict
-    results: dict
-    # hub: dict
-    kong: dict
+    po: dict | str
+    results: dict | str
+    # hub: dict | str
+    kong: dict | str

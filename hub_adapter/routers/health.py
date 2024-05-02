@@ -3,6 +3,7 @@ import logging
 
 import httpx
 from fastapi import APIRouter
+from httpx import ConnectError
 from starlette import status
 
 from hub_adapter.conf import hub_adapter_settings
@@ -53,6 +54,12 @@ def get_health_downstream_services():
 
     health_checks = {}
     for service, ep in health_eps.items():
-        health_checks[service] = httpx.get(ep).json()
+        try:
+            resp = httpx.get(ep).json()
+
+        except ConnectError as e:
+            resp = str(e)
+
+        health_checks[service] = resp
 
     return health_checks
