@@ -20,29 +20,30 @@ results_router = APIRouter(
 
 @route(
     request_method=results_router.get,
-    path="/scratch/{object_id}",
+    path="/local/{object_id}",
     status_code=status.HTTP_200_OK,
     service_url=hub_adapter_settings.RESULTS_SERVICE_URL,
     response_model=None,
     file_response=True,
 )
-async def read_from_scratch(
+async def retrieve_intermediate_result_from_local(
         object_id: uuid.UUID,
         request: Request,
         response: Response,
 ):
+    """Get an local result as file from local storage."""
     pass
 
 
 @route(
     request_method=results_router.put,
-    path="/scratch",
-    status_code=status.HTTP_200_OK,
+    path="/local",
+    status_code=status.HTTP_202_ACCEPTED,
     service_url=hub_adapter_settings.RESULTS_SERVICE_URL,
     response_model=ResultsUploadResponse,
     file_params=["file"],
 )
-async def upload_to_scratch(
+async def submit_intermediate_result_to_local(
         file: UploadFile,
         request: Request,
         response: Response,
@@ -51,16 +52,53 @@ async def upload_to_scratch(
 
 
 @route(
-    request_method=results_router.put,
-    path="/upload",
+    request_method=results_router.get,
+    path="/intermediate/{object_id}",
     status_code=status.HTTP_200_OK,
+    service_url=hub_adapter_settings.RESULTS_SERVICE_URL,
+    response_model=None,
+    file_response=True,
+)
+async def retrieve_intermediate_result_from_hub(
+        object_id: uuid.UUID,
+        request: Request,
+        response: Response,
+):
+    """Get an intermediate result as file from the FLAME Hub."""
+    pass
+
+
+@route(
+    request_method=results_router.put,
+    path="/intermediate",
+    status_code=status.HTTP_202_ACCEPTED,
     service_url=hub_adapter_settings.RESULTS_SERVICE_URL,
     response_model=ResultsUploadResponse,
     file_params=["file"],
 )
-async def upload_to_hub(
+async def submit_intermediate_result_to_hub(
         file: UploadFile,
         request: Request,
         response: Response,
 ):
+    """Upload a file as an intermediate result to the FLAME Hub. Returns a 202 on success.
+
+    This endpoint returns immediately and submits the file in the background."""
+    pass
+
+
+@route(
+    request_method=results_router.put,
+    path="/final",
+    status_code=status.HTTP_204_NO_CONTENT,
+    service_url=hub_adapter_settings.RESULTS_SERVICE_URL,
+    response_model=ResultsUploadResponse,
+    file_params=["file"],
+)
+async def submit_final_result_to_hub(
+        file: UploadFile,
+        request: Request,
+        response: Response,
+):
+    """Upload final results to FLAME Hub"""
     pass
