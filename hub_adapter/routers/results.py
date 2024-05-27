@@ -31,7 +31,7 @@ async def retrieve_intermediate_result_from_local(
         request: Request,
         response: Response,
 ):
-    """Get an local result as file from local storage."""
+    """Get a local result as file from local storage."""
     pass
 
 
@@ -92,7 +92,7 @@ async def submit_intermediate_result_to_hub(
     path="/final",
     status_code=status.HTTP_204_NO_CONTENT,
     service_url=hub_adapter_settings.RESULTS_SERVICE_URL,
-    response_model=ResultsUploadResponse,
+    response_model=None,
     file_params=["file"],
 )
 async def submit_final_result_to_hub(
