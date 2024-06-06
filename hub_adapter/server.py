@@ -108,6 +108,27 @@ def inspect_token(
     return decoded
 
 
+@app.get(
+    "/containers",
+    status_code=status.HTTP_200_OK,
+)
+def fetch_containers() -> list:
+    """Return information about the provided token."""
+    data = [
+        {
+            "name": "Foo",
+            "category": "TestInstance",
+            "quantity": 1,
+        },
+        {
+            "name": "API Cup",
+            "category": "ShortAndStout",
+            "quantity": 3,
+        },
+    ]
+    return data
+
+
 routers = (po_router, results_router, metadata_router, hub_router, kong_router, health_router)
 
 for router in routers:

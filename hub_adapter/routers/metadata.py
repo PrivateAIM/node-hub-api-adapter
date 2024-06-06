@@ -19,7 +19,7 @@ async def get_keycloak_config():
     return {
         "realm": hub_adapter_settings.IDP_REALM,
         "url": hub_adapter_settings.IDP_URL,
-        "clientId": "node-ui-app",
+        "clientId": "node-ui",
     }
 
 
