@@ -3,7 +3,7 @@ import uuid
 from typing import Annotated
 
 import httpx
-from fastapi import APIRouter, Query, Path, Depends, HTTPException, Security
+from fastapi import APIRouter, Query, Path, Depends, HTTPException, Body, Security
 from starlette import status
 from starlette.requests import Request
 from starlette.responses import Response
@@ -12,9 +12,8 @@ from hub_adapter.auth import add_hub_jwt, verify_idp_token, idp_oauth2_scheme_pa
 from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.constants import NODE, REGISTRY_PROJECT_ID, EXTERNAL_NAME, HOST, ID, REGISTRY
 from hub_adapter.core import route
-from hub_adapter.models.hub import Project, AllProjects, ApprovalStatus, AnalysisOrProjectNode, \
-    ListAnalysisOrProjectNodes, \
-    AnalysisNode, ListAnalysisNodes, RegistryProject, AnalysisImageUrl
+from hub_adapter.models.hub import Project, AllProjects, AnalysisOrProjectNode, ListAnalysisOrProjectNodes, \
+    AnalysisNode, ListAnalysisNodes, RegistryProject, AnalysisImageUrl, ApprovalSubmission
 
 hub_router = APIRouter(
     dependencies=[
@@ -127,7 +126,7 @@ async def accept_reject_project_node(
         request: Request,
         response: Response,
         project_id: Annotated[uuid.UUID, Path(description="Project object UUID (not project ID).")],
-        approval_status: Annotated[ApprovalStatus, Query(
+        approval_status: Annotated[ApprovalSubmission, Body(
             description="Set the approval status of project for the node. Either 'rejected' or 'approved'"
         )],
 ):
@@ -238,7 +237,7 @@ async def accept_reject_analysis_node(
         request: Request,
         response: Response,
         analysis_id: Annotated[uuid.UUID, Path(description="Analysis object UUID (not analysis_id).")],
-        approval_status: Annotated[ApprovalStatus, Query(
+        approval_status: Annotated[ApprovalSubmission, Body(
             description="Set the approval status of project for the node. Either 'rejected' or 'approved'"
         )],
 ):

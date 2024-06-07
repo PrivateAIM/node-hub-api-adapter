@@ -15,6 +15,11 @@ class ApprovalStatus(Enum):
     rejected: str = "rejected"
 
 
+class ApprovalSubmission(BaseModel):
+    """Submit approval or rejection"""
+    approval_status: ApprovalStatus
+
+
 class AnalysisBuildStatus(Enum):
     """Possible values for analysis build status."""
     starting: str = "starting"
