@@ -3,7 +3,7 @@ from starlette import status
 
 
 class TestHub:
-    """Hub EP tests. Dependent on having HUB_USERNAME and HUB_PASSWORD in ENV variables."""
+    """Hub EP tests. Dependent on having HUB_ROBOT_USER and HUB_ROBOT_SECRET in ENV variables."""
 
     @staticmethod
     def list_all(test_client, test_token, ep: str, valid_include: str):

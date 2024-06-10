@@ -7,14 +7,14 @@ spec:
     matchLabels:
       component: hub-adapter-service
       version: 0.1.0
-      deployment-id:  hub-adapter
+      deployment-id: hub-adapter
   replicas: 1
   template:
     metadata:
       labels:
         component: hub-adapter-service
         version: 0.1.0
-        deployment-id:  hub-adapter
+        deployment-id: hub-adapter
     spec:
       containers:
         - name: api-gateway
@@ -44,10 +44,10 @@ spec:
               value: "https://privateaim.net/core"
             - name: HUB_AUTH_SERVICE_URL
               value: "https://privateaim.net/auth"
-            - name: HUB_USERNAME
-              value: "thehubusername"  # To be properly filled in
-            - name: HUB_PASSWORD
-              value: "thehubpassword"
+            - name: HUB_ROBOT_USER
+              value: ""  # To be properly filled in
+            - name: HUB_ROBOT_SECRET
+              value: ""
           startupProbe:
             httpGet:
               path: /healthz
