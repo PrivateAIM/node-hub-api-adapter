@@ -80,7 +80,8 @@ async def unzip_form_params(
         if specified_params:
             for key in specified_params:
                 value = additional_params.get(key)
-                body_form[key] = value
+                _form_dict = await serialize_response(response_content=value)
+                body_form[key] = _form_dict
 
         if request_form:
             for key in request_form:
