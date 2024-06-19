@@ -3,7 +3,7 @@ import uuid
 from typing import Annotated
 
 import httpx
-from fastapi import APIRouter, Query, Path, Depends, HTTPException, Body, Security
+from fastapi import APIRouter, Query, Path, Depends, HTTPException, Security, Form
 from starlette import status
 from starlette.requests import Request
 from starlette.responses import Response
@@ -13,7 +13,7 @@ from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.constants import NODE, REGISTRY_PROJECT_ID, EXTERNAL_NAME, HOST, ID, REGISTRY
 from hub_adapter.core import route
 from hub_adapter.models.hub import Project, AllProjects, AnalysisOrProjectNode, ListAnalysisOrProjectNodes, \
-    AnalysisNode, ListAnalysisNodes, RegistryProject, AnalysisImageUrl, ApprovalSubmission
+    AnalysisNode, ListAnalysisNodes, RegistryProject, AnalysisImageUrl, ApprovalStatus
 
 hub_router = APIRouter(
     dependencies=[
@@ -120,13 +120,13 @@ async def list_projects_and_nodes(
     status_code=status.HTTP_200_OK,
     service_url=hub_adapter_settings.HUB_SERVICE_URL,
     response_model=AnalysisOrProjectNode,
-    body_params=["approval_status"],
+    form_params=["approval_status"],
 )
 async def accept_reject_project_node(
         request: Request,
         response: Response,
         project_id: Annotated[uuid.UUID, Path(description="Project object UUID (not project ID).")],
-        approval_status: Annotated[ApprovalSubmission, Body(
+        approval_status: Annotated[ApprovalStatus, Form(
             description="Set the approval status of project for the node. Either 'rejected' or 'approved'"
         )],
 ):
@@ -231,13 +231,13 @@ async def list_specific_analysis(
     status_code=status.HTTP_200_OK,
     service_url=hub_adapter_settings.HUB_SERVICE_URL,
     response_model=AnalysisNode,
-    body_params=["approval_status"],
+    form_params=["approval_status"],
 )
 async def accept_reject_analysis_node(
         request: Request,
         response: Response,
         analysis_id: Annotated[uuid.UUID, Path(description="Analysis object UUID (not analysis_id).")],
-        approval_status: Annotated[ApprovalSubmission, Body(
+        approval_status: Annotated[ApprovalStatus, Form(
             description="Set the approval status of project for the node. Either 'rejected' or 'approved'"
         )],
 ):
