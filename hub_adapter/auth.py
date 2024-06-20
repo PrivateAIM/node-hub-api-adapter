@@ -101,8 +101,11 @@ async def verify_idp_token(token: str = Security(idp_oauth2_scheme)) -> dict:
 async def get_hub_token() -> dict:
     """Automated method for getting a robot token from the central Hub service."""
     robot_user, robot_secret = hub_adapter_settings.HUB_ROBOT_USER, hub_adapter_settings.HUB_ROBOT_SECRET
-    #  {"grant_type": 'robot_credentials', "id": '<robot-id>|<robot-name>', "secret": '<robot-secret>'}
-    payload = {"grant_type": 'robot_credentials', "id": robot_user, "secret": robot_secret}
+    payload = {
+        "grant_type": 'robot_credentials',
+        "id": robot_user,
+        "secret": robot_secret
+    }
 
     if not robot_user or not robot_secret:
         raise HTTPException(
