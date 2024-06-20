@@ -5,7 +5,8 @@ from typing import Annotated
 import kong_admin_client
 from fastapi import APIRouter, HTTPException, Body, Path, Security
 from kong_admin_client import CreateServiceRequest, Service, CreateRouteRequest, CreatePluginForConsumerRequest, \
-    ListRoute200Response, CreateConsumerRequest, CreateAclForConsumerRequest, CreateKeyAuthForConsumerRequest
+    CreateConsumerRequest, CreateAclForConsumerRequest, CreateKeyAuthForConsumerRequest, \
+    ListService200Response
 from kong_admin_client.rest import ApiException
 from starlette import status
 
@@ -25,7 +26,7 @@ logger = logging.getLogger(__name__)
 kong_admin_url = hub_adapter_settings.KONG_ADMIN_SERVICE_URL
 
 
-@kong_router.get("/datastore", response_model=ListRoute200Response, status_code=status.HTTP_200_OK)
+@kong_router.get("/datastore", response_model=ListService200Response, status_code=status.HTTP_200_OK)
 async def list_data_stores():
     """List all available data stores."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
@@ -50,7 +51,7 @@ async def list_data_stores():
         )
 
 
-@kong_router.get("/datastore/{project_name}", response_model=ListRoute200Response, status_code=status.HTTP_200_OK)
+@kong_router.get("/datastore/{project_name}", response_model=ListService200Response, status_code=status.HTTP_200_OK)
 async def list_data_stores_by_project(
         project_name: Annotated[str, Path(description="Unique name of project.")]
 ):
