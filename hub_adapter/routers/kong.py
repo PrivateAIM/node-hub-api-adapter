@@ -51,9 +51,9 @@ async def list_data_stores():
         )
 
 
-@kong_router.get("/datastore/{project_name}", response_model=ListService200Response, status_code=status.HTTP_200_OK)
+@kong_router.get("/datastore/{project_id}", response_model=ListService200Response, status_code=status.HTTP_200_OK)
 async def list_data_stores_by_project(
-        project_name: Annotated[str, Path(description="Unique name of project.")]
+        project_id: Annotated[str, Path(description="UUID of project.")]
 ):
     """List all the data stores connected to this project."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
@@ -61,10 +61,10 @@ async def list_data_stores_by_project(
     try:
         with kong_admin_client.ApiClient(configuration) as api_client:
             api_instance = kong_admin_client.RoutesApi(api_client)
-            api_response = api_instance.list_route(tags=project_name)
+            api_response = api_instance.list_route(tags=project_id)
 
             for route in api_response.data:
-                logger.info(f"Project {project_name} connected to data store id: {route.service.id}")
+                logger.info(f"Project {project_id} connected to data store id: {route.service.id}")
 
             if len(api_response.data) == 0:
                 logger.info("No data stores connected to project.")
