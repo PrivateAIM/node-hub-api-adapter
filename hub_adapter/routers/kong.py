@@ -284,9 +284,9 @@ async def connect_project_to_datastore(
     return response
 
 
-@kong_router.put("/disconnect/{project_name}", status_code=status.HTTP_200_OK, response_model=Disconnect)
+@kong_router.put("/disconnect/{project_id}", status_code=status.HTTP_200_OK, response_model=Disconnect)
 async def disconnect_project(
-        project_name: Annotated[str, Path(description="Unique name of project to be disconnected")]
+        project_id: Annotated[str, Path(description="UUID of project to be disconnected")]
 ):
     """Disconnect a project from all connected data stores."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
@@ -294,7 +294,7 @@ async def disconnect_project(
     try:
         with kong_admin_client.ApiClient(configuration) as api_client:
             api_instance = kong_admin_client.RoutesApi(api_client)
-            api_response = api_instance.list_route(tags=project_name)
+            api_response = api_instance.list_route(tags=project_id)
             removed_routes = []
             for route in api_response.data:
                 # Delete route
@@ -302,7 +302,7 @@ async def disconnect_project(
                     api_instance = kong_admin_client.RoutesApi(api_client)
                     api_instance.delete_route(route.id)
                     logger.info(
-                        f"Project {project_name} disconnected from data store {route.service.id}"
+                        f"Project {project_id} disconnected from data store {route.service.id}"
                     )
                     removed_routes.append(route.id)
 
