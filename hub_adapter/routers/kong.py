@@ -1,22 +1,22 @@
 """EPs for the kong service."""
 import logging
+import uuid
 from typing import Annotated
 
 import kong_admin_client
-from fastapi import APIRouter, HTTPException, Body, Path, Security
+from fastapi import APIRouter, HTTPException, Body, Path, Query
 from kong_admin_client import CreateServiceRequest, Service, CreateRouteRequest, CreatePluginForConsumerRequest, \
     CreateConsumerRequest, CreateAclForConsumerRequest, CreateKeyAuthForConsumerRequest, \
-    ListService200Response
+    ListService200Response, ListRoute200Response
 from kong_admin_client.rest import ApiException
 from starlette import status
 
-from hub_adapter.auth import verify_idp_token, idp_oauth2_scheme_pass, httpbearer
 from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.models.kong import ServiceRequest, HttpMethodCode, ProtocolCode, LinkDataStoreProject, \
     Disconnect, LinkProjectAnalysis
 
 kong_router = APIRouter(
-    dependencies=[Security(verify_idp_token), Security(idp_oauth2_scheme_pass), Security(httpbearer)],
+    # dependencies=[Security(verify_idp_token), Security(idp_oauth2_scheme_pass), Security(httpbearer)],
     tags=["Kong"],
     responses={404: {"description": "Not found"}},
     prefix="/kong"
@@ -47,41 +47,6 @@ async def list_data_stores():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Service error",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-
-@kong_router.get("/datastore/{project_id}", response_model=ListService200Response, status_code=status.HTTP_200_OK)
-async def list_data_stores_by_project(
-        project_id: Annotated[str, Path(description="UUID of project.")]
-):
-    """List all the data stores connected to this project."""
-    configuration = kong_admin_client.Configuration(host=kong_admin_url)
-
-    try:
-        with kong_admin_client.ApiClient(configuration) as api_client:
-            api_instance = kong_admin_client.RoutesApi(api_client)
-            api_response = api_instance.list_route(tags=project_id)
-
-            for route in api_response.data:
-                logger.info(f"Project {project_id} connected to data store id: {route.service.id}")
-
-            if len(api_response.data) == 0:
-                logger.info("No data stores connected to project.")
-
-            return api_response
-
-    except ApiException as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e),
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Service error: {e}",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -158,10 +123,45 @@ async def create_data_store(
         )
 
 
-@kong_router.post("/datastore/project", response_model=LinkDataStoreProject)
-async def connect_project_to_datastore(
-        data_store_id: Annotated[str, Body(description="UUID of the data store or 'gateway'")],
-        project_id: Annotated[str, Body(description="UUID of the project")],
+@kong_router.get("/route", response_model=ListRoute200Response, status_code=status.HTTP_200_OK)
+async def list_routes(
+        project_id: Annotated[uuid.UUID | None, Query(description="UUID of project.")] = None
+):
+    """List all the routes available, can be filtered by project_id."""
+    configuration = kong_admin_client.Configuration(host=kong_admin_url)
+
+    try:
+        with kong_admin_client.ApiClient(configuration) as api_client:
+            api_instance = kong_admin_client.RoutesApi(api_client)
+            api_response = api_instance.list_route(tags=project_id)
+
+            for route in api_response.data:
+                logger.info(f"Project {project_id} connected to data store id: {route.service.id}")
+
+            if len(api_response.data) == 0:
+                logger.info("No routes found.")
+
+            return api_response
+
+    except ApiException as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Service error: {e}",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+@kong_router.post("/route", response_model=LinkDataStoreProject)
+async def create_route_between_datastore_and_project(
+        data_store_id: Annotated[uuid.UUID, Body(description="UUID of the data store or 'gateway'")],
+        project_id: Annotated[uuid.UUID, Body(description="UUID of the project")],
         methods: Annotated[
             list[HttpMethodCode],
             Body(description="List of acceptable HTTP methods")
@@ -172,7 +172,7 @@ async def connect_project_to_datastore(
         ] = ["http"],
         ds_type: Annotated[str, Body(description="Data store type. Either 's3' or 'fhir'")] = "fhir",
 ):
-    """Create a new project and link it to a data store."""
+    """Create a route between a data store and a project."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
     response = {}
 
@@ -284,9 +284,9 @@ async def connect_project_to_datastore(
     return response
 
 
-@kong_router.put("/disconnect/{project_id}", status_code=status.HTTP_200_OK, response_model=Disconnect)
+@kong_router.put("/route/disconnect/{project_id}", status_code=status.HTTP_200_OK, response_model=Disconnect)
 async def disconnect_project(
-        project_id: Annotated[str, Path(description="UUID of project to be disconnected")]
+        project_id: Annotated[uuid.UUID, Path(description="UUID of project to be disconnected")]
 ):
     """Disconnect a project from all connected data stores."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
@@ -337,8 +337,8 @@ async def disconnect_project(
         )
 
 
-@kong_router.post("/project/analysis", response_model=LinkProjectAnalysis, status_code=status.HTTP_202_ACCEPTED)
-async def connect_analysis_to_project(
+@kong_router.post("/analysis", response_model=LinkProjectAnalysis, status_code=status.HTTP_202_ACCEPTED)
+async def create_and_connect_analysis_to_project(
         project_id: Annotated[str, Body(description="UUID or name of the project")],
         analysis_id: Annotated[str, Body(description="UUID or name of the analysis")],
 ):
