@@ -143,6 +143,11 @@ class Analysis(BaseHubResponse):
     master_image: MasterImage | None = None
 
 
+class AllAnalyses(BaseModel):
+    """List of all projects."""
+    data: list[Analysis]
+
+
 class AnalysisNode(AnalysisOrProjectNode):
     """Node analysis response model."""
     run_status: AnalysisRunStatus | None = None

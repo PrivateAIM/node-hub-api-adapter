@@ -13,7 +13,7 @@ from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.constants import NODE, REGISTRY_PROJECT_ID, EXTERNAL_NAME, HOST, ID, REGISTRY
 from hub_adapter.core import route
 from hub_adapter.models.hub import Project, AllProjects, AnalysisOrProjectNode, ListAnalysisOrProjectNodes, \
-    AnalysisNode, ListAnalysisNodes, RegistryProject, AnalysisImageUrl, ApprovalStatus
+    AnalysisNode, ListAnalysisNodes, RegistryProject, AnalysisImageUrl, ApprovalStatus, AllAnalyses
 
 hub_router = APIRouter(
     dependencies=[
@@ -220,6 +220,29 @@ async def list_specific_analysis(
                 pattern="^((^|[,])(analysis|node))+$",  # Must be "node" or "analysis" or null,
             ),
         ] = "analysis",
+):
+    """List project for a given UUID."""
+    pass
+
+
+@route(
+    request_method=hub_router.get,
+    path="/analyses",
+    status_code=status.HTTP_200_OK,
+    service_url=hub_adapter_settings.HUB_SERVICE_URL,
+    response_model=AllAnalyses,
+    query_params=["include"],
+)
+async def list_all_analyses(
+        request: Request,
+        response: Response,
+        include: Annotated[
+            str | None,
+            Query(
+                description="Whether to include additional data for the given parameter. Can only be 'node'/'analysis'",
+                pattern="^((^|[,])(project|master_image))+$",  # Must be "project" and/or "master_image" or null,
+            ),
+        ] = "project",
 ):
     """List project for a given UUID."""
     pass
