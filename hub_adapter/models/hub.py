@@ -132,7 +132,6 @@ class Analysis(BaseHubResponse):
     configuration_status: ConfigurationStatus | None = None
     build_status: AnalysisBuildStatus | None = None
     run_status: AnalysisRunStatus | None = None
-    result_status: AnalysisResultStatus | None = None
     registry: Registry | None = None
     registry_id: uuid.UUID | None = None
     realm_id: uuid.UUID
