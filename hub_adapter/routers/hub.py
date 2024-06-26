@@ -12,7 +12,7 @@ from hub_adapter.auth import add_hub_jwt, verify_idp_token, idp_oauth2_scheme_pa
 from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.constants import NODE, REGISTRY_PROJECT_ID, EXTERNAL_NAME, HOST, ID, REGISTRY
 from hub_adapter.core import route
-from hub_adapter.models.hub import Project, AllProjects, AnalysisOrProjectNode, ListAnalysisOrProjectNodes, \
+from hub_adapter.models.hub import Project, AllProjects, ProjectNode, ListProjectNodes, \
     AnalysisNode, ListAnalysisNodes, RegistryProject, AnalysisImageUrl, ApprovalStatus, AllAnalyses
 
 hub_router = APIRouter(
@@ -72,7 +72,7 @@ async def list_specific_project(
     path="/project-nodes",
     status_code=status.HTTP_200_OK,
     service_url=hub_adapter_settings.HUB_SERVICE_URL,
-    response_model=ListAnalysisOrProjectNodes,
+    response_model=ListProjectNodes,
     query_params=["filter_id", "filter_project_id", "filter_project_realm_id",
                   "filter_node_id", "filter_node_realm_id"],
 )
@@ -82,10 +82,10 @@ async def list_project_proposals(
         include: Annotated[
             str | None,
             Query(
-                description="Whether to include additional data for the given parameter. Can only be 'node'/'analysis'",
+                description="Whether to include additional data for the given parameter. Choices: 'node'/'project'",
                 pattern="^((^|[,])(project|node))+$",
             ),
-        ] = "analysis",
+        ] = "project,node",
         filter_id: Annotated[
             uuid.UUID | None,
             Query(
@@ -126,7 +126,7 @@ async def list_project_proposals(
     path="/project-nodes/{proposal_id}",
     status_code=status.HTTP_200_OK,
     service_url=hub_adapter_settings.HUB_SERVICE_URL,
-    response_model=AnalysisOrProjectNode,
+    response_model=ProjectNode,
     form_params=["approval_status"],
 )
 async def accept_reject_project_proposal(

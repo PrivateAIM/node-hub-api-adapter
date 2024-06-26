@@ -110,7 +110,7 @@ class Node(BaseHubResponse):
     realm_id: uuid.UUID
 
 
-class AnalysisOrProjectNode(BaseHubResponse):
+class ProjectNode(BaseHubResponse):
     """Single project or analysis by node."""
 
     approval_status: ApprovalStatus
@@ -119,10 +119,12 @@ class AnalysisOrProjectNode(BaseHubResponse):
     project_realm_id: uuid.UUID | None = None
     node_id: uuid.UUID | None = None
     node_realm_id: uuid.UUID | None = None
+    project: Project | None = None
+    node: Node | None = None
 
 
-class ListAnalysisOrProjectNodes(BaseModel):
-    data: list[AnalysisOrProjectNode]
+class ListProjectNodes(BaseModel):
+    data: list[ProjectNode]
 
 
 class Analysis(BaseHubResponse):
@@ -147,14 +149,18 @@ class AllAnalyses(BaseModel):
     data: list[Analysis]
 
 
-class AnalysisNode(AnalysisOrProjectNode):
+class AnalysisNode(BaseHubResponse):
     """Node analysis response model."""
+    approval_status: ApprovalStatus
     run_status: AnalysisRunStatus | None = None
+    comment: str | None = None
     index: int
     artifact_tag: str | None = None
     artifact_digest: str | None = None
     analysis_id: uuid.UUID
     analysis_realm_id: uuid.UUID
+    node_id: uuid.UUID
+    node_realm_id: uuid.UUID
     analysis: Analysis | None = None
     node: Node | None = None
 
