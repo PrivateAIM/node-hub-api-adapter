@@ -13,7 +13,8 @@ from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.constants import NODE, REGISTRY_PROJECT_ID, EXTERNAL_NAME, HOST, ID, REGISTRY
 from hub_adapter.core import route
 from hub_adapter.models.hub import Project, AllProjects, ProjectNode, ListProjectNodes, \
-    AnalysisNode, ListAnalysisNodes, RegistryProject, AnalysisImageUrl, ApprovalStatus, AllAnalyses
+    AnalysisNode, ListAnalysisNodes, RegistryProject, AnalysisImageUrl, ApprovalStatus, AllAnalyses, BucketList, \
+    PartialBucketFilesList, Bucket, PartialAnalysisBucketFile
 
 hub_router = APIRouter(
     dependencies=[
@@ -382,3 +383,157 @@ async def get_analysis_image_url(
     host, registry_project_external_name, analysis_id = compiled_info
     compiled_url = {"image_url": f"{host}/{registry_project_external_name}/{analysis_id}"}
     return compiled_url
+
+
+@route(
+    request_method=hub_router.get,
+    path="/analysis-buckets",
+    status_code=status.HTTP_200_OK,
+    service_url=hub_adapter_settings.HUB_SERVICE_URL,
+    response_model=BucketList,
+    query_params=["include", "filter_analysis_id", "filter_realm_id"],
+)
+async def list_all_analysis_buckets(
+        request: Request,
+        response: Response,
+        include: Annotated[
+            str | None,
+            Query(
+                description="Whether to include additional registry data. Can only be 'analysis'",
+                pattern="^analysis$",  # Must be "analysis" or null,
+            ),
+        ] = "analysis",
+        filter_analysis_id: Annotated[
+            uuid.UUID | None,
+            Query(
+                description="Filter by analysis UUID.",
+            ),
+        ] = None,
+        filter_realm_id: Annotated[
+            uuid.UUID | None,
+            Query(
+                description="Filter by realm UUID.",
+            ),
+        ] = None,
+):
+    """List analysis buckets."""
+    pass
+
+
+@route(
+    request_method=hub_router.get,
+    path="/analysis-buckets/{bucket_id}",
+    status_code=status.HTTP_200_OK,
+    service_url=hub_adapter_settings.HUB_SERVICE_URL,
+    response_model=Bucket,
+    query_params=["include", "filter_analysis_id", "filter_realm_id"],
+)
+async def list_specific_analysis_buckets(
+        request: Request,
+        response: Response,
+        bucket_id: Annotated[uuid.UUID, Path(description="Bucket UUID.")],
+        include: Annotated[
+            str | None,
+            Query(
+                description="Whether to include additional registry data. Can only be 'analysis'",
+                pattern="^analysis$",  # Must be "analysis" or null,
+            ),
+        ] = "analysis",
+        filter_analysis_id: Annotated[
+            uuid.UUID | None,
+            Query(
+                description="Filter by analysis UUID.",
+            ),
+        ] = None,
+        filter_realm_id: Annotated[
+            uuid.UUID | None,
+            Query(
+                description="Filter by realm UUID.",
+            ),
+        ] = None,
+):
+    """List analysis buckets."""
+    pass
+
+
+@route(
+    request_method=hub_router.get,
+    path="/analysis-bucket-files",
+    status_code=status.HTTP_200_OK,
+    service_url=hub_adapter_settings.HUB_SERVICE_URL,
+    response_model=PartialBucketFilesList,
+    query_params=["include", "filter_analysis_id", "filter_realm_id", "filter_bucket_id"],
+)
+async def list_all_analysis_bucket_files(
+        request: Request,
+        response: Response,
+        include: Annotated[
+            str | None,
+            Query(
+                description="Whether to include additional data for the given parameter. Choices: 'bucket'/'analysis'",
+                pattern="^((^|[,])(analysis|bucket))+$",
+            ),
+        ] = "bucket",
+        filter_analysis_id: Annotated[
+            uuid.UUID | None,
+            Query(
+                description="Filter by analysis UUID.",
+            ),
+        ] = None,
+        filter_realm_id: Annotated[
+            uuid.UUID | None,
+            Query(
+                description="Filter by realm UUID.",
+            ),
+        ] = None,
+        filter_bucket_id: Annotated[
+            uuid.UUID | None,
+            Query(
+                description="Filter by bucket UUID.",
+            ),
+        ] = None,
+):
+    """List partial analysis bucket files."""
+    pass
+
+
+@route(
+    request_method=hub_router.get,
+    path="/analysis-bucket-files/{bucket_file_id}",
+    status_code=status.HTTP_200_OK,
+    service_url=hub_adapter_settings.HUB_SERVICE_URL,
+    response_model=PartialAnalysisBucketFile,
+    query_params=["include", "filter_analysis_id", "filter_realm_id", "filter_bucket_id"],
+)
+async def list_specific_analysis_bucket_file(
+        request: Request,
+        response: Response,
+        bucket_file_id: Annotated[uuid.UUID, Path(description="Bucket file UUID.")],
+        include: Annotated[
+            str | None,
+            Query(
+                description="Whether to include additional data for the given parameter. Choices: 'bucket'/'analysis'",
+                pattern="^((^|[,])(analysis|bucket))+$",
+            ),
+        ] = "bucket",
+        filter_analysis_id: Annotated[
+            uuid.UUID | None,
+            Query(
+                description="Filter by analysis UUID.",
+            ),
+        ] = None,
+        filter_realm_id: Annotated[
+            uuid.UUID | None,
+            Query(
+                description="Filter by realm UUID.",
+            ),
+        ] = None,
+        filter_bucket_id: Annotated[
+            uuid.UUID | None,
+            Query(
+                description="Filter by bucket UUID.",
+            ),
+        ] = None,
+):
+    """List specific partial analysis bucket file."""
+    pass

@@ -15,6 +15,13 @@ class ApprovalStatus(Enum):
     rejected: str = "rejected"
 
 
+class BucketType(Enum):
+    """Bucket types."""
+    CODE: str = "CODE"
+    RESULT: str = "RESULT"
+    TEMP: str = "TEMP"
+
+
 class AnalysisBuildStatus(Enum):
     """Possible values for analysis build status."""
     starting: str = "starting"
@@ -194,3 +201,33 @@ class RegistryProject(BaseHubResponse):
 
 class AnalysisImageUrl(BaseModel):
     image_url: str
+
+
+class Bucket(BaseHubResponse):
+    """Bucket data."""
+    type: BucketType
+    external_id: str | None = None
+    analysis_id: uuid.UUID | None = None
+    analysis: Analysis | None = None
+    realm_id: uuid.UUID | None = None
+
+
+class BucketList(BaseModel):
+    data: list[Bucket]
+
+
+class PartialAnalysisBucketFile(BaseHubResponse):
+    name: str | None = None
+    root: bool
+    external_id: str | None = None
+    bucket_id: uuid.UUID | None = None
+    bucket: Bucket | None = None
+    analysis_id: uuid.UUID | None = None
+    analysis: Analysis | None = None
+    realm_id: uuid.UUID | None = None
+    user_id: uuid.UUID | None = None
+    robot_id: uuid.UUID | None = None
+
+
+class PartialBucketFilesList(BaseModel):
+    data: list[PartialAnalysisBucketFile]
