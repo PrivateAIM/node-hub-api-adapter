@@ -79,6 +79,13 @@ async def list_specific_project(
 async def list_project_proposals(
         request: Request,
         response: Response,
+        include: Annotated[
+            str | None,
+            Query(
+                description="Whether to include additional data for the given parameter. Can only be 'node'/'analysis'",
+                pattern="^((^|[,])(project|node))+$",
+            ),
+        ] = "analysis",
         filter_id: Annotated[
             uuid.UUID | None,
             Query(
@@ -151,7 +158,7 @@ async def list_analyses_of_nodes(
             str | None,
             Query(
                 description="Whether to include additional data for the given parameter. Can only be 'node'/'analysis'",
-                pattern="^(node|analysis)$",  # Must be "node" or "analysis" or null,
+                pattern="^((^|[,])(analysis|node))+$",  # Must be "node" or "analysis" or null,
             ),
         ] = "analysis",
         filter_id: Annotated[
@@ -217,7 +224,7 @@ async def list_specific_analysis(
             str | None,
             Query(
                 description="Whether to include additional data for the given parameter. Can only be 'node'/'analysis'",
-                pattern="^((^|[,])(analysis|node))+$",  # Must be "node" or "analysis" or null,
+                pattern="^((^|[,])(analysis|node))+$",  # Must be "node" and/or "analysis" or null,
             ),
         ] = "analysis",
 ):
