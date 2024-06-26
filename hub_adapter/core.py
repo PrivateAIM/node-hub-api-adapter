@@ -164,8 +164,8 @@ def route(
         async def inner(request: Request, response: Response, **kwargs):
             scope = request.scope
             method = scope["method"].lower()
-            tags = scope["route"].tags
-            downstream_path = scope['path']
+            service_tags = scope["route"].tags or []
+            downstream_path = scope["path"]
 
             content_type = str(request.headers.get(CONTENT_TYPE))
             www_request_form = await request.form() if 'x-www-form-urlencoded' in content_type else None
@@ -217,7 +217,7 @@ def route(
             except ConnectError:
                 err_msg = (f'HTTP Request: {method.upper()} {microsvc_path} '
                            f'- HTTP Status: {status.HTTP_503_SERVICE_UNAVAILABLE} - Service is unavailable. '
-                           f'Check the {tags.pop()} service at {service_url}')
+                           f'Check the {service_tags.pop()} service at {service_url}')
                 logger.error(err_msg)
                 raise HTTPException(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
