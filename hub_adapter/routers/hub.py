@@ -73,7 +73,7 @@ async def list_specific_project(
     status_code=status.HTTP_200_OK,
     service_url=hub_adapter_settings.HUB_SERVICE_URL,
     response_model=ListProjectNodes,
-    query_params=["filter_id", "filter_project_id", "filter_project_realm_id",
+    query_params=["include", "filter_id", "filter_project_id", "filter_project_realm_id",
                   "filter_node_id", "filter_node_realm_id"],
 )
 async def list_project_proposals(

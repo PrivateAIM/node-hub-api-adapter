@@ -111,7 +111,7 @@ class Node(BaseHubResponse):
 
 
 class ProjectNode(BaseHubResponse):
-    """Single project or analysis by node."""
+    """Single project proposal."""
 
     approval_status: ApprovalStatus
     comment: str | None = None
