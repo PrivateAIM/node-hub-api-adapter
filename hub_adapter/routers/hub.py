@@ -76,7 +76,7 @@ async def list_specific_project(
     query_params=["filter_id", "filter_project_id", "filter_project_realm_id",
                   "filter_node_id", "filter_node_realm_id"],
 )
-async def list_projects_and_nodes(
+async def list_project_proposals(
         request: Request,
         response: Response,
         filter_id: Annotated[
@@ -110,27 +110,27 @@ async def list_projects_and_nodes(
             ),
         ] = None,
 ):
-    """List project for a node."""
+    """List project proposals."""
     pass
 
 
 @route(
     request_method=hub_router.post,
-    path="/project-nodes/{project_id}",
+    path="/project-nodes/{proposal_id}",
     status_code=status.HTTP_200_OK,
     service_url=hub_adapter_settings.HUB_SERVICE_URL,
     response_model=AnalysisOrProjectNode,
     form_params=["approval_status"],
 )
-async def accept_reject_project_node(
+async def accept_reject_project_proposal(
         request: Request,
         response: Response,
-        project_id: Annotated[uuid.UUID, Path(description="Project object UUID (not project ID).")],
+        proposal_id: Annotated[uuid.UUID, Path(description="Proposal object UUID.")],
         approval_status: Annotated[ApprovalStatus, Form(
             description="Set the approval status of project for the node. Either 'rejected' or 'approved'"
         )],
 ):
-    """Set the approval status of a project."""
+    """Set the approval status of a project proposal."""
     pass
 
 
