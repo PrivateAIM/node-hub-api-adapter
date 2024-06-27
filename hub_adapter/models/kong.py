@@ -1,9 +1,8 @@
 """Models for the Kong microservice."""
 from enum import Enum
 
-from kong_admin_client import CreateServiceRequest, Plugin, Consumer, KeyAuth, \
-    ACL, CreateServiceRequestClientCertificate
-from kong_admin_client.models.service import Service
+from kong_admin_client import CreateServiceRequest, Consumer, KeyAuth, \
+    ACL, CreateServiceRequestClientCertificate, Route
 from pydantic import BaseModel, constr
 
 
@@ -52,9 +51,9 @@ class ServiceRequest(CreateServiceRequest):
 
 
 class LinkDataStoreProject(BaseModel):
-    route: Service
-    keyauth: Plugin
-    acl: Plugin
+    route: Route
+    keyauth: KeyAuth
+    acl: ACL
 
 
 class LinkProjectAnalysis(BaseModel):

@@ -4,19 +4,20 @@ import uuid
 from typing import Annotated
 
 import kong_admin_client
-from fastapi import APIRouter, HTTPException, Body, Path, Query
+from fastapi import APIRouter, HTTPException, Body, Path, Query, Security
 from kong_admin_client import CreateServiceRequest, Service, CreateRouteRequest, CreatePluginForConsumerRequest, \
     CreateConsumerRequest, CreateAclForConsumerRequest, CreateKeyAuthForConsumerRequest, \
     ListService200Response, ListRoute200Response
 from kong_admin_client.rest import ApiException
 from starlette import status
 
+from hub_adapter.auth import verify_idp_token, idp_oauth2_scheme_pass, httpbearer
 from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.models.kong import ServiceRequest, HttpMethodCode, ProtocolCode, LinkDataStoreProject, \
     Disconnect, LinkProjectAnalysis
 
 kong_router = APIRouter(
-    # dependencies=[Security(verify_idp_token), Security(idp_oauth2_scheme_pass), Security(httpbearer)],
+    dependencies=[Security(verify_idp_token), Security(idp_oauth2_scheme_pass), Security(httpbearer)],
     tags=["Kong"],
     responses={404: {"description": "Not found"}},
     prefix="/kong"
@@ -178,13 +179,14 @@ async def create_route_between_datastore_and_project(
 
     # Construct path from project_id and type
     path = f"/{project_id}/{ds_type}"
+    project = str(project_id)
 
     # Add route
     try:
         with kong_admin_client.ApiClient(configuration) as api_client:
             api_instance = kong_admin_client.RoutesApi(api_client)
             create_route_request = CreateRouteRequest(
-                name=project_id,
+                name=project,
                 protocols=protocols,
                 methods=methods,
                 paths=[path],
@@ -192,17 +194,17 @@ async def create_route_between_datastore_and_project(
                 preserve_host=False,
                 request_buffering=True,
                 response_buffering=True,
-                tags=[project_id, ds_type],
+                tags=[project, ds_type],
             )
             api_response = api_instance.create_route_for_service(
-                data_store_id, create_route_request
+                str(data_store_id), create_route_request
             )
             route_id = api_response.id
             response["route"] = api_response
 
     except ApiException as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=e.status,
             detail=str(e),
             headers={"WWW-Authenticate": "Bearer"},
         )
@@ -220,7 +222,7 @@ async def create_route_between_datastore_and_project(
             api_instance = kong_admin_client.PluginsApi(api_client)
             create_route_request = CreatePluginForConsumerRequest(
                 name="key-auth",
-                instance_name=f"{project_id}-keyauth",
+                instance_name=f"{project}-keyauth",
                 config={
                     "hide_credentials": True,
                     "key_in_body": False,
@@ -239,7 +241,7 @@ async def create_route_between_datastore_and_project(
 
     except ApiException as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=e.status,
             detail=str(e),
             headers={"WWW-Authenticate": "Bearer"},
         )
@@ -257,8 +259,8 @@ async def create_route_between_datastore_and_project(
             api_instance = kong_admin_client.PluginsApi(api_client)
             create_route_request = CreatePluginForConsumerRequest(
                 name="acl",
-                instance_name=f"{project_id}-acl",
-                config={"allow": [project_id], "hide_groups_header": True},
+                instance_name=f"{project}-acl",
+                config={"allow": [project], "hide_groups_header": True},
                 enabled=True,
                 protocols=protocols,
             )
@@ -269,7 +271,7 @@ async def create_route_between_datastore_and_project(
 
     except ApiException as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=e.status,
             detail=str(e),
             headers={"WWW-Authenticate": "Bearer"},
         )
@@ -308,7 +310,7 @@ async def disconnect_project(
 
                 except ApiException as e:
                     raise HTTPException(
-                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        status_code=e.status,
                         detail=str(e),
                         headers={"WWW-Authenticate": "Bearer"},
                     )
@@ -324,7 +326,7 @@ async def disconnect_project(
 
     except ApiException as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=e.status,
             detail=str(e),
             headers={"WWW-Authenticate": "Bearer"},
         )
@@ -363,7 +365,7 @@ async def create_and_connect_analysis_to_project(
 
     except ApiException as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=e.status,
             detail=str(e),
             headers={"WWW-Authenticate": "Bearer"},
         )
@@ -393,7 +395,7 @@ async def create_and_connect_analysis_to_project(
 
     except ApiException as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=e.status,
             detail=str(e),
             headers={"WWW-Authenticate": "Bearer"},
         )
@@ -422,7 +424,7 @@ async def create_and_connect_analysis_to_project(
 
     except ApiException as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=e.status,
             detail=str(e),
             headers={"WWW-Authenticate": "Bearer"},
         )
@@ -455,7 +457,7 @@ async def delete_analysis(
 
     except ApiException as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=e.status,
             detail=str(e),
             headers={"WWW-Authenticate": "Bearer"},
         )
