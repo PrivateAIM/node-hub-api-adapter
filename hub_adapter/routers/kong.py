@@ -6,15 +6,14 @@ from typing import Annotated
 import kong_admin_client
 from fastapi import APIRouter, HTTPException, Body, Path, Query, Security
 from kong_admin_client import CreateServiceRequest, Service, CreateRouteRequest, CreatePluginForConsumerRequest, \
-    CreateConsumerRequest, CreateAclForConsumerRequest, CreateKeyAuthForConsumerRequest, \
-    ListService200Response
+    CreateConsumerRequest, CreateAclForConsumerRequest, CreateKeyAuthForConsumerRequest
 from kong_admin_client.rest import ApiException
 from starlette import status
 
 from hub_adapter.auth import verify_idp_token, idp_oauth2_scheme_pass, httpbearer
 from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.models.kong import ServiceRequest, HttpMethodCode, ProtocolCode, LinkDataStoreProject, \
-    Disconnect, LinkProjectAnalysis, ListRoutes
+    Disconnect, LinkProjectAnalysis, ListRoutes, ListServices
 
 kong_router = APIRouter(
     dependencies=[Security(verify_idp_token), Security(idp_oauth2_scheme_pass), Security(httpbearer)],
@@ -27,15 +26,35 @@ logger = logging.getLogger(__name__)
 kong_admin_url = hub_adapter_settings.KONG_ADMIN_SERVICE_URL
 
 
-@kong_router.get("/datastore", response_model=ListService200Response, status_code=status.HTTP_200_OK)
-async def list_data_stores():
+@kong_router.get("/datastore", response_model=ListServices, status_code=status.HTTP_200_OK)
+async def list_data_stores(
+        detailed: Annotated[bool, Query(description="Whether to include detailed information on projects")] = False,
+):
     """List all available data stores."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
 
     try:
         with kong_admin_client.ApiClient(configuration) as api_client:
-            api_instance = kong_admin_client.ServicesApi(api_client)
-            return api_instance.list_service()
+            service_api_instance = kong_admin_client.ServicesApi(api_client)
+            services = service_api_instance.list_service()
+
+            if detailed:
+                service_dicts = [svc.to_dict() for svc in services.data]
+                route_api_instance = kong_admin_client.RoutesApi(api_client)
+                routes = route_api_instance.list_route()
+                route_dict = {rte.service.id: rte for rte in routes.data if rte.service}
+
+                for idx, svc in enumerate(service_dicts):
+                    svc_id = svc.get("id")
+                    svc["routes"] = []
+                    if svc_id in route_dict:
+                        svc["routes"].append(route_dict[svc_id])
+
+                    service_dicts[idx] = svc
+
+                services = {"data": service_dicts}
+
+            return services
 
     except ApiException as e:
         raise HTTPException(
