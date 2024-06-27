@@ -150,11 +150,12 @@ async def list_routes(
 ):
     """List all the routes available, can be filtered by project_id."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
+    project = str(project_id) if project_id else None
 
     try:
         with kong_admin_client.ApiClient(configuration) as api_client:
             api_instance = kong_admin_client.RoutesApi(api_client)
-            api_response = api_instance.list_route(tags=project_id)
+            api_response = api_instance.list_route(tags=project)
 
             for route in api_response.data:
                 logger.info(f"Project {project_id} connected to data store id: {route.service.id}")
@@ -199,6 +200,7 @@ async def list_routes(
 async def create_route_between_datastore_and_project(
         data_store_id: Annotated[uuid.UUID, Body(description="UUID of the data store or 'gateway'")],
         project_id: Annotated[uuid.UUID, Body(description="UUID of the project")],
+        project_name: Annotated[str, Body(description="Name of the project")],
         methods: Annotated[
             list[HttpMethodCode],
             Body(description="List of acceptable HTTP methods")
@@ -222,7 +224,7 @@ async def create_route_between_datastore_and_project(
         with kong_admin_client.ApiClient(configuration) as api_client:
             api_instance = kong_admin_client.RoutesApi(api_client)
             create_route_request = CreateRouteRequest(
-                name=project,
+                name=project_name,
                 protocols=protocols,
                 methods=methods,
                 paths=[path],
@@ -230,7 +232,7 @@ async def create_route_between_datastore_and_project(
                 preserve_host=False,
                 request_buffering=True,
                 response_buffering=True,
-                tags=[project, ds_type],
+                tags=[str(project_id), ds_type],
             )
             api_response = api_instance.create_route_for_service(
                 str(data_store_id), create_route_request
@@ -328,11 +330,12 @@ async def disconnect_project(
 ):
     """Disconnect a project from all connected data stores."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
+    project = str(project_id) if project_id else None
 
     try:
         with kong_admin_client.ApiClient(configuration) as api_client:
             api_instance = kong_admin_client.RoutesApi(api_client)
-            api_response = api_instance.list_route(tags=project_id)
+            api_response = api_instance.list_route(tags=project)
             removed_routes = []
             for route in api_response.data:
                 # Delete route
@@ -391,7 +394,7 @@ async def create_and_connect_analysis_to_project(
                 CreateConsumerRequest(
                     username=analysis_id,
                     custom_id=analysis_id,
-                    tags=[project_id],
+                    tags=[str(project_id)],
                 )
             )
             logger.info(f"Consumer added, id: {api_response.id}")
@@ -421,7 +424,7 @@ async def create_and_connect_analysis_to_project(
                 consumer_id,
                 CreateAclForConsumerRequest(
                     group=project_id,
-                    tags=[project_id],
+                    tags=[str(project_id)],
                 ),
             )
             logger.info(
@@ -450,7 +453,7 @@ async def create_and_connect_analysis_to_project(
             api_response = api_instance.create_key_auth_for_consumer(
                 consumer_id,
                 CreateKeyAuthForConsumerRequest(
-                    tags=[project_id],
+                    tags=[str(project_id)],
                 ),
             )
             logger.info(

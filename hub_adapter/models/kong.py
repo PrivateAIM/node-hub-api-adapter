@@ -63,7 +63,7 @@ class LinkProjectAnalysis(BaseModel):
     acl: ACL
 
 
-class DetailedService(Route):
+class DetailedService(Service):
     """Custom route response model with associated services."""
     routes: list[Route] | None = None
 
