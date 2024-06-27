@@ -7,14 +7,14 @@ import kong_admin_client
 from fastapi import APIRouter, HTTPException, Body, Path, Query, Security
 from kong_admin_client import CreateServiceRequest, Service, CreateRouteRequest, CreatePluginForConsumerRequest, \
     CreateConsumerRequest, CreateAclForConsumerRequest, CreateKeyAuthForConsumerRequest, \
-    ListService200Response, ListRoute200Response
+    ListService200Response
 from kong_admin_client.rest import ApiException
 from starlette import status
 
 from hub_adapter.auth import verify_idp_token, idp_oauth2_scheme_pass, httpbearer
 from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.models.kong import ServiceRequest, HttpMethodCode, ProtocolCode, LinkDataStoreProject, \
-    Disconnect, LinkProjectAnalysis
+    Disconnect, LinkProjectAnalysis, ListRoutes
 
 kong_router = APIRouter(
     dependencies=[Security(verify_idp_token), Security(idp_oauth2_scheme_pass), Security(httpbearer)],
@@ -124,9 +124,10 @@ async def create_data_store(
         )
 
 
-@kong_router.get("/route", response_model=ListRoute200Response, status_code=status.HTTP_200_OK)
+@kong_router.get("/route", response_model=ListRoutes, status_code=status.HTTP_200_OK)
 async def list_routes(
-        project_id: Annotated[uuid.UUID | None, Query(description="UUID of project.")] = None
+        project_id: Annotated[uuid.UUID | None, Query(description="UUID of project.")] = None,
+        detailed: Annotated[bool, Query(description="Whether to include detailed information on data stores")] = False,
 ):
     """List all the routes available, can be filtered by project_id."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
@@ -141,6 +142,22 @@ async def list_routes(
 
             if len(api_response.data) == 0:
                 logger.info("No routes found.")
+
+            if detailed:
+                service_api_instance = kong_admin_client.ServicesApi(api_client)
+                services = service_api_instance.list_service()
+                service_dict = {str(svc.id): svc for svc in services.data}
+
+                annotated_routes = []
+                for route in api_response.data:
+                    service_id = route.service.id
+                    route_data = route.to_dict()
+                    if service_id in service_dict.keys():
+                        route_data["service"] = service_dict[service_id]
+
+                    annotated_routes.append(route_data)
+
+                api_response = {"data": annotated_routes}
 
             return api_response
 

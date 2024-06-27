@@ -2,7 +2,8 @@
 from enum import Enum
 
 from kong_admin_client import CreateServiceRequest, Consumer, KeyAuth, \
-    ACL, CreateServiceRequestClientCertificate, Route
+    ACL, CreateServiceRequestClientCertificate, Route, ListRoute200Response, RouteService, \
+    Service
 from pydantic import BaseModel, constr
 
 
@@ -60,6 +61,16 @@ class LinkProjectAnalysis(BaseModel):
     consumer: Consumer
     keyauth: KeyAuth
     acl: ACL
+
+
+class DetailedRoute(Route):
+    """Custom route response model with associated services."""
+    service: Service | RouteService | None = None
+
+
+class ListRoutes(ListRoute200Response):
+    """Custom route list response model."""
+    data: list[DetailedRoute] | None = None
 
 
 class Disconnect(BaseModel):
