@@ -31,7 +31,20 @@ Generate a random clientSecret value for the hub-adapter client in keycloak if n
 {{- if .Values.idp.debug -}}
     {{- print "cFR2THJCS3V5MHZ4cnV2VXByd3NYcEV0dzg0ZEROOUM=" -}}
 {{- else -}}
-    {{- printf "%s" ( randAlphaNum 22 | b64enc | quote ) -}}
+{{/*    {{- print ( randAlphaNum 22 | b64enc | quote ) -}}*/}}
+    {{- /* Create "hub_secret" dict inside ".Release" to store various stuff. */ -}}
+    {{- if not (index .Release "hub_secret") -}}
+        {{-   $_ := set .Release "hub_secret" dict -}}
+    {{- end -}}
+    {{- /* Some random ID of this password, in case there will be other random values alongside this instance. */ -}}
+    {{- $key := printf "%s_%s" .Release.Name "password" -}}
+    {{- /* If $key does not yet exist in .Release.hub_secret, then... */ -}}
+    {{- if not (index .Release.hub_secret $key) -}}
+        {{- /* ... store random password under the $key */ -}}
+        {{-   $_ := set .Release.hub_secret $key (randAlphaNum 32) -}}
+    {{- end -}}
+        {{- /* Retrieve previously generated value. */ -}}
+        {{- print (index .Release.hub_secret $key | b64enc) -}}
 {{- end -}}
 {{- end -}}
 
@@ -42,7 +55,7 @@ Return the Keycloak endpoint
 {{- if .Values.idp.host -}}
     {{- .Values.idp.host -}}
 {{- else -}}
-    {{- printf "http://%s-keycloak-headless:8080" .Release.Name -}}
+    {{- printf "http://%s-keycloak:80" .Release.Name -}}
 {{- end -}}
 {{- end -}}
 
@@ -64,7 +77,7 @@ Return the Kong admin service endpoint
 {{- if .Values.node.kong -}}
     {{- .Values.node.kong -}}
 {{- else -}}
-    {{- printf "http://%s-kong-service" .Release.Name -}}
+    {{- printf "http://%s-kong-admin:80" .Release.Name -}}
 {{- end -}}
 {{- end -}}
 
