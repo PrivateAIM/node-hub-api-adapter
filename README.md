@@ -35,4 +35,5 @@ HUB_SERVICE_URL="https://api.privateaim.net"  # URL for project/analysis EPs for
 HUB_ROBOT_USER="hubusername"  # Need to get credentials from myself or hub team
 HUB_ROBOT_SECRET="hubpassword"  # These will be removed later once users are registered in both node and hub IDP
 API_CLIENT_ID="hub-adapter"  # Client name of this API as defined in keycloak
+API_CLIENT_SECRET="someSecret"  # Client secret of this API as defined in keycloak
 ```
