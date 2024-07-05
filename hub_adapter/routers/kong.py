@@ -30,7 +30,7 @@ kong_admin_url = hub_adapter_settings.KONG_ADMIN_SERVICE_URL
 async def list_data_stores(
         detailed: Annotated[bool, Query(description="Whether to include detailed information on projects")] = False,
 ):
-    """List all available data stores."""
+    """List all available data stores (referred to as services by kong)."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
 
     try:
@@ -75,7 +75,7 @@ async def list_data_stores(
 async def delete_data_store(
         data_store_name: Annotated[str, Path(description="Unique name of the data store.")]
 ):
-    """Delete the listed data store."""
+    """Delete the listed data store (referred to as services by kong)."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
 
     try:
@@ -109,7 +109,7 @@ async def create_data_store(
             title="Data store metadata."
         )]
 ):
-    """Create a datastore by providing necessary metadata."""
+    """Create a datastore (referred to as services by kong) by providing necessary metadata."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
 
     try:
@@ -143,12 +143,15 @@ async def create_data_store(
         )
 
 
-@kong_router.get("/route", response_model=ListRoutes, status_code=status.HTTP_200_OK)
-async def list_routes(
+@kong_router.get("/project", response_model=ListRoutes, status_code=status.HTTP_200_OK)
+async def list_projects(
         project_id: Annotated[uuid.UUID | None, Query(description="UUID of project.")] = None,
         detailed: Annotated[bool, Query(description="Whether to include detailed information on data stores")] = False,
 ):
-    """List all the routes available, can be filtered by project_id."""
+    """List all projects (referred to as routes by kong) available, can be filtered by project_id.
+
+    Set "detailed" to True to include detailed information on the linked data stores.
+    """
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
     project = str(project_id) if project_id else None
 
@@ -196,8 +199,8 @@ async def list_routes(
         )
 
 
-@kong_router.post("/route", response_model=LinkDataStoreProject)
-async def create_route_between_datastore_and_project(
+@kong_router.post("/project", response_model=LinkDataStoreProject)
+async def create_and_connect_project_to_datastore(
         data_store_id: Annotated[uuid.UUID, Body(description="UUID of the data store or 'gateway'")],
         project_id: Annotated[uuid.UUID, Body(description="UUID of the project")],
         project_name: Annotated[str, Body(description="Name of the project")],
@@ -211,7 +214,7 @@ async def create_route_between_datastore_and_project(
         ] = ["http"],
         ds_type: Annotated[str, Body(description="Data store type. Either 's3' or 'fhir'")] = "fhir",
 ):
-    """Create a route between a data store and a project."""
+    """Connect a project to a data store (referred to as a route by kong)."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
     response = {}
 
@@ -324,11 +327,11 @@ async def create_route_between_datastore_and_project(
     return response
 
 
-@kong_router.put("/route/disconnect/{project_id}", status_code=status.HTTP_200_OK, response_model=Disconnect)
+@kong_router.put("/project/disconnect/{project_id}", status_code=status.HTTP_200_OK, response_model=Disconnect)
 async def disconnect_project(
         project_id: Annotated[uuid.UUID, Path(description="UUID of project to be disconnected")]
 ):
-    """Disconnect a project from all connected data stores."""
+    """Disconnect a project from all connected data stores (i.e. delete the "route")."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
     project = str(project_id) if project_id else None
 
