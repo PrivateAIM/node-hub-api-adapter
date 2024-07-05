@@ -26,6 +26,14 @@ logger = logging.getLogger(__name__)
 kong_admin_url = hub_adapter_settings.KONG_ADMIN_SERVICE_URL
 
 
+@kong_router.get("/datastore/{project_id}", status_code=status.HTTP_200_OK)
+async def po_dummy(
+        project_id: Annotated[str, Path(description="Whether to include detailed information on projects")],
+):
+    """Testing"""
+    return {"project_id": project_id}
+
+
 @kong_router.get("/datastore", response_model=ListServices, status_code=status.HTTP_200_OK)
 async def list_data_stores(
         detailed: Annotated[bool, Query(description="Whether to include detailed information on projects")] = False,
