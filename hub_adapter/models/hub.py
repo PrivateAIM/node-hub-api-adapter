@@ -92,7 +92,7 @@ class Project(BaseHubResponse):
     name: str
     analyses: int
     realm_id: uuid.UUID
-    user_id: uuid.UUID
+    user_id: uuid.UUID | None = None
     master_image_id: uuid.UUID | None = None
     master_image: MasterImage | None = None
 
@@ -142,7 +142,7 @@ class Analysis(BaseHubResponse):
     registry: Registry | None = None
     registry_id: uuid.UUID | None = None
     realm_id: uuid.UUID
-    user_id: uuid.UUID
+    user_id: uuid.UUID | None = None
     project_id: uuid.UUID
     project: Project | None = None
     master_image_id: uuid.UUID | None = None
