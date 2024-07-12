@@ -7,14 +7,14 @@ spec:
     matchLabels:
       component: hub-adapter-service
       version: {{ .Chart.AppVersion }}
-      deployment-id:  {{ .Release.Name }}
+      deployment-id: {{ .Release.Name }}
   replicas: 1
   template:
     metadata:
       labels:
         component: hub-adapter-service
         version: {{ .Chart.AppVersion }}
-        deployment-id:  {{ .Release.Name }}
+        deployment-id: {{ .Release.Name }}
     spec:
       containers:
         - name: api-gateway
@@ -28,6 +28,9 @@ spec:
             httpGet:
               path: /healthz
               port: healthcp
+          {{- if eq "localhost" .Values.ingress.domain }}
+          command: [ "uvicorn", "hub_adapter.server:app", "--host=0.0.0.0", "--port=5000", "--root-path='/api'" ]
+          {{- end }}
           env:
             - name: API_CLIENT_ID
               value: {{ .Values.idp.clientId | default "hub-adapter" | quote }}
