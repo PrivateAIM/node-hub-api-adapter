@@ -3,15 +3,22 @@ name: Create and publish Docker image
 on:
   push:
     branches:
+      - '**'
+      - '!main'
+  pull_request:
+    types:
+      - closed
+    branches:
       - main
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  IMAGE_TAG: ${{ github.ref_name != "main" && 'dev' || 'latest' }}
 
 jobs:
   build-and-push-image:
-    if: contains(github.event.head_commit.message, 'build_image')
+    if: ${{ (github.event.pull_request.merged) || (contains(github.event.head_commit.message, 'build_image')) }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -37,5 +44,5 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }},ghcr.io/privateaim/node-hub-api-adapter:latest
+          tags: ${{ steps.meta.outputs.tags }},ghcr.io/privateaim/node-hub-api-adapter:${{ env.IMAGE_TAG }}
           labels: ${{ steps.meta.outputs.labels }}
