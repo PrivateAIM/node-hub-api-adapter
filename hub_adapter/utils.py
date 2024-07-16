@@ -33,13 +33,14 @@ async def serialize_query_content(key, value) -> dict:
 async def unzip_query_params(
         all_params: dict[str, any],
         necessary_params: list[str] | None = None,
+        debug: bool = False,
 ) -> dict[str, any] | None:
     """Prepare query parameters to be added to URL of downstream microservice."""
     if necessary_params:
         response_query_params = {}
 
         for key in necessary_params:
-            if key.endswith("realm_id"):
+            if key.endswith("realm_id") and not debug:
                 value = hub_adapter_settings.HUB_REALM_ID
                 if not value:
                     raise ConfigError("HUB_REALM_ID", value)
