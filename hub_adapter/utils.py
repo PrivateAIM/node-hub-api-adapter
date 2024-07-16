@@ -6,6 +6,9 @@ from fastapi import UploadFile
 from fastapi.routing import serialize_response
 from starlette.datastructures import FormData
 
+from hub_adapter.conf import hub_adapter_settings
+from hub_adapter.exceptions import ConfigError
+
 
 def create_request_data(
         form: dict | None,
@@ -30,13 +33,20 @@ async def serialize_query_content(key, value) -> dict:
 async def unzip_query_params(
         all_params: dict[str, any],
         necessary_params: list[str] | None = None,
+        debug: bool = False,
 ) -> dict[str, any] | None:
     """Prepare query parameters to be added to URL of downstream microservice."""
     if necessary_params:
         response_query_params = {}
 
         for key in necessary_params:
-            value = all_params.get(key)
+            if key.endswith("realm_id") and not debug:
+                value = hub_adapter_settings.HUB_REALM_ID
+                if not value:
+                    raise ConfigError("HUB_REALM_ID", value)
+
+            else:
+                value = all_params.get(key)
 
             if not value:  # if value is None, then skip
                 continue

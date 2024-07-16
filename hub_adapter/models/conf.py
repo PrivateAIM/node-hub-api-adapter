@@ -2,13 +2,6 @@
 from pydantic import BaseModel
 
 
-class KeycloakConfig(BaseModel):
-    """Keycloak configuration."""
-    realm: str
-    url: str
-    clientId: str
-
-
 class AuthConfiguration(BaseModel):
     """Auth config model."""
     server_url: str
