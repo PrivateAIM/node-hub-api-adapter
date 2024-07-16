@@ -15,6 +15,8 @@ class Settings(BaseModel):
     ACCESS_TOKEN_DEFAULT_EXPIRE_MINUTES: int = 360
     GATEWAY_TIMEOUT: int = 59
 
+    HUB_REALM_ID: str = os.getenv("HUB_REALM_ID")
+
     # IDP Settings
     IDP_URL: str = os.getenv("IDP_URL", "http://localhost:8080")
     IDP_REALM: str = os.getenv("IDP_REALM", "flame")

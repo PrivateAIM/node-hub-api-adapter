@@ -6,6 +6,9 @@ from fastapi import UploadFile
 from fastapi.routing import serialize_response
 from starlette.datastructures import FormData
 
+from hub_adapter.conf import hub_adapter_settings
+from hub_adapter.exceptions import ConfigError
+
 
 def create_request_data(
         form: dict | None,
@@ -36,7 +39,13 @@ async def unzip_query_params(
         response_query_params = {}
 
         for key in necessary_params:
-            value = all_params.get(key)
+            if key.endswith("realm_id"):
+                value = hub_adapter_settings.HUB_REALM_ID
+                if not value:
+                    raise ConfigError("HUB_REALM_ID", value)
+
+            else:
+                value = all_params.get(key)
 
             if not value:  # if value is None, then skip
                 continue

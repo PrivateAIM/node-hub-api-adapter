@@ -58,11 +58,13 @@ async def list_all_projects(
     status_code=status.HTTP_200_OK,
     service_url=hub_adapter_settings.HUB_SERVICE_URL,
     response_model=Project,
+    query_params=["filter_realm_id"],
 )
 async def list_specific_project(
         project_id: Annotated[uuid.UUID, Path(description="Project UUID.")],
         request: Request,
         response: Response,
+        filter_realm_id: Annotated[uuid.UUID, Query(description="Filter by realm UUID.")] = None,
 ):
     """List project for a given UUID."""
     pass
@@ -215,7 +217,7 @@ async def list_analyses_of_nodes(
     status_code=status.HTTP_200_OK,
     service_url=hub_adapter_settings.HUB_SERVICE_URL,
     response_model=AnalysisNode,
-    query_params=["include"],
+    query_params=["include", "filter_analysis_realm_id"],
 )
 async def list_specific_analysis(
         request: Request,
@@ -228,6 +230,12 @@ async def list_specific_analysis(
                 pattern="^((^|[,])(analysis|node))+$",  # Must be "node" and/or "analysis" or null,
             ),
         ] = "analysis",
+        filter_analysis_realm_id: Annotated[
+            uuid.UUID | None,
+            Query(
+                description="Filter by analysis realm UUID.",
+            ),
+        ] = None,
 ):
     """List project for a given UUID."""
     pass
@@ -239,7 +247,7 @@ async def list_specific_analysis(
     status_code=status.HTTP_200_OK,
     service_url=hub_adapter_settings.HUB_SERVICE_URL,
     response_model=AllAnalyses,
-    query_params=["include"],
+    query_params=["include", "filter_analysis_realm_id"],
 )
 async def list_all_analyses(
         request: Request,
@@ -251,6 +259,12 @@ async def list_all_analyses(
                 pattern="^((^|[,])(project|master_image))+$",  # Must be "project" and/or "master_image" or null,
             ),
         ] = "project",
+        filter_analysis_realm_id: Annotated[
+            uuid.UUID | None,
+            Query(
+                description="Filter by analysis realm UUID.",
+            ),
+        ] = None,
 ):
     """List project for a given UUID."""
     pass
