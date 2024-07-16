@@ -203,7 +203,6 @@ async def list_projects(
 async def create_and_connect_project_to_datastore(
         data_store_id: Annotated[uuid.UUID, Body(description="UUID of the data store or 'gateway'")],
         project_id: Annotated[uuid.UUID, Body(description="UUID of the project")],
-        project_name: Annotated[str, Body(description="Name of the project")],
         methods: Annotated[
             list[HttpMethodCode],
             Body(description="List of acceptable HTTP methods")
@@ -220,6 +219,7 @@ async def create_and_connect_project_to_datastore(
 
     # Construct path from project_id and type
     path = f"/{project_id}/{ds_type}"
+    name = f"{project_id}-{ds_type}"
     project = str(project_id)
 
     # Add route
@@ -227,7 +227,7 @@ async def create_and_connect_project_to_datastore(
         with kong_admin_client.ApiClient(configuration) as api_client:
             api_instance = kong_admin_client.RoutesApi(api_client)
             create_route_request = CreateRouteRequest(
-                name=project_name,
+                name=name,
                 protocols=protocols,
                 methods=methods,
                 paths=[path],
@@ -263,7 +263,7 @@ async def create_and_connect_project_to_datastore(
             api_instance = kong_admin_client.PluginsApi(api_client)
             create_route_request = CreatePluginForConsumerRequest(
                 name="key-auth",
-                instance_name=f"{project}-keyauth",
+                instance_name=f"{project}-{ds_type}-keyauth",
                 config={
                     "hide_credentials": True,
                     "key_in_body": False,
@@ -300,7 +300,7 @@ async def create_and_connect_project_to_datastore(
             api_instance = kong_admin_client.PluginsApi(api_client)
             create_route_request = CreatePluginForConsumerRequest(
                 name="acl",
-                instance_name=f"{project}-acl",
+                instance_name=f"{project}-{ds_type}-acl",
                 config={"allow": [project], "hide_groups_header": True},
                 enabled=True,
                 protocols=protocols,
