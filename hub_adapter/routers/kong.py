@@ -24,6 +24,7 @@ kong_router = APIRouter(
 
 logger = logging.getLogger(__name__)
 kong_admin_url = hub_adapter_settings.KONG_ADMIN_SERVICE_URL
+realm = hub_adapter_settings.IDP_REALM
 
 
 @kong_router.get("/datastore", response_model=ListServices, status_code=status.HTTP_200_OK)
@@ -389,14 +390,16 @@ async def create_and_connect_analysis_to_project(
     """Create a new analysis and link it to a project."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
     response = {}
+    username = f"{analysis_id}-{realm}"
 
     try:
         with kong_admin_client.ApiClient(configuration) as api_client:
             api_instance = kong_admin_client.ConsumersApi(api_client)
+
             api_response = api_instance.create_consumer(
                 CreateConsumerRequest(
-                    username=analysis_id,
-                    custom_id=analysis_id,
+                    username=username,
+                    custom_id=username,
                     tags=[str(project_id)],
                 )
             )
@@ -487,11 +490,12 @@ async def delete_analysis(
 ):
     """Delete the listed analysis."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
+    username = f"{analysis_id}-{realm}"
 
     try:
         with kong_admin_client.ApiClient(configuration) as api_client:
             api_instance = kong_admin_client.ConsumersApi(api_client)
-            api_instance.delete_consumer(consumer_username_or_id=analysis_id)
+            api_instance.delete_consumer(consumer_username_or_id=username)
 
             logger.info(f"Analysis {analysis_id} deleted")
 
