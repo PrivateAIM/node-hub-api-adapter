@@ -41,9 +41,9 @@ async def unzip_query_params(
 
         for key in necessary_params:
             if key.endswith("realm_id") and not debug:
-                value = hub_adapter_settings.HUB_REALM_ID
+                value = hub_adapter_settings.HUB_REALM_UUID
                 if not value:
-                    raise ConfigError("HUB_REALM_ID", value)
+                    raise ConfigError("HUB_REALM_UUID", value)
 
             else:
                 value = all_params.get(key)

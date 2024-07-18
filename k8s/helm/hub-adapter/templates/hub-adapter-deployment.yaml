@@ -53,7 +53,7 @@ spec:
               value: {{ .Values.hub.coreApi | default "https://privateaim.net/core" | quote }}
             - name: HUB_AUTH_SERVICE_URL
               value: {{ .Values.hub.authApi | default "https://privateaim.net/auth" | quote }}
-            - name: HUB_REALM_ID
+            - name: HUB_REALM_UUID
               value: {{ required "A valid UUID for this realm provided by the Hub is required." .Values.hub.realmId | quote }}
             - name: HUB_ROBOT_USER
               value: {{ required "A robot ID for the Hub is required." .Values.hub.auth.robotuser | quote }}  # To be properly filled in
