@@ -1,8 +1,9 @@
 name: Create and publish Docker image
 
 on:
-  #  push:
-  #    branches:
+  push:
+    branches:
+      - 'main'
   #      - '**'
   #      - '!main'
   pull_request:
