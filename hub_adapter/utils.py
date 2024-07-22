@@ -33,7 +33,7 @@ async def serialize_query_content(key, value) -> dict:
 async def unzip_query_params(
         all_params: dict[str, any],
         necessary_params: list[str] | None = None,
-        debug: bool = False,
+        debug: bool = True,
 ) -> dict[str, any] | None:
     """Prepare query parameters to be added to URL of downstream microservice."""
     if necessary_params:
