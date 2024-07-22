@@ -50,9 +50,9 @@ spec:
             - name: KONG_ADMIN_SERVICE_URL
               value: {{ include "adapter.kong.endpoint" . }}
             - name: HUB_SERVICE_URL
-              value: {{ .Values.hub.coreApi | default "https://privateaim.net/core" | quote }}
+              value: {{ .Values.hub.coreApi | default "https://core.privateaim.dev" | quote }}
             - name: HUB_AUTH_SERVICE_URL
-              value: {{ .Values.hub.authApi | default "https://privateaim.net/auth" | quote }}
+              value: {{ .Values.hub.authApi | default "https://auth.privateaim.dev" | quote }}
             - name: HUB_REALM_UUID
               value: {{ required "A valid UUID for this realm provided by the Hub is required." .Values.hub.realmId | quote }}
             - name: HUB_ROBOT_USER

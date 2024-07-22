@@ -31,8 +31,8 @@ class Settings(BaseModel):
     API_CLIENT_SECRET: str = os.getenv("API_CLIENT_SECRET")  # Not used currently
 
     # Hub
-    HUB_AUTH_SERVICE_URL: str = os.getenv("HUB_AUTH_SERVICE_URL", "https://privateaim.net/auth")
-    HUB_SERVICE_URL: str = os.getenv("HUB_SERVICE_URL", "https://privateaim.net/core")
+    HUB_AUTH_SERVICE_URL: str = os.getenv("HUB_AUTH_SERVICE_URL", "https://auth.privateaim.dev")
+    HUB_SERVICE_URL: str = os.getenv("HUB_SERVICE_URL", "https://core.privateaim.dev")
     HUB_ROBOT_USER: str = os.getenv("HUB_ROBOT_USER")
     HUB_ROBOT_SECRET: str = os.getenv("HUB_ROBOT_SECRET")
 

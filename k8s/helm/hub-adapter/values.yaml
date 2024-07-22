@@ -35,9 +35,9 @@ node:
 ## Hub services and data
 hub:
   ## @param hub.coreApi Hub core API endpoint
-  coreApi: https://privateaim.net/core
+  coreApi: https://core.privateaim.dev
   ## @param hub.authApi Hub auth API endpoint
-  authApi: https://privateaim.net/auth
+  authApi: https://auth.privateaim.dev
   ## @param hub.realmId Hub assigned UUId for the realm
   realmId: ""
   ## Credentials used for retrieving a valid robot token from the hub
