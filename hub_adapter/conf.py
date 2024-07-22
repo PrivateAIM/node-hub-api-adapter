@@ -11,10 +11,6 @@ from pydantic import BaseModel
 class Settings(BaseModel):
     """Default settings for API."""
 
-    # API Gateway settings
-    ACCESS_TOKEN_DEFAULT_EXPIRE_MINUTES: int = 360
-    GATEWAY_TIMEOUT: int = 59
-
     HUB_REALM_UUID: str = os.getenv("HUB_REALM_UUID")
 
     # IDP Settings
