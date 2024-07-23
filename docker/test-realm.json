@@ -2782,7 +2782,7 @@
           }
         ],
         "security-admin-console": [],
-        "node-ui-app": [],
+        "node-ui": [],
         "admin-cli": [],
         "account-console": [],
         "broker": [
@@ -3288,7 +3288,7 @@
       },
       {
         "id": "0baf7a4b-c800-4294-ae55-c86c6881a2c1",
-        "clientId": "node-ui-app",
+        "clientId": "node-ui",
         "name": "Node UI App",
         "description": "",
         "rootUrl": "http://localhost:3000/",
