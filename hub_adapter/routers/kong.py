@@ -43,13 +43,21 @@ async def list_data_stores(
                 service_dicts = [svc.to_dict() for svc in services.data]
                 route_api_instance = kong_admin_client.RoutesApi(api_client)
                 routes = route_api_instance.list_route()
-                route_dict = {rte.service.id: rte for rte in routes.data if rte.service}
+
+                route_dict = {}
+                for route in routes.data:
+                    if route.service:
+                        svc_id = route.service.id
+                        if svc_id in route_dict.keys():
+                            route_dict[svc_id].append(route)
+                        else:
+                            route_dict[svc_id] = [route]
 
                 for idx, svc in enumerate(service_dicts):
                     svc_id = svc.get("id")
                     svc["routes"] = []
                     if svc_id in route_dict:
-                        svc["routes"].append(route_dict[svc_id])
+                        svc["routes"] += route_dict[svc_id]
 
                     service_dicts[idx] = svc
 
