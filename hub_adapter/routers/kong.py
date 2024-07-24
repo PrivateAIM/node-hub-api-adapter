@@ -13,7 +13,7 @@ from starlette import status
 from hub_adapter.auth import verify_idp_token, idp_oauth2_scheme_pass, httpbearer
 from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.models.kong import ServiceRequest, HttpMethodCode, ProtocolCode, LinkDataStoreProject, \
-    DeleteProject, LinkProjectAnalysis, ListRoutes, ListServices
+    DeleteProject, LinkProjectAnalysis, ListRoutes, ListServices, ListConsumers
 
 kong_router = APIRouter(
     dependencies=[Security(verify_idp_token), Security(idp_oauth2_scheme_pass), Security(httpbearer)],
@@ -378,6 +378,38 @@ async def delete_project(
     except ApiException as e:
         raise HTTPException(
             status_code=e.status,
+            detail=str(e),
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Service error: {e}",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+@kong_router.get("/analysis", response_model=ListConsumers, status_code=status.HTTP_200_OK)
+async def list_analyses(
+        analysis_id: Annotated[uuid.UUID | None, Query(description="UUID of the analysis.")] = None,
+):
+    """List all analyses (referred to as consumers by kong) available, can be filtered by analysis_id."""
+    configuration = kong_admin_client.Configuration(host=kong_admin_url)
+    analysis = str(analysis_id) if analysis_id else None
+
+    try:
+        with kong_admin_client.ApiClient(configuration) as api_client:
+            api_instance = kong_admin_client.ConsumersApi(api_client)
+            api_response = api_instance.list_consumer(tags=analysis)
+
+            if len(api_response.data) == 0:
+                logger.info("No consumers found.")
+
+            return api_response
+
+    except ApiException as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e),
             headers={"WWW-Authenticate": "Bearer"},
         )

@@ -3,7 +3,7 @@ from enum import Enum
 
 from kong_admin_client import CreateServiceRequest, Consumer, KeyAuth, \
     ACL, CreateServiceRequestClientCertificate, Route, ListRoute200Response, RouteService, \
-    Service, ListService200Response
+    Service, ListService200Response, ListConsumer200Response
 from pydantic import BaseModel, constr
 
 
@@ -72,6 +72,9 @@ class DetailedRoute(Route):
     """Custom route response model with associated services."""
     service: Service | RouteService | None = None
 
+class ListConsumers(ListConsumer200Response):
+    """Custom route list response model."""
+    data: list[Consumer] | None = None
 
 class ListRoutes(ListRoute200Response):
     """Custom route list response model."""
