@@ -83,7 +83,7 @@ class ListServices(ListService200Response):
     data: list[DetailedService] | None = None
 
 
-class Disconnect(BaseModel):
+class DeleteProject(BaseModel):
     """Response from disconnecting a project from a datastore."""
     removed_routes: list[str] | None
     status: int | None = None

@@ -13,7 +13,7 @@ from starlette import status
 from hub_adapter.auth import verify_idp_token, idp_oauth2_scheme_pass, httpbearer
 from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.models.kong import ServiceRequest, HttpMethodCode, ProtocolCode, LinkDataStoreProject, \
-    Disconnect, LinkProjectAnalysis, ListRoutes, ListServices
+    DeleteProject, LinkProjectAnalysis, ListRoutes, ListServices
 
 kong_router = APIRouter(
     dependencies=[Security(verify_idp_token), Security(idp_oauth2_scheme_pass), Security(httpbearer)],
@@ -336,9 +336,9 @@ async def create_and_connect_project_to_datastore(
     return response
 
 
-@kong_router.put("/project/disconnect/{project_id}", status_code=status.HTTP_200_OK, response_model=Disconnect)
-async def disconnect_project(
-        project_id: Annotated[uuid.UUID, Path(description="UUID of project to be disconnected")]
+@kong_router.delete("/project/{project_id}", status_code=status.HTTP_200_OK, response_model=DeleteProject)
+async def delete_project(
+        project_id: Annotated[uuid.UUID, Path(description="UUID of project to be deleted")]
 ):
     """Disconnect a project from all connected data stores (i.e. delete the "route")."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
