@@ -395,15 +395,17 @@ async def list_analyses(
 ):
     """List all analyses (referred to as consumers by kong) available, can be filtered by analysis_id."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
-    analysis = str(analysis_id) if analysis_id else None
+    username = f"{analysis_id}-{realm}"
 
     try:
         with kong_admin_client.ApiClient(configuration) as api_client:
             api_instance = kong_admin_client.ConsumersApi(api_client)
-            api_response = api_instance.list_consumer(tags=analysis)
+            if analysis_id:
+                api_response = api_instance.get_consumer(consumer_username_or_id=username)
+                api_response = {"data": [api_response]}
 
-            if len(api_response.data) == 0:
-                logger.info("No consumers found.")
+            else:
+                api_response = api_instance.list_consumer()
 
             return api_response
 
