@@ -65,16 +65,18 @@ class LinkProjectAnalysis(BaseModel):
 
 class DetailedService(Service):
     """Custom route response model with associated services."""
-    routes: list[Route] | None = None
+    routes: list[Route] | [] = []
 
 
 class DetailedRoute(Route):
     """Custom route response model with associated services."""
     service: Service | RouteService | None = None
 
+
 class ListConsumers(ListConsumer200Response):
     """Custom route list response model."""
     data: list[Consumer] | None = None
+
 
 class ListRoutes(ListRoute200Response):
     """Custom route list response model."""
