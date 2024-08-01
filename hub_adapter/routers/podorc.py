@@ -11,6 +11,7 @@ from starlette.responses import Response
 from hub_adapter.auth import verify_idp_token, idp_oauth2_scheme_pass, httpbearer
 from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.core import route
+from hub_adapter.models.podorc import LogResponse, StatusResponse, PodResponse, CreatePodResponse
 
 po_router = APIRouter(
     dependencies=[Security(verify_idp_token), Security(idp_oauth2_scheme_pass), Security(httpbearer)],
@@ -25,6 +26,7 @@ logger = logging.getLogger(__name__)
     request_method=po_router.post,
     path="/po",
     status_code=status.HTTP_200_OK,
+    response_model=CreatePodResponse,
     service_url=hub_adapter_settings.PODORC_SERVICE_URL,
     body_params=["analysis_id", "project_id"],
 )
@@ -43,6 +45,7 @@ async def create_analysis(
     path="/po/{analysis_id}/logs",
     status_code=status.HTTP_200_OK,
     service_url=hub_adapter_settings.PODORC_SERVICE_URL,
+    response_model=LogResponse,
     query_params=["analysis_id"],
 )
 async def get_analysis_logs(
@@ -58,6 +61,7 @@ async def get_analysis_logs(
     request_method=po_router.get,
     path="/po/{analysis_id}/status",
     status_code=status.HTTP_200_OK,
+    response_model=StatusResponse,
     service_url=hub_adapter_settings.PODORC_SERVICE_URL,
 )
 async def get_analysis_status(
@@ -73,6 +77,7 @@ async def get_analysis_status(
     request_method=po_router.get,
     path="/po/{analysis_id}/pods",
     status_code=status.HTTP_200_OK,
+    response_model=PodResponse,
     service_url=hub_adapter_settings.PODORC_SERVICE_URL,
 )
 async def get_analysis_pods(
@@ -88,6 +93,7 @@ async def get_analysis_pods(
     request_method=po_router.put,
     path="/po/{analysis_id}/stop",
     status_code=status.HTTP_200_OK,
+    response_model=StatusResponse,
     service_url=hub_adapter_settings.PODORC_SERVICE_URL,
 )
 async def stop_analysis(
@@ -103,6 +109,7 @@ async def stop_analysis(
     request_method=po_router.delete,
     path="/po/{analysis_id}/delete",
     status_code=status.HTTP_200_OK,
+    response_model=StatusResponse,
     service_url=hub_adapter_settings.PODORC_SERVICE_URL,
 )
 async def delete_analysis(
