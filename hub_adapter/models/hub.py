@@ -195,6 +195,10 @@ class RegistryProject(BaseHubResponse):
 
 class AnalysisImageUrl(BaseModel):
     image_url: str
+    project_id: str | None = None
+    registry_url: str
+    registry_user: str | None = None
+    registry_password: str | None = None
 
 
 class Bucket(BaseHubResponse):

@@ -8,7 +8,10 @@ ID = "id"
 HOST = "host"
 NODE = "node"
 REGISTRY = "registry"
+ACCOUNT_NAME = "account_name"
 EXTERNAL_NAME = "external_name"
+ACCOUNT_SECRET = "account_secret"
+REGISTRY_PROJECT = "registry_project"
 REGISTRY_PROJECT_ID = "registry_project_id"
 
 # Map Hub responses to what the old FLAME UI expects
