@@ -11,7 +11,7 @@ from starlette.responses import Response
 from hub_adapter.auth import add_hub_jwt, verify_idp_token, idp_oauth2_scheme_pass, httpbearer
 from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.constants import REGISTRY_PROJECT_ID, EXTERNAL_NAME, HOST, REGISTRY, CONTENT_LENGTH, ACCOUNT_NAME, \
-    ACCOUNT_SECRET, REGISTRY_PROJECT
+    ACCOUNT_SECRET
 from hub_adapter.core import route
 from hub_adapter.models.hub import Project, AllProjects, ProjectNode, ListProjectNodes, \
     AnalysisNode, ListAnalysisNodes, RegistryProject, AnalysisImageUrl, ApprovalStatus, AllAnalyses, BucketList, \
@@ -320,7 +320,7 @@ def get_node_metadata_for_url(
 ):
     """Get analysis metadata for a given UUID to be used in creating analysis image URL."""
     headers = {k: v for k, v in request.headers.items() if (k != HOST and k != CONTENT_LENGTH.lower())}
-    node_url = hub_adapter_settings.HUB_SERVICE_URL + f"/nodes/{node_id}?include=registry,registry_project"
+    node_url = hub_adapter_settings.HUB_SERVICE_URL + f"/nodes/{node_id}?include=registry_project"
     node_resp = httpx.get(node_url, headers=headers)
     node_metadata = node_resp.json()
 
@@ -339,28 +339,48 @@ def get_node_metadata_for_url(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    return node_metadata
+    return node_metadata, headers
 
 
 def get_registry_metadata_for_url(
         node_results: dict = Depends(get_node_metadata_for_url)
 ):
     """Get registry metadata for a given UUID to be used in creating analysis image URL."""
-    if REGISTRY not in node_results:
+    node_metadata, headers = node_results
+    registry_project_id = node_metadata[REGISTRY_PROJECT_ID]
+
+    registry_url_prefix = hub_adapter_settings.HUB_SERVICE_URL + f"/registry-projects/{registry_project_id}"
+    registry_url = registry_url_prefix + "?include=registry&fields=%2Baccount_id,%2Baccount_name,%2Baccount_secret"
+    registry_resp = httpx.get(registry_url, headers=headers)
+    registry_metadata = registry_resp.json()
+
+    if registry_resp.status_code == status.HTTP_404_NOT_FOUND:
+        registry_metadata["message"] = "Registry Project UUID not found"
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"No registry is associated with node {node_results[EXTERNAL_NAME]}",
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=registry_metadata,
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    registry_metadata = node_results[REGISTRY]
-    registry_project_metadata = node_results[REGISTRY_PROJECT]
+    if EXTERNAL_NAME not in registry_metadata or not registry_metadata[EXTERNAL_NAME]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No external name for node",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
-    registry_project_external_name = registry_project_metadata[EXTERNAL_NAME]
+    registry_project_external_name = registry_metadata[EXTERNAL_NAME]
 
-    host = registry_metadata[HOST]
-    user = registry_project_metadata[ACCOUNT_NAME] if ACCOUNT_NAME in registry_project_metadata else None
-    pwd = registry_project_metadata[ACCOUNT_SECRET] if ACCOUNT_SECRET in registry_project_metadata else None
+    if REGISTRY not in registry_metadata or HOST not in registry_metadata[REGISTRY]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"No registry is associated with node {registry_project_external_name}",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    host = registry_metadata[REGISTRY][HOST]
+    user = registry_metadata[ACCOUNT_NAME] if ACCOUNT_NAME in registry_metadata else None
+    pwd = registry_metadata[ACCOUNT_SECRET] if ACCOUNT_SECRET in registry_metadata else None
 
     return host, registry_project_external_name, user, pwd
 
