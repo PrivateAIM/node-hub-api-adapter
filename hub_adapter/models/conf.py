@@ -11,6 +11,7 @@ class AuthConfiguration(BaseModel):
     authorization_url: str
     token_url: str
     issuer_url: str
+    user_info: str
 
 
 class Token(BaseModel):

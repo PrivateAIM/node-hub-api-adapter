@@ -24,6 +24,7 @@ realm_idp_settings = AuthConfiguration(
     client_secret=hub_adapter_settings.API_CLIENT_SECRET,
     authorization_url=IDP_ISSUER_URL + "/protocol/openid-connect/auth",
     token_url=IDP_ISSUER_URL + "/protocol/openid-connect/token",
+    user_info=IDP_ISSUER_URL + "/protocol/openid-connect/userinfo",
     issuer_url=IDP_ISSUER_URL,
 )
 

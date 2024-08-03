@@ -1,15 +1,11 @@
 """Methods for verifying auth."""
-from typing import Annotated
 
-import httpx
 import uvicorn
-from fastapi import FastAPI, HTTPException, Form
-from jose import jwt
-from starlette import status
+from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
 from hub_adapter.auth import realm_idp_settings
-from hub_adapter.models.conf import Token
+from hub_adapter.routers.auth import auth_router
 from hub_adapter.routers.health import health_router
 from hub_adapter.routers.hub import hub_router
 from hub_adapter.routers.kong import kong_router
@@ -51,84 +47,7 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
-
-@app.post(
-    "/token",
-    summary="Get a token from the IDP",
-    tags=["Auth"],
-    status_code=status.HTTP_200_OK,
-    response_model=Token,
-)
-def get_token(
-        username: Annotated[str, Form(description="Keycloak username")],
-        password: Annotated[str, Form(description="Keycloak password")],
-) -> Token:
-    """Get a JWT from the IDP by passing a valid username and password. This token can then be used to authenticate
-    yourself with this API."""
-    payload = {
-        "username": username,
-        "password": password,
-        "client_id": realm_idp_settings.client_id,
-        "client_secret": realm_idp_settings.client_secret,
-        "grant_type": "password",
-        "scope": "openid",
-    }
-    resp = httpx.post(realm_idp_settings.token_url, data=payload)
-    if not resp.status_code == httpx.codes.OK:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=resp.json(),  # Invalid authentication credentials
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    token_data = resp.json()
-    return Token(**token_data)
-
-
-@app.post(
-    "/token/inspect",
-    summary="Get information about a provided token from the IDP",
-    tags=["Auth"],
-    status_code=status.HTTP_200_OK,
-)
-def inspect_token(
-        token: Annotated[str, Form(description="JSON web token")],
-) -> dict:
-    """Return information about the provided token."""
-    public_key = (
-        "-----BEGIN PUBLIC KEY-----\n"
-        f"{httpx.get(realm_idp_settings.issuer_url).json().get('public_key')}"
-        "\n-----END PUBLIC KEY-----"
-    )
-    decoded = jwt.decode(
-        token,
-        key=public_key,
-        options={"verify_signature": True, "verify_aud": False, "exp": True},
-    )
-    return decoded
-
-
-@app.get(
-    "/containers",
-    status_code=status.HTTP_200_OK,
-)
-def fetch_containers() -> list:
-    """Return information about the provided token."""
-    data = [
-        {
-            "name": "Foo",
-            "category": "TestInstance",
-            "quantity": 1,
-        },
-        {
-            "name": "API Cup",
-            "category": "ShortAndStout",
-            "quantity": 3,
-        },
-    ]
-    return data
-
-
-routers = (po_router, results_router, hub_router, kong_router, health_router)
+routers = (po_router, results_router, hub_router, kong_router, health_router, auth_router)
 
 for router in routers:
     app.include_router(router)
