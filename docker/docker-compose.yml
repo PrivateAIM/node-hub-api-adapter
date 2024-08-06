@@ -134,7 +134,6 @@ services:
       always
 
   keycloak:
-    # Have to use 22.0.0 for realm import. TODO: figure how to import realm config with 23+
     image: quay.io/keycloak/keycloak:24.0.1
     volumes:
       - ./test-realm.json:/opt/keycloak/data/import/realm-export.json
