@@ -3,18 +3,23 @@ import logging
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Path, Body, Security
+import httpx
+from fastapi import APIRouter, Path, Depends, Security
 from starlette import status
 from starlette.requests import Request
 from starlette.responses import Response
 
-from hub_adapter.auth import verify_idp_token, idp_oauth2_scheme_pass, httpbearer
+from hub_adapter.auth import add_hub_jwt, verify_idp_token, idp_oauth2_scheme_pass, httpbearer
 from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.core import route
+from hub_adapter.models.hub import AnalysisImageUrl
 from hub_adapter.models.podorc import LogResponse, StatusResponse, PodResponse, CreatePodResponse
+from hub_adapter.routers.hub import get_analysis_image_url
 
 po_router = APIRouter(
-    dependencies=[Security(verify_idp_token), Security(idp_oauth2_scheme_pass), Security(httpbearer)],
+    dependencies=[
+        Security(verify_idp_token), Security(idp_oauth2_scheme_pass), Security(httpbearer),
+    ],
     tags=["PodOrc"],
     responses={404: {"description": "Not found"}},
 )
@@ -22,22 +27,24 @@ po_router = APIRouter(
 logger = logging.getLogger(__name__)
 
 
-@route(
-    request_method=po_router.post,
-    path="/po",
+@po_router.post(
+    "/po",
+    summary="Get the analysis image URL and forward information to PO to start a container.",
     status_code=status.HTTP_200_OK,
+    dependencies=[Depends(add_hub_jwt)],
     response_model=CreatePodResponse,
-    service_url=hub_adapter_settings.PODORC_SERVICE_URL,
-    body_params=["analysis_id", "project_id"],
 )
 async def create_analysis(
-        request: Request,
-        response: Response,
-        analysis_id: Annotated[uuid.UUID, Body(description="UUID of the analysis.")],
-        project_id: Annotated[uuid.UUID, Body(description="UUID of the analysis.")],
+        image_url_resp: AnalysisImageUrl = Depends(get_analysis_image_url)
 ):
-    """Create an analysis pod."""
-    pass
+    """Gather the image URL for the requested analysis container and send information to the PO."""
+
+    po_resp = httpx.post(
+        hub_adapter_settings.PODORC_SERVICE_URL.rstrip("/") + "/po",
+        json=image_url_resp.model_dump(),
+        follow_redirects=True
+    )
+    return po_resp
 
 
 @route(

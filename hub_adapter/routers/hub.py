@@ -3,7 +3,7 @@ import uuid
 from typing import Annotated
 
 import httpx
-from fastapi import APIRouter, Query, Path, Depends, HTTPException, Security, Form
+from fastapi import APIRouter, Query, Path, Depends, HTTPException, Security, Form, Body
 from starlette import status
 from starlette.requests import Request
 from starlette.responses import Response
@@ -316,7 +316,7 @@ async def get_registry_metadata_for_project(
 
 def get_node_metadata_for_url(
         request: Request,
-        node_id: Annotated[uuid.UUID, Form(description="Node UUID")],
+        node_id: Annotated[uuid.UUID, Body(description="Node UUID")],
 ):
     """Get analysis metadata for a given UUID to be used in creating analysis image URL."""
     headers = {k: v for k, v in request.headers.items() if (k != HOST and k != CONTENT_LENGTH.lower())}
@@ -326,6 +326,14 @@ def get_node_metadata_for_url(
 
     if node_resp.status_code == status.HTTP_404_NOT_FOUND:
         node_metadata["message"] = "UUID not found"
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=node_metadata,
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if node_resp.status_code == status.HTTP_401_UNAUTHORIZED:
+        node_metadata["message"] = "Not authorized to access the Hub/"
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=node_metadata,
@@ -387,17 +395,20 @@ def get_registry_metadata_for_url(
 
 @hub_router.post("/analysis/image", response_model=AnalysisImageUrl)
 async def get_analysis_image_url(
-        analysis_id: Annotated[uuid.UUID, Form(description="Analysis UUID")],
+        analysis_id: Annotated[uuid.UUID, Body(description="Analysis UUID")],
+        project_id: Annotated[uuid.UUID, Body(description="Project UUID")],
         compiled_info: tuple = Depends(get_registry_metadata_for_url),
-) -> dict:
+):
     """Build an analysis image URL using its metadata from the Hub."""
     host, registry_project_external_name, registry_user, registry_sec = compiled_info
-    compiled_response = {
-        "image_url": f"{host}/{registry_project_external_name}/{analysis_id}",
-        "registry_url": f"{host}/{registry_project_external_name}/",
-        "registry_user": registry_user,
-        "registry_password": registry_sec,
-    }
+    compiled_response = AnalysisImageUrl(
+        image_url=f"{host}/{registry_project_external_name}/{analysis_id}",
+        analysis_id=str(analysis_id),
+        project_id=str(project_id),
+        registry_url=f"{host}/{registry_project_external_name}/",
+        registry_user=registry_user,
+        registry_password=registry_sec,
+    )
     return compiled_response
 
 
