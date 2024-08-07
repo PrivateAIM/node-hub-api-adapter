@@ -25,5 +25,3 @@ COPY hub_adapter/ ./hub_adapter/
 EXPOSE 5000
 
 ENTRYPOINT ["python", "-m", "hub_adapter.cli", "serve"]
-
-HEALTHCHECK CMD curl --fail http://localhost:5000/healthz || exit 1

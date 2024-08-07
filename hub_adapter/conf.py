@@ -11,6 +11,8 @@ from pydantic import BaseModel
 class Settings(BaseModel):
     """Default settings for API."""
 
+    API_ROOT_PATH: str = os.getenv("API_ROOT_PATH", "")
+
     HUB_REALM_UUID: str = os.getenv("HUB_REALM_UUID")
 
     # IDP Settings

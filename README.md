@@ -27,6 +27,7 @@ The following environment variables need to be set for operation:
 ```bash
 IDP_URL="http://localhost:8080"  # e.g. Keycloak
 IDP_REALM="flame"  # If different realm used in keycloak else defaults to master
+API_ROOT_PATH=""  # Change the root path where the API is served from, useful for k8s ingress
 PODORC_SERVICE_URL="http://localhost:18080"  # URL to Pod Orchestration service
 RESULTS_SERVICE_URL="http://localhost:8000"  # URL to the Results service
 KONG_ADMIN_SERVICE_URL="http://localhost:8000"  # URL to the Kong gateway service

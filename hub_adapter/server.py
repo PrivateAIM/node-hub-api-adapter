@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
 from hub_adapter.auth import realm_idp_settings
+from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.routers.auth import auth_router
 from hub_adapter.routers.health import health_router
 from hub_adapter.routers.hub import hub_router
@@ -36,6 +37,7 @@ app = FastAPI(
         "url": "https://www.apache.org/licenses/LICENSE-2.0.html",
         "identifier": "Apache-2.0",
     },
+    root_path=hub_adapter_settings.API_ROOT_PATH,
 )
 
 app.add_middleware(
