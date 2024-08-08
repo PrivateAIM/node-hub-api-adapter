@@ -42,7 +42,8 @@ async def create_analysis(
     po_resp = httpx.post(
         hub_adapter_settings.PODORC_SERVICE_URL.rstrip("/") + "/po",
         json=image_url_resp.model_dump(),
-        follow_redirects=True
+        follow_redirects=True,
+        timeout=60.0,
     )
     return po_resp
 

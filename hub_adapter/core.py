@@ -62,7 +62,7 @@ async def make_request(
     if not files:
         files = {}
 
-    async with httpx.AsyncClient(headers=headers) as client:
+    async with httpx.AsyncClient(headers=headers, timeout=60.0) as client:
         r = await client.request(url=url, method=method, params=query, json=data, files=files, follow_redirects=True)
 
         logger.info(
