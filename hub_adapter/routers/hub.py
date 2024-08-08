@@ -405,7 +405,7 @@ async def get_analysis_image_url(
         image_url=f"{host}/{registry_project_external_name}/{analysis_id}",
         analysis_id=str(analysis_id),
         project_id=str(project_id),
-        registry_url=f"{host}/",
+        registry_url=f"{host}",
         registry_user=registry_user,
         registry_password=registry_sec,
     )
