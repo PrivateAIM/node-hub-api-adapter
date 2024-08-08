@@ -1,4 +1,5 @@
 """EPs for the pod orchestrator."""
+import json
 import logging
 import uuid
 from typing import Annotated
@@ -32,14 +33,14 @@ logger = logging.getLogger(__name__)
     status_code=status.HTTP_200_OK,
     dependencies=[Depends(add_hub_jwt)],
 )
-async def create_analysis(
+def create_analysis(
         image_url_resp: Annotated[dict, Depends(synthesize_image_data)]
 ):
     """Gather the image URL for the requested analysis container and send information to the PO."""
 
     po_resp = httpx.post(
         hub_adapter_settings.PODORC_SERVICE_URL.rstrip("/") + "/po",
-        data=image_url_resp,
+        data=json.dumps(image_url_resp),
         follow_redirects=True,
         timeout=60.0,
     )
