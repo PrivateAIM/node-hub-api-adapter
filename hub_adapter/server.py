@@ -38,6 +38,9 @@ app = FastAPI(
         "identifier": "Apache-2.0",
     },
     root_path=hub_adapter_settings.API_ROOT_PATH,
+    docs_url=hub_adapter_settings.API_ROOT_PATH.rstrip("/") + "/docs",
+    redoc_url=hub_adapter_settings.API_ROOT_PATH.rstrip("/") + "/redoc",
+    openapi_url=hub_adapter_settings.API_ROOT_PATH.rstrip("/") + "/openapi.json"
 )
 
 app.add_middleware(
