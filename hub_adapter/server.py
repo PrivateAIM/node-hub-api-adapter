@@ -38,9 +38,6 @@ app = FastAPI(
         "identifier": "Apache-2.0",
     },
     root_path=hub_adapter_settings.API_ROOT_PATH,
-    docs_url=hub_adapter_settings.API_ROOT_PATH.rstrip("/") + "/docs",
-    redoc_url=hub_adapter_settings.API_ROOT_PATH.rstrip("/") + "/redoc",
-    openapi_url=hub_adapter_settings.API_ROOT_PATH.rstrip("/") + "/openapi.json"
 )
 
 app.add_middleware(
@@ -58,4 +55,4 @@ for router in routers:
     app.include_router(router)
 
 if __name__ == "__main__":
-    uvicorn.run("server:app", host="127.0.0.1", port=8081)
+    uvicorn.run("server:app", host="127.0.0.1", port=8081, reload=True)
