@@ -351,7 +351,7 @@ def get_node_metadata_for_url(
 
 
 def get_registry_metadata_for_url(
-        node_results: dict = Depends(get_node_metadata_for_url)
+        node_results: Annotated[dict, Depends(get_node_metadata_for_url)]
 ):
     """Get registry metadata for a given UUID to be used in creating analysis image URL."""
     node_metadata, headers = node_results
@@ -393,23 +393,41 @@ def get_registry_metadata_for_url(
     return host, registry_project_external_name, user, pwd
 
 
-@hub_router.post("/analysis/image", response_model=AnalysisImageUrl)
-async def get_analysis_image_url(
+def synthesize_image_data(
         analysis_id: Annotated[uuid.UUID, Body(description="Analysis UUID")],
         project_id: Annotated[uuid.UUID, Body(description="Project UUID")],
-        compiled_info: tuple = Depends(get_registry_metadata_for_url),
+        compiled_info: Annotated[tuple, Depends(get_registry_metadata_for_url)],
+):
+    """Put all the data together for passing on to the PO."""
+    host, registry_project_external_name, registry_user, registry_sec = compiled_info
+    # compiled_response = AnalysisImageUrl(
+    #     image_url=f"{host}/{registry_project_external_name}/{analysis_id}",
+    #     analysis_id=str(analysis_id),
+    #     project_id=str(project_id),
+    #     registry_url=host,
+    #     registry_user=registry_user,
+    #     registry_password=registry_sec,
+    # )
+    compiled_response = {
+        # "image_url": f"{host}/{registry_project_external_name}/{analysis_id}",
+        "analysis_id": str(analysis_id),
+        "project_id": str(project_id),
+        "registry_url": host,
+        "registry_user": registry_user,
+        "registry_password": registry_sec,
+    }
+    return compiled_response
+
+
+@hub_router.post(
+    "/analysis/image",
+    # response_model=AnalysisImageUrl
+)
+async def get_analysis_image_url(
+        image_url_resp: AnalysisImageUrl = Depends(synthesize_image_data)
 ):
     """Build an analysis image URL using its metadata from the Hub."""
-    host, registry_project_external_name, registry_user, registry_sec = compiled_info
-    compiled_response = AnalysisImageUrl(
-        image_url=f"{host}/{registry_project_external_name}/{analysis_id}",
-        analysis_id=str(analysis_id),
-        project_id=str(project_id),
-        registry_url=f"{host}",
-        registry_user=registry_user,
-        registry_password=registry_sec,
-    )
-    return compiled_response
+    return image_url_resp
 
 
 @route(

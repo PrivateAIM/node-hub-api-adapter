@@ -12,9 +12,8 @@ from starlette.responses import Response
 from hub_adapter.auth import add_hub_jwt, verify_idp_token, idp_oauth2_scheme_pass, httpbearer
 from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.core import route
-from hub_adapter.models.hub import AnalysisImageUrl
-from hub_adapter.models.podorc import LogResponse, StatusResponse, PodResponse, CreatePodResponse
-from hub_adapter.routers.hub import get_analysis_image_url
+from hub_adapter.models.podorc import LogResponse, StatusResponse, PodResponse
+from hub_adapter.routers.hub import synthesize_image_data
 
 po_router = APIRouter(
     dependencies=[
@@ -32,19 +31,19 @@ logger = logging.getLogger(__name__)
     summary="Get the analysis image URL and forward information to PO to start a container.",
     status_code=status.HTTP_200_OK,
     dependencies=[Depends(add_hub_jwt)],
-    response_model=CreatePodResponse,
 )
 async def create_analysis(
-        image_url_resp: AnalysisImageUrl = Depends(get_analysis_image_url)
+        image_url_resp: Annotated[dict, Depends(synthesize_image_data)]
 ):
     """Gather the image URL for the requested analysis container and send information to the PO."""
 
     po_resp = httpx.post(
         hub_adapter_settings.PODORC_SERVICE_URL.rstrip("/") + "/po",
-        json=image_url_resp.model_dump(),
+        data=image_url_resp,
         follow_redirects=True,
         timeout=60.0,
     )
+
     return po_resp
 
 

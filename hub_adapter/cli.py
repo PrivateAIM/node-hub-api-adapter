@@ -18,7 +18,7 @@ def main():
 @main.command()
 @click.option("-h", "--host", default="0.0.0.0", help="Server or host name")
 @click.option("-p", "--port", default="5000", help="Server port [5000]")
-@click.option("-r", "--reload", is_flag=True, default=True, help="Enable reload")
+@click.option("-r", "--reload", is_flag=True, default=False, help="Enable reload")
 def serve(host, port, reload):
     """Start the API RESTful server."""
     uvicorn.run("hub_adapter.server:app", host=host, port=int(port), reload=reload)
