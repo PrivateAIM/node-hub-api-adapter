@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
     dependencies=[Depends(add_hub_jwt)],
     response_model=CreatePodResponse,
     pre_processing_func="extract_po_params",
-    body_params=["analysis_id", "project_id", "registry_url", "registry_user", "registry_password"],
+    body_params=["analysis_id", "project_id", "registry_url", "registry_user", "registry_password", "image_url"],
 )
 async def create_analysis(
         request: Request,
