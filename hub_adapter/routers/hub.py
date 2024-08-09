@@ -15,7 +15,7 @@ from hub_adapter.constants import REGISTRY_PROJECT_ID, EXTERNAL_NAME, HOST, REGI
 from hub_adapter.core import route
 from hub_adapter.models.hub import Project, AllProjects, ProjectNode, ListProjectNodes, \
     AnalysisNode, ListAnalysisNodes, RegistryProject, AnalysisImageUrl, ApprovalStatus, AllAnalyses, BucketList, \
-    PartialBucketFilesList, Bucket, PartialAnalysisBucketFile
+    PartialBucketFilesList, Bucket, PartialAnalysisBucketFile, DetailedAnalysis, Analysis
 
 hub_router = APIRouter(
     dependencies=[
@@ -220,10 +220,10 @@ async def list_analyses_of_nodes(
     response_model=AnalysisNode,
     query_params=["include", "filter_analysis_realm_id"],
 )
-async def list_specific_analysis(
+async def list_specific_analysis_node(
         request: Request,
         response: Response,
-        analysis_id: Annotated[uuid.UUID, Path(description="Analysis UUID.")],
+        analysis_id: Annotated[uuid.UUID, Path(description="Analysis Node UUID.")],
         include: Annotated[
             str | None,
             Query(
@@ -239,6 +239,26 @@ async def list_specific_analysis(
         ] = None,
 ):
     """List project for a given UUID."""
+    pass
+
+
+@route(
+    request_method=hub_router.post,
+    path="/analysis-nodes/{analysis_id}",
+    status_code=status.HTTP_200_OK,
+    service_url=hub_adapter_settings.HUB_SERVICE_URL,
+    response_model=AnalysisNode,
+    form_params=["approval_status"],
+)
+async def accept_reject_analysis_node(
+        request: Request,
+        response: Response,
+        analysis_id: Annotated[uuid.UUID, Path(description="Analysis Node UUID (not analysis_id).")],
+        approval_status: Annotated[ApprovalStatus, Form(
+            description="Set the approval status of project for the node. Either 'rejected' or 'approved'"
+        )],
+):
+    """Set the approval status of a analysis."""
     pass
 
 
@@ -272,22 +292,48 @@ async def list_all_analyses(
 
 
 @route(
-    request_method=hub_router.post,
-    path="/analysis-nodes/{analysis_id}",
+    request_method=hub_router.get,
+    path="/analyses/{analysis_id}",
     status_code=status.HTTP_200_OK,
     service_url=hub_adapter_settings.HUB_SERVICE_URL,
-    response_model=AnalysisNode,
-    form_params=["approval_status"],
+    response_model=Analysis,
+    query_params=["include", "filter_analysis_realm_id"],
 )
-async def accept_reject_analysis_node(
+async def list_specific_analysis(
         request: Request,
         response: Response,
-        analysis_id: Annotated[uuid.UUID, Path(description="Analysis object UUID (not analysis_id).")],
-        approval_status: Annotated[ApprovalStatus, Form(
-            description="Set the approval status of project for the node. Either 'rejected' or 'approved'"
-        )],
+        analysis_id: Annotated[uuid.UUID, Path(description="Analysis UUID.")],
+        include: Annotated[
+            str | None,
+            Query(
+                description="Whether to include additional data for the given parameter. Can only be 'node'/'analysis'",
+                pattern="^((^|[,])(project|master_image))+$",  # Must be "project" and/or "master_image" or null,
+            ),
+        ] = "project",
+        filter_analysis_realm_id: Annotated[
+            uuid.UUID | None,
+            Query(
+                description="Filter by analysis realm UUID.",
+            ),
+        ] = None,
 ):
-    """Set the approval status of a analysis."""
+    """List project for a given UUID."""
+    pass
+
+
+@route(
+    request_method=hub_router.post,
+    path="/analyses/{analysis_id}",
+    status_code=status.HTTP_200_OK,
+    service_url=hub_adapter_settings.HUB_SERVICE_URL,
+    response_model=DetailedAnalysis,
+)
+async def update_specific_analysis(
+        request: Request,
+        response: Response,
+        body: Annotated[Analysis, Body(description="Analysis UUID.")],
+):
+    """Update analysis with a given UUID."""
     pass
 
 

@@ -11,7 +11,7 @@ from starlette.responses import Response
 from hub_adapter.auth import add_hub_jwt
 from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.core import route
-from hub_adapter.models.podorc import LogResponse, StatusResponse, PodResponse
+from hub_adapter.models.podorc import LogResponse, StatusResponse, PodResponse, CreatePodResponse
 from hub_adapter.routers.hub import synthesize_image_data
 
 po_router = APIRouter(
@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
     status_code=status.HTTP_200_OK,
     service_url=hub_adapter_settings.PODORC_SERVICE_URL,
     dependencies=[Depends(add_hub_jwt)],
+    response_model=CreatePodResponse,
     pre_processing_func="extract_po_params",
     body_params=["analysis_id", "project_id", "registry_url", "registry_user", "registry_password"],
 )

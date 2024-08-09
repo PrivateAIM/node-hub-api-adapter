@@ -224,7 +224,7 @@ def route(
             except ConnectError:
                 err_msg = (f'HTTP Request: {method.upper()} {microsvc_path} '
                            f'- HTTP Status: {status.HTTP_503_SERVICE_UNAVAILABLE} - Service is unavailable. '
-                           f'Check the {service_tags.pop()} service at {service_url}')
+                           f'Check the {service_tags[0]} service at {service_url}')
                 logger.error(err_msg)
                 raise HTTPException(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

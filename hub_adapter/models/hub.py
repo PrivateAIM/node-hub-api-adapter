@@ -133,31 +133,35 @@ class ListProjectNodes(BaseModel):
 
 
 class Analysis(BaseHubResponse):
-    """Model representing a single analysis."""
+    """Model representing a single detailed analysis."""
     name: str | None = None
     nodes: int
     configuration_status: ConfigurationStatus | None = None
     build_status: AnalysisBuildStatus | None = None
     run_status: AnalysisRunStatus | None = None
-    registry: Registry | None = None
     registry_id: uuid.UUID | None = None
     realm_id: uuid.UUID
     user_id: uuid.UUID | None = None
     project_id: uuid.UUID
-    project: Project | None = None
     master_image_id: uuid.UUID | None = None
+
+
+class DetailedAnalysis(Analysis):
+    """Model representing a single detailed analysis."""
+    registry: Registry | None = None
+    project: Project | None = None
     master_image: MasterImage | None = None
 
 
 class AllAnalyses(BaseModel):
     """List of all projects."""
-    data: list[Analysis]
+    data: list[DetailedAnalysis]
 
 
 class AnalysisNode(BaseHubResponse):
     """Node analysis response model."""
     approval_status: ApprovalStatus
-    run_status: AnalysisRunStatus | None = None
+    run_status: str | None = None
     comment: str | None = None
     index: int
     artifact_tag: str | None = None
@@ -166,7 +170,7 @@ class AnalysisNode(BaseHubResponse):
     analysis_realm_id: uuid.UUID
     node_id: uuid.UUID
     node_realm_id: uuid.UUID
-    analysis: Analysis | None = None
+    analysis: DetailedAnalysis | None = None
     node: Node | None = None
 
 
@@ -207,7 +211,7 @@ class Bucket(BaseHubResponse):
     type: BucketType
     external_id: str | None = None
     analysis_id: uuid.UUID | None = None
-    analysis: Analysis | None = None
+    analysis: DetailedAnalysis | None = None
     realm_id: uuid.UUID | None = None
 
 
@@ -222,7 +226,7 @@ class PartialAnalysisBucketFile(BaseHubResponse):
     bucket_id: uuid.UUID | None = None
     bucket: Bucket | None = None
     analysis_id: uuid.UUID | None = None
-    analysis: Analysis | None = None
+    analysis: DetailedAnalysis | None = None
     realm_id: uuid.UUID | None = None
     user_id: uuid.UUID | None = None
     robot_id: uuid.UUID | None = None
