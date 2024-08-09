@@ -1,16 +1,14 @@
 """EPs for the pod orchestrator."""
-import json
 import logging
 import uuid
 from typing import Annotated
 
-import httpx
-from fastapi import APIRouter, Path, Depends, Security
+from fastapi import APIRouter, Path, Depends
 from starlette import status
 from starlette.requests import Request
 from starlette.responses import Response
 
-from hub_adapter.auth import add_hub_jwt, verify_idp_token, idp_oauth2_scheme_pass, httpbearer
+from hub_adapter.auth import add_hub_jwt
 from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.core import route
 from hub_adapter.models.podorc import LogResponse, StatusResponse, PodResponse
@@ -18,7 +16,7 @@ from hub_adapter.routers.hub import synthesize_image_data
 
 po_router = APIRouter(
     dependencies=[
-        Security(verify_idp_token), Security(idp_oauth2_scheme_pass), Security(httpbearer),
+        # Security(verify_idp_token), Security(idp_oauth2_scheme_pass), Security(httpbearer),
     ],
     tags=["PodOrc"],
     responses={404: {"description": "Not found"}},
@@ -27,25 +25,22 @@ po_router = APIRouter(
 logger = logging.getLogger(__name__)
 
 
-@po_router.post(
-    "/po",
-    summary="Get the analysis image URL and forward information to PO to start a container.",
+@route(
+    request_method=po_router.post,
+    path="/po",
     status_code=status.HTTP_200_OK,
+    service_url=hub_adapter_settings.PODORC_SERVICE_URL,
     dependencies=[Depends(add_hub_jwt)],
+    pre_processing_func="extract_po_params",
+    body_params=["analysis_id", "project_id", "registry_url", "registry_user", "registry_password"],
 )
-def create_analysis(
-        image_url_resp: Annotated[dict, Depends(synthesize_image_data)]
+async def create_analysis(
+        request: Request,
+        response: Response,
+        image_url_resp: Annotated[dict, Depends(synthesize_image_data)],
 ):
     """Gather the image URL for the requested analysis container and send information to the PO."""
-
-    po_resp = httpx.post(
-        hub_adapter_settings.PODORC_SERVICE_URL.rstrip("/") + "/po",
-        data=json.dumps(image_url_resp),
-        follow_redirects=True,
-        timeout=60.0,
-    )
-
-    return po_resp
+    pass
 
 
 @route(

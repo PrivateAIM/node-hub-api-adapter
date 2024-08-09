@@ -2,7 +2,7 @@
 from typing import Annotated
 
 import httpx
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, HTTPException, Body, Form
 from jose import jwt
 from starlette import status
 from starlette.requests import Request
@@ -25,10 +25,10 @@ auth_router = APIRouter(
     response_model=Token,
 )
 def get_token(
-        username: Annotated[str, Body(description="Keycloak username")],
-        password: Annotated[str, Body(description="Keycloak password")],
-        client_id: Annotated[None, Body(description="Keycloak Client ID")] = None,
-        client_secret: Annotated[None, Body(description="Keycloak Client ID")] = None,
+        username: Annotated[str, Form(description="Keycloak username")],
+        password: Annotated[str, Form(description="Keycloak password")],
+        # client_id: Annotated[None, Body(description="Keycloak Client ID")] = None,
+        # client_secret: Annotated[None, Body(description="Keycloak Client ID")] = None,
 ) -> Token:
     """Get a JWT from the IDP by passing a valid username and password. 
     
@@ -37,8 +37,8 @@ def get_token(
     payload = {
         "username": username,
         "password": password,
-        "client_id": client_id or realm_idp_settings.client_id,
-        "client_secret": client_secret or realm_idp_settings.client_secret,
+        "client_id": realm_idp_settings.client_id,
+        "client_secret": realm_idp_settings.client_secret,
         "grant_type": "password",
         "scope": "openid",
     }

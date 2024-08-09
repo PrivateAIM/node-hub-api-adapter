@@ -400,16 +400,8 @@ def synthesize_image_data(
 ):
     """Put all the data together for passing on to the PO."""
     host, registry_project_external_name, registry_user, registry_sec = compiled_info
-    # compiled_response = AnalysisImageUrl(
-    #     image_url=f"{host}/{registry_project_external_name}/{analysis_id}",
-    #     analysis_id=str(analysis_id),
-    #     project_id=str(project_id),
-    #     registry_url=host,
-    #     registry_user=registry_user,
-    #     registry_password=registry_sec,
-    # )
     compiled_response = {
-        # "image_url": f"{host}/{registry_project_external_name}/{analysis_id}",
+        "image_url": f"{host}/{registry_project_external_name}/{analysis_id}",
         "analysis_id": str(analysis_id),
         "project_id": str(project_id),
         "registry_url": host,

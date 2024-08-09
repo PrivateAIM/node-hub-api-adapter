@@ -11,7 +11,7 @@ from fastapi.responses import StreamingResponse, JSONResponse
 from httpx import ConnectError, DecodingError, HTTPStatusError
 from starlette.responses import Response, FileResponse
 
-from hub_adapter import post_processing
+from hub_adapter import post_processing, pre_processing
 from hub_adapter.constants import CONTENT_TYPE
 from hub_adapter.utils import unzip_form_params, unzip_body_object, create_request_data, unzip_query_params, \
     unzip_file_params
@@ -102,6 +102,7 @@ def route(
         dependencies: Sequence[params.Depends] | None = None,
         summary: str | None = None,
         description: str | None = None,
+        pre_processing_func: str | None = None,
         post_processing_func: str | None = None,
         # params from fastapi http methods can be added here later and then added to `request_method()`
 ):
@@ -138,6 +139,8 @@ def route(
         Summary of the method (usually short).
     description: str | None
         Longer explanation of the method.
+    pre_processing_func: str | None
+        Method from the pre_processing module to apply to the kwargs. E.g. format_dict
     post_processing_func: str | None
         Method from the post_processing module to apply to the response. E.g. parse_something
 
@@ -175,6 +178,10 @@ def route(
             request_headers.pop("content-length", None)  # Let httpx configure content-length
             request_headers.pop("content-type", None)  # Let httpx configure content-type
             request_headers.pop("host", None)
+
+            if pre_processing_func:  # all used pp functions found in post_processing
+                f = getattr(pre_processing, pre_processing_func)
+                kwargs = f(kwargs)
 
             # Prepare query params
             request_query = await unzip_query_params(
