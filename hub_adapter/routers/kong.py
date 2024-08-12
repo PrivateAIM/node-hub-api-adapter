@@ -27,8 +27,9 @@ kong_admin_url = hub_adapter_settings.KONG_ADMIN_SERVICE_URL
 realm = hub_adapter_settings.IDP_REALM
 
 
-@kong_router.get("/datastore", response_model=ListServices, status_code=status.HTTP_200_OK)
+@kong_router.get("/datastore/{data_store_name}", response_model=ListServices, status_code=status.HTTP_200_OK)
 async def list_data_stores(
+        data_store_name: Annotated[str, Path(description="Unique name of the data store.")] = None,
         detailed: Annotated[bool, Query(description="Whether to include detailed information on projects")] = False,
 ):
     """List all available data stores (referred to as services by kong)."""
@@ -37,7 +38,7 @@ async def list_data_stores(
     try:
         with kong_admin_client.ApiClient(configuration) as api_client:
             service_api_instance = kong_admin_client.ServicesApi(api_client)
-            services = service_api_instance.list_service()
+            services = service_api_instance.list_service(tags=data_store_name)
 
             if detailed:
                 service_dicts = [svc.to_dict() for svc in services.data]
@@ -132,7 +133,7 @@ async def create_data_store(
                 name=data.name,
                 enabled=data.enabled,
                 tls_verify=data.tls_verify,
-                tags=data.tags,
+                tags=[data.name],
             )
             api_response = api_instance.create_service(create_service_request)
             return api_response
@@ -388,6 +389,7 @@ async def delete_project(
             detail=f"Service error: {e}",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
 
 @kong_router.get("/analysis", response_model=ListConsumers, status_code=status.HTTP_200_OK)
 async def list_analyses(
