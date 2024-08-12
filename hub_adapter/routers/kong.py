@@ -27,9 +27,62 @@ kong_admin_url = hub_adapter_settings.KONG_ADMIN_SERVICE_URL
 realm = hub_adapter_settings.IDP_REALM
 
 
-@kong_router.get("/datastore/{data_store_name}", response_model=ListServices, status_code=status.HTTP_200_OK)
+@kong_router.get("/datastore", response_model=ListServices, status_code=status.HTTP_200_OK)
 async def list_data_stores(
-        data_store_name: Annotated[str, Path(description="Unique name of the data store.")] = None,
+        detailed: Annotated[bool, Query(description="Whether to include detailed information on projects")] = False,
+):
+    """List all available data stores (referred to as services by kong)."""
+    configuration = kong_admin_client.Configuration(host=kong_admin_url)
+
+    try:
+        with kong_admin_client.ApiClient(configuration) as api_client:
+            service_api_instance = kong_admin_client.ServicesApi(api_client)
+            services = service_api_instance.list_service()
+
+            if detailed:
+                service_dicts = [svc.to_dict() for svc in services.data]
+                route_api_instance = kong_admin_client.RoutesApi(api_client)
+                routes = route_api_instance.list_route()
+
+                route_dict = {}
+                for route in routes.data:
+                    if route.service:
+                        svc_id = route.service.id
+                        if svc_id in route_dict.keys():
+                            route_dict[svc_id].append(route)
+                        else:
+                            route_dict[svc_id] = [route]
+
+                for idx, svc in enumerate(service_dicts):
+                    svc_id = svc.get("id")
+                    svc["routes"] = []
+                    if svc_id in route_dict:
+                        svc["routes"] += route_dict[svc_id]
+
+                    service_dicts[idx] = svc
+
+                services = {"data": service_dicts}
+
+            return services
+
+    except ApiException as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(e),
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Service error",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+@kong_router.get("/datastore/{data_store_name}", response_model=ListServices, status_code=status.HTTP_200_OK)
+async def list_specific_data_store(
+        data_store_name: Annotated[str | None, Path(description="Unique name of the data store.")],
         detailed: Annotated[bool, Query(description="Whether to include detailed information on projects")] = False,
 ):
     """List all available data stores (referred to as services by kong)."""
