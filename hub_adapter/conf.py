@@ -59,7 +59,7 @@ logHandler.setLevel(logging.DEBUG)
 streamHandler = logging.StreamHandler(stream=sys.stderr)
 stream_format = logging.Formatter("%(asctime)s - %(levelname)s: %(message)s")
 streamHandler.setFormatter(stream_format)
-streamHandler.setLevel(logging.WARNING)
+streamHandler.setLevel(logging.DEBUG)
 
 main_logger.addHandler(logHandler)
 main_logger.addHandler(streamHandler)
