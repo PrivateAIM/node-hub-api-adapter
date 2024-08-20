@@ -1,6 +1,36 @@
+## Global variables
+global:
+  hub:
+    endpoints:
+      ## @param global.hub.endpoints.auth Hub Auth API endpoint. Overrides hub.authApi if provided
+      auth: https://auth.privateaim.dev
+      ## @param global.hub.endpoints.core Hub Core API endpoint. Overrides hub.coreApi if provided
+      core: https://core.privateaim.dev
+    auth:
+      ## @param global.hub.auth.nodeId Node UUID. Overrides hub.nodeId if provided
+      nodeId: ""
+      ## @param global.hub.auth.robotUser Robot user ID. Overrides hub.auth.robotUser if provided
+      robotUser: ""
+      ## @param global.hub.auth.robotSecret Robot secret. Overrides hub.auth.robotSecret if provided
+      robotSecret: ""
+  node:
+    ingress:
+      ## @param global.node.ingress.enabled Toggle whether ingress should be enabled
+      enabled: false
+      ## @param global.node.ingress.enabled Host name to be assigned to the Node UI (/) and Hub Adapter API (/api)
+      hostname: ""
+
 ## For defining ingress specific metadata
 ingress:
-  domain: localhost
+  ## @param ingress.enabled Enable ingress record generation for the Hub Adapter
+  ##
+  enabled: false
+  ## @param ingress.pathType Ingress path type
+  ##
+  pathType: Prefix
+  ## @param ingress.hostname Default host for the ingress record (evaluated as template)
+  ##
+  hostname: ""
 
 ## Keycloak related information
 idp:
@@ -35,12 +65,13 @@ node:
 ## Hub services and data
 hub:
   ## @param hub.coreApi Hub core API endpoint
-  coreApi: https://core.privateaim.dev
+  coreApi: https://privateaim.net/core
   ## @param hub.authApi Hub auth API endpoint
-  authApi: https://auth.privateaim.dev
-  ## @param hub.realmId Hub assigned UUId for the realm
-  realmId: ""
+  authApi: https://privateaim.net/auth
   ## Credentials used for retrieving a valid robot token from the hub
   auth:
-    robotuser: ""
-    robotpwd: ""
+    ## @param hub.nodeId Limit queries to the Node UUID assigned to the node
+    nodeId: ""
+    existingSecret: ""
+    robotUser: ""
+    robotSecret: ""

@@ -7,31 +7,25 @@ spec:
     matchLabels:
       component: hub-adapter-service
       version: {{ .Chart.AppVersion }}
-      deployment-id: {{ .Release.Name }}
+      deployment-id:  {{ .Release.Name }}
   replicas: 1
   template:
     metadata:
       labels:
         component: hub-adapter-service
         version: {{ .Chart.AppVersion }}
-        deployment-id: {{ .Release.Name }}
+        deployment-id:  {{ .Release.Name }}
     spec:
       containers:
         - name: api-gateway
           image: ghcr.io/privateaim/node-hub-api-adapter:latest
-          imagePullPolicy: IfNotPresent  # Maybe "Always" during debug
+          imagePullPolicy: Always
           ports:
             - containerPort: 5000
               name: healthcp
-          readinessProbe:
-            initialDelaySeconds: 45
-            httpGet:
-              path: /healthz
-              port: healthcp
-          {{- if eq "localhost" .Values.ingress.domain }}
-          command: [ "uvicorn", "hub_adapter.server:app", "--host=0.0.0.0", "--port=5000", "--root-path='/api'" ]
-          {{- end }}
           env:
+            - name: API_ROOT_PATH
+              value: {{ (include "adapter.root.path" .) | default "" }}
             - name: API_CLIENT_ID
               value: {{ .Values.idp.clientId | default "hub-adapter" | quote }}
             - name: API_CLIENT_SECRET
@@ -49,16 +43,19 @@ spec:
               value: {{ include "adapter.po.endpoint" . }}
             - name: KONG_ADMIN_SERVICE_URL
               value: {{ include "adapter.kong.endpoint" . }}
-            - name: HUB_SERVICE_URL
-              value: {{ .Values.hub.coreApi | default "https://core.privateaim.dev" | quote }}
-            - name: HUB_AUTH_SERVICE_URL
-              value: {{ .Values.hub.authApi | default "https://auth.privateaim.dev" | quote }}
             - name: HUB_NODE_UUID
-              value: {{ .Values.hub.realmId | quote }}
+              value: {{ ( include "adapter.hub.nodeId" .) | quote }}  # To be properly filled in
+            - name: HUB_SERVICE_URL
+              value: {{ ( include "adapter.hub.coreApi" .) | default "https://privateaim.net/core" | quote }}
+            - name: HUB_AUTH_SERVICE_URL
+              value: {{ ( include "adapter.hub.authApi" .) | default "https://privateaim.net/auth" | quote }}
             - name: HUB_ROBOT_USER
-              value: {{ required "A robot ID for the Hub is required." .Values.hub.auth.robotuser | quote }}  # To be properly filled in
+              value: {{ required "A robot ID for the Hub is required." (include "adapter.hub.robotUser" .) | quote }}  # To be properly filled in
             - name: HUB_ROBOT_SECRET
-              value: {{ required "A robot secret for the Hub is required." .Values.hub.auth.robotpwd | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "adapter.hub.secretName" . }}
+                  key: "robotSecret"
           livenessProbe:
             httpGet:
               path: /healthz

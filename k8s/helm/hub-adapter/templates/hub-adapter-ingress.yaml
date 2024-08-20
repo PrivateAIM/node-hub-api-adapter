@@ -1,3 +1,4 @@
+{{- if or .Values.global.node.ingress.enabled .Values.ingress.enabled -}}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -7,16 +8,17 @@ metadata:
   labels:
     component: hub-adapter-service
     version: {{ .Chart.AppVersion }}
-    deployment-id: {{ .Release.Name }}
+    deployment-id:  {{ .Release.Name }}
 spec:
   rules:
-    - host: {{ .Values.ingress.domain }}
+    - host: {{ regexReplaceAll "^https?://(.*)" (include "adapter.ingress.hostname" .) "${1}" }}
       http:
         paths:
           - path: /api(/|$)(.*)
-            pathType: Prefix
+            pathType: {{ .Values.ingress.pathType }}
             backend:
               service:
                 name: {{ .Release.Name }}-hub-adapter-service
                 port:
                   number: 5000
+{{- end }}

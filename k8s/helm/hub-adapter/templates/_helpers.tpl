@@ -1,4 +1,93 @@
 {{/*
+Set the API's root path. If ingress is enabled, defaults to "/api" else remains blank
+*/}}
+{{- define "adapter.root.path" -}}
+{{- if or .Values.global.node.ingress.enabled .Values.ingress.enabled -}}
+    {{- print "/api" -}}
+{{- else -}}
+    {{- print "" -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Set the API's root path. If ingress is enabled, defaults to "/api" else remains blank
+*/}}
+{{- define "adapter.ingress.hostname" -}}
+{{- if .Values.global.node.ingress.hostname -}}
+    {{- .Values.global.node.ingress.hostname -}}
+{{- else -}}
+    {{- .Values.ingress.hostname -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Return the secret containing the hub robot secret
+*/}}
+{{- define "adapter.hub.secretName" -}}
+{{- $robotSecretName := .Values.hub.auth.existingSecret -}}
+{{- if $robotSecretName -}}
+    {{- printf "%s" (tpl $robotSecretName $) -}}
+{{- else -}}
+    {{- printf "%s-hub-adapter-robot-secret" .Release.Name -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Return hub auth API endpoint
+*/}}
+{{- define "adapter.hub.authApi" -}}
+{{- if .Values.global.hub.endpoints.auth -}}
+    {{- .Values.global.hub.endpoints.auth -}}
+{{- else -}}
+    {{- .Values.hub.authAPI -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Return hub core API endpoint
+*/}}
+{{- define "adapter.hub.coreApi" -}}
+{{- if .Values.global.hub.endpoints.core -}}
+    {{- .Values.global.hub.endpoints.core -}}
+{{- else -}}
+    {{- .Values.hub.coreAPI -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Return hub nodeId
+*/}}
+{{- define "adapter.hub.nodeId" -}}
+{{- if .Values.global.hub.auth.nodeId -}}
+    {{- .Values.global.hub.auth.nodeId -}}
+{{- else -}}
+    {{- .Values.hub.auth.nodeId -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Return hub robot user ID
+*/}}
+{{- define "adapter.hub.robotUser" -}}
+{{- if .Values.global.hub.auth.robotUser -}}
+    {{- .Values.global.hub.auth.robotUser -}}
+{{- else -}}
+    {{- .Values.hub.auth.robotUser -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Return hub robot user secret
+*/}}
+{{- define "adapter.hub.robotSecret" -}}
+{{- if .Values.global.hub.auth.robotSecret -}}
+    {{- .Values.global.hub.auth.robotSecret | b64enc -}}
+{{- else -}}
+    {{- .Values.hub.auth.robotSecret | b64enc -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Return the secret containing the Keycloak client secret
 */}}
 {{- define "adapter.keycloak.secretName" -}}
