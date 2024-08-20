@@ -13,7 +13,7 @@ class Settings(BaseModel):
 
     API_ROOT_PATH: str = os.getenv("API_ROOT_PATH", "")
 
-    HUB_REALM_UUID: str = os.getenv("HUB_REALM_UUID")
+    HUB_NODE_UUID: str = os.getenv("HUB_NODE_UUID")
 
     # IDP Settings
     IDP_URL: str = os.getenv("IDP_URL", "http://localhost:8080")

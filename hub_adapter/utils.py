@@ -38,8 +38,8 @@ async def unzip_query_params(
         response_query_params = {}
 
         for key in necessary_params:
-            if key.endswith("realm_id") and hub_adapter_settings.HUB_REALM_UUID:
-                value = hub_adapter_settings.HUB_REALM_UUID
+            if key.endswith("node_id") and hub_adapter_settings.HUB_NODE_UUID:
+                value = hub_adapter_settings.HUB_NODE_UUID
 
             else:
                 value = all_params.get(key)

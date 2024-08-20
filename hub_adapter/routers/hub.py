@@ -218,7 +218,7 @@ async def list_analyses_of_nodes(
     status_code=status.HTTP_200_OK,
     service_url=hub_adapter_settings.HUB_SERVICE_URL,
     response_model=AnalysisNode,
-    query_params=["include", "filter_analysis_realm_id"],
+    query_params=["include", "filter_node_id"],
 )
 async def list_specific_analysis_node(
         request: Request,
@@ -231,10 +231,10 @@ async def list_specific_analysis_node(
                 pattern="^((^|[,])(analysis|node))+$",  # Must be "node" and/or "analysis" or null,
             ),
         ] = "analysis",
-        filter_analysis_realm_id: Annotated[
+        filter_node_id: Annotated[
             uuid.UUID | None,
             Query(
-                description="Filter by analysis realm UUID.",
+                description="Filter by node UUID.",
             ),
         ] = None,
 ):
@@ -268,7 +268,7 @@ async def accept_reject_analysis_node(
     status_code=status.HTTP_200_OK,
     service_url=hub_adapter_settings.HUB_SERVICE_URL,
     response_model=AllAnalyses,
-    query_params=["include", "filter_analysis_realm_id"],
+    query_params=["include"],
 )
 async def list_all_analyses(
         request: Request,
