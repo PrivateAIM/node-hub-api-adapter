@@ -32,9 +32,13 @@ async def serialize_query_content(key, value) -> dict:
 async def unzip_query_params(
         all_params: dict[str, any],
         necessary_params: list[str] | None = None,
+        req_params=None,
 ) -> dict[str, any] | None:
     """Prepare query parameters to be added to URL of downstream microservice."""
-    if necessary_params:
+    if req_params:
+        pass
+
+    elif necessary_params:
         response_query_params = {}
 
         for key in necessary_params:
@@ -46,10 +50,6 @@ async def unzip_query_params(
 
             if not value:  # if value is None, then skip
                 continue
-
-            if key.startswith("filter_"):  # convert filter_some_param -> filter[some_param] for hub
-                filter_kw, filter_param = key.split("_", 1)
-                key = f"{filter_kw}[{filter_param}]"
 
             serialized_dict = await serialize_query_content(key=key, value=value)
             response_query_params.update(serialized_dict)

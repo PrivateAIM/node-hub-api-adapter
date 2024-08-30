@@ -104,6 +104,7 @@ def route(
         description: str | None = None,
         pre_processing_func: str | None = None,
         post_processing_func: str | None = None,
+        all_query_params: bool = False,
         # params from fastapi http methods can be added here later and then added to `request_method()`
 ):
     """A decorator for the FastAPI router, its purpose is to make FastAPI
@@ -143,6 +144,8 @@ def route(
         Method from the pre_processing module to apply to the kwargs. E.g. format_dict
     post_processing_func: str | None
         Method from the post_processing module to apply to the response. E.g. parse_something
+    all_query_params: bool
+        Whether to accept all query params passed within the request. Defaults to False.
 
 
     Returns
@@ -184,9 +187,11 @@ def route(
                 kwargs = f(kwargs)
 
             # Prepare query params
+            wildcard_params = request.query_params if all_query_params else None
             request_query = await unzip_query_params(
                 necessary_params=query_params,
-                all_params=kwargs
+                all_params=kwargs,
+                req_params=wildcard_params,
             )
 
             # Prepare body and form data

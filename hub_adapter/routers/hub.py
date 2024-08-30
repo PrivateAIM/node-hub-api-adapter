@@ -3,12 +3,12 @@ import uuid
 from typing import Annotated
 
 import httpx
-from fastapi import APIRouter, Query, Path, Depends, HTTPException, Security, Form, Body
+from fastapi import APIRouter, Path, Depends, HTTPException, Form, Body
 from starlette import status
 from starlette.requests import Request
 from starlette.responses import Response
 
-from hub_adapter.auth import add_hub_jwt, verify_idp_token, idp_oauth2_scheme_pass, httpbearer
+from hub_adapter.auth import add_hub_jwt
 from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.constants import REGISTRY_PROJECT_ID, EXTERNAL_NAME, HOST, REGISTRY, CONTENT_LENGTH, ACCOUNT_NAME, \
     ACCOUNT_SECRET
@@ -19,7 +19,7 @@ from hub_adapter.models.hub import Project, AllProjects, ProjectNode, ListProjec
 
 hub_router = APIRouter(
     dependencies=[
-        Security(verify_idp_token), Security(idp_oauth2_scheme_pass), Security(httpbearer),
+        # Security(verify_idp_token), Security(idp_oauth2_scheme_pass), Security(httpbearer),
         Depends(add_hub_jwt),
     ],
     tags=["Hub"],
@@ -38,16 +38,6 @@ hub_router = APIRouter(
 async def list_all_projects(
         request: Request,
         response: Response,
-        include: Annotated[
-            str | None,
-            Query(
-                description="Whether to include additional data. Can only be 'master_image' or null",
-                pattern="^master_image$",  # Must be "master_image",
-            ),
-        ] = None,
-        filter_id: Annotated[uuid.UUID, Query(description="Filter by object UUID.")] = None,
-        filter_realm_id: Annotated[uuid.UUID, Query(description="Filter by realm UUID.")] = None,
-        filter_user_id: Annotated[uuid.UUID, Query(description="Filter by user UUID.")] = None,
 ):
     """List all projects."""
     pass
@@ -65,7 +55,6 @@ async def list_specific_project(
         project_id: Annotated[uuid.UUID, Path(description="Project UUID.")],
         request: Request,
         response: Response,
-        filter_realm_id: Annotated[uuid.UUID, Query(description="Filter by realm UUID.")] = None,
 ):
     """List project for a given UUID."""
     pass
@@ -83,43 +72,6 @@ async def list_specific_project(
 async def list_project_proposals(
         request: Request,
         response: Response,
-        include: Annotated[
-            str | None,
-            Query(
-                description="Whether to include additional data for the given parameter. Choices: 'node'/'project'",
-                pattern="^((^|[,])(project|node))+$",
-            ),
-        ] = "project,node",
-        filter_id: Annotated[
-            uuid.UUID | None,
-            Query(
-                description="Filter by ID of returned object.",
-            ),
-        ] = None,
-        filter_project_id: Annotated[
-            uuid.UUID | None,
-            Query(
-                description="Filter by project UUID.",
-            ),
-        ] = None,
-        filter_project_realm_id: Annotated[
-            uuid.UUID | None,
-            Query(
-                description="Filter by project realm UUID.",
-            ),
-        ] = None,
-        filter_node_id: Annotated[
-            uuid.UUID | None,
-            Query(
-                description="Filter by node UUID.",
-            ),
-        ] = None,
-        filter_node_realm_id: Annotated[
-            uuid.UUID | None,
-            Query(
-                description="Filter by node realm UUID.",
-            ),
-        ] = None,
 ):
     """List project proposals."""
     pass
@@ -158,55 +110,6 @@ async def accept_reject_project_proposal(
 async def list_analyses_of_nodes(
         request: Request,
         response: Response,
-        include: Annotated[
-            str | None,
-            Query(
-                description="Whether to include additional data for the given parameter. Can only be 'node'/'analysis'",
-                pattern="^((^|[,])(analysis|node))+$",  # Must be "node" or "analysis" or null,
-            ),
-        ] = "analysis",
-        filter_id: Annotated[
-            uuid.UUID | None,
-            Query(
-                description="Filter by ID of returned object.",
-            ),
-        ] = None,
-        filter_project_id: Annotated[
-            uuid.UUID | None,
-            Query(
-                description="Filter by project UUID.",
-            ),
-        ] = None,
-        filter_project_realm_id: Annotated[
-            uuid.UUID | None,
-            Query(
-                description="Filter by project realm UUID.",
-            ),
-        ] = None,
-        filter_node_id: Annotated[
-            uuid.UUID | None,
-            Query(
-                description="Filter by node UUID.",
-            ),
-        ] = None,
-        filter_node_realm_id: Annotated[
-            uuid.UUID | None,
-            Query(
-                description="Filter by node realm UUID.",
-            ),
-        ] = None,
-        filter_analysis_id: Annotated[
-            uuid.UUID | None,
-            Query(
-                description="Filter by analysis UUID.",
-            ),
-        ] = None,
-        filter_analysis_realm_id: Annotated[
-            uuid.UUID | None,
-            Query(
-                description="Filter by analysis realm UUID.",
-            ),
-        ] = None,
 ):
     """List analyses for a node."""
     pass
@@ -224,19 +127,6 @@ async def list_specific_analysis_node(
         request: Request,
         response: Response,
         analysis_id: Annotated[uuid.UUID, Path(description="Analysis Node UUID.")],
-        include: Annotated[
-            str | None,
-            Query(
-                description="Whether to include additional data for the given parameter. Can only be 'node'/'analysis'",
-                pattern="^((^|[,])(analysis|node))+$",  # Must be "node" and/or "analysis" or null,
-            ),
-        ] = "analysis",
-        filter_node_id: Annotated[
-            uuid.UUID | None,
-            Query(
-                description="Filter by node UUID.",
-            ),
-        ] = None,
 ):
     """List project for a given UUID."""
     pass
@@ -268,24 +158,11 @@ async def accept_reject_analysis_node(
     status_code=status.HTTP_200_OK,
     service_url=hub_adapter_settings.HUB_SERVICE_URL,
     response_model=AllAnalyses,
-    query_params=["include"],
+    all_query_params=True,
 )
 async def list_all_analyses(
         request: Request,
         response: Response,
-        include: Annotated[
-            str | None,
-            Query(
-                description="Whether to include additional data for the given parameter. Can only be 'node'/'analysis'",
-                pattern="^((^|[,])(project|master_image))+$",  # Must be "project" and/or "master_image" or null,
-            ),
-        ] = "project",
-        filter_analysis_realm_id: Annotated[
-            uuid.UUID | None,
-            Query(
-                description="Filter by analysis realm UUID.",
-            ),
-        ] = None,
 ):
     """List project for a given UUID."""
     pass
@@ -303,19 +180,6 @@ async def list_specific_analysis(
         request: Request,
         response: Response,
         analysis_id: Annotated[uuid.UUID, Path(description="Analysis UUID.")],
-        include: Annotated[
-            str | None,
-            Query(
-                description="Whether to include additional data for the given parameter. Can only be 'node'/'analysis'",
-                pattern="^((^|[,])(project|master_image))+$",  # Must be "project" and/or "master_image" or null,
-            ),
-        ] = "project",
-        filter_analysis_realm_id: Annotated[
-            uuid.UUID | None,
-            Query(
-                description="Filter by analysis realm UUID.",
-            ),
-        ] = None,
 ):
     """List project for a given UUID."""
     pass
@@ -348,13 +212,6 @@ async def update_specific_analysis(
 async def get_registry_metadata_for_project(
         request: Request,
         response: Response,
-        include: Annotated[
-            str | None,
-            Query(
-                description="Whether to include additional registry data. Can only be 'registry'",
-                pattern="^registry$",  # Must be "registry" or null,
-            ),
-        ] = REGISTRY,
 ):
     """List registry data for a project."""
     pass
@@ -479,25 +336,6 @@ async def get_analysis_image_url(
 async def list_all_analysis_buckets(
         request: Request,
         response: Response,
-        include: Annotated[
-            str | None,
-            Query(
-                description="Whether to include additional registry data. Can only be 'analysis'",
-                pattern="^analysis$",  # Must be "analysis" or null,
-            ),
-        ] = "analysis",
-        filter_analysis_id: Annotated[
-            uuid.UUID | None,
-            Query(
-                description="Filter by analysis UUID.",
-            ),
-        ] = None,
-        filter_realm_id: Annotated[
-            uuid.UUID | None,
-            Query(
-                description="Filter by realm UUID.",
-            ),
-        ] = None,
 ):
     """List analysis buckets."""
     pass
@@ -515,25 +353,6 @@ async def list_specific_analysis_buckets(
         request: Request,
         response: Response,
         bucket_id: Annotated[uuid.UUID, Path(description="Bucket UUID.")],
-        include: Annotated[
-            str | None,
-            Query(
-                description="Whether to include additional registry data. Can only be 'analysis'",
-                pattern="^analysis$",  # Must be "analysis" or null,
-            ),
-        ] = "analysis",
-        filter_analysis_id: Annotated[
-            uuid.UUID | None,
-            Query(
-                description="Filter by analysis UUID.",
-            ),
-        ] = None,
-        filter_realm_id: Annotated[
-            uuid.UUID | None,
-            Query(
-                description="Filter by realm UUID.",
-            ),
-        ] = None,
 ):
     """List analysis buckets."""
     pass
@@ -550,31 +369,6 @@ async def list_specific_analysis_buckets(
 async def list_all_analysis_bucket_files(
         request: Request,
         response: Response,
-        include: Annotated[
-            str | None,
-            Query(
-                description="Whether to include additional data for the given parameter. Choices: 'bucket'/'analysis'",
-                pattern="^((^|[,])(analysis|bucket))+$",
-            ),
-        ] = "bucket",
-        filter_analysis_id: Annotated[
-            uuid.UUID | None,
-            Query(
-                description="Filter by analysis UUID.",
-            ),
-        ] = None,
-        filter_realm_id: Annotated[
-            uuid.UUID | None,
-            Query(
-                description="Filter by realm UUID.",
-            ),
-        ] = None,
-        filter_bucket_id: Annotated[
-            uuid.UUID | None,
-            Query(
-                description="Filter by bucket UUID.",
-            ),
-        ] = None,
 ):
     """List partial analysis bucket files."""
     pass
@@ -592,31 +386,6 @@ async def list_specific_analysis_bucket_file(
         request: Request,
         response: Response,
         bucket_file_id: Annotated[uuid.UUID, Path(description="Bucket file UUID.")],
-        include: Annotated[
-            str | None,
-            Query(
-                description="Whether to include additional data for the given parameter. Choices: 'bucket'/'analysis'",
-                pattern="^((^|[,])(analysis|bucket))+$",
-            ),
-        ] = "bucket",
-        filter_analysis_id: Annotated[
-            uuid.UUID | None,
-            Query(
-                description="Filter by analysis UUID.",
-            ),
-        ] = None,
-        filter_realm_id: Annotated[
-            uuid.UUID | None,
-            Query(
-                description="Filter by realm UUID.",
-            ),
-        ] = None,
-        filter_bucket_id: Annotated[
-            uuid.UUID | None,
-            Query(
-                description="Filter by bucket UUID.",
-            ),
-        ] = None,
 ):
     """List specific partial analysis bucket file."""
     pass
