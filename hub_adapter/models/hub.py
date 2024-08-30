@@ -100,6 +100,7 @@ class Project(BaseHubResponse):
 class AllProjects(BaseModel):
     """List of all projects."""
     data: list[Project]
+    meta: dict
 
 
 class Node(BaseHubResponse):
@@ -130,6 +131,7 @@ class ProjectNode(BaseHubResponse):
 
 class ListProjectNodes(BaseModel):
     data: list[ProjectNode]
+    meta: dict
 
 
 class Analysis(BaseHubResponse):
@@ -156,6 +158,7 @@ class DetailedAnalysis(Analysis):
 class AllAnalyses(BaseModel):
     """List of all projects."""
     data: list[DetailedAnalysis]
+    meta: dict
 
 
 class AnalysisNode(BaseHubResponse):
@@ -180,6 +183,7 @@ class PartialAnalysisNode(AnalysisNode):
 
 class ListAnalysisNodes(BaseModel):
     data: list[AnalysisNode]
+    meta: dict
 
 
 class RegistryProject(BaseHubResponse):
@@ -217,6 +221,7 @@ class Bucket(BaseHubResponse):
 
 class BucketList(BaseModel):
     data: list[Bucket]
+    meta: dict
 
 
 class PartialAnalysisBucketFile(BaseHubResponse):
@@ -234,3 +239,4 @@ class PartialAnalysisBucketFile(BaseHubResponse):
 
 class PartialBucketFilesList(BaseModel):
     data: list[PartialAnalysisBucketFile]
+    meta: dict
