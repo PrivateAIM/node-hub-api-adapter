@@ -3,12 +3,12 @@ import uuid
 from typing import Annotated
 
 import httpx
-from fastapi import APIRouter, Path, Depends, HTTPException, Form, Body
+from fastapi import APIRouter, Path, Depends, HTTPException, Form, Body, Security
 from starlette import status
 from starlette.requests import Request
 from starlette.responses import Response
 
-from hub_adapter.auth import add_hub_jwt
+from hub_adapter.auth import add_hub_jwt, verify_idp_token, idp_oauth2_scheme_pass, httpbearer
 from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.constants import REGISTRY_PROJECT_ID, EXTERNAL_NAME, HOST, REGISTRY, CONTENT_LENGTH, ACCOUNT_NAME, \
     ACCOUNT_SECRET
@@ -19,7 +19,7 @@ from hub_adapter.models.hub import Project, AllProjects, ProjectNode, ListProjec
 
 hub_router = APIRouter(
     dependencies=[
-        # Security(verify_idp_token), Security(idp_oauth2_scheme_pass), Security(httpbearer),
+        Security(verify_idp_token), Security(idp_oauth2_scheme_pass), Security(httpbearer),
         Depends(add_hub_jwt),
     ],
     tags=["Hub"],
