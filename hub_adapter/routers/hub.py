@@ -33,7 +33,7 @@ hub_router = APIRouter(
     status_code=status.HTTP_200_OK,
     service_url=hub_adapter_settings.HUB_SERVICE_URL,
     response_model=AllProjects,
-    query_params=["filter_id", "filter_realm_id", "filter_user_id", "include"],
+    all_query_params=True,
 )
 async def list_all_projects(
         request: Request,
@@ -49,7 +49,7 @@ async def list_all_projects(
     status_code=status.HTTP_200_OK,
     service_url=hub_adapter_settings.HUB_SERVICE_URL,
     response_model=Project,
-    query_params=["filter_realm_id"],
+    all_query_params=True,
 )
 async def list_specific_project(
         project_id: Annotated[uuid.UUID, Path(description="Project UUID.")],
@@ -66,8 +66,7 @@ async def list_specific_project(
     status_code=status.HTTP_200_OK,
     service_url=hub_adapter_settings.HUB_SERVICE_URL,
     response_model=ListProjectNodes,
-    query_params=["include", "filter_id", "filter_project_id", "filter_project_realm_id",
-                  "filter_node_id", "filter_node_realm_id"],
+    all_query_params=True,
 )
 async def list_project_proposals(
         request: Request,
@@ -103,9 +102,7 @@ async def accept_reject_project_proposal(
     status_code=status.HTTP_200_OK,
     service_url=hub_adapter_settings.HUB_SERVICE_URL,
     response_model=ListAnalysisNodes,
-    query_params=["filter_id", "filter_project_id", "filter_project_realm_id",
-                  "filter_node_id", "filter_node_realm_id", "include"],
-    # post_processing_func="parse_containers",  # Create new EP for getting containers
+    all_query_params=True,
 )
 async def list_analyses_of_nodes(
         request: Request,
@@ -121,7 +118,7 @@ async def list_analyses_of_nodes(
     status_code=status.HTTP_200_OK,
     service_url=hub_adapter_settings.HUB_SERVICE_URL,
     response_model=AnalysisNode,
-    query_params=["include", "filter_node_id"],
+    all_query_params=True,
 )
 async def list_specific_analysis_node(
         request: Request,
@@ -174,7 +171,7 @@ async def list_all_analyses(
     status_code=status.HTTP_200_OK,
     service_url=hub_adapter_settings.HUB_SERVICE_URL,
     response_model=Analysis,
-    query_params=["include", "filter_analysis_realm_id"],
+    all_query_params=True,
 )
 async def list_specific_analysis(
         request: Request,
@@ -207,7 +204,7 @@ async def update_specific_analysis(
     status_code=status.HTTP_200_OK,
     service_url=hub_adapter_settings.HUB_SERVICE_URL,
     response_model=RegistryProject,
-    query_params=["include"],
+    all_query_params=True,
 )
 async def get_registry_metadata_for_project(
         request: Request,
@@ -347,7 +344,7 @@ async def list_all_analysis_buckets(
     status_code=status.HTTP_200_OK,
     service_url=hub_adapter_settings.HUB_SERVICE_URL,
     response_model=Bucket,
-    query_params=["include", "filter_analysis_id", "filter_realm_id"],
+    all_query_params=True,
 )
 async def list_specific_analysis_buckets(
         request: Request,
@@ -364,7 +361,7 @@ async def list_specific_analysis_buckets(
     status_code=status.HTTP_200_OK,
     service_url=hub_adapter_settings.HUB_SERVICE_URL,
     response_model=PartialBucketFilesList,
-    query_params=["include", "filter_analysis_id", "filter_realm_id", "filter_bucket_id"],
+    all_query_params=True,
 )
 async def list_all_analysis_bucket_files(
         request: Request,
@@ -380,7 +377,7 @@ async def list_all_analysis_bucket_files(
     status_code=status.HTTP_200_OK,
     service_url=hub_adapter_settings.HUB_SERVICE_URL,
     response_model=PartialAnalysisBucketFile,
-    query_params=["include", "filter_analysis_id", "filter_realm_id", "filter_bucket_id"],
+    all_query_params=True,
 )
 async def list_specific_analysis_bucket_file(
         request: Request,

@@ -190,7 +190,7 @@ def route(
             wildcard_params = request.query_params if all_query_params else None
             request_query = await unzip_query_params(
                 necessary_params=query_params,
-                all_params=kwargs,
+                additional_params=kwargs,
                 req_params=wildcard_params,
             )
 

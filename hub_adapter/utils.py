@@ -6,8 +6,6 @@ from fastapi import UploadFile
 from fastapi.routing import serialize_response
 from starlette.datastructures import FormData
 
-from hub_adapter.conf import hub_adapter_settings
-
 
 def create_request_data(
         form: dict | None,
@@ -30,23 +28,23 @@ async def serialize_query_content(key, value) -> dict:
 
 
 async def unzip_query_params(
-        all_params: dict[str, any],
+        additional_params: dict[str, any],
         necessary_params: list[str] | None = None,
         req_params=None,
 ) -> dict[str, any] | None:
     """Prepare query parameters to be added to URL of downstream microservice."""
+    response_query_params = {}
+
     if req_params:
-        pass
+        for k, v in req_params.items():
+            serialized_dict = await serialize_query_content(key=k, value=v)
+            response_query_params.update(serialized_dict)
 
     elif necessary_params:
-        response_query_params = {}
 
         for key in necessary_params:
-            if key.endswith("node_id") and hub_adapter_settings.HUB_NODE_UUID:
-                value = hub_adapter_settings.HUB_NODE_UUID
 
-            else:
-                value = all_params.get(key)
+            value = additional_params.get(key)
 
             if not value:  # if value is None, then skip
                 continue
@@ -54,9 +52,7 @@ async def unzip_query_params(
             serialized_dict = await serialize_query_content(key=key, value=value)
             response_query_params.update(serialized_dict)
 
-        return response_query_params
-
-    return
+    return response_query_params
 
 
 async def unzip_body_object(
