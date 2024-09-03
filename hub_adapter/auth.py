@@ -102,6 +102,7 @@ async def verify_idp_token(token: str = Security(idp_oauth2_scheme)) -> dict:
 
 async def get_hub_token() -> dict:
     """Automated method for getting a robot token from the central Hub service."""
+    logger.info("Retrieving JWT from Hub")
     robot_user, robot_secret = hub_adapter_settings.HUB_ROBOT_USER, hub_adapter_settings.HUB_ROBOT_SECRET
     payload = {
         "grant_type": 'robot_credentials',

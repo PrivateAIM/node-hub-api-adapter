@@ -1,4 +1,5 @@
 """EPs for Hub provided information."""
+import logging
 import os
 import uuid
 from typing import Annotated
@@ -27,36 +28,24 @@ hub_router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
-
-def get_robot_id(hub_auth_header: Annotated[dict, Depends(get_hub_token)]) -> tuple[str | None, dict, str | None]:
-    """Uses the robot username to obtain the robot ID if no node ID is present in the env vars.
-    
-    If node ID is present already in env vars, then returned robot_id is None, else node_id will be None e.g.:
-    node_id not present -> returns (robot_id, hub_jwt_header, None)
-    node_id present -> returns (None, hub_jwt_header, node_id)"""
-    node_id = os.getenv(NODE_ID)
-
-    if node_id is None:
-        robot_user = hub_adapter_settings.HUB_ROBOT_USER
-        auth_url = hub_adapter_settings.HUB_AUTH_SERVICE_URL.rstrip("/")
-        robot_id_resp = httpx.get(f"{auth_url}/robots?filter[name]={robot_user}&fields=id", headers=hub_auth_header)
-        robot_id_resp.raise_for_status()
-        robot_id = robot_id_resp.json()["data"][0]["id"]
-
-        return robot_id, hub_auth_header, None
-
-    return None, hub_auth_header, node_id
+logger = logging.getLogger(__name__)
 
 
-def get_node_id(robot_data: Annotated[tuple, Depends(get_robot_id)]) -> str:
+async def get_node_id() -> str:
     """Uses the robot ID to obtain the associated node ID, sets it in the env vars, and returns it.
     
     An empty string node_id indicates no node is associated with provided robot username."""
-    robot_id, hub_auth_header, node_id = robot_data
+    node_id = os.getenv(NODE_ID)
 
     if node_id is None:  # robot_id should not be None in this case
+        logger.info("NODE_ID not set, retrieving from Hub")
+
+        hub_auth_header = await get_hub_token()
+
+        robot_user = hub_adapter_settings.HUB_ROBOT_USER
         core_url = hub_adapter_settings.HUB_SERVICE_URL.rstrip("/")
-        node_id_resp = httpx.get(f"{core_url}/nodes?filter[robot_id]={robot_id}&fields=id", headers=hub_auth_header)
+        node_id_resp = httpx.get(f"{core_url}/nodes?filter[robot_id]={robot_user}&fields=id", headers=hub_auth_header)
+
         node_id_resp.raise_for_status()
         node_data = node_id_resp.json()["data"]
 
@@ -66,6 +55,16 @@ def get_node_id(robot_data: Annotated[tuple, Depends(get_robot_id)]) -> str:
     return node_id
 
 
+def add_node_id_filter(request: Request, node_id: Annotated[str, Depends(get_node_id)]):
+    """Middleware to add node_id filter query param to the request to limit response if node_id is found."""
+    if node_id:  # Not an empty string
+        query_ps = {k: v for k, v in request.query_params.items()}
+        query_ps["filter[node_id]"] = node_id
+        request._query_params = query_ps
+
+    return request
+
+
 @route(
     request_method=hub_router.get,
     path="/projects",
@@ -73,7 +72,6 @@ def get_node_id(robot_data: Annotated[tuple, Depends(get_robot_id)]) -> str:
     service_url=hub_adapter_settings.HUB_SERVICE_URL,
     response_model=AllProjects,
     all_query_params=True,
-    dependencies=[Depends(get_node_id)]
 )
 async def list_all_projects(
         request: Request,
@@ -107,6 +105,7 @@ async def list_specific_project(
     service_url=hub_adapter_settings.HUB_SERVICE_URL,
     response_model=ListProjectNodes,
     all_query_params=True,
+    dependencies=[Depends(add_node_id_filter)],
 )
 async def list_project_proposals(
         request: Request,
@@ -123,6 +122,7 @@ async def list_project_proposals(
     service_url=hub_adapter_settings.HUB_SERVICE_URL,
     response_model=ProjectNode,
     form_params=["approval_status"],
+    dependencies=[Depends(add_node_id_filter)],
 )
 async def accept_reject_project_proposal(
         request: Request,
@@ -143,6 +143,7 @@ async def accept_reject_project_proposal(
     service_url=hub_adapter_settings.HUB_SERVICE_URL,
     response_model=ListAnalysisNodes,
     all_query_params=True,
+    dependencies=[Depends(add_node_id_filter)],
 )
 async def list_analyses_of_nodes(
         request: Request,
@@ -159,6 +160,7 @@ async def list_analyses_of_nodes(
     service_url=hub_adapter_settings.HUB_SERVICE_URL,
     response_model=AnalysisNode,
     all_query_params=True,
+    dependencies=[Depends(add_node_id_filter)],
 )
 async def list_specific_analysis_node(
         request: Request,
@@ -426,16 +428,3 @@ async def list_specific_analysis_bucket_file(
 ):
     """List specific partial analysis bucket file."""
     pass
-
-
-def add_node_filter():
-    """Add the node ID filter to the request to create a node-specific response.
-    
-    If no node is associated with the robot account, then no filter will be applied.
-    """
-    node_id = os.getenv("NODE_ID")
-    if node_id:
-        pass
-
-    else:  # Was obtained
-        os.environ["NODE_ID"] = node_id

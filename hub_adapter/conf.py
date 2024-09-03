@@ -12,8 +12,6 @@ class Settings(BaseModel):
 
     API_ROOT_PATH: str = os.getenv("API_ROOT_PATH", "")
 
-    HUB_NODE_ID: str | None = None
-
     # IDP Settings
     IDP_URL: str = os.getenv("IDP_URL", "http://localhost:8080")
     IDP_REALM: str = os.getenv("IDP_REALM", "flame")
