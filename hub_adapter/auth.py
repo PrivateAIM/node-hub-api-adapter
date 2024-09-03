@@ -4,7 +4,8 @@ import logging
 import httpx
 from fastapi import Security, HTTPException
 from fastapi.security import OAuth2AuthorizationCodeBearer, OAuth2PasswordBearer, HTTPBearer
-from jose import jwt, JOSEError
+from jose import jwt, JOSEError, ExpiredSignatureError
+from jose.exceptions import JWTClaimsError
 from starlette import status
 from starlette.datastructures import MutableHeaders
 from starlette.requests import Request
@@ -74,7 +75,7 @@ async def verify_idp_token(token: str = Security(idp_oauth2_scheme)) -> dict:
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    except jwt.ExpiredSignatureError:
+    except ExpiredSignatureError:
         err_msg = "Authorization token expired"
         logger.error(f"{status.HTTP_401_UNAUTHORIZED} - {err_msg}")
         raise HTTPException(
@@ -82,7 +83,7 @@ async def verify_idp_token(token: str = Security(idp_oauth2_scheme)) -> dict:
             detail=err_msg
         )
 
-    except jwt.JWTClaimsError:
+    except JWTClaimsError:
         err_msg = "Incorrect claims, check the audience and issuer."
         logger.error(f"{status.HTTP_401_UNAUTHORIZED} - {err_msg}")
         raise HTTPException(
@@ -101,6 +102,7 @@ async def verify_idp_token(token: str = Security(idp_oauth2_scheme)) -> dict:
 
 async def get_hub_token() -> dict:
     """Automated method for getting a robot token from the central Hub service."""
+    logger.debug("Retrieving JWT from Hub")
     robot_user, robot_secret = hub_adapter_settings.HUB_ROBOT_USER, hub_adapter_settings.HUB_ROBOT_SECRET
     payload = {
         "grant_type": 'robot_credentials',

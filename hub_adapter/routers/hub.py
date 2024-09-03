@@ -1,4 +1,6 @@
 """EPs for Hub provided information."""
+import logging
+import os
 import uuid
 from typing import Annotated
 
@@ -8,10 +10,10 @@ from starlette import status
 from starlette.requests import Request
 from starlette.responses import Response
 
-from hub_adapter.auth import add_hub_jwt, verify_idp_token, idp_oauth2_scheme_pass, httpbearer
+from hub_adapter.auth import add_hub_jwt, get_hub_token, httpbearer, idp_oauth2_scheme_pass, verify_idp_token
 from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.constants import REGISTRY_PROJECT_ID, EXTERNAL_NAME, HOST, REGISTRY, CONTENT_LENGTH, ACCOUNT_NAME, \
-    ACCOUNT_SECRET
+    ACCOUNT_SECRET, NODE_ID
 from hub_adapter.core import route
 from hub_adapter.models.hub import Project, AllProjects, ProjectNode, ListProjectNodes, \
     AnalysisNode, ListAnalysisNodes, RegistryProject, AnalysisImageUrl, ApprovalStatus, AllAnalyses, BucketList, \
@@ -25,6 +27,42 @@ hub_router = APIRouter(
     tags=["Hub"],
     responses={404: {"description": "Not found"}},
 )
+
+logger = logging.getLogger(__name__)
+
+
+async def get_node_id() -> str:
+    """Uses the robot ID to obtain the associated node ID, sets it in the env vars, and returns it.
+    
+    An empty string node_id indicates no node is associated with provided robot username."""
+    node_id = os.getenv(NODE_ID)
+
+    if node_id is None:
+        logger.info("NODE_ID not set, retrieving from Hub")
+
+        hub_auth_header = await get_hub_token()
+
+        robot_user = hub_adapter_settings.HUB_ROBOT_USER
+        core_url = hub_adapter_settings.HUB_SERVICE_URL.rstrip("/")
+        node_id_resp = httpx.get(f"{core_url}/nodes?filter[robot_id]={robot_user}&fields=id", headers=hub_auth_header)
+
+        node_id_resp.raise_for_status()
+        node_data = node_id_resp.json()["data"]
+
+        node_id = node_data[0]["id"] if node_data else ""
+        os.environ[NODE_ID] = node_id
+
+    return node_id
+
+
+def add_node_id_filter(request: Request, node_id: Annotated[str, Depends(get_node_id)]):
+    """Middleware to add node_id filter query param to the request to limit response if node_id is found."""
+    if node_id:  # Not an empty string
+        query_ps = {k: v for k, v in request.query_params.items()}
+        query_ps["filter[node_id]"] = node_id
+        request._query_params = query_ps
+
+    return request
 
 
 @route(
@@ -67,6 +105,7 @@ async def list_specific_project(
     service_url=hub_adapter_settings.HUB_SERVICE_URL,
     response_model=ListProjectNodes,
     all_query_params=True,
+    dependencies=[Depends(add_node_id_filter)],
 )
 async def list_project_proposals(
         request: Request,
@@ -83,6 +122,7 @@ async def list_project_proposals(
     service_url=hub_adapter_settings.HUB_SERVICE_URL,
     response_model=ProjectNode,
     form_params=["approval_status"],
+    dependencies=[Depends(add_node_id_filter)],
 )
 async def accept_reject_project_proposal(
         request: Request,
@@ -103,6 +143,7 @@ async def accept_reject_project_proposal(
     service_url=hub_adapter_settings.HUB_SERVICE_URL,
     response_model=ListAnalysisNodes,
     all_query_params=True,
+    dependencies=[Depends(add_node_id_filter)],
 )
 async def list_analyses_of_nodes(
         request: Request,
@@ -119,6 +160,7 @@ async def list_analyses_of_nodes(
     service_url=hub_adapter_settings.HUB_SERVICE_URL,
     response_model=AnalysisNode,
     all_query_params=True,
+    dependencies=[Depends(add_node_id_filter)],
 )
 async def list_specific_analysis_node(
         request: Request,
