@@ -31,11 +31,12 @@ logh_format = logging.Formatter(
 logHandler.setFormatter(logh_format)
 logHandler.setLevel(logging.DEBUG)
 
+main_logger.addHandler(logHandler)
+
 # Console Handler
 streamHandler = logging.StreamHandler()
 stream_format = logging.Formatter("%(asctime)s - %(levelname)s: %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
 streamHandler.setFormatter(stream_format)
 streamHandler.setLevel(logging.INFO)
 
-main_logger.addHandler(logHandler)
 main_logger.addHandler(streamHandler)

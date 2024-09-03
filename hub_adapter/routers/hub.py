@@ -37,7 +37,7 @@ async def get_node_id() -> str:
     An empty string node_id indicates no node is associated with provided robot username."""
     node_id = os.getenv(NODE_ID)
 
-    if node_id is None:  # robot_id should not be None in this case
+    if node_id is None:
         logger.info("NODE_ID not set, retrieving from Hub")
 
         hub_auth_header = await get_hub_token()
