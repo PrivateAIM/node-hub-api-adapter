@@ -66,7 +66,7 @@ async def make_request(
         r = await client.request(url=url, method=method, params=query, json=data, files=files, follow_redirects=True)
 
         logger.info(
-            f'HTTP Request: {method.upper()} {url} "{r.http_version} {r.status_code} {r.reason_phrase}"',
+            f'HTTP Request: {method.upper()} {r.url} "{r.http_version} {r.status_code}"',
         )
 
         r.raise_for_status()

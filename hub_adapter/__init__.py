@@ -10,11 +10,12 @@ log_dir = root_dir.joinpath("logs")
 log_dir.mkdir(parents=True, exist_ok=True)
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.WARNING,
     force=True,
 )
 
 main_logger = logging.getLogger("hub_adapter")
+main_logger.setLevel(logging.DEBUG)
 
 # Log Handler
 logHandler = handlers.RotatingFileHandler(
@@ -34,9 +35,9 @@ logHandler.setLevel(logging.DEBUG)
 main_logger.addHandler(logHandler)
 
 # Console Handler
-streamHandler = logging.StreamHandler()
-stream_format = logging.Formatter("%(asctime)s - %(levelname)s: %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
-streamHandler.setFormatter(stream_format)
-streamHandler.setLevel(logging.INFO)
-
-main_logger.addHandler(streamHandler)
+# streamHandler = logging.StreamHandler()
+# stream_format = logging.Formatter("%(asctime)s - %(levelname)s: %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+# streamHandler.setFormatter(stream_format)
+# streamHandler.setLevel(logging.INFO)
+# 
+# main_logger.addHandler(streamHandler)
