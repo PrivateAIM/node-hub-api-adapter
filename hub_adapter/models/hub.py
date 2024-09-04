@@ -176,7 +176,7 @@ class AllAnalyses(BaseModel):
 class AnalysisNode(BaseHubResponse):
     """Node analysis response model."""
     approval_status: ApprovalStatus
-    run_status: str | None = None
+    run_status: AnalysisNodeRunStatus | None = None
     comment: str | None = None
     index: int
     artifact_tag: str | None = None
