@@ -3,20 +3,20 @@ import logging
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Path, Depends
+from fastapi import APIRouter, Path, Depends, Security
 from starlette import status
 from starlette.requests import Request
 from starlette.responses import Response
 
-from hub_adapter.auth import add_hub_jwt
+from hub_adapter.auth import add_hub_jwt, verify_idp_token, idp_oauth2_scheme_pass, httpbearer
 from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.core import route
-from hub_adapter.models.podorc import LogResponse, StatusResponse, PodResponse, CreatePodResponse
+from hub_adapter.models.podorc import LogResponse, StatusResponse, CreatePodResponse, PodResponse
 from hub_adapter.routers.hub import synthesize_image_data
 
 po_router = APIRouter(
     dependencies=[
-        # Security(verify_idp_token), Security(idp_oauth2_scheme_pass), Security(httpbearer),
+        Security(verify_idp_token), Security(idp_oauth2_scheme_pass), Security(httpbearer),
     ],
     tags=["PodOrc"],
     responses={404: {"description": "Not found"}},

@@ -30,6 +30,17 @@ class AnalysisBuildStatus(Enum):
     failed: str = "failed"
 
 
+class AnalysisNodeRunStatus(Enum):
+    """Possible values for analysis run status."""
+    running: str = "running"
+    starting: str = "starting"
+    started: str = "started"
+    stopping: str = "stopping"
+    stopped: str = "stopped"
+    finished: str = "finished"
+    failed: str = "failed"
+
+
 class AnalysisRunStatus(Enum):
     """Possible values for analysis run status."""
     running: str = "running"
@@ -145,6 +156,7 @@ class Analysis(BaseHubResponse):
     realm_id: uuid.UUID
     user_id: uuid.UUID | None = None
     project_id: uuid.UUID
+    project: Project | None = None
     master_image_id: uuid.UUID | None = None
 
 

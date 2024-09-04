@@ -19,7 +19,7 @@ class StatusResponse(BaseModel):
 
 
 class PodResponse(BaseModel):
-    pods: dict | None = None
+    pods: list | None = None
 
 
 class CreatePodResponse(BaseModel):
