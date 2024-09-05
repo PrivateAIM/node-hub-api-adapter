@@ -233,7 +233,7 @@ def route(
                 logger.error(err_msg)
                 raise HTTPException(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail=err_msg,
+                    detail={"message": err_msg, "service": service_tags[0]},
                     headers={"WWW-Authenticate": "Bearer"},
                 )
 
