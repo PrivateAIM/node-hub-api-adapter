@@ -1,8 +1,10 @@
 """EPs for Hub provided information."""
 import logging
-import os
+import pickle
 import uuid
+
 from typing import Annotated
+from pathlib import Path
 
 import httpx
 from fastapi import APIRouter, Path, Depends, HTTPException, Form, Body, Security
@@ -10,10 +12,11 @@ from starlette import status
 from starlette.requests import Request
 from starlette.responses import Response
 
+from hub_adapter import node_id_pickle_path
 from hub_adapter.auth import add_hub_jwt, get_hub_token, httpbearer, idp_oauth2_scheme_pass, verify_idp_token
 from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.constants import REGISTRY_PROJECT_ID, EXTERNAL_NAME, HOST, REGISTRY, CONTENT_LENGTH, ACCOUNT_NAME, \
-    ACCOUNT_SECRET, NODE_ID
+    ACCOUNT_SECRET
 from hub_adapter.core import route
 from hub_adapter.models.hub import Project, AllProjects, ProjectNode, ListProjectNodes, \
     AnalysisNode, ListAnalysisNodes, RegistryProject, AnalysisImageUrl, ApprovalStatus, AllAnalyses, BucketList, \
@@ -35,9 +38,8 @@ async def get_node_id() -> str:
     """Uses the robot ID to obtain the associated node ID, sets it in the env vars, and returns it.
     
     An empty string node_id indicates no node is associated with provided robot username."""
-    node_id = os.getenv(NODE_ID)
 
-    if node_id is None:
+    if not node_id_pickle_path.is_file():
         logger.info("NODE_ID not set, retrieving from Hub")
 
         hub_auth_header = await get_hub_token()
@@ -50,7 +52,13 @@ async def get_node_id() -> str:
         node_data = node_id_resp.json()["data"]
 
         node_id = node_data[0]["id"] if node_data else ""
-        os.environ[NODE_ID] = node_id
+        
+        with open(node_id_pickle_path, "wb") as f:
+            pickle.dump(node_id, f)
+
+    else:
+        with open(node_id_pickle_path, "rb") as f:
+            node_id = pickle.load(f)
 
     return node_id
 

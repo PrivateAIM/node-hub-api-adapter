@@ -4,8 +4,13 @@ import logging.handlers as handlers
 
 from pathlib import Path
 
-# Logging
 root_dir = Path(__file__).parent.resolve()
+
+# Node ID Pickle
+node_id_pickle_path = root_dir.parent.resolve().joinpath('nodeId')
+
+# Logging
+
 log_dir = root_dir.joinpath("logs")
 log_dir.mkdir(parents=True, exist_ok=True)
 
