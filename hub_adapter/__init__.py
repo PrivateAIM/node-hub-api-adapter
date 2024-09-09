@@ -7,7 +7,9 @@ from pathlib import Path
 root_dir = Path(__file__).parent.resolve()
 
 # Node ID Pickle
-node_id_pickle_path = root_dir.parent.resolve().joinpath('nodeId')
+cache_dir = root_dir.parent.resolve().joinpath("cache")
+cache_dir.mkdir(parents=True, exist_ok=True)
+node_id_pickle_path = cache_dir.joinpath('nodeId')
 
 # Logging
 
