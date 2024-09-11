@@ -6,7 +6,7 @@ keycloak:
     enabled: true
     nameOverride: keycloak-postgresql
     auth:
-      postgresPassword: "foo"  # TODO remove!! Not needed since secret is provided
+      postgresPassword: ""
       username: keycloak  # custom user
       password: keycloak  # custom user pwd
       database: keycloak
