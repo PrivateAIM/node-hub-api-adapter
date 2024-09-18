@@ -19,7 +19,8 @@ class CreateAnalysis(BaseModel):
 
 
 class LogResponse(BaseModel):
-    logs: dict | None = None
+    analysis: dict | None = None
+    nginx: dict | None = None
 
 
 class StatusResponse(BaseModel):

@@ -63,6 +63,23 @@ async def get_analysis_logs(
 
 @route(
     request_method=po_router.get,
+    path="/po/{analysis_id}/history",
+    status_code=status.HTTP_200_OK,
+    service_url=hub_adapter_settings.PODORC_SERVICE_URL,
+    response_model=LogResponse,
+    query_params=["analysis_id"],
+)
+async def get_analysis_log_history(
+        request: Request,
+        response: Response,
+        analysis_id: Annotated[uuid.UUID | None, Path(description="UUID of the analysis.")],
+):
+    """Get the previous logs for a specific analysis."""
+    pass
+
+
+@route(
+    request_method=po_router.get,
     path="/po/{analysis_id}/status",
     status_code=status.HTTP_200_OK,
     response_model=StatusResponse,
