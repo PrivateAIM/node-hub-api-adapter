@@ -4,7 +4,6 @@ import pickle
 import uuid
 
 from typing import Annotated
-from pathlib import Path
 
 import httpx
 from fastapi import APIRouter, Path, Depends, HTTPException, Form, Body, Security
@@ -38,9 +37,18 @@ async def get_node_id() -> str:
     """Uses the robot ID to obtain the associated node ID, sets it in the env vars, and returns it.
     
     An empty string node_id indicates no node is associated with provided robot username."""
+    robot_user = hub_adapter_settings.HUB_ROBOT_USER
 
-    if not node_id_pickle_path.is_file():
-        logger.info("NODE_ID not set, retrieving from Hub")
+    node_cache = {}
+    node_id = None
+    if node_id_pickle_path.is_file():
+        with open(node_id_pickle_path, "rb") as f:
+            node_cache = pickle.load(f)
+
+        node_id = node_cache.get(robot_user)  # Returns None if key not in dict or '' if no Node ID was found
+
+    if robot_user not in node_cache:  # Node ID may be None since not every robot is associated with a node
+        logger.info("NODE_ID not set for ROBOT_USER, retrieving from Hub")
 
         hub_auth_header = await get_hub_token()
 
@@ -52,13 +60,10 @@ async def get_node_id() -> str:
         node_data = node_id_resp.json()["data"]
 
         node_id = node_data[0]["id"] if node_data else ""
-        
-        with open(node_id_pickle_path, "wb") as f:
-            pickle.dump(node_id, f)
+        node_cache[robot_user] = node_id
 
-    else:
-        with open(node_id_pickle_path, "rb") as f:
-            node_id = pickle.load(f)
+        with open(node_id_pickle_path, "wb") as f:
+            pickle.dump(node_cache, f)
 
     return node_id
 
