@@ -100,9 +100,9 @@ class MasterImage(BaseHubResponse):
 
 class Project(BaseHubResponse):
     """Single project response model."""
-    name: str
-    analyses: int
-    realm_id: uuid.UUID
+    name: str | None = None
+    analyses: int | None = None
+    realm_id: uuid.UUID | None = None
     user_id: uuid.UUID | None = None
     master_image_id: uuid.UUID | None = None
     master_image: MasterImage | None = None
@@ -117,20 +117,20 @@ class AllProjects(BaseModel):
 class Node(BaseHubResponse):
     """Node details."""
     external_name: str | None = None
-    name: str
-    hidden: bool
-    type: str
-    online: bool
+    name: str | None = None
+    hidden: bool | None = None
+    type: str | None = None
+    online: bool | None = None
     registry_id: uuid.UUID | None = None
     registry_project_id: uuid.UUID | None = None
-    robot_id: uuid.UUID
-    realm_id: uuid.UUID
+    robot_id: uuid.UUID | None = None
+    realm_id: uuid.UUID | None = None
 
 
 class ProjectNode(BaseHubResponse):
     """Single project proposal."""
 
-    approval_status: ApprovalStatus
+    approval_status: ApprovalStatus | None = None
     comment: str | None = None
     project_id: uuid.UUID | None = None
     project_realm_id: uuid.UUID | None = None
@@ -148,14 +148,14 @@ class ListProjectNodes(BaseModel):
 class Analysis(BaseHubResponse):
     """Model representing a single detailed analysis."""
     name: str | None = None
-    nodes: int
+    nodes: int | None = None
     configuration_status: ConfigurationStatus | None = None
     build_status: AnalysisBuildStatus | None = None
     run_status: AnalysisRunStatus | None = None
     registry_id: uuid.UUID | None = None
-    realm_id: uuid.UUID
+    realm_id: uuid.UUID | None = None
     user_id: uuid.UUID | None = None
-    project_id: uuid.UUID
+    project_id: uuid.UUID | None = None
     project: Project | None = None
     master_image_id: uuid.UUID | None = None
 
@@ -175,16 +175,16 @@ class AllAnalyses(BaseModel):
 
 class AnalysisNode(BaseHubResponse):
     """Node analysis response model."""
-    approval_status: ApprovalStatus
+    approval_status: ApprovalStatus | None = None
     run_status: AnalysisNodeRunStatus | None = None
     comment: str | None = None
-    index: int
+    index: int | None = None
     artifact_tag: str | None = None
     artifact_digest: str | None = None
-    analysis_id: uuid.UUID
-    analysis_realm_id: uuid.UUID
-    node_id: uuid.UUID
-    node_realm_id: uuid.UUID
+    analysis_id: uuid.UUID | None = None
+    analysis_realm_id: uuid.UUID | None = None
+    node_id: uuid.UUID | None = None
+    node_realm_id: uuid.UUID | None = None
     analysis: DetailedAnalysis | None = None
     node: Node | None = None
 
@@ -200,8 +200,8 @@ class ListAnalysisNodes(BaseModel):
 
 class RegistryProject(BaseHubResponse):
     name: str | None = None
-    type: str
-    public: bool
+    type: str | None = None
+    public: bool | None = None
     external_name: str | None = None
     external_id: str | None = None
     webhook_name: str | None = None
@@ -224,7 +224,7 @@ class AnalysisImageUrl(BaseModel):
 
 class Bucket(BaseHubResponse):
     """Bucket data."""
-    type: BucketType
+    type: BucketType | None = None
     external_id: str | None = None
     analysis_id: uuid.UUID | None = None
     analysis: DetailedAnalysis | None = None
@@ -238,7 +238,7 @@ class BucketList(BaseModel):
 
 class PartialAnalysisBucketFile(BaseHubResponse):
     name: str | None = None
-    root: bool
+    root: bool | None = None
     external_id: str | None = None
     bucket_id: uuid.UUID | None = None
     bucket: Bucket | None = None
