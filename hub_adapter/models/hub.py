@@ -75,9 +75,9 @@ class ConfigurationStatus(Enum):
 
 class BaseHubResponse(BaseModel):
     """Common attributes of Hub responses."""
-    id: uuid.UUID
-    created_at: datetime.datetime
-    updated_at: datetime.datetime
+    id: uuid.UUID | None = None
+    created_at: datetime.datetime | None = None
+    updated_at: datetime.datetime | None = None
 
 
 class Registry(BaseHubResponse):
@@ -90,10 +90,10 @@ class Registry(BaseHubResponse):
 
 class MasterImage(BaseHubResponse):
     """Master image details."""
-    path: str
-    virtual_path: str
-    group_virtual_path: str
-    name: str
+    path: str | None = None
+    virtual_path: str | None = None
+    group_virtual_path: str | None = None
+    name: str | None = None
     command: str | None = None
     command_arguments: str | None = None
 
