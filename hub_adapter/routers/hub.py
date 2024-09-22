@@ -383,7 +383,7 @@ async def get_analysis_image_url(
     status_code=status.HTTP_200_OK,
     service_url=hub_adapter_settings.HUB_SERVICE_URL,
     response_model=BucketList,
-    query_params=["include", "filter_analysis_id", "filter_realm_id"],
+    all_query_params=True,
 )
 async def list_all_analysis_buckets(
         request: Request,
