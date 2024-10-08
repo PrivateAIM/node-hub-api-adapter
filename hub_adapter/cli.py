@@ -1,4 +1,5 @@
 """Command line interface."""
+
 import logging
 import sys
 
@@ -8,7 +9,9 @@ import uvicorn
 logger = logging.getLogger(__name__)
 
 
-@click.group(help="FLAME API Gateway Command Line Utilities on {}".format(sys.executable))
+@click.group(
+    help="FLAME API Gateway Command Line Utilities on {}".format(sys.executable)
+)
 @click.version_option()
 def main():
     """Entry method."""

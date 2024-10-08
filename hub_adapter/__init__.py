@@ -1,4 +1,5 @@
 """Package initialization."""
+
 import logging
 import logging.handlers as handlers
 
@@ -9,7 +10,7 @@ root_dir = Path(__file__).parent.resolve()
 # Node ID Pickle
 cache_dir = root_dir.parent.resolve().joinpath("cache")
 cache_dir.mkdir(parents=True, exist_ok=True)
-node_id_pickle_path = cache_dir.joinpath('nodeId')
+node_id_pickle_path = cache_dir.joinpath("nodeId")
 
 # Logging
 
@@ -34,7 +35,7 @@ logHandler = handlers.RotatingFileHandler(
 )
 logh_format = logging.Formatter(
     fmt="%(levelname)s - %(module)s:L%(lineno)d - %(asctime)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S"
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
 logHandler.setFormatter(logh_format)
 logHandler.setLevel(logging.DEBUG)
@@ -46,5 +47,5 @@ main_logger.addHandler(logHandler)
 # stream_format = logging.Formatter("%(asctime)s - %(levelname)s: %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
 # streamHandler.setFormatter(stream_format)
 # streamHandler.setLevel(logging.INFO)
-# 
+#
 # main_logger.addHandler(streamHandler)

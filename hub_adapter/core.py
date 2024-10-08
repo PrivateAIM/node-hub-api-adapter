@@ -13,20 +13,25 @@ from starlette.responses import Response, FileResponse
 
 from hub_adapter import post_processing, pre_processing
 from hub_adapter.constants import CONTENT_TYPE
-from hub_adapter.utils import unzip_form_params, unzip_body_object, create_request_data, unzip_query_params, \
-    unzip_file_params
+from hub_adapter.utils import (
+    unzip_form_params,
+    unzip_body_object,
+    create_request_data,
+    unzip_query_params,
+    unzip_file_params,
+)
 
 logger = logging.getLogger(__name__)
 
 
 async def make_request(
-        url: str,
-        method: str,
-        headers: Headers | dict,
-        query: dict | None = None,
-        data: dict | None = None,
-        files: dict | None = None,
-        file_response: bool = False,
+    url: str,
+    method: str,
+    headers: Headers | dict,
+    query: dict | None = None,
+    data: dict | None = None,
+    files: dict | None = None,
+    file_response: bool = False,
 ) -> tuple[[JSONResponse | StreamingResponse], int]:
     """Make an asynchronous request by creating a temporary session.
 
@@ -63,7 +68,14 @@ async def make_request(
         files = {}
 
     async with httpx.AsyncClient(headers=headers, timeout=60.0) as client:
-        r = await client.request(url=url, method=method, params=query, json=data, files=files, follow_redirects=True)
+        r = await client.request(
+            url=url,
+            method=method,
+            params=query,
+            json=data,
+            files=files,
+            follow_redirects=True,
+        )
 
         logger.info(
             f'HTTP Request: {method.upper()} {r.url} "{r.http_version} {r.status_code}"',
@@ -76,11 +88,14 @@ async def make_request(
                 temp_file.write(r.content)
 
             filename = url.split("/")[-1]  # Get the UUID of object
-            return FileResponse(
-                temp_file.name,
-                headers=r.headers,
-                filename=filename,
-            ), r.status_code
+            return (
+                FileResponse(
+                    temp_file.name,
+                    headers=r.headers,
+                    filename=filename,
+                ),
+                r.status_code,
+            )
 
         else:  # Hopefully a JSONResponse
             resp_data = r.json()
@@ -88,24 +103,24 @@ async def make_request(
 
 
 def route(
-        request_method,
-        path: str,
-        service_url: str,
-        status_code: int | None = None,
-        query_params: list[str] | None = None,
-        form_params: list[str] | None = None,
-        body_params: list[str] | None = None,
-        file_params: list[str] | None = None,
-        file_response: bool = False,
-        response_model: any = None,  # TODO: Make specific for pydantic models
-        tags: list[str] = None,
-        dependencies: Sequence[params.Depends] | None = None,
-        summary: str | None = None,
-        description: str | None = None,
-        pre_processing_func: str | None = None,
-        post_processing_func: str | None = None,
-        all_query_params: bool = False,
-        # params from fastapi http methods can be added here later and then added to `request_method()`
+    request_method,
+    path: str,
+    service_url: str,
+    status_code: int | None = None,
+    query_params: list[str] | None = None,
+    form_params: list[str] | None = None,
+    body_params: list[str] | None = None,
+    file_params: list[str] | None = None,
+    file_response: bool = False,
+    response_model: any = None,  # TODO: Make specific for pydantic models
+    tags: list[str] = None,
+    dependencies: Sequence[params.Depends] | None = None,
+    summary: str | None = None,
+    description: str | None = None,
+    pre_processing_func: str | None = None,
+    post_processing_func: str | None = None,
+    all_query_params: bool = False,
+    # params from fastapi http methods can be added here later and then added to `request_method()`
 ):
     """A decorator for the FastAPI router, its purpose is to make FastAPI
     acts as a gateway API in front of available microservices.
@@ -174,12 +189,20 @@ def route(
             downstream_path = scope["path"]
 
             content_type = str(request.headers.get(CONTENT_TYPE))
-            www_request_form = await request.form() if 'x-www-form-urlencoded' in content_type else None
+            www_request_form = (
+                await request.form()
+                if "x-www-form-urlencoded" in content_type
+                else None
+            )
 
             # Prune headers
             request_headers = dict(request.headers)
-            request_headers.pop("content-length", None)  # Let httpx configure content-length
-            request_headers.pop("content-type", None)  # Let httpx configure content-type
+            request_headers.pop(
+                "content-length", None
+            )  # Let httpx configure content-length
+            request_headers.pop(
+                "content-type", None
+            )  # Let httpx configure content-type
             request_headers.pop("host", None)
 
             if pre_processing_func:  # all used pp functions found in post_processing
@@ -203,15 +226,16 @@ def route(
             request_form = await unzip_form_params(
                 request_form=www_request_form,  # Specific form passed
                 specified_params=form_params,  # Specific form keys passed i.e. uploaded file
-                additional_params=kwargs
+                additional_params=kwargs,
             )
 
             request_files = await unzip_file_params(
-                specified_params=file_params,
-                additional_params=kwargs
+                specified_params=file_params, additional_params=kwargs
             )
 
-            request_data = create_request_data(form=request_form, body=request_body)  # Either JSON or Form
+            request_data = create_request_data(
+                form=request_form, body=request_body
+            )  # Either JSON or Form
 
             microsvc_path = f"{service_url}{downstream_path}"
 
@@ -227,9 +251,11 @@ def route(
                 )
 
             except ConnectError:
-                err_msg = (f'HTTP Request: {method.upper()} {microsvc_path} '
-                           f'- HTTP Status: {status.HTTP_503_SERVICE_UNAVAILABLE} - Service is unavailable. '
-                           f'Check the {service_tags[0]} service at {service_url}')
+                err_msg = (
+                    f"HTTP Request: {method.upper()} {microsvc_path} "
+                    f"- HTTP Status: {status.HTTP_503_SERVICE_UNAVAILABLE} - Service is unavailable. "
+                    f"Check the {service_tags[0]} service at {service_url}"
+                )
                 logger.error(err_msg)
                 raise HTTPException(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -239,7 +265,7 @@ def route(
 
             except DecodingError:
                 logger.error(
-                    f'HTTP Request: {method.upper()} {microsvc_path} '
+                    f"HTTP Request: {method.upper()} {microsvc_path} "
                     f'"- HTTP Status: {status.HTTP_500_INTERNAL_SERVER_ERROR} - Service error"',
                 )
                 raise HTTPException(
@@ -249,7 +275,9 @@ def route(
                 )
 
             except HTTPStatusError as http_error:
-                err_msg = f'HTTP Request: {method.upper()} {microsvc_path} - {http_error}'
+                err_msg = (
+                    f"HTTP Request: {method.upper()} {microsvc_path} - {http_error}"
+                )
                 logger.error(err_msg)
                 raise HTTPException(
                     status_code=http_error.response.status_code,
