@@ -236,7 +236,6 @@ async def create_data_store():
     pass
 
 
-@kong_router.get("/project", response_model=ListRoutes, status_code=status.HTTP_200_OK)
 async def list_projects(
     project_id: Annotated[
         uuid.UUID | None, Query(description="UUID of project.")
@@ -292,6 +291,20 @@ async def list_projects(
             detail=f"Service error: {e}",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+
+@kong_router.get(
+    "/project",
+    response_model=ListRoutes,
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(list_projects)],
+)
+async def get_projects():
+    """List all projects (referred to as routes by kong) available, can be filtered by project_id.
+
+    Set "detailed" to True to include detailed information on the linked data stores.
+    """
+    pass
 
 
 async def create_route_to_datastore(
@@ -537,10 +550,20 @@ async def list_analyses(
     status_code=status.HTTP_202_ACCEPTED,
 )
 async def create_and_connect_analysis_to_project(
-    project_id: Annotated[str, Body(description="UUID or name of the project")],
-    analysis_id: Annotated[str, Body(description="UUID or name of the analysis")],
+    project_id: Annotated[uuid.UUID, Body(description="UUID or name of the project")],
+    analysis_id: Annotated[uuid.UUID, Body(description="UUID or name of the analysis")],
 ):
     """Create a new analysis and link it to a project."""
+    proj_resp = await list_projects(project_id=project_id, detailed=False)
+    mapped_projects = {proj["id"] for proj in proj_resp.data}
+
+    if project_id not in mapped_projects:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Associated project not mapped to a data store",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
     response = {}
     username = f"{analysis_id}-{realm}"
