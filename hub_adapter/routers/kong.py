@@ -1,25 +1,46 @@
 """EPs for the kong service."""
+
 import logging
 import uuid
 from typing import Annotated
 
 import kong_admin_client
-from fastapi import APIRouter, HTTPException, Body, Path, Query, Security
-from kong_admin_client import CreateServiceRequest, Service, CreateRouteRequest, CreatePluginForConsumerRequest, \
-    CreateConsumerRequest, CreateAclForConsumerRequest, CreateKeyAuthForConsumerRequest
+from fastapi import APIRouter, HTTPException, Body, Path, Query, Security, Depends
+from kong_admin_client import (
+    CreateServiceRequest,
+    Service,
+    CreateRouteRequest,
+    CreatePluginForConsumerRequest,
+    CreateConsumerRequest,
+    CreateAclForConsumerRequest,
+    CreateKeyAuthForConsumerRequest,
+)
 from kong_admin_client.rest import ApiException
 from starlette import status
 
 from hub_adapter.auth import verify_idp_token, idp_oauth2_scheme_pass, httpbearer
 from hub_adapter.conf import hub_adapter_settings
-from hub_adapter.models.kong import ServiceRequest, HttpMethodCode, ProtocolCode, LinkDataStoreProject, \
-    DeleteProject, LinkProjectAnalysis, ListRoutes, ListServices, ListConsumers
+from hub_adapter.models.kong import (
+    ServiceRequest,
+    HttpMethodCode,
+    ProtocolCode,
+    LinkDataStoreProject,
+    DeleteProject,
+    LinkProjectAnalysis,
+    ListRoutes,
+    ListServices,
+    ListConsumers,
+)
 
 kong_router = APIRouter(
-    dependencies=[Security(verify_idp_token), Security(idp_oauth2_scheme_pass), Security(httpbearer)],
+    dependencies=[
+        Security(verify_idp_token),
+        Security(idp_oauth2_scheme_pass),
+        Security(httpbearer),
+    ],
     tags=["Kong"],
     responses={404: {"description": "Not found"}},
-    prefix="/kong"
+    prefix="/kong",
 )
 
 logger = logging.getLogger(__name__)
@@ -27,9 +48,13 @@ kong_admin_url = hub_adapter_settings.KONG_ADMIN_SERVICE_URL
 realm = hub_adapter_settings.IDP_REALM
 
 
-@kong_router.get("/datastore", response_model=ListServices, status_code=status.HTTP_200_OK)
+@kong_router.get(
+    "/datastore", response_model=ListServices, status_code=status.HTTP_200_OK
+)
 async def list_data_stores(
-        detailed: Annotated[bool, Query(description="Whether to include detailed information on projects")] = False,
+    detailed: Annotated[
+        bool, Query(description="Whether to include detailed information on projects")
+    ] = False,
 ):
     """List all available data stores (referred to as services by kong)."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
@@ -80,10 +105,18 @@ async def list_data_stores(
         )
 
 
-@kong_router.get("/datastore/{data_store_name}", response_model=ListServices, status_code=status.HTTP_200_OK)
+@kong_router.get(
+    "/datastore/{data_store_name}",
+    response_model=ListServices,
+    status_code=status.HTTP_200_OK,
+)
 async def list_specific_data_store(
-        data_store_name: Annotated[str | None, Path(description="Unique name of the data store.")],
-        detailed: Annotated[bool, Query(description="Whether to include detailed information on projects")] = False,
+    data_store_name: Annotated[
+        str | None, Path(description="Unique name of the data store.")
+    ],
+    detailed: Annotated[
+        bool, Query(description="Whether to include detailed information on projects")
+    ] = False,
 ):
     """List all available data stores (referred to as services by kong)."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
@@ -136,7 +169,7 @@ async def list_specific_data_store(
 
 @kong_router.delete("/datastore/{data_store_name}", status_code=status.HTTP_200_OK)
 async def delete_data_store(
-        data_store_name: Annotated[str, Path(description="Unique name of the data store.")]
+    data_store_name: Annotated[str, Path(description="Unique name of the data store.")]
 ):
     """Delete the listed data store (referred to as services by kong)."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
@@ -165,12 +198,17 @@ async def delete_data_store(
         )
 
 
-@kong_router.post("/datastore", response_model=Service, status_code=status.HTTP_201_CREATED)
+@kong_router.post(
+    "/datastore", response_model=Service, status_code=status.HTTP_201_CREATED
+)
 async def create_data_store(
-        data: Annotated[ServiceRequest, Body(
+    data: Annotated[
+        ServiceRequest,
+        Body(
             description="Required information for creating a new data store.",
-            title="Data store metadata."
-        )]
+            title="Data store metadata.",
+        ),
+    ]
 ):
     """Create a datastore (referred to as services by kong) by providing necessary metadata."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
@@ -208,8 +246,13 @@ async def create_data_store(
 
 @kong_router.get("/project", response_model=ListRoutes, status_code=status.HTTP_200_OK)
 async def list_projects(
-        project_id: Annotated[uuid.UUID | None, Query(description="UUID of project.")] = None,
-        detailed: Annotated[bool, Query(description="Whether to include detailed information on data stores")] = False,
+    project_id: Annotated[
+        uuid.UUID | None, Query(description="UUID of project.")
+    ] = None,
+    detailed: Annotated[
+        bool,
+        Query(description="Whether to include detailed information on data stores"),
+    ] = False,
 ):
     """List all projects (referred to as routes by kong) available, can be filtered by project_id.
 
@@ -224,7 +267,9 @@ async def list_projects(
             api_response = api_instance.list_route(tags=project)
 
             for route in api_response.data:
-                logger.info(f"Project {project_id} connected to data store id: {route.service.id}")
+                logger.info(
+                    f"Project {project_id} connected to data store id: {route.service.id}"
+                )
 
             if len(api_response.data) == 0:
                 logger.info("No routes found.")
@@ -264,17 +309,22 @@ async def list_projects(
 
 @kong_router.post("/project", response_model=LinkDataStoreProject)
 async def create_and_connect_project_to_datastore(
-        data_store_id: Annotated[uuid.UUID, Body(description="UUID of the data store or 'gateway'")],
-        project_id: Annotated[uuid.UUID, Body(description="UUID of the project")],
-        methods: Annotated[
-            list[HttpMethodCode],
-            Body(description="List of acceptable HTTP methods")
-        ] = ["GET", "POST", "PUT", "DELETE"],
-        protocols: Annotated[
-            list[ProtocolCode],
-            Body(description="List of acceptable transfer protocols. A combo of 'http', 'grpc', 'grpcs', 'tls', 'tcp'")
-        ] = ["http"],
-        ds_type: Annotated[str, Body(description="Data store type. Either 's3' or 'fhir'")] = "fhir",
+    data_store_id: Annotated[
+        uuid.UUID, Body(description="UUID of the data store or 'gateway'")
+    ],
+    project_id: Annotated[uuid.UUID, Body(description="UUID of the project")],
+    methods: Annotated[
+        list[HttpMethodCode], Body(description="List of acceptable HTTP methods")
+    ] = ["GET"],
+    protocols: Annotated[
+        list[ProtocolCode],
+        Body(
+            description="List of acceptable transfer protocols. A combo of 'http', 'grpc', 'grpcs', 'tls', 'tcp'"
+        ),
+    ] = ["http"],
+    ds_type: Annotated[
+        str, Body(description="Data store type. Either 's3' or 'fhir'")
+    ] = "fhir",
 ):
     """Connect a project to a data store (referred to as a route by kong)."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
@@ -390,9 +440,26 @@ async def create_and_connect_project_to_datastore(
     return response
 
 
-@kong_router.delete("/project/{project_id}", status_code=status.HTTP_200_OK, response_model=DeleteProject)
+@kong_router.post(
+    "/base",
+    response_model=LinkDataStoreProject,
+    dependencies=[
+        Depends(create_data_store),
+        Depends(create_and_connect_project_to_datastore),
+    ],
+)
+async def create_datastore_and_project_with_link():
+    """Creates a new datastore (service) and a new project (route), then links them together."""
+    pass
+
+
+@kong_router.delete(
+    "/project/{project_id}",
+    status_code=status.HTTP_200_OK,
+    response_model=DeleteProject,
+)
 async def delete_project(
-        project_id: Annotated[uuid.UUID, Path(description="UUID of project to be deleted")]
+    project_id: Annotated[uuid.UUID, Path(description="UUID of project to be deleted")]
 ):
     """Disconnect a project from all connected data stores (i.e. delete the "route")."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
@@ -444,9 +511,13 @@ async def delete_project(
         )
 
 
-@kong_router.get("/analysis", response_model=ListConsumers, status_code=status.HTTP_200_OK)
+@kong_router.get(
+    "/analysis", response_model=ListConsumers, status_code=status.HTTP_200_OK
+)
 async def list_analyses(
-        analysis_id: Annotated[uuid.UUID | None, Query(description="UUID of the analysis.")] = None,
+    analysis_id: Annotated[
+        uuid.UUID | None, Query(description="UUID of the analysis.")
+    ] = None,
 ):
     """List all analyses (referred to as consumers by kong) available, can be filtered by analysis_id."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
@@ -456,7 +527,9 @@ async def list_analyses(
         with kong_admin_client.ApiClient(configuration) as api_client:
             api_instance = kong_admin_client.ConsumersApi(api_client)
             if analysis_id:
-                api_response = api_instance.get_consumer(consumer_username_or_id=username)
+                api_response = api_instance.get_consumer(
+                    consumer_username_or_id=username
+                )
                 api_response = {"data": [api_response]}
 
             else:
@@ -479,10 +552,14 @@ async def list_analyses(
         )
 
 
-@kong_router.post("/analysis", response_model=LinkProjectAnalysis, status_code=status.HTTP_202_ACCEPTED)
+@kong_router.post(
+    "/analysis",
+    response_model=LinkProjectAnalysis,
+    status_code=status.HTTP_202_ACCEPTED,
+)
 async def create_and_connect_analysis_to_project(
-        project_id: Annotated[str, Body(description="UUID or name of the project")],
-        analysis_id: Annotated[str, Body(description="UUID or name of the analysis")],
+    project_id: Annotated[str, Body(description="UUID or name of the project")],
+    analysis_id: Annotated[str, Body(description="UUID or name of the analysis")],
 ):
     """Create a new analysis and link it to a project."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
@@ -583,7 +660,9 @@ async def create_and_connect_analysis_to_project(
 
 @kong_router.delete("/analysis/{analysis_id}", status_code=status.HTTP_200_OK)
 async def delete_analysis(
-        analysis_id: Annotated[str, Path(description="UUID or unique name of the analysis.")]
+    analysis_id: Annotated[
+        str, Path(description="UUID or unique name of the analysis.")
+    ]
 ):
     """Delete the listed analysis."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
