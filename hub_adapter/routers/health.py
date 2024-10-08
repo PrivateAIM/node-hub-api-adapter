@@ -1,4 +1,5 @@
 """EPs for checking the API health and the health of the downstream microservices."""
+
 import logging
 
 import httpx

@@ -1,9 +1,11 @@
 """Models for configuration settings."""
+
 from pydantic import BaseModel
 
 
 class AuthConfiguration(BaseModel):
     """Auth config model."""
+
     server_url: str
     realm: str
     client_id: str
@@ -16,6 +18,7 @@ class AuthConfiguration(BaseModel):
 
 class Token(BaseModel):
     """IDP token model."""
+
     access_token: str
     token_type: str
     expires_in: int

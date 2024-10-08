@@ -1,4 +1,5 @@
 """EPs for Results service."""
+
 import uuid
 
 from fastapi import APIRouter, UploadFile, Security
@@ -12,7 +13,11 @@ from hub_adapter.core import route
 from hub_adapter.models.results import ResultsUploadResponse
 
 results_router = APIRouter(
-    dependencies=[Security(verify_idp_token), Security(idp_oauth2_scheme_pass), Security(httpbearer)],
+    dependencies=[
+        Security(verify_idp_token),
+        Security(idp_oauth2_scheme_pass),
+        Security(httpbearer),
+    ],
     tags=["Results"],
     responses={404: {"description": "Not found"}},
 )
@@ -27,9 +32,9 @@ results_router = APIRouter(
     file_response=True,
 )
 async def retrieve_intermediate_result_from_local(
-        object_id: uuid.UUID,
-        request: Request,
-        response: Response,
+    object_id: uuid.UUID,
+    request: Request,
+    response: Response,
 ):
     """Get a local result as file from local storage."""
     pass
@@ -44,9 +49,9 @@ async def retrieve_intermediate_result_from_local(
     file_params=["file"],
 )
 async def submit_intermediate_result_to_local(
-        file: UploadFile,
-        request: Request,
-        response: Response,
+    file: UploadFile,
+    request: Request,
+    response: Response,
 ):
     pass
 
@@ -60,9 +65,9 @@ async def submit_intermediate_result_to_local(
     file_response=True,
 )
 async def retrieve_intermediate_result_from_hub(
-        object_id: uuid.UUID,
-        request: Request,
-        response: Response,
+    object_id: uuid.UUID,
+    request: Request,
+    response: Response,
 ):
     """Get an intermediate result as file from the FLAME Hub."""
     pass
@@ -77,9 +82,9 @@ async def retrieve_intermediate_result_from_hub(
     file_params=["file"],
 )
 async def submit_intermediate_result_to_hub(
-        file: UploadFile,
-        request: Request,
-        response: Response,
+    file: UploadFile,
+    request: Request,
+    response: Response,
 ):
     """Upload a file as an intermediate result to the FLAME Hub. Returns a 202 on success.
 
@@ -96,9 +101,9 @@ async def submit_intermediate_result_to_hub(
     file_params=["file"],
 )
 async def submit_final_result_to_hub(
-        file: UploadFile,
-        request: Request,
-        response: Response,
+    file: UploadFile,
+    request: Request,
+    response: Response,
 ):
     """Upload final results to FLAME Hub"""
     pass

@@ -16,7 +16,10 @@ from hub_adapter.routers.results import results_router
 # API metadata
 tags_metadata = [
     {"name": "Auth", "description": "Endpoints for authorization specific tasks."},
-    {"name": "Health", "description": "Endpoints for checking the health of this API and the downstream services."},
+    {
+        "name": "Health",
+        "description": "Endpoints for checking the health of this API and the downstream services.",
+    },
     {"name": "Hub", "description": "Endpoints for the central Hub service."},
     {"name": "Kong", "description": "Endpoints for the Kong gateway service."},
     {"name": "PodOrc", "description": "Endpoints for the Pod Orchestration service."},
@@ -49,7 +52,14 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
-routers = (po_router, results_router, hub_router, kong_router, health_router, auth_router)
+routers = (
+    po_router,
+    results_router,
+    hub_router,
+    kong_router,
+    health_router,
+    auth_router,
+)
 
 for router in routers:
     app.include_router(router)

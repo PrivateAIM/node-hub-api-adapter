@@ -1,13 +1,14 @@
 """Models for the pod orchestrator end points."""
+
 from enum import Enum
 
 from pydantic import BaseModel
 
 
 class AnalysisStatus(Enum):
-    CREATED = 'created'
-    RUNNING = 'running'
-    STOPPED = 'stopped'
+    CREATED = "created"
+    RUNNING = "running"
+    STOPPED = "stopped"
 
 
 class CreateAnalysis(BaseModel):
