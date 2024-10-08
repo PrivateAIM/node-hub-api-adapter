@@ -9,12 +9,14 @@ from pydantic import BaseModel
 
 class ApprovalStatus(Enum):
     """Status of project possibilities."""
+
     approved: str = "approved"
     rejected: str = "rejected"
 
 
 class BucketType(Enum):
     """Bucket types."""
+
     CODE: str = "CODE"
     RESULT: str = "RESULT"
     TEMP: str = "TEMP"
@@ -22,6 +24,7 @@ class BucketType(Enum):
 
 class AnalysisBuildStatus(Enum):
     """Possible values for analysis build status."""
+
     starting: str = "starting"
     started: str = "started"
     stopping: str = "stopping"
@@ -32,6 +35,7 @@ class AnalysisBuildStatus(Enum):
 
 class AnalysisNodeRunStatus(Enum):
     """Possible values for analysis run status."""
+
     running: str = "running"
     starting: str = "starting"
     started: str = "started"
@@ -43,6 +47,7 @@ class AnalysisNodeRunStatus(Enum):
 
 class AnalysisRunStatus(Enum):
     """Possible values for analysis run status."""
+
     running: str = "running"
     starting: str = "starting"
     started: str = "started"
@@ -54,6 +59,7 @@ class AnalysisRunStatus(Enum):
 
 class AnalysisResultStatus(Enum):
     """Possible values for analysis build status."""
+
     started: str = "started"
     downloading: str = "downloading"
     downloaded: str = "downloaded"
@@ -64,7 +70,8 @@ class AnalysisResultStatus(Enum):
 
 
 class ConfigurationStatus(Enum):
-    """"Possible values for configuration status."""
+    """ "Possible values for configuration status."""
+
     base: str = "base"
     security_configured: str = "security_configured"
     resource_configured: str = "resource_configured"
@@ -75,6 +82,7 @@ class ConfigurationStatus(Enum):
 
 class BaseHubResponse(BaseModel):
     """Common attributes of Hub responses."""
+
     id: uuid.UUID | None = None
     created_at: datetime.datetime | None = None
     updated_at: datetime.datetime | None = None
@@ -82,6 +90,7 @@ class BaseHubResponse(BaseModel):
 
 class Registry(BaseHubResponse):
     """Details the registry information."""
+
     name: str | None = None
     host: str | None = None
     account_name: str | None = None
@@ -90,6 +99,7 @@ class Registry(BaseHubResponse):
 
 class MasterImage(BaseHubResponse):
     """Master image details."""
+
     path: str | None = None
     virtual_path: str | None = None
     group_virtual_path: str | None = None
@@ -100,6 +110,7 @@ class MasterImage(BaseHubResponse):
 
 class Project(BaseHubResponse):
     """Single project response model."""
+
     name: str | None = None
     analyses: int | None = None
     realm_id: uuid.UUID | None = None
@@ -110,12 +121,14 @@ class Project(BaseHubResponse):
 
 class AllProjects(BaseModel):
     """List of all projects."""
+
     data: list[Project]
     meta: dict
 
 
 class Node(BaseHubResponse):
     """Node details."""
+
     external_name: str | None = None
     name: str | None = None
     hidden: bool | None = None
@@ -147,6 +160,7 @@ class ListProjectNodes(BaseModel):
 
 class Analysis(BaseHubResponse):
     """Model representing a single detailed analysis."""
+
     name: str | None = None
     nodes: int | None = None
     configuration_status: ConfigurationStatus | None = None
@@ -162,6 +176,7 @@ class Analysis(BaseHubResponse):
 
 class DetailedAnalysis(Analysis):
     """Model representing a single detailed analysis."""
+
     registry: Registry | None = None
     project: Project | None = None
     master_image: MasterImage | None = None
@@ -169,12 +184,14 @@ class DetailedAnalysis(Analysis):
 
 class AllAnalyses(BaseModel):
     """List of all projects."""
+
     data: list[DetailedAnalysis]
     meta: dict
 
 
 class AnalysisNode(BaseHubResponse):
     """Node analysis response model."""
+
     approval_status: ApprovalStatus | None = None
     run_status: AnalysisNodeRunStatus | None = None
     comment: str | None = None
@@ -224,6 +241,7 @@ class AnalysisImageUrl(BaseModel):
 
 class Bucket(BaseHubResponse):
     """Bucket data."""
+
     type: BucketType | None = None
     external_id: str | None = None
     analysis_id: uuid.UUID | None = None

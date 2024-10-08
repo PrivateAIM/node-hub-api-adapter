@@ -7,10 +7,7 @@ from fastapi.routing import serialize_response
 from starlette.datastructures import FormData
 
 
-def create_request_data(
-        form: dict | None,
-        body: dict | None
-) -> dict | None:
+def create_request_data(form: dict | None, body: dict | None) -> dict | None:
     """Package data into JSON or form depending on what is present."""
     return form or body  # If form then return form else return body i.e. JSON
 
@@ -28,9 +25,9 @@ async def serialize_query_content(key, value) -> dict:
 
 
 async def unzip_query_params(
-        additional_params: dict[str, any],
-        necessary_params: list[str] | None = None,
-        req_params=None,
+    additional_params: dict[str, any],
+    necessary_params: list[str] | None = None,
+    req_params=None,
 ) -> dict[str, any] | None:
     """Prepare query parameters to be added to URL of downstream microservice."""
     response_query_params = {}
@@ -56,8 +53,8 @@ async def unzip_query_params(
 
 
 async def unzip_body_object(
-        additional_params: dict[str, any],
-        specified_params: list[str] | None = None,
+    additional_params: dict[str, any],
+    specified_params: list[str] | None = None,
 ) -> dict | None:
     """Gather body data and package for forwarding."""
     if specified_params:
@@ -72,9 +69,9 @@ async def unzip_body_object(
 
 
 async def unzip_form_params(
-        additional_params: dict[str, any],
-        specified_params: list[str] | None = None,
-        request_form: FormData | None = None,
+    additional_params: dict[str, any],
+    specified_params: list[str] | None = None,
+    request_form: FormData | None = None,
 ) -> dict | None:
     """Gather form data and package for forwarding."""
     if specified_params or request_form:
@@ -93,8 +90,8 @@ async def unzip_form_params(
 
 
 async def unzip_file_params(
-        additional_params: dict[str, any],
-        specified_params: list[str] | None = None,
+    additional_params: dict[str, any],
+    specified_params: list[str] | None = None,
 ) -> dict | None:
     """Gather binary or text data and package for forwarding."""
     if specified_params:

@@ -1,4 +1,5 @@
 """Auth related endpoints."""
+
 from typing import Annotated
 
 import httpx
@@ -25,15 +26,16 @@ auth_router = APIRouter(
     response_model=Token,
 )
 def get_token(
-        username: Annotated[str, Form(description="Keycloak username")],
-        password: Annotated[str, Form(description="Keycloak password")],
-        # client_id: Annotated[None, Body(description="Keycloak Client ID")] = None,
-        # client_secret: Annotated[None, Body(description="Keycloak Client ID")] = None,
+    username: Annotated[str, Form(description="Keycloak username")],
+    password: Annotated[str, Form(description="Keycloak password")],
+    # client_id: Annotated[None, Body(description="Keycloak Client ID")] = None,
+    # client_secret: Annotated[None, Body(description="Keycloak Client ID")] = None,
 ) -> Token:
-    """Get a JWT from the IDP by passing a valid username and password. 
-    
+    """Get a JWT from the IDP by passing a valid username and password.
+
     This token can then be used to authenticate
-    yourself with this API. If no client ID/secret is provided, it will be autofilled using the hub adapter."""
+    yourself with this API. If no client ID/secret is provided, it will be autofilled using the hub adapter.
+    """
     payload = {
         "username": username,
         "password": password,
@@ -59,7 +61,7 @@ def get_token(
     status_code=status.HTTP_200_OK,
 )
 def inspect_token(
-        token: Annotated[str, Body(description="JSON web token")],
+    token: Annotated[str, Body(description="JSON web token")],
 ) -> dict:
     """Return information about the provided token."""
     public_key = (
@@ -82,8 +84,8 @@ def inspect_token(
     service_url=realm_idp_settings.authorization_url,
 )
 async def authorize(
-        request: Request,
-        response: Response,
+    request: Request,
+    response: Response,
 ):
     """Check token authorization."""
     pass
@@ -96,8 +98,8 @@ async def authorize(
     service_url=realm_idp_settings.user_info,
 )
 async def user_info(
-        request: Request,
-        response: Response,
+    request: Request,
+    response: Response,
 ):
     """Get user information."""
     pass
