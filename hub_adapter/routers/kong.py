@@ -97,7 +97,7 @@ async def list_data_stores(
 
     except ApiException as e:
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            status_code=e.status,
             detail=str(e),
             headers={"WWW-Authenticate": "Bearer"},
         )
@@ -138,7 +138,7 @@ async def list_specific_data_store(
 
     except ApiException as e:
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            status_code=e.status,
             detail=str(e),
             headers={"WWW-Authenticate": "Bearer"},
         )
@@ -169,7 +169,7 @@ async def delete_data_store(
 
     except ApiException as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=e.status,
             detail=str(e),
             headers={"WWW-Authenticate": "Bearer"},
         )
@@ -212,7 +212,7 @@ async def create_consumer(
 
     except ApiException as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=e.status,
             detail=str(e),
             headers={"WWW-Authenticate": "Bearer"},
         )
@@ -281,7 +281,7 @@ async def list_projects(
 
     except ApiException as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=e.status,
             detail=str(e),
             headers={"WWW-Authenticate": "Bearer"},
         )
@@ -518,7 +518,7 @@ async def list_analyses(
 
     except ApiException as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=e.status,
             detail=str(e),
             headers={"WWW-Authenticate": "Bearer"},
         )
