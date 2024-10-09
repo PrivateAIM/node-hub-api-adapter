@@ -550,14 +550,19 @@ async def list_analyses(
     status_code=status.HTTP_202_ACCEPTED,
 )
 async def create_and_connect_analysis_to_project(
-    project_id: Annotated[uuid.UUID, Body(description="UUID or name of the project")],
-    analysis_id: Annotated[uuid.UUID, Body(description="UUID or name of the analysis")],
+    project_id: Annotated[str, Body(description="UUID or name of the project")],
+    analysis_id: Annotated[str, Body(description="UUID or name of the analysis")],
 ):
     """Create a new analysis and link it to a project."""
-    proj_resp = await list_projects(project_id=project_id, detailed=False)
-    mapped_projects = {proj["id"] for proj in proj_resp.data}
+    proj_resp = await list_projects(project_id=uuid.UUID(project_id), detailed=False)
 
-    if project_id not in mapped_projects:
+    # Tags are used to annotate routes (projects) with datastore type and original project ID
+    route_tags = set()
+    for proj in proj_resp.data:
+        route_tags.update(proj.tags)
+
+    # UUID must be cast to str to check in set since tags are strings
+    if project_id not in route_tags:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Associated project not mapped to a data store",
