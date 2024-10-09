@@ -547,7 +547,7 @@ async def list_analyses(
 @kong_router.post(
     "/analysis",
     response_model=LinkProjectAnalysis,
-    status_code=status.HTTP_202_ACCEPTED,
+    status_code=status.HTTP_201_CREATED,
 )
 async def create_and_connect_analysis_to_project(
     project_id: Annotated[str, Body(description="UUID or name of the project")],
