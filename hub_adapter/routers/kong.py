@@ -190,7 +190,7 @@ async def delete_data_store(
         return status.HTTP_200_OK
 
 
-async def create_consumer(
+async def create_service(
     datastore: Annotated[
         ServiceRequest,
         Body(
@@ -237,7 +237,7 @@ async def create_consumer(
     "/datastore",
     response_model=Service,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(create_consumer)],
+    dependencies=[Depends(create_service)],
 )
 async def create_data_store():
     """Create a datastore (referred to as services by kong) by providing necessary metadata."""
@@ -429,7 +429,7 @@ async def create_project_and_connect_to_datastore(
     response_model=LinkDataStoreProject,
 )
 async def create_datastore_and_project_with_link(
-    datastore: Annotated[Service, Depends(create_consumer)],
+    datastore: Annotated[Service, Depends(create_service)],
     project_id: Annotated[uuid.UUID, Body(description="UUID of the project")],
     methods: Annotated[
         list[HttpMethodCode], Body(description="List of acceptable HTTP methods")
@@ -544,34 +544,34 @@ async def get_analyses(
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
     username = f"{analysis_id}-{realm}"
 
-    try:
-        with kong_admin_client.ApiClient(configuration) as api_client:
-            api_instance = kong_admin_client.ConsumersApi(api_client)
+    with kong_admin_client.ApiClient(configuration) as api_client:
+        try:
+            consumer_api = kong_admin_client.ConsumersApi(api_client)
             if analysis_id:
-                api_response = api_instance.get_consumer(
+                api_response = consumer_api.get_consumer(
                     consumer_username_or_id=username,
                     tags=tag,
                 )
                 api_response = {"data": [api_response]}
 
             else:
-                api_response = api_instance.list_consumer(tags=tag)
+                api_response = consumer_api.list_consumer(tags=tag)
 
             return api_response
 
-    except ApiException as e:
-        raise HTTPException(
-            status_code=e.status,
-            detail=str(e),
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        except ApiException as e:
+            raise HTTPException(
+                status_code=e.status,
+                detail=str(e),
+                headers={"WWW-Authenticate": "Bearer"},
+            )
 
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Service error: {e}",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Service error: {e}",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
 
 
 @kong_router.post(
@@ -603,11 +603,10 @@ async def create_and_connect_analysis_to_project(
     response = {}
     username = f"{analysis_id}-{realm}"
 
-    try:
-        with kong_admin_client.ApiClient(configuration) as api_client:
-            api_instance = kong_admin_client.ConsumersApi(api_client)
-
-            api_response = api_instance.create_consumer(
+    with kong_admin_client.ApiClient(configuration) as api_client:
+        try:
+            consumer_api = kong_admin_client.ConsumersApi(api_client)
+            api_response = consumer_api.create_consumer(
                 CreateConsumerRequest(
                     username=username,
                     custom_id=username,
@@ -619,78 +618,78 @@ async def create_and_connect_analysis_to_project(
             consumer_id = api_response.id
             response["consumer"] = api_response
 
-    except ApiException as e:
-        raise HTTPException(
-            status_code=e.status,
-            detail=str(e),
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Service error: {e}",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    # Configure acl plugin for consumer
-    try:
-        with kong_admin_client.ApiClient(configuration) as api_client:
-            api_instance = kong_admin_client.ACLsApi(api_client)
-            api_response = api_instance.create_acl_for_consumer(
-                consumer_id,
-                CreateAclForConsumerRequest(
-                    group=project_id,
-                    tags=[str(project_id)],
-                ),
+        except ApiException as e:
+            raise HTTPException(
+                status_code=e.status,
+                detail=str(e),
+                headers={"WWW-Authenticate": "Bearer"},
             )
-            logger.info(
-                f"ACL plugin configured for consumer, group: {api_response.group}"
+
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Service error: {e}",
+                headers={"WWW-Authenticate": "Bearer"},
             )
-            response["acl"] = api_response
 
-    except ApiException as e:
-        raise HTTPException(
-            status_code=e.status,
-            detail=str(e),
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        # Configure acl plugin for consumer
+        try:
+            with kong_admin_client.ApiClient(configuration) as api_client:
+                acl_api = kong_admin_client.ACLsApi(api_client)
+                api_response = acl_api.create_acl_for_consumer(
+                    consumer_id,
+                    CreateAclForConsumerRequest(
+                        group=project_id,
+                        tags=[str(project_id)],
+                    ),
+                )
+                logger.info(
+                    f"ACL plugin configured for consumer, group: {api_response.group}"
+                )
+                response["acl"] = api_response
 
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Service error: {e}",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    # Configure key-auth plugin for consumer
-    try:
-        with kong_admin_client.ApiClient(configuration) as api_client:
-            api_instance = kong_admin_client.KeyAuthsApi(api_client)
-            api_response = api_instance.create_key_auth_for_consumer(
-                consumer_id,
-                CreateKeyAuthForConsumerRequest(
-                    tags=[str(project_id)],
-                ),
+        except ApiException as e:
+            raise HTTPException(
+                status_code=e.status,
+                detail=str(e),
+                headers={"WWW-Authenticate": "Bearer"},
             )
-            logger.info(
-                f"Key authentication plugin configured for consumer, api_key: {api_response.key}"
+
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Service error: {e}",
+                headers={"WWW-Authenticate": "Bearer"},
             )
-            response["keyauth"] = api_response
 
-    except ApiException as e:
-        raise HTTPException(
-            status_code=e.status,
-            detail=str(e),
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        # Configure key-auth plugin for consumer
+        try:
+            with kong_admin_client.ApiClient(configuration) as api_client:
+                keyauth_api = kong_admin_client.KeyAuthsApi(api_client)
+                api_response = keyauth_api.create_key_auth_for_consumer(
+                    consumer_id,
+                    CreateKeyAuthForConsumerRequest(
+                        tags=[str(project_id)],
+                    ),
+                )
+                logger.info(
+                    f"Key authentication plugin configured for consumer, api_key: {api_response.key}"
+                )
+                response["keyauth"] = api_response
 
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Service error: {e}",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        except ApiException as e:
+            raise HTTPException(
+                status_code=e.status,
+                detail=str(e),
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Service error: {e}",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
 
     return response
 
