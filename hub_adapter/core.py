@@ -32,7 +32,7 @@ async def make_request(
     data: dict | None = None,
     files: dict | None = None,
     file_response: bool = False,
-) -> tuple[[JSONResponse | StreamingResponse], int]:
+) -> tuple[[JSONResponse | StreamingResponse], int] | tuple[FileResponse, int]:
     """Make an asynchronous request by creating a temporary session.
 
     Parameters

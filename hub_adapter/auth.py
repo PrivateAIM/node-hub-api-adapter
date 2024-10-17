@@ -1,9 +1,14 @@
 """Handle the authorization and authentication of services."""
+
 import logging
 
 import httpx
 from fastapi import Security, HTTPException
-from fastapi.security import OAuth2AuthorizationCodeBearer, OAuth2PasswordBearer, HTTPBearer
+from fastapi.security import (
+    OAuth2AuthorizationCodeBearer,
+    OAuth2PasswordBearer,
+    HTTPBearer,
+)
 from jose import jwt, JOSEError, ExpiredSignatureError
 from jose.exceptions import JWTClaimsError
 from starlette import status
@@ -15,7 +20,11 @@ from hub_adapter.models.conf import AuthConfiguration, Token
 
 logger = logging.getLogger(__name__)
 
-IDP_ISSUER_URL = hub_adapter_settings.IDP_URL.rstrip("/") + "/" + "/".join(["realms", hub_adapter_settings.IDP_REALM])
+IDP_ISSUER_URL = (
+    hub_adapter_settings.IDP_URL.rstrip("/")
+    + "/"
+    + "/".join(["realms", hub_adapter_settings.IDP_REALM])
+)
 
 # IDP i.e. Keycloak
 realm_idp_settings = AuthConfiguration(
@@ -38,7 +47,7 @@ idp_oauth2_scheme_pass = OAuth2PasswordBearer(tokenUrl=realm_idp_settings.token_
 
 httpbearer = HTTPBearer(
     scheme_name="JWT",
-    description="Pass a valid JWT here for authentication. Can be obtained from /token endpoint."
+    description="Pass a valid JWT here for authentication. Can be obtained from /token endpoint.",
 )
 
 
@@ -78,18 +87,12 @@ async def verify_idp_token(token: str = Security(idp_oauth2_scheme)) -> dict:
     except ExpiredSignatureError:
         err_msg = "Authorization token expired"
         logger.error(f"{status.HTTP_401_UNAUTHORIZED} - {err_msg}")
-        raise HTTPException(
-            status_code=401,
-            detail=err_msg
-        )
+        raise HTTPException(status_code=401, detail=err_msg)
 
     except JWTClaimsError:
         err_msg = "Incorrect claims, check the audience and issuer."
         logger.error(f"{status.HTTP_401_UNAUTHORIZED} - {err_msg}")
-        raise HTTPException(
-            status_code=401,
-            detail=err_msg
-        )
+        raise HTTPException(status_code=401, detail=err_msg)
 
     except Exception:
         err_msg = "Unable to parse authentication token"
@@ -102,11 +105,14 @@ async def verify_idp_token(token: str = Security(idp_oauth2_scheme)) -> dict:
 
 async def get_hub_token() -> dict:
     """Automated method for getting a robot token from the central Hub service."""
-    robot_user, robot_secret = hub_adapter_settings.HUB_ROBOT_USER, hub_adapter_settings.HUB_ROBOT_SECRET
+    robot_user, robot_secret = (
+        hub_adapter_settings.HUB_ROBOT_USER,
+        hub_adapter_settings.HUB_ROBOT_SECRET,
+    )
     payload = {
-        "grant_type": 'robot_credentials',
+        "grant_type": "robot_credentials",
         "id": robot_user,
-        "secret": robot_secret
+        "secret": robot_secret,
     }
 
     if not robot_user or not robot_secret:
