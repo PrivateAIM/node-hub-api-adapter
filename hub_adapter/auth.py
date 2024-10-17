@@ -69,6 +69,13 @@ async def get_hub_public_key() -> dict:
 
 async def verify_idp_token(token: str = Security(idp_oauth2_scheme)) -> dict:
     """Decode the auth token using keycloak's public key."""
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str("Missing or invalid token"),
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     try:
         return jwt.decode(
             token,
