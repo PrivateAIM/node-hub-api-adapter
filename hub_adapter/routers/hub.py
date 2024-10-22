@@ -63,12 +63,17 @@ hub_router = APIRouter(
 logger = logging.getLogger(__name__)
 
 
-async def get_node_id() -> str:
+async def get_node_id(debug: bool = False) -> str | None:
     """Uses the robot ID to obtain the associated node ID, sets it in the env vars, and returns it.
 
     An empty string node_id indicates no node is associated with provided robot username.
+
+    If None is returned, no filtering will be applied which is useful for debugging.
     """
-    robot_user = hub_adapter_settings.HUB_ROBOT_USER
+    if debug:
+        return None
+
+    robot_id = hub_adapter_settings.HUB_ROBOT_USER
 
     node_cache = {}
     if node_id_pickle_path.is_file():
@@ -76,19 +81,21 @@ async def get_node_id() -> str:
             node_cache = pickle.load(f)
 
     # Returns None if key not in dict or '' if no Node ID was found
-    node_id = node_cache.get(robot_user) or "nothingFound"
+    # Need to default to an intentionally wrong nodeId if nothing found otherwise Hub will return all resources
+
+    node_id = node_cache.get(robot_id) or "nothingFound"
 
     if (
-        robot_user not in node_cache
+        robot_id not in node_cache
     ):  # Node ID may be None since not every robot is associated with a node
         logger.info("NODE_ID not set for ROBOT_USER, retrieving from Hub")
 
         hub_auth_header = await get_hub_token()
 
-        robot_user = hub_adapter_settings.HUB_ROBOT_USER
+        robot_id = hub_adapter_settings.HUB_ROBOT_USER
         core_url = hub_adapter_settings.HUB_SERVICE_URL.rstrip("/")
         node_id_resp = httpx.get(
-            f"{core_url}/nodes?filter[robot_id]={robot_user}&fields=id",
+            f"{core_url}/nodes?filter[robot_id]={robot_id}&fields=id",
             headers=hub_auth_header,
         )
 
@@ -96,7 +103,7 @@ async def get_node_id() -> str:
         node_data = node_id_resp.json()["data"]
 
         node_id = node_data[0]["id"] if node_data else ""
-        node_cache[robot_user] = node_id
+        node_cache[robot_id] = node_id
 
         with open(node_id_pickle_path, "wb") as f:
             pickle.dump(node_cache, f)
