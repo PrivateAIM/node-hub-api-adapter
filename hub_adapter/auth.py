@@ -146,10 +146,10 @@ async def get_hub_token() -> dict:
     token_route = hub_adapter_settings.HUB_AUTH_SERVICE_URL.rstrip("/") + "/token"
     resp = httpx.post(token_route, data=payload)
 
-    if not resp.status_code == httpx.codes.OK:
+    if resp.status_code != httpx.codes.OK:
         logger.error("Failed to retrieve JWT from Hub")
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=resp.status_code,
             detail=resp.json(),  # Invalid authentication credentials
             headers={"WWW-Authenticate": "Bearer"},
         )
