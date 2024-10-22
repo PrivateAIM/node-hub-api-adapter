@@ -1,6 +1,7 @@
 """Handle the authorization and authentication of services."""
 
 import logging
+import uuid
 
 import httpx
 from fastapi import Security, HTTPException
@@ -112,21 +113,33 @@ async def verify_idp_token(token: str = Security(idp_oauth2_scheme)) -> dict:
 
 async def get_hub_token() -> dict:
     """Automated method for getting a robot token from the central Hub service."""
-    robot_user, robot_secret = (
+    robot_id, robot_secret = (
         hub_adapter_settings.HUB_ROBOT_USER,
         hub_adapter_settings.HUB_ROBOT_SECRET,
     )
+
     payload = {
         "grant_type": "robot_credentials",
-        "id": robot_user,
+        "id": robot_id,
         "secret": robot_secret,
     }
 
-    if not robot_user or not robot_secret:
-        logger.error("Missing robot user or secret. Check env vars")
+    if not robot_id or not robot_secret:
+        logger.error("Missing robot ID or secret. Check env vars")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="No credentials provided for the hub robot. Check that the environment variables are set properly",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    try:
+        uuid.UUID(robot_id)
+
+    except ValueError:
+        logger.error(f"Invalid robot ID: {robot_id}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Robot ID is not a valid UUID",
             headers={"WWW-Authenticate": "Bearer"},
         )
 

@@ -71,14 +71,12 @@ async def get_node_id() -> str:
     robot_user = hub_adapter_settings.HUB_ROBOT_USER
 
     node_cache = {}
-    node_id = None
     if node_id_pickle_path.is_file():
         with open(node_id_pickle_path, "rb") as f:
             node_cache = pickle.load(f)
 
-        node_id = node_cache.get(
-            robot_user
-        )  # Returns None if key not in dict or '' if no Node ID was found
+    # Returns None if key not in dict or '' if no Node ID was found
+    node_id = node_cache.get(robot_user) or "nothingFound"
 
     if (
         robot_user not in node_cache
