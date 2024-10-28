@@ -20,7 +20,7 @@ env:
 
 jobs:
   build-and-push-image:
-    if: ${{ (github.event.pull_request.merged) || (contains(github.event.head_commit.message, 'build_image')) }}
+    if: ${{ (github.event.pull_request.merged) || (contains(github.event.head_commit.message, 'build_image')) || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
