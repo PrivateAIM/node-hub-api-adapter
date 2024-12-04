@@ -144,7 +144,17 @@ async def get_hub_token() -> dict:
         )
 
     token_route = hub_adapter_settings.HUB_AUTH_SERVICE_URL.rstrip("/") + "/token"
-    resp = httpx.post(token_route, data=payload)
+
+    try:
+        resp = httpx.post(token_route, data=payload)
+
+    except httpx.ConnectTimeout:
+        logger.error("Connection Timeout - Hub is currently unreacheable")
+        raise HTTPException(
+            status_code=status.HTTP_408_REQUEST_TIMEOUT,
+            detail="Connection Timeout - Hub is currently unreacheable",  # Invalid authentication credentials
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
     if resp.status_code != httpx.codes.OK:
         logger.error("Failed to retrieve JWT from Hub")
@@ -153,6 +163,7 @@ async def get_hub_token() -> dict:
             detail=resp.json(),  # Invalid authentication credentials
             headers={"WWW-Authenticate": "Bearer"},
         )
+
     token_data = resp.json()
     token = Token(**token_data)
     return {"Authorization": f"Bearer {token.access_token}"}
