@@ -13,11 +13,11 @@ from starlette.responses import Response
 
 from hub_adapter import node_id_pickle_path
 from hub_adapter.auth import (
-    add_hub_jwt,
     get_hub_token,
     httpbearer,
     idp_oauth2_scheme_pass,
     verify_idp_token,
+    add_hub_jwt,
 )
 from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.constants import (
@@ -32,11 +32,8 @@ from hub_adapter.constants import (
 from hub_adapter.core import route
 from hub_adapter.models.hub import (
     Project,
-    AllProjects,
     ProjectNode,
-    ListProjectNodes,
     AnalysisNode,
-    ListAnalysisNodes,
     RegistryProject,
     AnalysisImageUrl,
     ApprovalStatus,
@@ -47,6 +44,9 @@ from hub_adapter.models.hub import (
     PartialAnalysisBucketFile,
     DetailedAnalysis,
     Analysis,
+    AllProjects,
+    ListProjectNodes,
+    ListAnalysisNodes,
 )
 
 hub_router = APIRouter(
@@ -367,7 +367,7 @@ def get_node_metadata_for_url(
 
 
 def get_registry_metadata_for_url(
-    node_results: Annotated[dict, Depends(get_node_metadata_for_url)]
+    node_results: Annotated[dict, Depends(get_node_metadata_for_url)],
 ):
     """Get registry metadata for a given UUID to be used in creating analysis image URL."""
     node_metadata, headers = node_results
