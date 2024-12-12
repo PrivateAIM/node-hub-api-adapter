@@ -80,6 +80,14 @@ class ConfigurationStatus(Enum):
     finished: str = "finished"
 
 
+class Metadata(BaseModel):
+    """Metadata included with hub responses"""
+
+    total: int = 0
+    limit: int = 0
+    offset: int = 0
+
+
 class BaseHubResponse(BaseModel):
     """Common attributes of Hub responses."""
 
@@ -123,7 +131,7 @@ class AllProjects(BaseModel):
     """List of all projects."""
 
     data: list[Project]
-    meta: dict
+    meta: Metadata
 
 
 class Node(BaseHubResponse):
@@ -155,7 +163,7 @@ class ProjectNode(BaseHubResponse):
 
 class ListProjectNodes(BaseModel):
     data: list[ProjectNode]
-    meta: dict
+    meta: Metadata
 
 
 class Analysis(BaseHubResponse):
@@ -186,7 +194,7 @@ class AllAnalyses(BaseModel):
     """List of all projects."""
 
     data: list[DetailedAnalysis]
-    meta: dict
+    meta: Metadata
 
 
 class AnalysisNode(BaseHubResponse):
@@ -212,7 +220,7 @@ class PartialAnalysisNode(AnalysisNode):
 
 class ListAnalysisNodes(BaseModel):
     data: list[AnalysisNode]
-    meta: dict
+    meta: Metadata
 
 
 class RegistryProject(BaseHubResponse):
@@ -251,7 +259,7 @@ class Bucket(BaseHubResponse):
 
 class BucketList(BaseModel):
     data: list[Bucket]
-    meta: dict
+    meta: Metadata
 
 
 class PartialAnalysisBucketFile(BaseHubResponse):
@@ -269,4 +277,4 @@ class PartialAnalysisBucketFile(BaseHubResponse):
 
 class PartialBucketFilesList(BaseModel):
     data: list[PartialAnalysisBucketFile]
-    meta: dict
+    meta: Metadata
