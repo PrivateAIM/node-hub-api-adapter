@@ -144,8 +144,6 @@ async def get_hub_token() -> dict:
         )
 
     token_route = hub_adapter_settings.HUB_AUTH_SERVICE_URL.rstrip("/") + "/token"
-    print(token_route)
-    print(payload)
 
     try:
         resp = httpx.post(token_route, data=payload)
