@@ -156,6 +156,15 @@ async def get_hub_token() -> dict:
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    except httpx.ConnectError:
+        err = "Connection Error - Hub is currently unreacheable"
+        logger.error(err)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=err,
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     if resp.status_code != httpx.codes.OK:
         logger.error("Failed to retrieve JWT from Hub")
         raise HTTPException(
