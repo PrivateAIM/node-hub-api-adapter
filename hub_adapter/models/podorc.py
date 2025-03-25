@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 
 class AnalysisStatus(Enum):
+    STARTED = "started"
     CREATED = "created"
     RUNNING = "running"
     STOPPED = "stopped"
