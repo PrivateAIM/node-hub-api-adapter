@@ -30,6 +30,6 @@ RUN chown -R hubadapter:hubadapter /hub_adapter
 # API server port
 EXPOSE 5000
 
-USER hubadapter
+USER 10000:10000
 
 ENTRYPOINT ["python", "-m", "hub_adapter.cli", "serve"]
