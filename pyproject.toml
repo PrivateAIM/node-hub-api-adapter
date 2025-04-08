@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "hub-adapter"
-version = "0.1.0"
+version = "0.1.1"
 description = "API gateway interface for the Node UI to interact with the other node services and the hub."
 authors = ["Bruce Schultz <bruce.schultz@uk-koeln.de>"]
 readme = "README.md"
