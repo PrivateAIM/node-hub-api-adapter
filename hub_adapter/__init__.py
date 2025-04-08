@@ -2,13 +2,12 @@
 
 import logging
 import logging.handlers as handlers
-
 from pathlib import Path
 
 root_dir = Path(__file__).parent.resolve()
 
 # Node ID Pickle
-cache_dir = root_dir.parent.resolve().joinpath("cache")
+cache_dir = root_dir.joinpath("cache")
 cache_dir.mkdir(parents=True, exist_ok=True)
 node_id_pickle_path = cache_dir.joinpath("nodeId")
 
