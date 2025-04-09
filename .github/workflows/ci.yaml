@@ -41,9 +41,11 @@ jobs:
 
   release-please:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      pull-requests: write
     steps:
-      - uses: actions/checkout@v4
-
       - uses: googleapis/release-please-action@v4
   #        with:
   #          # this assumes that you have created a personal access token
