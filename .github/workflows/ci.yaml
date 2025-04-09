@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  workflow_dispatch:
+  pull_request:
+
+permissions:
+  contents: read # for checkout
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  test-image-compilation:
+    name: "Test image compilation"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout  # required for finding action
+        uses: actions/checkout@v4
+
+      - uses: ./.github/actions/build-docker-image
+        with:
+          platforms: linux/amd64
+          docker_file: Dockerfile
+          push: 'false'
+          token: ${{ secrets.GITHUB_TOKEN }}
