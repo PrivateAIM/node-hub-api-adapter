@@ -24,16 +24,25 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
+
+      - name: Setup Git
+        run: |
+          git config user.name "${GITHUB_ACTOR}"
+          git config user.email "${GITHUB_ACTOR}@foobar.com"
+
       - name: Install Python
         uses: actions/setup-python@v5
         with:
           python-version: 3.13
+
       - name: Install poetry
         uses: abatilo/actions-poetry@v4
+
       - name: Bump
         id: poetry_bump
         run: |
           echo "NEW_VERSION=$(poetry version patch)" >> $GITHUB_ENV
+
       - name: Push
         run: |
           git add pyproject.toml
