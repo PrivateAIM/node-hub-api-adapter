@@ -1,4 +1,4 @@
-"""Package initialization."""
+"""Package initialization step."""
 
 import logging
 import logging.handlers as handlers
