@@ -12,6 +12,45 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  ci:
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ "3.11", "3.12", "3.13" ]
+        poetry-version: [ "latest", "1.8.4" ]
+        os: [ ubuntu-latest ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install poetry
+        uses: abatilo/actions-poetry@v3
+        with:
+          poetry-version: ${{ matrix.poetry-version }}
+
+      #      - name: Lint
+      #        run: |
+      #          poetry run ruff check --fix
+
+      - name: Install package
+        run: poetry install
+
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+  #        with:
+  #          # this assumes that you have created a personal access token
+  #          # (PAT) and configured it as a GitHub action secret named
+  #          # `MY_RELEASE_PLEASE_TOKEN` (this secret name is not important).
+  #          token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+  #          # this is a built-in strategy in release-please, see "Action Inputs"
+  #          # for more options
+  #          release-type: simple
 
   test-image-compilation:
     name: "Test image compilation"
