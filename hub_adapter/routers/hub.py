@@ -1,5 +1,6 @@
 """EPs for Hub provided information."""
 
+import functools
 import logging
 import pickle
 import uuid
@@ -7,13 +8,16 @@ from typing import Annotated
 
 import httpx
 from fastapi import APIRouter, Body, Depends, Form, HTTPException, Path, Security
+from flame_hub import HubAPIError
 from starlette import status
 from starlette.requests import Request
 from starlette.responses import Response
 
 from hub_adapter import node_id_pickle_path
 from hub_adapter.auth import (
+    core_client,
     httpbearer,
+    hub_robot,
     idp_oauth2_scheme_pass,
     verify_idp_token,
 )
@@ -29,24 +33,10 @@ from hub_adapter.constants import (
 )
 from hub_adapter.core import route
 from hub_adapter.models.hub import (
-    AllAnalyses,
-    Analysis,
     AnalysisImageUrl,
-    AnalysisNode,
     ApprovalStatus,
-    Bucket,
-    BucketList,
-    DetailedAnalysis,
-    ListAnalysisNodes,
-    ListProjectNodes,
-    PartialAnalysisBucketFile,
-    PartialBucketFilesList,
-    Project,
-    ProjectNode,
     RegistryProject,
 )
-
-from hub_adapter.auth import core_client, hub_robot
 
 hub_router = APIRouter(
     dependencies=[
@@ -60,6 +50,45 @@ hub_router = APIRouter(
 )
 
 logger = logging.getLogger(__name__)
+
+
+def catch_hub_errors(f):
+    """Custom error handling decorator for flame_hub_client."""
+
+    @functools.wraps(f)
+    async def inner(*args, **kwargs):
+        try:
+            return await f(*args, **kwargs)
+
+        except HubAPIError as err:
+            httpx_error = err.error_response
+
+            if type(httpx_error) is httpx.ConnectTimeout:
+                logger.error("Connection Timeout - Hub is currently unreachable")
+                raise HTTPException(
+                    status_code=status.HTTP_408_REQUEST_TIMEOUT,
+                    detail="Connection Timeout - Hub is currently unreacheable",  # Invalid authentication credentials
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+
+            elif type(httpx_error) is httpx.ConnectError:
+                err = "Connection Error - Hub is currently unreachable"
+                logger.error(err)
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=err,
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+
+            else:
+                logger.error("Failed to retrieve JWT from Hub")
+                raise HTTPException(
+                    status_code=err.error_response.status_code,
+                    detail=err.error_response.message,  # Invalid authentication credentials
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+
+    return inner
 
 
 async def get_node_id(debug: bool = False) -> str | None:
@@ -127,6 +156,7 @@ def add_node_id_filter(request: Request, node_id: Annotated[str, Depends(get_nod
     status_code=status.HTTP_200_OK,
     # response_model=AllProjects,
 )
+@catch_hub_errors
 async def list_all_projects():
     """List all projects."""
     return core_client.get_projects()
@@ -138,6 +168,7 @@ async def list_all_projects():
     status_code=status.HTTP_200_OK,
     # response_model=Project,
 )
+@catch_hub_errors
 async def list_specific_project(
     project_id: Annotated[uuid.UUID, Path(description="Project UUID.")],
 ):
@@ -151,6 +182,7 @@ async def list_specific_project(
     status_code=status.HTTP_200_OK,
     # response_model=ListProjectNodes,
 )
+@catch_hub_errors
 async def list_project_proposals():
     """List project proposals."""
     return core_client.get_project_nodes()
@@ -162,6 +194,7 @@ async def list_project_proposals():
     status_code=status.HTTP_200_OK,
     # response_model=ProjectNode,
 )
+@catch_hub_errors
 async def list_project_proposal(
     project_node_id: Annotated[uuid.UUID, Path(description="Proposal object UUID.")],
 ):
@@ -175,6 +208,7 @@ async def list_project_proposal(
     status_code=status.HTTP_200_OK,
     # response_model=ProjectNode,
 )
+@catch_hub_errors
 async def accept_reject_project_proposal(
     project_node_id: Annotated[uuid.UUID, Path(description="Proposal object UUID.")],
     approval_status: Annotated[
@@ -196,6 +230,7 @@ async def accept_reject_project_proposal(
     status_code=status.HTTP_200_OK,
     # response_model=ListAnalysisNodes,
 )
+@catch_hub_errors
 async def list_analysis_nodes():
     """List all analysis nodes."""
     return core_client.get_analysis_nodes()
@@ -207,6 +242,7 @@ async def list_analysis_nodes():
     status_code=status.HTTP_200_OK,
     # response_model=AnalysisNode,
 )
+@catch_hub_errors
 async def list_specific_analysis_node(
     analysis_node_id: Annotated[uuid.UUID, Path(description="Analysis Node UUID.")],
 ):
@@ -220,6 +256,7 @@ async def list_specific_analysis_node(
     status_code=status.HTTP_200_OK,
     # response_model=AnalysisNode,
 )
+@catch_hub_errors
 async def accept_reject_analysis_node(
     analysis_node_id: Annotated[
         uuid.UUID, Path(description="Analysis Node UUID (not analysis_id).")
@@ -243,6 +280,7 @@ async def accept_reject_analysis_node(
     status_code=status.HTTP_200_OK,
     # response_model=AllAnalyses,
 )
+@catch_hub_errors
 async def list_all_analyses():
     """List all registered analyses."""
     return core_client.get_analyses()
@@ -254,6 +292,7 @@ async def list_all_analyses():
     status_code=status.HTTP_200_OK,
     # response_model=Analysis,
 )
+@catch_hub_errors
 async def list_specific_analysis(
     analysis_id: Annotated[uuid.UUID, Path(description="Analysis UUID.")],
 ):
@@ -267,6 +306,7 @@ async def list_specific_analysis(
     status_code=status.HTTP_200_OK,
     # response_model=DetailedAnalysis,
 )
+@catch_hub_errors
 async def update_specific_analysis(
     analysis_id: Annotated[uuid.UUID, Path(description="Analysis UUID.")],
     name: Annotated[str, Body(description="New analysis name.")],
@@ -414,6 +454,7 @@ def synthesize_image_data(
     "/analysis/image",
     # response_model=AnalysisImageUrl
 )
+@catch_hub_errors
 async def get_analysis_image_url(
     image_url_resp: AnalysisImageUrl = Depends(synthesize_image_data),
 ):
@@ -427,6 +468,7 @@ async def get_analysis_image_url(
     status_code=status.HTTP_200_OK,
     # response_model=BucketList,
 )
+@catch_hub_errors
 async def list_all_analysis_buckets():
     """List all analysis buckets."""
     return core_client.get_analysis_buckets()
@@ -438,6 +480,7 @@ async def list_all_analysis_buckets():
     status_code=status.HTTP_200_OK,
     # response_model=Bucket,
 )
+@catch_hub_errors
 async def list_specific_analysis_buckets(
     analysis_bucket_id: Annotated[uuid.UUID, Path(description="Bucket UUID.")],
 ):
@@ -451,6 +494,7 @@ async def list_specific_analysis_buckets(
     status_code=status.HTTP_200_OK,
     # response_model=PartialBucketFilesList,
 )
+@catch_hub_errors
 async def list_all_analysis_bucket_files():
     """List partial analysis bucket files."""
     return core_client.get_analysis_bucket_files()
@@ -462,6 +506,7 @@ async def list_all_analysis_bucket_files():
     status_code=status.HTTP_200_OK,
     # response_model=PartialAnalysisBucketFile,
 )
+@catch_hub_errors
 async def list_specific_analysis_bucket_file(
     analysis_bucket_file_id: Annotated[
         uuid.UUID, Path(description="Bucket file UUID.")

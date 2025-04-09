@@ -142,34 +142,6 @@ def get_hub_token() -> RobotAuth:
     # try:
     auth = RobotAuth(robot_id=robot_id, robot_secret=robot_secret)
 
-    # except HubAPIError as err:
-    #     httpx_error = err.error_response
-    #
-    #     if type(httpx_error) is httpx.ConnectTimeout:
-    #         logger.error("Connection Timeout - Hub is currently unreachable")
-    #         raise HTTPException(
-    #             status_code=status.HTTP_408_REQUEST_TIMEOUT,
-    #             detail="Connection Timeout - Hub is currently unreacheable",  # Invalid authentication credentials
-    #             headers={"WWW-Authenticate": "Bearer"},
-    #         )
-    #
-    #     elif type(httpx_error) is httpx.ConnectError:
-    #         err = "Connection Error - Hub is currently unreachable"
-    #         logger.error(err)
-    #         raise HTTPException(
-    #             status_code=status.HTTP_400_BAD_REQUEST,
-    #             detail=err,
-    #             headers={"WWW-Authenticate": "Bearer"},
-    #         )
-    #
-    #     else:
-    #         logger.error("Failed to retrieve JWT from Hub")
-    #         raise HTTPException(
-    #             status_code=err.error_response.status_code,
-    #             detail=err.error_response.message,  # Invalid authentication credentials
-    #             headers={"WWW-Authenticate": "Bearer"},
-    #         )
-
     return auth
 
 
