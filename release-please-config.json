@@ -1,0 +1,7 @@
+{
+  "packages": {
+    "./hub_adapter": {
+      "release-type": "python"
+    },
+  }
+}
