@@ -6,55 +6,54 @@ import uuid
 from typing import Annotated
 
 import httpx
-from fastapi import APIRouter, Path, Depends, HTTPException, Form, Body, Security
+from fastapi import APIRouter, Body, Depends, Form, HTTPException, Path, Security
 from starlette import status
 from starlette.requests import Request
 from starlette.responses import Response
 
 from hub_adapter import node_id_pickle_path
 from hub_adapter.auth import (
-    get_hub_token,
     httpbearer,
     idp_oauth2_scheme_pass,
     verify_idp_token,
-    add_hub_jwt,
 )
 from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.constants import (
-    REGISTRY_PROJECT_ID,
+    ACCOUNT_NAME,
+    ACCOUNT_SECRET,
+    CONTENT_LENGTH,
     EXTERNAL_NAME,
     HOST,
     REGISTRY,
-    CONTENT_LENGTH,
-    ACCOUNT_NAME,
-    ACCOUNT_SECRET,
+    REGISTRY_PROJECT_ID,
 )
 from hub_adapter.core import route
 from hub_adapter.models.hub import (
+    AllAnalyses,
+    Analysis,
+    AnalysisImageUrl,
+    AnalysisNode,
+    ApprovalStatus,
+    Bucket,
+    BucketList,
+    DetailedAnalysis,
+    ListAnalysisNodes,
+    ListProjectNodes,
+    PartialAnalysisBucketFile,
+    PartialBucketFilesList,
     Project,
     ProjectNode,
-    AnalysisNode,
     RegistryProject,
-    AnalysisImageUrl,
-    ApprovalStatus,
-    AllAnalyses,
-    BucketList,
-    PartialBucketFilesList,
-    Bucket,
-    PartialAnalysisBucketFile,
-    DetailedAnalysis,
-    Analysis,
-    AllProjects,
-    ListProjectNodes,
-    ListAnalysisNodes,
 )
+
+from hub_adapter.auth import core_client, hub_robot
 
 hub_router = APIRouter(
     dependencies=[
         Security(verify_idp_token),
         Security(idp_oauth2_scheme_pass),
         Security(httpbearer),
-        Depends(add_hub_jwt),
+        # Depends(add_hub_jwt),
     ],
     tags=["Hub"],
     responses={404: {"description": "Not found"}},
@@ -90,7 +89,7 @@ async def get_node_id(debug: bool = False) -> str | None:
     ):  # Node ID may be None since not every robot is associated with a node
         logger.info("NODE_ID not set for ROBOT_USER, retrieving from Hub")
 
-        hub_auth_header = await get_hub_token()
+        hub_auth_header = hub_robot._current_token
 
         robot_id = hub_adapter_settings.HUB_ROBOT_USER
         core_url = hub_adapter_settings.HUB_SERVICE_URL.rstrip("/")
@@ -111,6 +110,7 @@ async def get_node_id(debug: bool = False) -> str | None:
     return node_id
 
 
+# TODO make sure a node filter is being applied to project-nodes and analysis-nodes calls
 def add_node_id_filter(request: Request, node_id: Annotated[str, Depends(get_node_id)]):
     """Middleware to add node_id filter query param to the request to limit response if node_id is found."""
     if node_id:  # Not an empty string
@@ -121,69 +121,62 @@ def add_node_id_filter(request: Request, node_id: Annotated[str, Depends(get_nod
     return request
 
 
-@route(
-    request_method=hub_router.get,
-    path="/projects",
+@hub_router.get(
+    "/projects",
+    summary="List all of the projects",
     status_code=status.HTTP_200_OK,
-    service_url=hub_adapter_settings.HUB_SERVICE_URL,
-    response_model=AllProjects,
-    all_query_params=True,
+    # response_model=AllProjects,
 )
-async def list_all_projects(
-    request: Request,
-    response: Response,
-):
+async def list_all_projects():
     """List all projects."""
-    pass
+    return core_client.get_projects()
 
 
-@route(
-    request_method=hub_router.get,
-    path="/projects/{project_id}",
+@hub_router.get(
+    "/projects/{project_id}",
+    summary="List a specific project",
     status_code=status.HTTP_200_OK,
-    service_url=hub_adapter_settings.HUB_SERVICE_URL,
-    response_model=Project,
-    all_query_params=True,
+    # response_model=Project,
 )
 async def list_specific_project(
     project_id: Annotated[uuid.UUID, Path(description="Project UUID.")],
-    request: Request,
-    response: Response,
 ):
     """List project for a given UUID."""
-    pass
+    return core_client.get_project(project_id=project_id)
 
 
-@route(
-    request_method=hub_router.get,
-    path="/project-nodes",
+@hub_router.get(
+    "/project-nodes",
+    summary="List all of the project proposals",
     status_code=status.HTTP_200_OK,
-    service_url=hub_adapter_settings.HUB_SERVICE_URL,
-    response_model=ListProjectNodes,
-    all_query_params=True,
-    dependencies=[Depends(add_node_id_filter)],
+    # response_model=ListProjectNodes,
 )
-async def list_project_proposals(
-    request: Request,
-    response: Response,
-):
+async def list_project_proposals():
     """List project proposals."""
-    pass
+    return core_client.get_project_nodes()
 
 
-@route(
-    request_method=hub_router.post,
-    path="/project-nodes/{proposal_id}",
+@hub_router.get(
+    "/project-nodes/{project_node_id}",
+    summary="List a specific project proposal",
     status_code=status.HTTP_200_OK,
-    service_url=hub_adapter_settings.HUB_SERVICE_URL,
-    response_model=ProjectNode,
-    form_params=["approval_status"],
-    dependencies=[Depends(add_node_id_filter)],
+    # response_model=ProjectNode,
+)
+async def list_project_proposal(
+    project_node_id: Annotated[uuid.UUID, Path(description="Proposal object UUID.")],
+):
+    """Set the approval status of a project proposal."""
+    return core_client.get_project_node(project_node_id=project_node_id)
+
+
+@hub_router.post(
+    "/project-nodes/{project_node_id}",
+    summary="Update a specific project proposal",
+    status_code=status.HTTP_200_OK,
+    # response_model=ProjectNode,
 )
 async def accept_reject_project_proposal(
-    request: Request,
-    response: Response,
-    proposal_id: Annotated[uuid.UUID, Path(description="Proposal object UUID.")],
+    project_node_id: Annotated[uuid.UUID, Path(description="Proposal object UUID.")],
     approval_status: Annotated[
         ApprovalStatus,
         Form(
@@ -192,56 +185,43 @@ async def accept_reject_project_proposal(
     ],
 ):
     """Set the approval status of a project proposal."""
-    pass
+    return core_client.update_project_node(
+        project_node_id=project_node_id, approval_status=approval_status
+    )
 
 
-@route(
-    request_method=hub_router.get,
-    path="/analysis-nodes",
+@hub_router.get(
+    "/analysis-nodes",
+    summary="List all of the analysis proposals",
     status_code=status.HTTP_200_OK,
-    service_url=hub_adapter_settings.HUB_SERVICE_URL,
-    response_model=ListAnalysisNodes,
-    all_query_params=True,
-    dependencies=[Depends(add_node_id_filter)],
+    # response_model=ListAnalysisNodes,
 )
-async def list_analyses_of_nodes(
-    request: Request,
-    response: Response,
-):
-    """List analyses for a node."""
-    pass
+async def list_analysis_nodes():
+    """List all analysis nodes."""
+    return core_client.get_analysis_nodes()
 
 
-@route(
-    request_method=hub_router.get,
-    path="/analysis-nodes/{analysis_id}",
+@hub_router.get(
+    "/analysis-nodes/{analysis_node_id}",
+    summary="List a specific analysis node",
     status_code=status.HTTP_200_OK,
-    service_url=hub_adapter_settings.HUB_SERVICE_URL,
-    response_model=AnalysisNode,
-    all_query_params=True,
-    dependencies=[Depends(add_node_id_filter)],
+    # response_model=AnalysisNode,
 )
 async def list_specific_analysis_node(
-    request: Request,
-    response: Response,
-    analysis_id: Annotated[uuid.UUID, Path(description="Analysis Node UUID.")],
+    analysis_node_id: Annotated[uuid.UUID, Path(description="Analysis Node UUID.")],
 ):
-    """List project for a given UUID."""
-    pass
+    """List a specific analysis node."""
+    return core_client.get_analysis_node(analysis_node_id=analysis_node_id)
 
 
-@route(
-    request_method=hub_router.post,
-    path="/analysis-nodes/{analysis_id}",
+@hub_router.post(
+    "/analysis-nodes/{analysis_node_id}",
+    summary="Update a specific analysis proposal",
     status_code=status.HTTP_200_OK,
-    service_url=hub_adapter_settings.HUB_SERVICE_URL,
-    response_model=AnalysisNode,
-    form_params=["approval_status"],
+    # response_model=AnalysisNode,
 )
 async def accept_reject_analysis_node(
-    request: Request,
-    response: Response,
-    analysis_id: Annotated[
+    analysis_node_id: Annotated[
         uuid.UUID, Path(description="Analysis Node UUID (not analysis_id).")
     ],
     approval_status: Annotated[
@@ -251,57 +231,48 @@ async def accept_reject_analysis_node(
         ),
     ],
 ):
-    """Set the approval status of a analysis."""
-    pass
+    """Set the approval status of an analysis proposal."""
+    return core_client.update_analysis_node(
+        analysis_node_id=analysis_node_id, approval_status=approval_status
+    )
 
 
-@route(
-    request_method=hub_router.get,
-    path="/analyses",
+@hub_router.get(
+    "/analyses",
+    summary="List all of the analysis proposals",
     status_code=status.HTTP_200_OK,
-    service_url=hub_adapter_settings.HUB_SERVICE_URL,
-    response_model=AllAnalyses,
-    all_query_params=True,
+    # response_model=AllAnalyses,
 )
-async def list_all_analyses(
-    request: Request,
-    response: Response,
-):
-    """List project for a given UUID."""
-    pass
+async def list_all_analyses():
+    """List all registered analyses."""
+    return core_client.get_analyses()
 
 
-@route(
-    request_method=hub_router.get,
-    path="/analyses/{analysis_id}",
+@hub_router.get(
+    "/analyses/{analysis_id}",
+    summary="List a specific analysis",
     status_code=status.HTTP_200_OK,
-    service_url=hub_adapter_settings.HUB_SERVICE_URL,
-    response_model=Analysis,
-    all_query_params=True,
+    # response_model=Analysis,
 )
 async def list_specific_analysis(
-    request: Request,
-    response: Response,
     analysis_id: Annotated[uuid.UUID, Path(description="Analysis UUID.")],
 ):
-    """List project for a given UUID."""
-    pass
+    """List a specific analysis."""
+    return core_client.get_analysis(analysis_id=analysis_id)
 
 
-@route(
-    request_method=hub_router.post,
-    path="/analyses/{analysis_id}",
+@hub_router.post(
+    "/analyses/{analysis_id}",
+    summary="Update a specific analysis proposal",
     status_code=status.HTTP_200_OK,
-    service_url=hub_adapter_settings.HUB_SERVICE_URL,
-    response_model=DetailedAnalysis,
+    # response_model=DetailedAnalysis,
 )
 async def update_specific_analysis(
-    request: Request,
-    response: Response,
-    body: Annotated[Analysis, Body(description="Analysis UUID.")],
+    analysis_id: Annotated[uuid.UUID, Path(description="Analysis UUID.")],
+    name: Annotated[str, Body(description="New analysis name.")],
 ):
     """Update analysis with a given UUID."""
-    pass
+    return core_client.update_analysis(analysis_id=analysis_id, name=name)
 
 
 @route(
@@ -346,7 +317,7 @@ def get_node_metadata_for_url(
         )
 
     if node_resp.status_code == status.HTTP_401_UNAUTHORIZED:
-        node_metadata["message"] = "Not authorized to access the Hub/"
+        node_metadata["message"] = "Not authorized to access the Hub"
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=node_metadata,
@@ -450,67 +421,53 @@ async def get_analysis_image_url(
     return image_url_resp
 
 
-@route(
-    request_method=hub_router.get,
-    path="/analysis-buckets",
+@hub_router.get(
+    "/analysis-buckets",
+    summary="List a specific analysis bucket",
     status_code=status.HTTP_200_OK,
-    service_url=hub_adapter_settings.HUB_SERVICE_URL,
-    response_model=BucketList,
-    all_query_params=True,
+    # response_model=BucketList,
 )
-async def list_all_analysis_buckets(
-    request: Request,
-    response: Response,
-):
-    """List analysis buckets."""
-    pass
+async def list_all_analysis_buckets():
+    """List all analysis buckets."""
+    return core_client.get_analysis_buckets()
 
 
-@route(
-    request_method=hub_router.get,
-    path="/analysis-buckets/{bucket_id}",
+@hub_router.get(
+    "/analysis-buckets/{analysis_bucket_id}",
+    summary="List a specific analysis bucket",
     status_code=status.HTTP_200_OK,
-    service_url=hub_adapter_settings.HUB_SERVICE_URL,
-    response_model=Bucket,
-    all_query_params=True,
+    # response_model=Bucket,
 )
 async def list_specific_analysis_buckets(
-    request: Request,
-    response: Response,
-    bucket_id: Annotated[uuid.UUID, Path(description="Bucket UUID.")],
+    analysis_bucket_id: Annotated[uuid.UUID, Path(description="Bucket UUID.")],
 ):
-    """List analysis buckets."""
-    pass
+    """List a specific analysis bucket."""
+    return core_client.get_analysis_bucket(analysis_bucket_id=analysis_bucket_id)
 
 
-@route(
-    request_method=hub_router.get,
-    path="/analysis-bucket-files",
+@hub_router.get(
+    "/analysis-bucket-files",
+    summary="List partial analysis bucket files.",
     status_code=status.HTTP_200_OK,
-    service_url=hub_adapter_settings.HUB_SERVICE_URL,
-    response_model=PartialBucketFilesList,
-    all_query_params=True,
+    # response_model=PartialBucketFilesList,
 )
-async def list_all_analysis_bucket_files(
-    request: Request,
-    response: Response,
-):
+async def list_all_analysis_bucket_files():
     """List partial analysis bucket files."""
-    pass
+    return core_client.get_analysis_bucket_files()
 
 
-@route(
-    request_method=hub_router.get,
-    path="/analysis-bucket-files/{bucket_file_id}",
+@hub_router.get(
+    "/analysis-bucket-files/{analysis_bucket_file_id}",
+    summary="List partial analysis bucket files.",
     status_code=status.HTTP_200_OK,
-    service_url=hub_adapter_settings.HUB_SERVICE_URL,
-    response_model=PartialAnalysisBucketFile,
-    all_query_params=True,
+    # response_model=PartialAnalysisBucketFile,
 )
 async def list_specific_analysis_bucket_file(
-    request: Request,
-    response: Response,
-    bucket_file_id: Annotated[uuid.UUID, Path(description="Bucket file UUID.")],
+    analysis_bucket_file_id: Annotated[
+        uuid.UUID, Path(description="Bucket file UUID.")
+    ],
 ):
     """List specific partial analysis bucket file."""
-    pass
+    return core_client.get_analysis_bucket_file(
+        analysis_bucket_file_id=analysis_bucket_file_id
+    )

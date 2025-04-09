@@ -4,20 +4,22 @@ import logging
 import uuid
 
 import httpx
-from fastapi import Security, HTTPException
+from fastapi import HTTPException, Security
 from fastapi.security import (
+    HTTPBearer,
     OAuth2AuthorizationCodeBearer,
     OAuth2PasswordBearer,
-    HTTPBearer,
 )
-from jose import jwt, JOSEError, ExpiredSignatureError
+from flame_hub import CoreClient
+from flame_hub._auth_flows import RobotAuth
+from jose import ExpiredSignatureError, JOSEError, jwt
 from jose.exceptions import JWTClaimsError
 from starlette import status
 from starlette.datastructures import MutableHeaders
 from starlette.requests import Request
 
 from hub_adapter.conf import hub_adapter_settings
-from hub_adapter.models.conf import AuthConfiguration, Token
+from hub_adapter.models.conf import AuthConfiguration
 
 logger = logging.getLogger(__name__)
 
@@ -111,18 +113,12 @@ async def verify_idp_token(token: str = Security(idp_oauth2_scheme)) -> dict:
         )
 
 
-async def get_hub_token() -> dict:
+def get_hub_token() -> RobotAuth:
     """Automated method for getting a robot token from the central Hub service."""
     robot_id, robot_secret = (
         hub_adapter_settings.HUB_ROBOT_USER,
         hub_adapter_settings.HUB_ROBOT_SECRET,
     )
-
-    payload = {
-        "grant_type": "robot_credentials",
-        "id": robot_id,
-        "secret": robot_secret,
-    }
 
     if not robot_id or not robot_secret:
         logger.error("Missing robot ID or secret. Check env vars")
@@ -143,39 +139,38 @@ async def get_hub_token() -> dict:
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    token_route = hub_adapter_settings.HUB_AUTH_SERVICE_URL.rstrip("/") + "/token"
+    # try:
+    auth = RobotAuth(robot_id=robot_id, robot_secret=robot_secret)
 
-    try:
-        resp = httpx.post(token_route, data=payload)
+    # except HubAPIError as err:
+    #     httpx_error = err.error_response
+    #
+    #     if type(httpx_error) is httpx.ConnectTimeout:
+    #         logger.error("Connection Timeout - Hub is currently unreachable")
+    #         raise HTTPException(
+    #             status_code=status.HTTP_408_REQUEST_TIMEOUT,
+    #             detail="Connection Timeout - Hub is currently unreacheable",  # Invalid authentication credentials
+    #             headers={"WWW-Authenticate": "Bearer"},
+    #         )
+    #
+    #     elif type(httpx_error) is httpx.ConnectError:
+    #         err = "Connection Error - Hub is currently unreachable"
+    #         logger.error(err)
+    #         raise HTTPException(
+    #             status_code=status.HTTP_400_BAD_REQUEST,
+    #             detail=err,
+    #             headers={"WWW-Authenticate": "Bearer"},
+    #         )
+    #
+    #     else:
+    #         logger.error("Failed to retrieve JWT from Hub")
+    #         raise HTTPException(
+    #             status_code=err.error_response.status_code,
+    #             detail=err.error_response.message,  # Invalid authentication credentials
+    #             headers={"WWW-Authenticate": "Bearer"},
+    #         )
 
-    except httpx.ConnectTimeout:
-        logger.error("Connection Timeout - Hub is currently unreacheable")
-        raise HTTPException(
-            status_code=status.HTTP_408_REQUEST_TIMEOUT,
-            detail="Connection Timeout - Hub is currently unreacheable",  # Invalid authentication credentials
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    except httpx.ConnectError:
-        err = "Connection Error - Hub is currently unreacheable"
-        logger.error(err)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=err,
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    if resp.status_code != httpx.codes.OK:
-        logger.error("Failed to retrieve JWT from Hub")
-        raise HTTPException(
-            status_code=resp.status_code,
-            detail=resp.json(),  # Invalid authentication credentials
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    token_data = resp.json()
-    token = Token(**token_data)
-    return {"Authorization": f"Bearer {token.access_token}"}
+    return auth
 
 
 async def add_hub_jwt(request: Request):
@@ -187,3 +182,7 @@ async def add_hub_jwt(request: Request):
     request.scope.update(headers=request.headers.raw)
 
     return request
+
+
+hub_robot = get_hub_token()
+core_client = CoreClient(auth=hub_robot)
