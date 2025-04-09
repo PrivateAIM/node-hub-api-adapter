@@ -11,6 +11,7 @@ packages = [{ include = "hub_adapter" }]
 python = "^3.11"
 uvicorn = "^0.32.0"
 fastapi = "^0.115.2"
+flame-hub-client = "^0.1.2"
 async-timeout = "^5.0.1"
 kubernetes = "^31.0.0"
 click = "^8.1.7"
