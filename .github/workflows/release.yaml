@@ -19,6 +19,8 @@ jobs:
   bump:
     name: "Bump Version"
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.poetry_bump.outputs.new_version }}
     permissions:
       contents: write
       packages: write
@@ -41,12 +43,12 @@ jobs:
       - name: Bump
         id: poetry_bump
         run: |
-          echo "NEW_VERSION=$(poetry version patch)" >> $GITHUB_ENV
+          echo "new_version=$(poetry version patch)" >> $GITHUB_OUTPUT
 
       - name: Push
         run: |
           git add pyproject.toml
-          git commit -m "ci: version bump to ${{ steps.poetry_bump.outputs.NEW_VERSION }}"
+          git commit -m "ci: version bump to ${{ steps.poetry_bump.outputs.new_version }}"
           git push
 
   build-prod-image:
