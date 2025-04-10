@@ -152,7 +152,7 @@ async def list_all_projects():
 )
 @catch_hub_errors
 async def list_specific_project(
-    project_id: Annotated[uuid.UUID, Path(description="Project UUID.")],
+    project_id: Annotated[uuid.UUID | str, Path(description="Project UUID.")],
 ):
     """List project for a given UUID."""
     return core_client.get_project(project_id=project_id)
@@ -182,7 +182,7 @@ async def list_project_proposals(node_id: Annotated[str, Depends(get_node_id)]):
 )
 @catch_hub_errors
 async def list_project_proposal(
-    project_node_id: Annotated[uuid.UUID, Path(description="Proposal object UUID.")],
+    project_node_id: Annotated[uuid.UUID | str, Path(description="Proposal object UUID.")],
 ):
     """Set the approval status of a project proposal."""
     return core_client.get_project_node(project_node_id=project_node_id)
@@ -196,7 +196,7 @@ async def list_project_proposal(
 )
 @catch_hub_errors
 async def accept_reject_project_proposal(
-    project_node_id: Annotated[uuid.UUID, Path(description="Proposal object UUID.")],
+    project_node_id: Annotated[uuid.UUID | str, Path(description="Proposal object UUID.")],
     approval_status: Annotated[
         ApprovalStatus,
         Form(
@@ -236,7 +236,7 @@ async def list_analysis_nodes(
 )
 @catch_hub_errors
 async def list_specific_analysis_node(
-    analysis_node_id: Annotated[uuid.UUID, Path(description="Analysis Node UUID.")],
+    analysis_node_id: Annotated[uuid.UUID | str, Path(description="Analysis Node UUID.")],
 ):
     """List a specific analysis node."""
     return core_client.get_analysis_node(analysis_node_id=analysis_node_id)
@@ -251,7 +251,7 @@ async def list_specific_analysis_node(
 @catch_hub_errors
 async def accept_reject_analysis_node(
     analysis_node_id: Annotated[
-        uuid.UUID, Path(description="Analysis Node UUID (not analysis_id).")
+        uuid.UUID | str, Path(description="Analysis Node UUID (not analysis_id).")
     ],
     approval_status: Annotated[
         ApprovalStatus,
@@ -286,7 +286,7 @@ async def list_all_analyses():
 )
 @catch_hub_errors
 async def list_specific_analysis(
-    analysis_id: Annotated[uuid.UUID, Path(description="Analysis UUID.")],
+    analysis_id: Annotated[uuid.UUID | str, Path(description="Analysis UUID.")],
 ):
     """List a specific analysis."""
     return core_client.get_analysis(analysis_id=analysis_id)
@@ -300,7 +300,7 @@ async def list_specific_analysis(
 )
 @catch_hub_errors
 async def update_specific_analysis(
-    analysis_id: Annotated[uuid.UUID, Path(description="Analysis UUID.")],
+    analysis_id: Annotated[uuid.UUID | str, Path(description="Analysis UUID.")],
     name: Annotated[str, Body(description="New analysis name.")],
 ):
     """Update analysis with a given UUID."""
@@ -325,7 +325,7 @@ async def get_registry_metadata_for_project(
 
 def get_node_metadata_for_url(
     request: Request,
-    node_id: Annotated[uuid.UUID, Body(description="Node UUID")],
+    node_id: Annotated[uuid.UUID | str, Body(description="Node UUID")],
 ):
     """Get analysis metadata for a given UUID to be used in creating analysis image URL."""
     headers = {
@@ -337,7 +337,8 @@ def get_node_metadata_for_url(
         hub_adapter_settings.HUB_SERVICE_URL
         + f"/nodes/{node_id}?include=registry_project"
     )
-    node_resp = httpx.get(node_url, headers=headers)
+    node_resp = core_client.get_node(node_id=node_id)
+    # node_resp = httpx.get(node_url, headers=headers)
     node_metadata = node_resp.json()
 
     if node_resp.status_code == status.HTTP_404_NOT_FOUND:
@@ -412,21 +413,15 @@ def get_registry_metadata_for_url(
         )
 
     host = registry_metadata[REGISTRY][HOST]
-    user = (
-        registry_metadata[ACCOUNT_NAME] if ACCOUNT_NAME in registry_metadata else None
-    )
-    pwd = (
-        registry_metadata[ACCOUNT_SECRET]
-        if ACCOUNT_SECRET in registry_metadata
-        else None
-    )
+    user = registry_metadata.get(ACCOUNT_NAME, None)
+    pwd = registry_metadata.get(ACCOUNT_SECRET, None)
 
     return host, registry_project_external_name, user, pwd
 
 
 def synthesize_image_data(
-    analysis_id: Annotated[uuid.UUID, Body(description="Analysis UUID")],
-    project_id: Annotated[uuid.UUID, Body(description="Project UUID")],
+    analysis_id: Annotated[uuid.UUID | str, Body(description="Analysis UUID")],
+    project_id: Annotated[uuid.UUID | str, Body(description="Project UUID")],
     compiled_info: Annotated[tuple, Depends(get_registry_metadata_for_url)],
 ):
     """Put all the data together for passing on to the PO."""
@@ -474,7 +469,7 @@ async def list_all_analysis_buckets():
 )
 @catch_hub_errors
 async def list_specific_analysis_buckets(
-    analysis_bucket_id: Annotated[uuid.UUID, Path(description="Bucket UUID.")],
+    analysis_bucket_id: Annotated[uuid.UUID | str, Path(description="Bucket UUID.")],
 ):
     """List a specific analysis bucket."""
     return core_client.get_analysis_bucket(analysis_bucket_id=analysis_bucket_id)
@@ -501,7 +496,7 @@ async def list_all_analysis_bucket_files():
 @catch_hub_errors
 async def list_specific_analysis_bucket_file(
     analysis_bucket_file_id: Annotated[
-        uuid.UUID, Path(description="Bucket file UUID.")
+        uuid.UUID | str, Path(description="Bucket file UUID.")
     ],
 ):
     """List specific partial analysis bucket file."""
