@@ -32,3 +32,22 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
 hub-adapter = "hub_adapter.cli:main"
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+]
