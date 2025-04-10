@@ -5,31 +5,31 @@ import uuid
 from typing import Annotated
 
 import kong_admin_client
-from fastapi import APIRouter, HTTPException, Body, Path, Query, Security, Depends
+from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Security
 from kong_admin_client import (
+    CreateAclForConsumerRequest,
+    CreateConsumerRequest,
+    CreateKeyAuthForConsumerRequest,
+    CreatePluginForConsumerRequest,
+    CreateRouteRequest,
     CreateServiceRequest,
     Service,
-    CreateRouteRequest,
-    CreatePluginForConsumerRequest,
-    CreateConsumerRequest,
-    CreateAclForConsumerRequest,
-    CreateKeyAuthForConsumerRequest,
 )
 from kong_admin_client.rest import ApiException
 from starlette import status
 
-from hub_adapter.auth import verify_idp_token, idp_oauth2_scheme_pass, httpbearer
+from hub_adapter.auth import httpbearer, idp_oauth2_scheme_pass, verify_idp_token
 from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.models.kong import (
-    ServiceRequest,
-    HttpMethodCode,
-    ProtocolCode,
-    LinkDataStoreProject,
     DeleteProject,
+    HttpMethodCode,
+    LinkDataStoreProject,
     LinkProjectAnalysis,
+    ListConsumers,
     ListRoutes,
     ListServices,
-    ListConsumers,
+    ProtocolCode,
+    ServiceRequest,
 )
 
 kong_router = APIRouter(
@@ -58,7 +58,7 @@ def parse_project_info(services, client) -> dict:
     for route in routes.data:
         if route.service:
             svc_id = route.service.id
-            if svc_id in route_dict.keys():
+            if svc_id in route_dict:
                 route_dict[svc_id].append(route)
             else:
                 route_dict[svc_id] = [route]
@@ -74,13 +74,9 @@ def parse_project_info(services, client) -> dict:
     return {"data": service_dicts}
 
 
-@kong_router.get(
-    "/datastore", response_model=ListServices, status_code=status.HTTP_200_OK
-)
+@kong_router.get("/datastore", response_model=ListServices, status_code=status.HTTP_200_OK)
 async def list_data_stores(
-    detailed: Annotated[
-        bool, Query(description="Whether to include detailed information on projects")
-    ] = False,
+    detailed: Annotated[bool, Query(description="Whether to include detailed information on projects")] = False,
 ):
     """List all available data stores (referred to as services by kong)."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
@@ -100,14 +96,14 @@ async def list_data_stores(
             status_code=e.status,
             detail=str(e),
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from e
 
-    except Exception:
+    except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Service error",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from e
 
 
 @kong_router.get(
@@ -116,12 +112,8 @@ async def list_data_stores(
     status_code=status.HTTP_200_OK,
 )
 async def list_specific_data_store(
-    data_store_name: Annotated[
-        str | None, Path(description="Unique name of the data store.")
-    ],
-    detailed: Annotated[
-        bool, Query(description="Whether to include detailed information on projects")
-    ] = False,
+    data_store_name: Annotated[str | None, Path(description="Unique name of the data store.")],
+    detailed: Annotated[bool, Query(description="Whether to include detailed information on projects")] = False,
 ):
     """List all available data stores (referred to as services by kong)."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
@@ -141,20 +133,18 @@ async def list_specific_data_store(
             status_code=e.status,
             detail=str(e),
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from e
 
-    except Exception:
+    except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Service error",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from e
 
 
 @kong_router.delete("/datastore/{data_store_name}", status_code=status.HTTP_200_OK)
-async def delete_data_store(
-    data_store_name: Annotated[str, Path(description="Unique name of the data store.")]
-):
+async def delete_data_store(data_store_name: Annotated[str, Path(description="Unique name of the data store.")]):
     """Delete the listed data store (referred to as services by kong)."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
 
@@ -176,14 +166,14 @@ async def delete_data_store(
                 status_code=e.status,
                 detail=str(e),
                 headers={"WWW-Authenticate": "Bearer"},
-            )
+            ) from e
 
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail=f"Service error: {e}",
                 headers={"WWW-Authenticate": "Bearer"},
-            )
+            ) from e
 
         logger.info(f"Data store {data_store_name} deleted")
 
@@ -197,7 +187,7 @@ async def create_service(
             description="Required information for creating a new data store.",
             title="Data store metadata.",
         ),
-    ]
+    ],
 ) -> Service:
     """Create a datastore (referred to as services by kong) by providing necessary metadata."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
@@ -223,14 +213,14 @@ async def create_service(
             status_code=e.status,
             detail=str(e),
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from e
 
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"Service error: {e}",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from e
 
 
 @kong_router.post(
@@ -245,9 +235,7 @@ async def create_data_store():
 
 
 async def list_projects(
-    project_id: Annotated[
-        uuid.UUID | None, Query(description="UUID of project.")
-    ] = None,
+    project_id: Annotated[uuid.UUID | None, Query(description="UUID of project.")] = None,
     detailed: Annotated[
         bool,
         Query(description="Whether to include detailed information on data stores"),
@@ -277,7 +265,7 @@ async def list_projects(
                 for route in api_response.data:
                     service_id = route.service.id
                     route_data = route.to_dict()
-                    if service_id in service_dict.keys():
+                    if service_id in service_dict:
                         route_data["service"] = service_dict[service_id]
 
                     annotated_routes.append(route_data)
@@ -291,14 +279,14 @@ async def list_projects(
             status_code=e.status,
             detail=str(e),
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from e
 
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"Service error: {e}",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from e
 
 
 @kong_router.get(
@@ -315,22 +303,14 @@ async def get_projects(projects: Annotated[ListRoutes, Depends(list_projects)]):
 
 
 async def create_route_to_datastore(
-    data_store_id: Annotated[
-        uuid.UUID, Body(description="UUID of the data store or 'service'")
-    ],
+    data_store_id: Annotated[uuid.UUID, Body(description="UUID of the data store or 'service'")],
     project_id: Annotated[uuid.UUID, Body(description="UUID of the project")],
-    methods: Annotated[
-        list[HttpMethodCode], Body(description="List of acceptable HTTP methods")
-    ] = ["GET"],
+    methods: Annotated[list[HttpMethodCode], Body(description="List of acceptable HTTP methods")] = ["GET"],
     protocols: Annotated[
         list[ProtocolCode],
-        Body(
-            description="List of acceptable transfer protocols. A combo of 'http', 'grpc', 'grpcs', 'tls', 'tcp'"
-        ),
+        Body(description="List of acceptable transfer protocols. A combo of 'http', 'grpc', 'grpcs', 'tls', 'tcp'"),
     ] = ["http"],
-    ds_type: Annotated[
-        str, Body(description="Data store type. Either 's3' or 'fhir'")
-    ] = "fhir",
+    ds_type: Annotated[str, Body(description="Data store type. Either 's3' or 'fhir'")] = "fhir",
 ):
     """Connect a project to a data store (referred to as a route by kong)."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
@@ -382,31 +362,25 @@ async def create_route_to_datastore(
 
         try:
             # Add route
-            route_response = route_api.create_route_for_service(
-                str(data_store_id), create_route_request
-            )
+            route_response = route_api.create_route_for_service(str(data_store_id), create_route_request)
 
-            keyauth_response = plugin_api.create_plugin_for_route(
-                route_response.id, create_keyauth_request
-            )
+            keyauth_response = plugin_api.create_plugin_for_route(route_response.id, create_keyauth_request)
 
-            acl_response = plugin_api.create_plugin_for_route(
-                route_response.id, create_acl_request
-            )
+            acl_response = plugin_api.create_plugin_for_route(route_response.id, create_acl_request)
 
         except ApiException as e:
             raise HTTPException(
                 status_code=e.status,
                 detail=str(e),
                 headers={"WWW-Authenticate": "Bearer"},
-            )
+            ) from e
 
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail=f"Service error: {e}",
                 headers={"WWW-Authenticate": "Bearer"},
-            )
+            ) from e
 
     return {"route": route_response, "keyauth": keyauth_response, "acl": acl_response}
 
@@ -416,9 +390,7 @@ async def create_route_to_datastore(
     response_model=LinkDataStoreProject,
 )
 async def create_project_and_connect_to_datastore(
-    proj_link_response: Annotated[
-        LinkDataStoreProject, Depends(create_route_to_datastore)
-    ],
+    proj_link_response: Annotated[LinkDataStoreProject, Depends(create_route_to_datastore)],
 ):
     """Connect a project (referred to as a route by kong) to an existing data store."""
     return proj_link_response
@@ -431,18 +403,12 @@ async def create_project_and_connect_to_datastore(
 async def create_datastore_and_project_with_link(
     datastore: Annotated[Service, Depends(create_service)],
     project_id: Annotated[uuid.UUID, Body(description="UUID of the project")],
-    methods: Annotated[
-        list[HttpMethodCode], Body(description="List of acceptable HTTP methods")
-    ] = ["GET"],
+    methods: Annotated[list[HttpMethodCode], Body(description="List of acceptable HTTP methods")] = ["GET"],
     protocols: Annotated[
         list[ProtocolCode],
-        Body(
-            description="List of acceptable transfer protocols. A combo of 'http', 'grpc', 'grpcs', 'tls', 'tcp'"
-        ),
+        Body(description="List of acceptable transfer protocols. A combo of 'http', 'grpc', 'grpcs', 'tls', 'tcp'"),
     ] = ["http"],
-    ds_type: Annotated[
-        str, Body(description="Data store type. Either 's3' or 'fhir'")
-    ] = "fhir",
+    ds_type: Annotated[str, Body(description="Data store type. Either 's3' or 'fhir'")] = "fhir",
 ):
     """Creates a new datastore (service) and a new project (route), then links them together."""
     proj_response = await create_route_to_datastore(
@@ -455,9 +421,7 @@ async def create_datastore_and_project_with_link(
     return proj_response
 
 
-async def delete_route(
-    project_id: Annotated[uuid.UUID, Path(description="UUID of project to be deleted")]
-):
+async def delete_route(project_id: Annotated[uuid.UUID, Path(description="UUID of project to be deleted")]):
     """Disconnect a project (route) from all data stores (services) and delete associated analyses (consumers)."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
     project = str(project_id) if project_id else None
@@ -479,14 +443,14 @@ async def delete_route(
                 status_code=e.status,
                 detail=str(e),
                 headers={"WWW-Authenticate": "Bearer"},
-            )
+            ) from e
 
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail=f"Service error: {e}",
                 headers={"WWW-Authenticate": "Bearer"},
-            )
+            ) from e
 
         removed_routes = []
         for route in route_resp.data:
@@ -499,18 +463,16 @@ async def delete_route(
                     status_code=e.status,
                     detail=str(e),
                     headers={"WWW-Authenticate": "Bearer"},
-                )
+                ) from e
 
             except Exception as e:
                 raise HTTPException(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                     detail=f"Service error: {e}",
                     headers={"WWW-Authenticate": "Bearer"},
-                )
+                ) from e
 
-            logger.info(
-                f"Project {route.id} disconnected from data store {route.service.id}"
-            )
+            logger.info(f"Project {route.id} disconnected from data store {route.service.id}")
             removed_routes.append(route.id)
 
         return {"removed_routes": removed_routes, "status": status.HTTP_200_OK}
@@ -521,9 +483,7 @@ async def delete_route(
     status_code=status.HTTP_200_OK,
     response_model=DeleteProject,
 )
-async def delete_project(
-    proj_delete_response: Annotated[DeleteProject, Depends(delete_route)]
-):
+async def delete_project(proj_delete_response: Annotated[DeleteProject, Depends(delete_route)]):
     return proj_delete_response
 
 
@@ -533,12 +493,8 @@ async def delete_project(
     status_code=status.HTTP_200_OK,
 )
 async def get_analyses(
-    analysis_id: Annotated[
-        uuid.UUID | None, Query(description="UUID of the analysis.")
-    ] = None,
-    tag: Annotated[
-        str | None, Query(description="Tag to filter by e.g. project ID")
-    ] = None,
+    analysis_id: Annotated[uuid.UUID | None, Query(description="UUID of the analysis.")] = None,
+    tag: Annotated[str | None, Query(description="Tag to filter by e.g. project ID")] = None,
 ):
     """List all analyses (referred to as consumers by kong) available, can be filtered by analysis_id."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
@@ -564,14 +520,14 @@ async def get_analyses(
                 status_code=e.status,
                 detail=str(e),
                 headers={"WWW-Authenticate": "Bearer"},
-            )
+            ) from e
 
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail=f"Service error: {e}",
                 headers={"WWW-Authenticate": "Bearer"},
-            )
+            ) from e
 
 
 @kong_router.post(
@@ -623,14 +579,14 @@ async def create_and_connect_analysis_to_project(
                 status_code=e.status,
                 detail=str(e),
                 headers={"WWW-Authenticate": "Bearer"},
-            )
+            ) from e
 
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail=f"Service error: {e}",
                 headers={"WWW-Authenticate": "Bearer"},
-            )
+            ) from e
 
         # Configure acl plugin for consumer
         try:
@@ -643,9 +599,7 @@ async def create_and_connect_analysis_to_project(
                         tags=[str(project_id)],
                     ),
                 )
-                logger.info(
-                    f"ACL plugin configured for consumer, group: {api_response.group}"
-                )
+                logger.info(f"ACL plugin configured for consumer, group: {api_response.group}")
                 response["acl"] = api_response
 
         except ApiException as e:
@@ -653,14 +607,14 @@ async def create_and_connect_analysis_to_project(
                 status_code=e.status,
                 detail=str(e),
                 headers={"WWW-Authenticate": "Bearer"},
-            )
+            ) from e
 
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail=f"Service error: {e}",
                 headers={"WWW-Authenticate": "Bearer"},
-            )
+            ) from e
 
         # Configure key-auth plugin for consumer
         try:
@@ -672,9 +626,7 @@ async def create_and_connect_analysis_to_project(
                         tags=[str(project_id)],
                     ),
                 )
-                logger.info(
-                    f"Key authentication plugin configured for consumer, api_key: {api_response.key}"
-                )
+                logger.info(f"Key authentication plugin configured for consumer, api_key: {api_response.key}")
                 response["keyauth"] = api_response
 
         except ApiException as e:
@@ -682,24 +634,20 @@ async def create_and_connect_analysis_to_project(
                 status_code=e.status,
                 detail=str(e),
                 headers={"WWW-Authenticate": "Bearer"},
-            )
+            ) from e
 
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail=f"Service error: {e}",
                 headers={"WWW-Authenticate": "Bearer"},
-            )
+            ) from e
 
     return response
 
 
 @kong_router.delete("/analysis/{analysis_id}", status_code=status.HTTP_200_OK)
-async def delete_analysis(
-    analysis_id: Annotated[
-        str, Path(description="UUID or unique name of the analysis.")
-    ]
-):
+async def delete_analysis(analysis_id: Annotated[str, Path(description="UUID or unique name of the analysis.")]):
     """Delete the listed analysis."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
     username = f"{analysis_id}-{realm}"
@@ -715,14 +663,14 @@ async def delete_analysis(
                 status_code=e.status,
                 detail=str(e),
                 headers={"WWW-Authenticate": "Bearer"},
-            )
+            ) from e
 
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail=f"Service error: {e}",
                 headers={"WWW-Authenticate": "Bearer"},
-            )
+            ) from e
 
         logger.info(f"Analysis {analysis_id} deleted")
         return status.HTTP_200_OK
