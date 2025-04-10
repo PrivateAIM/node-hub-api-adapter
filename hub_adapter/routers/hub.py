@@ -182,7 +182,9 @@ async def list_project_proposals(node_id: Annotated[str, Depends(get_node_id)]):
 )
 @catch_hub_errors
 async def list_project_proposal(
-    project_node_id: Annotated[uuid.UUID | str, Path(description="Proposal object UUID.")],
+    project_node_id: Annotated[
+        uuid.UUID | str, Path(description="Proposal object UUID.")
+    ],
 ):
     """Set the approval status of a project proposal."""
     return core_client.get_project_node(project_node_id=project_node_id)
@@ -196,7 +198,9 @@ async def list_project_proposal(
 )
 @catch_hub_errors
 async def accept_reject_project_proposal(
-    project_node_id: Annotated[uuid.UUID | str, Path(description="Proposal object UUID.")],
+    project_node_id: Annotated[
+        uuid.UUID | str, Path(description="Proposal object UUID.")
+    ],
     approval_status: Annotated[
         ApprovalStatus,
         Form(
@@ -236,7 +240,9 @@ async def list_analysis_nodes(
 )
 @catch_hub_errors
 async def list_specific_analysis_node(
-    analysis_node_id: Annotated[uuid.UUID | str, Path(description="Analysis Node UUID.")],
+    analysis_node_id: Annotated[
+        uuid.UUID | str, Path(description="Analysis Node UUID.")
+    ],
 ):
     """List a specific analysis node."""
     return core_client.get_analysis_node(analysis_node_id=analysis_node_id)
