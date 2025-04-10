@@ -17,7 +17,6 @@ from hub_adapter import node_id_pickle_path
 from hub_adapter.auth import (
     core_client,
     httpbearer,
-    hub_robot,
     idp_oauth2_scheme_pass,
     verify_idp_token,
 )
@@ -91,6 +90,7 @@ def catch_hub_errors(f):
     return inner
 
 
+@catch_hub_errors
 async def get_node_id(debug: bool = False) -> str | None:
     """Uses the robot ID to obtain the associated node ID, sets it in the env vars, and returns it.
 
@@ -118,36 +118,18 @@ async def get_node_id(debug: bool = False) -> str | None:
     ):  # Node ID may be None since not every robot is associated with a node
         logger.info("NODE_ID not set for ROBOT_USER, retrieving from Hub")
 
-        hub_auth_header = hub_robot._current_token
-
-        robot_id = hub_adapter_settings.HUB_ROBOT_USER
-        core_url = hub_adapter_settings.HUB_SERVICE_URL.rstrip("/")
-        node_id_resp = httpx.get(
-            f"{core_url}/nodes?filter[robot_id]={robot_id}&fields=id",
-            headers=hub_auth_header,
+        node_id_resp = core_client.find_nodes(
+            filter={"robot_id": robot_id}, fields="id"
         )
 
-        node_id_resp.raise_for_status()
-        node_data = node_id_resp.json()["data"]
+        if node_id_resp and len(node_id_resp) == 1:
+            node_id = str(node_id_resp[0].id)  # convert UUID type to string
+            node_cache[robot_id] = node_id
 
-        node_id = node_data[0]["id"] if node_data else ""
-        node_cache[robot_id] = node_id
-
-        with open(node_id_pickle_path, "wb") as f:
-            pickle.dump(node_cache, f)
+            with open(node_id_pickle_path, "wb") as f:
+                pickle.dump(node_cache, f)
 
     return node_id
-
-
-# TODO make sure a node filter is being applied to project-nodes and analysis-nodes calls
-def add_node_id_filter(request: Request, node_id: Annotated[str, Depends(get_node_id)]):
-    """Middleware to add node_id filter query param to the request to limit response if node_id is found."""
-    if node_id:  # Not an empty string
-        query_ps = {k: v for k, v in request.query_params.items()}
-        query_ps["filter[node_id]"] = node_id
-        request._query_params = query_ps
-
-    return request
 
 
 @hub_router.get(
@@ -183,9 +165,13 @@ async def list_specific_project(
     # response_model=ListProjectNodes,
 )
 @catch_hub_errors
-async def list_project_proposals():
+async def list_project_proposals(node_id: Annotated[str, Depends(get_node_id)]):
     """List project proposals."""
-    return core_client.get_project_nodes()
+    if node_id:
+        return core_client.find_project_nodes(filter={"node_id": node_id})
+
+    else:
+        return core_client.get_project_nodes()
 
 
 @hub_router.get(
@@ -231,9 +217,15 @@ async def accept_reject_project_proposal(
     # response_model=ListAnalysisNodes,
 )
 @catch_hub_errors
-async def list_analysis_nodes():
-    """List all analysis nodes."""
-    return core_client.get_analysis_nodes()
+async def list_analysis_nodes(
+    node_id: Annotated[str, Depends(get_node_id)],
+):
+    """List all analysis nodes for give node."""
+    if node_id:
+        return core_client.find_analysis_nodes(filter={"node_id": node_id})
+
+    else:
+        return core_client.get_analysis_nodes()
 
 
 @hub_router.get(
