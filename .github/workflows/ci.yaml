@@ -12,43 +12,69 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  ci:
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: [ "3.12", "3.13" ]
-        poetry-version: [ "latest", "1.8.4" ]
-        os: [ ubuntu-latest ]
-    runs-on: ${{ matrix.os }}
+  #  ci:
+  #    strategy:
+  #      fail-fast: false
+  #      matrix:
+  #        python-version: [ "3.12", "3.13" ]
+  #        poetry-version: [ "latest", "1.8.4" ]
+  #        os: [ ubuntu-latest ]
+  #    runs-on: ${{ matrix.os }}
+  #    steps:
+  #      - uses: actions/checkout@v4
+  #
+  #      - uses: actions/setup-python@v5
+  #        with:
+  #          python-version: ${{ matrix.python-version }}
+  #
+  #      - name: Install poetry
+  #        uses: abatilo/actions-poetry@v3
+  #        with:
+  #          poetry-version: ${{ matrix.poetry-version }}
+  #
+  #      #      - name: Lint
+  #      #        run: |
+  #      #          poetry run ruff check --fix
+  #
+  #      - name: Install package
+  #        run: poetry install
+
+  bump:
+    name: Bump
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version-bump.outputs.version }}
+    permissions:
+      contents: write
+      packages: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          fetch-depth: 0
 
-      - name: Install poetry
-        uses: abatilo/actions-poetry@v3
+      - uses: paulhatch/semantic-version@v5.4.0
+        id: version-bump
         with:
-          poetry-version: ${{ matrix.poetry-version }}
+          tag_prefix: ""
+          major_pattern: "(major)"
+          minor_pattern: "(minor)"
+          version_format: "${major}.${minor}.${patch}-prerelease${increment}"
 
-      #      - name: Lint
-      #        run: |
-      #          poetry run ruff check --fix
+      - name: echo new tag
+        run: |
+          echo "The next tag version will be: ${{ steps.version-bump.outputs.version }}"
 
-      - name: Install package
-        run: poetry install
-
-  test-image-compilation:
-    name: "Test image compilation"
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout  # required for finding action
-        uses: actions/checkout@v4
-
-      - uses: ./.github/actions/build-docker-image
-        with:
-          platforms: linux/amd64
-          docker_file: Dockerfile
-          push: 'false'
-          token: ${{ secrets.GITHUB_TOKEN }}
+#  test-image-compilation:
+#    name: "Test image compilation"
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Checkout  # required for finding action
+#        uses: actions/checkout@v4
+#
+#      - uses: ./.github/actions/build-docker-image
+#        with:
+#          platforms: linux/amd64
+#          docker_file: Dockerfile
+#          push: 'false'
+#          token: ${{ secrets.GITHUB_TOKEN }}
