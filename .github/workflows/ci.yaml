@@ -12,68 +12,43 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  #  ci:
-  #    strategy:
-  #      fail-fast: false
-  #      matrix:
-  #        python-version: [ "3.12", "3.13" ]
-  #        poetry-version: [ "latest", "1.8.4" ]
-  #        os: [ ubuntu-latest ]
-  #    runs-on: ${{ matrix.os }}
-  #    steps:
-  #      - uses: actions/checkout@v4
-  #
-  #      - uses: actions/setup-python@v5
-  #        with:
-  #          python-version: ${{ matrix.python-version }}
-  #
-  #      - name: Install poetry
-  #        uses: abatilo/actions-poetry@v3
-  #        with:
-  #          poetry-version: ${{ matrix.poetry-version }}
-  #
-  #      #      - name: Lint
-  #      #        run: |
-  #      #          poetry run ruff check --fix
-  #
-  #      - name: Install package
-  #        run: poetry install
-
-  bump:
-    name: Bump
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.release.outputs.version }}
-    permissions:
-      contents: write
-      packages: write
-      pull-requests: write
+  ci:
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ "3.12", "3.13" ]
+        poetry-version: [ "latest", "1.8.4" ]
+        os: [ ubuntu-latest ]
+    runs-on: ${{ matrix.os }}
     steps:
-
-      - uses: googleapis/release-please-action@v4
-        name: release-please
-        id: release
-        with:
-          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
-
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
         with:
-          fetch-depth: 0
+          python-version: ${{ matrix.python-version }}
 
-      - name: echo new tag
-        run: |
-          echo "The next tag version will be: ${{ steps.release.outputs.version }}"
+      - name: Install poetry
+        uses: abatilo/actions-poetry@v3
+        with:
+          poetry-version: ${{ matrix.poetry-version }}
 
-#  test-image-compilation:
-#    name: "Test image compilation"
-#    runs-on: ubuntu-latest
-#    steps:
-#      - name: Checkout  # required for finding action
-#        uses: actions/checkout@v4
-#
-#      - uses: ./.github/actions/build-docker-image
-#        with:
-#          platforms: linux/amd64
-#          docker_file: Dockerfile
-#          push: 'false'
-#          token: ${{ secrets.GITHUB_TOKEN }}
+      #      - name: Lint
+      #        run: |
+      #          poetry run ruff check --fix
+
+      - name: Install package
+        run: poetry install
+
+  test-image-compilation:
+    name: "Test image compilation"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout  # required for finding action
+        uses: actions/checkout@v4
+
+      - uses: ./.github/actions/build-docker-image
+        with:
+          platforms: linux/amd64
+          docker_file: Dockerfile
+          push: 'false'
+          token: ${{ secrets.GITHUB_TOKEN }}
