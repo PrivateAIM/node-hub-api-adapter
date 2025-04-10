@@ -43,27 +43,24 @@ jobs:
     name: Bump
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.version-bump.outputs.version }}
+      version: ${{ steps.release.outputs.version }}
     permissions:
       contents: write
       packages: write
       pull-requests: write
     steps:
+
+      - uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - uses: paulhatch/semantic-version@v5.4.0
-        id: version-bump
-        with:
-          tag_prefix: ""
-          major_pattern: "(major)"
-          minor_pattern: "(minor)"
-          version_format: "${major}.${minor}.${patch}-prerelease${increment}"
-
       - name: echo new tag
         run: |
-          echo "The next tag version will be: ${{ steps.version-bump.outputs.version }}"
+          echo "The next tag version will be: ${{ steps.release.outputs.version }}"
 
 #  test-image-compilation:
 #    name: "Test image compilation"
