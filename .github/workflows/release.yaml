@@ -1,4 +1,4 @@
-name: Build and push Docker images
+name: Release
 
 on:
   workflow_dispatch:
@@ -8,59 +8,26 @@ on:
     branches:
       - main
 
-permissions:
-  contents: read # for checkout
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  #  bump:
-  #    name: Bump
-  #    runs-on: ubuntu-latest
-  #    outputs:
-  #      version: ${{ steps.version-bump.outputs.newTag }}
-  #    permissions:
-  #      contents: write
-  #      packages: write
-  #      pull-requests: write
-  #    steps:
-  #      - uses: actions/checkout@v4
-  #
-  #      - name: Setup Git
-  #        run: |
-  #          git config user.name "${GITHUB_ACTOR}"
-  #          git config user.email "${GITHUB_ACTOR}@foobar.com"
-  #
-  #      - name: Install Python
-  #        uses: actions/setup-python@v5
-  #        with:
-  #          python-version: 3.13
-  #
-  #      - name: Install poetry
-  #        uses: abatilo/actions-poetry@v4
-  #
-  #      - name: Bump
-  #        id: poetry_bump
-  #        run: |
-  #          poetry version ${{ steps.version-bump.outputs.newTag }}
-  #
-  #      - name: Push
-  #        run: |
-  #          git add pyproject.toml
-  #          git commit -m "ci: version bump to ${{ steps.version-bump.outputs.newTag }}"
-  #          git tag ${{ steps.version-bump.outputs.newTag }}
-  #          git push
-
   release-please:
+    name: Release
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.release.outputs.version }}
     permissions:
-      contents: read
+      contents: write
       packages: write
       pull-requests: write
     steps:
       - uses: googleapis/release-please-action@v4
+        name: release-please
+        id: release
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
 
   build-prod-image:
     name: Build and push production Docker image
@@ -75,6 +42,7 @@ jobs:
 
       - name: Build production image
         uses: ./.github/actions/build-docker-image
+        if: ${{ needs.release-please.outputs.release_created }}
         with:
           platforms: linux/amd64
           docker_file: Dockerfile
