@@ -69,7 +69,7 @@ def catch_hub_errors(f):
                     status_code=status.HTTP_408_REQUEST_TIMEOUT,
                     detail="Connection Timeout - Hub is currently unreacheable",  # Invalid authentication credentials
                     headers={"WWW-Authenticate": "Bearer"},
-                )
+                ) from err
 
             elif type(httpx_error) is httpx.ConnectError:
                 err = "Connection Error - Hub is currently unreachable"
@@ -78,7 +78,7 @@ def catch_hub_errors(f):
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=err,
                     headers={"WWW-Authenticate": "Bearer"},
-                )
+                ) from err
 
             else:
                 logger.error("Failed to retrieve JWT from Hub")
@@ -86,7 +86,7 @@ def catch_hub_errors(f):
                     status_code=err.error_response.status_code,
                     detail=err.error_response.message,  # Invalid authentication credentials
                     headers={"WWW-Authenticate": "Bearer"},
-                )
+                ) from err
 
     return inner
 
