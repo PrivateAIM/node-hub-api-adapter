@@ -6,47 +6,47 @@ import uuid
 from typing import Annotated
 
 import httpx
-from fastapi import APIRouter, Path, Depends, HTTPException, Form, Body, Security
+from fastapi import APIRouter, Body, Depends, Form, HTTPException, Path, Security
 from starlette import status
 from starlette.requests import Request
 from starlette.responses import Response
 
 from hub_adapter import node_id_pickle_path
 from hub_adapter.auth import (
+    add_hub_jwt,
     get_hub_token,
     httpbearer,
     idp_oauth2_scheme_pass,
     verify_idp_token,
-    add_hub_jwt,
 )
 from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.constants import (
-    REGISTRY_PROJECT_ID,
+    ACCOUNT_NAME,
+    ACCOUNT_SECRET,
+    CONTENT_LENGTH,
     EXTERNAL_NAME,
     HOST,
     REGISTRY,
-    CONTENT_LENGTH,
-    ACCOUNT_NAME,
-    ACCOUNT_SECRET,
+    REGISTRY_PROJECT_ID,
 )
 from hub_adapter.core import route
 from hub_adapter.models.hub import (
+    AllAnalyses,
+    AllProjects,
+    Analysis,
+    AnalysisImageUrl,
+    AnalysisNode,
+    ApprovalStatus,
+    Bucket,
+    BucketList,
+    DetailedAnalysis,
+    ListAnalysisNodes,
+    ListProjectNodes,
+    PartialAnalysisBucketFile,
+    PartialBucketFilesList,
     Project,
     ProjectNode,
-    AnalysisNode,
     RegistryProject,
-    AnalysisImageUrl,
-    ApprovalStatus,
-    AllAnalyses,
-    BucketList,
-    PartialBucketFilesList,
-    Bucket,
-    PartialAnalysisBucketFile,
-    DetailedAnalysis,
-    Analysis,
-    AllProjects,
-    ListProjectNodes,
-    ListAnalysisNodes,
 )
 
 hub_router = APIRouter(
@@ -97,6 +97,7 @@ async def get_node_id(debug: bool = False) -> str | None:
         node_id_resp = httpx.get(
             f"{core_url}/nodes?filter[robot_id]={robot_id}&fields=id",
             headers=hub_auth_header,
+            follow_redirects=True,
         )
 
         node_id_resp.raise_for_status()
