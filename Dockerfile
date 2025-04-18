@@ -1,31 +1,33 @@
-FROM python:3.11-alpine AS builder
+FROM ghcr.io/astral-sh/uv:python3.12-alpine AS builder
+ENV UV_COMPILE_BYTECODE=1
 LABEL maintainer="bruce.schultz@uk-koeln.de"
 
-# Have poetry create .venv/ folder in WORKDIR
-ENV POETRY_NO_INTERACTION=1 \
-    POETRY_VIRTUALENVS_IN_PROJECT=1
+# Configure the Python directory so it is consistent
+ENV UV_PYTHON_INSTALL_DIR=/python
+
+# Only use the managed Python version
+ENV UV_PYTHON_PREFERENCE=only-managed
 
 WORKDIR /app
 
-RUN apk add gcc musl-dev libffi-dev
-RUN pip install poetry==1.8.4
+#RUN apk add gcc musl-dev libffi-dev git
+RUN apk add git
 
-COPY ./poetry.lock ./pyproject.toml ./
+COPY ./uv.lock ./pyproject.toml ./
 
-RUN poetry install --no-root --without dev
+RUN uv sync --frozen --no-install-project --no-dev
+ADD . /app
+RUN uv sync --frozen --no-dev
 
-FROM python:3.11-alpine
+FROM python:3.12-alpine
 
-RUN adduser -u 10000 -D hubadapter
+RUN adduser -u 10000 hubadapter -D
 
-COPY --from=builder /app/.venv /app/.venv
+COPY --from=builder --chown=hubadapter:hubadapter /app/.venv /app/.venv
+COPY --chown=hubadapter:hubadapter hub_adapter/ ./hub_adapter/
+
 ENV PATH="/app/.venv/bin:$PATH"
 
-COPY hub_adapter/ ./hub_adapter/
-
-# Set permissions for the app directory
-RUN chown -R hubadapter:hubadapter /app
-RUN chown -R hubadapter:hubadapter /hub_adapter
 
 # API server port
 EXPOSE 5000
