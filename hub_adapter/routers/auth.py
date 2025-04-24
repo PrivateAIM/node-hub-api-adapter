@@ -3,7 +3,7 @@
 from typing import Annotated
 
 import httpx
-from fastapi import APIRouter, HTTPException, Body, Form
+from fastapi import APIRouter, Body, Form, HTTPException
 from jose import jwt
 from starlette import status
 from starlette.requests import Request
@@ -28,8 +28,6 @@ auth_router = APIRouter(
 def get_token(
     username: Annotated[str, Form(description="Keycloak username")],
     password: Annotated[str, Form(description="Keycloak password")],
-    # client_id: Annotated[None, Body(description="Keycloak Client ID")] = None,
-    # client_secret: Annotated[None, Body(description="Keycloak Client ID")] = None,
 ) -> Token:
     """Get a JWT from the IDP by passing a valid username and password.
 
@@ -47,8 +45,8 @@ def get_token(
     resp = httpx.post(realm_idp_settings.token_url, data=payload)
     if not resp.status_code == httpx.codes.OK:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=resp.json(),  # Invalid authentication credentials
+            status_code=resp.status_code,
+            detail=resp.text,  # Invalid authentication credentials
             headers={"WWW-Authenticate": "Bearer"},
         )
     token_data = resp.json()
