@@ -30,13 +30,6 @@ from hub_adapter.auth import (
     verify_idp_token,
 )
 from hub_adapter.conf import hub_adapter_settings
-from hub_adapter.constants import (
-    ACCOUNT_NAME,
-    ACCOUNT_SECRET,
-    EXTERNAL_NAME,
-    HOST,
-    REGISTRY,
-)
 from hub_adapter.models.hub import (
     AnalysisImageUrl,
     DetailedAnalysis,
@@ -337,8 +330,8 @@ def get_registry_metadata_for_url(
     registry_metadata = dict()
 
     try:
-        registry_project_id = node_metadata.registry_project_id
-        registry_metadata = core_client.get_registry_project(registry_project_id)
+        # TODO add include registry and fields=%2Baccount_id,%2Baccount_name,%2Baccount_secret when added
+        registry_metadata = core_client.get_registry_project(node_metadata.registry_project_id)
 
     except HubAPIError as err:
         if err.error_response.status_code == status.HTTP_404_NOT_FOUND:
@@ -348,25 +341,28 @@ def get_registry_metadata_for_url(
                 headers={"WWW-Authenticate": "Bearer"},
             ) from err
 
-    if EXTERNAL_NAME not in registry_metadata or not registry_metadata[EXTERNAL_NAME]:
+    if not registry_metadata.external_name:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No external name for node",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    registry_project_external_name = registry_metadata[EXTERNAL_NAME]
+    registry_project_external_name = registry_metadata.external_name
+    registry_id = registry_metadata.registry_id
 
-    if REGISTRY not in registry_metadata or HOST not in registry_metadata[REGISTRY]:
+    if not registry_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"No registry is associated with node {registry_project_external_name}",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    host = registry_metadata[REGISTRY][HOST]
-    user = registry_metadata.get(ACCOUNT_NAME, None)
-    pwd = registry_metadata.get(ACCOUNT_SECRET, None)
+    registry = core_client.get_registry(registry_id=registry_id)
+
+    host = registry.host
+    user = registry.account_name
+    pwd = registry_metadata.account_secret
 
     return host, registry_project_external_name, user, pwd
 
