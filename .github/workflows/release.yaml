@@ -29,6 +29,7 @@ jobs:
 
   build-prod-image:
     name: Build and push production Docker image
+    if: ${{ needs.release-please.outputs.released == 'true' }}
     needs: release-please  # Wait until pkg bumped
     runs-on: ubuntu-latest
     permissions:
@@ -40,7 +41,6 @@ jobs:
 
       - name: Build production image
         uses: ./.github/actions/build-docker-image
-        if: ${{ needs.release-please.outputs.release_created }}
         with:
           platforms: linux/amd64
           docker_file: Dockerfile
