@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.1](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.2.0...v0.2.1) (2025-05-05)
+
+
+### Bug Fixes
+
+* allow follow redirects ([1dbcdad](https://github.com/PrivateAIM/node-hub-api-adapter/commit/1dbcdada1d2f950b882e7bfff0341f9588f55f0b))
+* remove root path from downstream microsvc endpoint paths ([3accbd1](https://github.com/PrivateAIM/node-hub-api-adapter/commit/3accbd11735bfc5be67bcf601628e25251b2d28f))
+* remove root path from downstream microsvc endpoint paths ([f53a64d](https://github.com/PrivateAIM/node-hub-api-adapter/commit/f53a64d5757a6a7bcc4f453916955478f94a4105))
+* update deps ([93b23bd](https://github.com/PrivateAIM/node-hub-api-adapter/commit/93b23bd4313c6c8409f7e3836ceee2a364db2433))
+
 ## [0.2.0](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.1.4...v0.2.0) (2025-04-10)
 
 
