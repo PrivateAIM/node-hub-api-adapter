@@ -3,17 +3,17 @@
 from enum import Enum
 
 from kong_admin_client import (
-    CreateServiceRequest,
-    Consumer,
-    KeyAuth,
     ACL,
+    Consumer,
+    CreateServiceRequest,
     CreateServiceRequestClientCertificate,
-    Route,
+    KeyAuth,
+    ListConsumer200Response,
     ListRoute200Response,
+    ListService200Response,
+    Route,
     RouteService,
     Service,
-    ListService200Response,
-    ListConsumer200Response,
 )
 from pydantic import BaseModel, constr
 
@@ -106,11 +106,9 @@ class ListServices(ListService200Response):
 class DeleteProject(BaseModel):
     """Response from disconnecting a project from a datastore."""
 
-    removed_routes: list[str] | None
+    removed: Route | None
     status: int | None = None
 
 
-HttpMethodCode = constr(
-    pattern=r"(GET|POST|PUT|PATCH|DELETE|OPTIONS|HEAD|CONNECT|TRACE|CUSTOM)"
-)
+HttpMethodCode = constr(pattern=r"(GET|POST|PUT|PATCH|DELETE|OPTIONS|HEAD|CONNECT|TRACE|CUSTOM)")
 ProtocolCode = constr(pattern=r"(http|grpc|grpcs|tls|tcp)")
