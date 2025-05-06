@@ -15,6 +15,7 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     outputs:
+      released: ${{ steps.release.outputs.release_created }}
       version: ${{ steps.release.outputs.version }}
     permissions:
       contents: write
