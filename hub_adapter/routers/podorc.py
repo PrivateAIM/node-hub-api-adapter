@@ -4,26 +4,27 @@ import logging
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Path, Depends, Security
+from fastapi import APIRouter, Depends, Path, Security
 from starlette import status
 from starlette.requests import Request
 from starlette.responses import Response
 
 from hub_adapter.auth import (
     add_hub_jwt,
-    verify_idp_token,
-    idp_oauth2_scheme_pass,
     httpbearer,
+    idp_oauth2_scheme_pass,
+    verify_idp_token,
 )
 from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.core import route
 from hub_adapter.models.podorc import (
-    LogResponse,
-    StatusResponse,
+    CreateAnalysis,
     CreatePodResponse,
+    LogResponse,
     PodResponse,
+    StatusResponse,
 )
-from hub_adapter.routers.hub import synthesize_image_data
+from hub_adapter.routers.hub import compile_analysis_pod_data
 
 po_router = APIRouter(
     dependencies=[
@@ -53,12 +54,13 @@ logger = logging.getLogger(__name__)
         "registry_user",
         "registry_password",
         "image_url",
+        "kong_token",
     ],
 )
 async def create_analysis(
     request: Request,
     response: Response,
-    image_url_resp: Annotated[dict, Depends(synthesize_image_data)],
+    image_url_resp: Annotated[CreateAnalysis, Depends(compile_analysis_pod_data)],
 ):
     """Gather the image URL for the requested analysis container and send information to the PO."""
     pass

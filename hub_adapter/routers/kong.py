@@ -238,7 +238,7 @@ async def create_data_store():
 
 
 async def list_projects(
-    project_id: Annotated[uuid.UUID | None, Query(description="UUID of project.")] = None,
+    project_id: Annotated[uuid.UUID | str | None, Query(description="UUID of project.")] = None,
     detailed: Annotated[
         bool,
         Query(description="Whether to include detailed information on data stores"),
@@ -506,10 +506,7 @@ async def get_analyses(
         try:
             consumer_api = kong_admin_client.ConsumersApi(api_client)
             if analysis_id:
-                api_response = consumer_api.get_consumer(
-                    consumer_username_or_id=username,
-                    tags=tag,
-                )
+                api_response = consumer_api.get_consumer(consumer_username_or_id=username)
                 api_response = {"data": [api_response]}
 
             else:
@@ -542,7 +539,7 @@ async def create_and_connect_analysis_to_project(
     analysis_id: Annotated[str, Body(description="UUID or name of the analysis")],
 ):
     """Create a new analysis and link it to a project."""
-    proj_resp = await list_projects(project_id=uuid.UUID(project_id), detailed=False)
+    proj_resp = await list_projects(project_id=project_id, detailed=False)
 
     # Tags are used to annotate routes (projects) with datastore type and original project ID
     route_tags = set()
@@ -568,7 +565,7 @@ async def create_and_connect_analysis_to_project(
                 CreateConsumerRequest(
                     username=username,
                     custom_id=username,
-                    tags=[str(project_id)],
+                    tags=[str(project_id), str(analysis_id)],
                 )
             )
             logger.info(f"Consumer added, id: {api_response.id}")
