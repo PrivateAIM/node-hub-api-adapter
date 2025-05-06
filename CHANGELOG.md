@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.2](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.2.1...v0.2.2) (2025-05-06)
+
+
+### Bug Fixes
+
+* enable data store creation with same name but different type ([1ec3ddf](https://github.com/PrivateAIM/node-hub-api-adapter/commit/1ec3ddf97d79740b27fef0364be7ba41cd028e9a))
+* enable data store creation with same name but different type ([c853519](https://github.com/PrivateAIM/node-hub-api-adapter/commit/c85351997663c3ca417e0cbf36fe00472f506d9b))
+
 ## [0.2.1](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.2.0...v0.2.1) (2025-05-05)
 
 
