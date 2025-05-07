@@ -393,9 +393,9 @@ def get_registry_metadata_for_url(
 
 
 def compile_analysis_pod_data(
-    analysis_id: Annotated[uuid.UUID, Body(description="Analysis UUID")],
-    project_id: Annotated[uuid.UUID, Body(description="Project UUID")],
-    kong_token: Annotated[uuid.UUID, Body(description="Analysis keyauth kong token")],
+    analysis_id: Annotated[uuid.UUID | str, Body(description="Analysis UUID")],
+    project_id: Annotated[uuid.UUID | str, Body(description="Project UUID")],
+    kong_token: Annotated[str, Body(description="Analysis keyauth kong token")],
     compiled_info: Annotated[tuple, Depends(get_registry_metadata_for_url)],
 ):
     """Put all the data together for passing on to the PO."""
@@ -404,7 +404,7 @@ def compile_analysis_pod_data(
         "image_url": f"{host}/{registry_project_external_name}/{analysis_id}",
         "analysis_id": str(analysis_id),
         "project_id": str(project_id),
-        "kong_token": str(kong_token),
+        "kong_token": kong_token,
         "registry_url": host,
         "registry_user": registry_user,
         "registry_password": registry_sec,
