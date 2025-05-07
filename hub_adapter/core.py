@@ -248,7 +248,11 @@ def route(
                 logger.error(err_msg)
                 raise HTTPException(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail={"message": err_msg, "service": service_tags[0]},
+                    detail={
+                        "message": err_msg,
+                        "service": service_tags[0],
+                        "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
+                    },
                     headers={"WWW-Authenticate": "Bearer"},
                 )
 
@@ -268,7 +272,11 @@ def route(
                 logger.error(err_msg)
                 raise HTTPException(
                     status_code=http_error.response.status_code,
-                    detail=err_msg,
+                    detail={
+                        "message": err_msg,
+                        "service": service_tags[0],
+                        "status_code": http_error.response.status_code,
+                    },
                     headers={"WWW-Authenticate": "Bearer"},
                 )
 
