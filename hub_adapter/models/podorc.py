@@ -18,6 +18,8 @@ class CreateAnalysis(BaseModel):
     registry_url: str
     registry_user: str
     registry_password: str
+    kong_token: str
+    image_url: str
 
 
 class LogResponse(BaseModel):

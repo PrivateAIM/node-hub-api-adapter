@@ -85,9 +85,7 @@ async def get_node_id(debug: bool = False) -> str | None:
 
     node_id = node_cache.get(robot_id) or "nothingFound"
 
-    if (
-        robot_id not in node_cache
-    ):  # Node ID may be None since not every robot is associated with a node
+    if robot_id not in node_cache:  # Node ID may be None since not every robot is associated with a node
         logger.info("NODE_ID not set for ROBOT_USER, retrieving from Hub")
 
         hub_auth_header = await get_hub_token()
@@ -187,9 +185,7 @@ async def accept_reject_project_proposal(
     proposal_id: Annotated[uuid.UUID, Path(description="Proposal object UUID.")],
     approval_status: Annotated[
         ApprovalStatus,
-        Form(
-            description="Set the approval status of project for the node. Either 'rejected' or 'approved'"
-        ),
+        Form(description="Set the approval status of project for the node. Either 'rejected' or 'approved'"),
     ],
 ):
     """Set the approval status of a project proposal."""
@@ -242,14 +238,10 @@ async def list_specific_analysis_node(
 async def accept_reject_analysis_node(
     request: Request,
     response: Response,
-    analysis_id: Annotated[
-        uuid.UUID, Path(description="Analysis Node UUID (not analysis_id).")
-    ],
+    analysis_id: Annotated[uuid.UUID, Path(description="Analysis Node UUID (not analysis_id).")],
     approval_status: Annotated[
         ApprovalStatus,
-        Form(
-            description="Set the approval status of project for the node. Either 'rejected' or 'approved'"
-        ),
+        Form(description="Set the approval status of project for the node. Either 'rejected' or 'approved'"),
     ],
 ):
     """Set the approval status of a analysis."""
@@ -326,15 +318,8 @@ def get_node_metadata_for_url(
     node_id: Annotated[uuid.UUID, Body(description="Node UUID")],
 ):
     """Get analysis metadata for a given UUID to be used in creating analysis image URL."""
-    headers = {
-        k: v
-        for k, v in request.headers.items()
-        if (k != HOST and k != CONTENT_LENGTH.lower())
-    }
-    node_url = (
-        hub_adapter_settings.HUB_SERVICE_URL
-        + f"/nodes/{node_id}?include=registry_project"
-    )
+    headers = {k: v for k, v in request.headers.items() if (k != HOST and k != CONTENT_LENGTH.lower())}
+    node_url = hub_adapter_settings.HUB_SERVICE_URL + f"/nodes/{node_id}?include=registry_project"
     node_resp = httpx.get(node_url, headers=headers)
     node_metadata = node_resp.json()
 
@@ -354,10 +339,7 @@ def get_node_metadata_for_url(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    if (
-        REGISTRY_PROJECT_ID not in node_metadata
-        or not node_metadata[REGISTRY_PROJECT_ID]
-    ):
+    if REGISTRY_PROJECT_ID not in node_metadata or not node_metadata[REGISTRY_PROJECT_ID]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No registry associated with node for the analysis UUID",
@@ -374,14 +356,8 @@ def get_registry_metadata_for_url(
     node_metadata, headers = node_results
     registry_project_id = node_metadata[REGISTRY_PROJECT_ID]
 
-    registry_url_prefix = (
-        hub_adapter_settings.HUB_SERVICE_URL
-        + f"/registry-projects/{registry_project_id}"
-    )
-    registry_url = (
-        registry_url_prefix
-        + "?include=registry&fields=%2Baccount_id,%2Baccount_name,%2Baccount_secret"
-    )
+    registry_url_prefix = hub_adapter_settings.HUB_SERVICE_URL + f"/registry-projects/{registry_project_id}"
+    registry_url = registry_url_prefix + "?include=registry&fields=%2Baccount_id,%2Baccount_name,%2Baccount_secret"
     registry_resp = httpx.get(registry_url, headers=headers)
     registry_metadata = registry_resp.json()
 
@@ -410,21 +386,16 @@ def get_registry_metadata_for_url(
         )
 
     host = registry_metadata[REGISTRY][HOST]
-    user = (
-        registry_metadata[ACCOUNT_NAME] if ACCOUNT_NAME in registry_metadata else None
-    )
-    pwd = (
-        registry_metadata[ACCOUNT_SECRET]
-        if ACCOUNT_SECRET in registry_metadata
-        else None
-    )
+    user = registry_metadata.get(ACCOUNT_NAME, None)
+    pwd = registry_metadata.get(ACCOUNT_SECRET, None)
 
     return host, registry_project_external_name, user, pwd
 
 
-def synthesize_image_data(
-    analysis_id: Annotated[uuid.UUID, Body(description="Analysis UUID")],
-    project_id: Annotated[uuid.UUID, Body(description="Project UUID")],
+def compile_analysis_pod_data(
+    analysis_id: Annotated[uuid.UUID | str, Body(description="Analysis UUID")],
+    project_id: Annotated[uuid.UUID | str, Body(description="Project UUID")],
+    kong_token: Annotated[str, Body(description="Analysis keyauth kong token")],
     compiled_info: Annotated[tuple, Depends(get_registry_metadata_for_url)],
 ):
     """Put all the data together for passing on to the PO."""
@@ -433,6 +404,7 @@ def synthesize_image_data(
         "image_url": f"{host}/{registry_project_external_name}/{analysis_id}",
         "analysis_id": str(analysis_id),
         "project_id": str(project_id),
+        "kong_token": kong_token,
         "registry_url": host,
         "registry_user": registry_user,
         "registry_password": registry_sec,
@@ -445,7 +417,7 @@ def synthesize_image_data(
     # response_model=AnalysisImageUrl
 )
 async def get_analysis_image_url(
-    image_url_resp: AnalysisImageUrl = Depends(synthesize_image_data),
+    image_url_resp: AnalysisImageUrl = Depends(compile_analysis_pod_data),
 ):
     """Build an analysis image URL using its metadata from the Hub."""
     return image_url_resp
