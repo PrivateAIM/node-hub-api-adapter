@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.2.3](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.2.2...v0.2.3) (2025-05-07)
+
+
+### Features
+
+* add kong_token to /po ep ([f3ead40](https://github.com/PrivateAIM/node-hub-api-adapter/commit/f3ead40e5405cfc80a68a0e6aa30281cdb9c0d5a))
+* add kong_token to /po ep ([96ce4b2](https://github.com/PrivateAIM/node-hub-api-adapter/commit/96ce4b2e70c885601c202e1fdb7f7b2f140fba27))
+* improved downstream error analysis ([55af611](https://github.com/PrivateAIM/node-hub-api-adapter/commit/55af611e8848d9f7d035bca62f2b4f234cea53ce))
+
+
+### Bug Fixes
+
+* po endpoint param data type ([d4712b2](https://github.com/PrivateAIM/node-hub-api-adapter/commit/d4712b27e7f006c32360c50e938406b94ff9f9bf))
+
 ## [0.2.2](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.2.1...v0.2.2) (2025-05-06)
 
 
