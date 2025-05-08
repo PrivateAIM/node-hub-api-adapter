@@ -272,9 +272,15 @@ def get_node_metadata_for_url(
     node_metadata: Node = core_client.get_node(node_id=node_id)
 
     if not node_metadata.registry_project_id:
+        err_msg = f"No registry project associated with node {node_id}"
+        logger.error(err_msg)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No registry project associated with node for the analysis UUID",
+            detail={
+                "message": err_msg,
+                "service": "Hub",
+                "status_code": status.HTTP_400_BAD_REQUEST,
+            },
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -292,17 +298,27 @@ def get_registry_metadata_for_url(
         registry_metadata = core_client.get_registry_project(node_metadata.registry_project_id)
 
     except HubAPIError as err:
+        err_msg = f"Registry Project {node_metadata.registry_project_id} not found"
+        logger.error(err_msg)
         if err.error_response.status_code == status.HTTP_404_NOT_FOUND:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Registry Project UUID not found",
+                detail={
+                    "message": err_msg,
+                    "service": "Hub",
+                    "status_code": status.HTTP_404_NOT_FOUND,
+                },
                 headers={"WWW-Authenticate": "Bearer"},
             ) from err
 
     if not registry_metadata.external_name:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No external name for node",
+            detail={
+                "message": "No external name for node found",
+                "service": "Hub",
+                "status_code": status.HTTP_400_BAD_REQUEST,
+            },
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -310,9 +326,15 @@ def get_registry_metadata_for_url(
     registry_id = registry_metadata.registry_id
 
     if not registry_id:
+        err = f"No registry is associated with node {registry_project_external_name}"
+        logger.error(err)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"No registry is associated with node {registry_project_external_name}",
+            detail={
+                "message": err,
+                "service": "Hub",
+                "status_code": status.HTTP_400_BAD_REQUEST,
+            },
             headers={"WWW-Authenticate": "Bearer"},
         )
 

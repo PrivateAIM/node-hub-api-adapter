@@ -419,7 +419,11 @@ async def create_and_connect_analysis_to_project(
     if project_id not in route_tags:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Associated project not mapped to a data store",
+            detail={
+                "message": "Associated project not mapped to a data store",
+                "service": "Kong",
+                "status_code": status.HTTP_404_NOT_FOUND,
+            },
             headers={"WWW-Authenticate": "Bearer"},
         )
 

@@ -257,13 +257,16 @@ def route(
                 ) from HTTPException
 
             except DecodingError:
-                logger.error(
-                    f"HTTP Request: {method.upper()} {microsvc_path} "
-                    f'"- HTTP Status: {status.HTTP_500_INTERNAL_SERVER_ERROR} - Service error"',
-                )
+                err_msg = f"Service error - HTTP Request: {method.upper()} {microsvc_path} "
+                f'"- HTTP Status: {status.HTTP_500_INTERNAL_SERVER_ERROR}"'
+                logger.error(err_msg)
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Service error",
+                    detail={
+                        "message": err_msg,
+                        "service": service_tags[0],
+                        "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    },
                     headers={"WWW-Authenticate": "Bearer"},
                 ) from HTTPException
 

@@ -62,10 +62,15 @@ async def get_idp_public_key() -> str:
 
 async def verify_idp_token(token: str = Security(idp_oauth2_scheme)) -> dict:
     """Decode the auth token using keycloak's public key."""
+    svc = "Auth"
     if not token:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Missing or invalid token",
+            detail={
+                "message": "Missing or invalid token",
+                "service": svc,
+                "status_code": status.HTTP_401_UNAUTHORIZED,
+            },
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -80,26 +85,48 @@ async def verify_idp_token(token: str = Security(idp_oauth2_scheme)) -> dict:
         logger.error(f"{status.HTTP_401_UNAUTHORIZED} - {e}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(e),  # Invalid authentication credentials
+            detail={
+                "message": str(e),
+                "service": svc,
+                "status_code": status.HTTP_401_UNAUTHORIZED,
+            },
             headers={"WWW-Authenticate": "Bearer"},
         ) from e
 
     except ExpiredSignatureError:
         err_msg = "Authorization token expired"
         logger.error(f"{status.HTTP_401_UNAUTHORIZED} - {err_msg}")
-        raise HTTPException(status_code=401, detail=err_msg) from ExpiredSignatureError
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "message": err_msg,
+                "service": svc,
+                "status_code": status.HTTP_401_UNAUTHORIZED,
+            },
+        ) from ExpiredSignatureError
 
     except JWTClaimsError:
         err_msg = "Incorrect claims, check the audience and issuer."
         logger.error(f"{status.HTTP_401_UNAUTHORIZED} - {err_msg}")
-        raise HTTPException(status_code=401, detail=err_msg) from JWTClaimsError
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "message": err_msg,
+                "service": svc,
+                "status_code": status.HTTP_401_UNAUTHORIZED,
+            },
+        ) from JWTClaimsError
 
     except Exception:
         err_msg = "Unable to parse authentication token"
         logger.error(f"{status.HTTP_401_UNAUTHORIZED} - {err_msg}")
         raise HTTPException(
-            status_code=401,
-            detail=err_msg,
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "message": err_msg,
+                "service": svc,
+                "status_code": status.HTTP_401_UNAUTHORIZED,
+            },
         ) from Exception
 
 
@@ -112,25 +139,16 @@ def get_hub_token() -> RobotAuth:
 
     if not robot_id or not robot_secret:
         logger.error("Missing robot ID or secret. Check env vars")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="No credentials provided for the hub robot. Check that the environment variables are set properly",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise ValueError("Missing Hub robot credentials, check that the environment variables are set properly")
 
     try:
         uuid.UUID(robot_id)
 
     except ValueError:
         logger.error(f"Invalid robot ID: {robot_id}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Robot ID is not a valid UUID",
-            headers={"WWW-Authenticate": "Bearer"},
-        ) from ValueError
+        raise ValueError(f"Invalid robot ID: {robot_id}") from ValueError
 
     auth = RobotAuth(robot_id=robot_id, robot_secret=robot_secret)
-
     return auth
 
 
