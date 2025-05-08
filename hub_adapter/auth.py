@@ -23,11 +23,7 @@ from hub_adapter.models.conf import AuthConfiguration
 
 logger = logging.getLogger(__name__)
 
-IDP_ISSUER_URL = (
-    hub_adapter_settings.IDP_URL.rstrip("/")
-    + "/"
-    + "/".join(["realms", hub_adapter_settings.IDP_REALM])
-)
+IDP_ISSUER_URL = hub_adapter_settings.IDP_URL.rstrip("/") + "/" + "/".join(["realms", hub_adapter_settings.IDP_REALM])
 
 # IDP i.e. Keycloak
 realm_idp_settings = AuthConfiguration(
@@ -64,18 +60,12 @@ async def get_idp_public_key() -> str:
     )
 
 
-async def get_hub_public_key() -> dict:
-    """Get the central hub service public key."""
-    hub_jwks_ep = hub_adapter_settings.HUB_AUTH_SERVICE_URL.rstrip("/") + "/jwks"
-    return httpx.get(hub_jwks_ep).json()
-
-
 async def verify_idp_token(token: str = Security(idp_oauth2_scheme)) -> dict:
     """Decode the auth token using keycloak's public key."""
     if not token:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str("Missing or invalid token"),
+            detail="Missing or invalid token",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -92,17 +82,17 @@ async def verify_idp_token(token: str = Security(idp_oauth2_scheme)) -> dict:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(e),  # Invalid authentication credentials
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from e
 
     except ExpiredSignatureError:
         err_msg = "Authorization token expired"
         logger.error(f"{status.HTTP_401_UNAUTHORIZED} - {err_msg}")
-        raise HTTPException(status_code=401, detail=err_msg)
+        raise HTTPException(status_code=401, detail=err_msg) from ExpiredSignatureError
 
     except JWTClaimsError:
         err_msg = "Incorrect claims, check the audience and issuer."
         logger.error(f"{status.HTTP_401_UNAUTHORIZED} - {err_msg}")
-        raise HTTPException(status_code=401, detail=err_msg)
+        raise HTTPException(status_code=401, detail=err_msg) from JWTClaimsError
 
     except Exception:
         err_msg = "Unable to parse authentication token"
@@ -110,7 +100,7 @@ async def verify_idp_token(token: str = Security(idp_oauth2_scheme)) -> dict:
         raise HTTPException(
             status_code=401,
             detail=err_msg,
-        )
+        ) from Exception
 
 
 def get_hub_token() -> RobotAuth:
@@ -137,9 +127,8 @@ def get_hub_token() -> RobotAuth:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Robot ID is not a valid UUID",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from ValueError
 
-    # try:
     auth = RobotAuth(robot_id=robot_id, robot_secret=robot_secret)
 
     return auth

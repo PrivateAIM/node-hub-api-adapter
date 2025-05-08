@@ -254,7 +254,7 @@ def route(
                         "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
                     },
                     headers={"WWW-Authenticate": "Bearer"},
-                )
+                ) from HTTPException
 
             except DecodingError:
                 logger.error(
@@ -265,7 +265,7 @@ def route(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Service error",
                     headers={"WWW-Authenticate": "Bearer"},
-                )
+                ) from HTTPException
 
             except HTTPStatusError as http_error:
                 err_msg = f"HTTP Request: {method.upper()} {microsvc_path} - {http_error}"
@@ -278,7 +278,7 @@ def route(
                         "status_code": http_error.response.status_code,
                     },
                     headers={"WWW-Authenticate": "Bearer"},
-                )
+                ) from HTTPException
 
             response.status_code = status_code_from_service
 
