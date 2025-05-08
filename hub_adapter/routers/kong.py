@@ -107,21 +107,25 @@ async def list_data_stores(
 
 
 @kong_router.get(
-    "/datastore/{data_store_name}",
+    "/datastore/{project_id}",
     response_model=ListServices,
     status_code=status.HTTP_200_OK,
 )
 async def list_specific_data_store(
-    data_store_name: Annotated[str | None, Path(description="Unique name of the data store.")],
+    project_id: Annotated[str | None, Path(description="UUID of the associated project.")],
     detailed: Annotated[bool, Query(description="Whether to include detailed information on projects")] = False,
 ):
-    """List all available data stores (referred to as services by kong)."""
+    """List all available data stores (referred to as services by kong).
+
+    Will be composed of the Project UUID and the datastore type (fhir/s3) i.e. {project_id}-{ds_type}. This is found
+    via the tags.
+    """
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
 
     try:
         with kong_admin_client.ApiClient(configuration) as api_client:
             service_api_instance = kong_admin_client.ServicesApi(api_client)
-            services = service_api_instance.list_service(tags=data_store_name)
+            services = service_api_instance.list_service(tags=project_id)
 
             if detailed:
                 services = parse_project_info(services, api_client)
@@ -319,9 +323,9 @@ async def create_route_to_datastore(
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
 
     # Construct path from project_id and type
-    path = f"/{project_id}/{ds_type}"
-    name = f"{project_id}-{ds_type}"
     project = str(project_id)
+    name = f"{project_id}-{ds_type}"
+    path = f"/{name}/{ds_type}"
 
     with kong_admin_client.ApiClient(configuration) as api_client:
         route_api = kong_admin_client.RoutesApi(api_client)
