@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.2.4](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.2.3...v0.2.4) (2025-05-08)
+
+
+### Bug Fixes
+
+* **kong:** revert to updated version and fix project route path bug ([52eaeb6](https://github.com/PrivateAIM/node-hub-api-adapter/commit/52eaeb6c1373fa3987e90148361b7880eb6c2a34))
+
+
+### Reverts
+
+* **kong:** remove data store name suffix ([7911846](https://github.com/PrivateAIM/node-hub-api-adapter/commit/79118467b5c8ef6ec5d4ff9a53bda83e83cac51d))
+
+
+### Documentation
+
+* **kong:** update datastore ep ([b324a71](https://github.com/PrivateAIM/node-hub-api-adapter/commit/b324a715f72852bb1b6cf6910621e9fd597c2ced))
+
 ## [0.2.3](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.2.2...v0.2.3) (2025-05-07)
 
 
