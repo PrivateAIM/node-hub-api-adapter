@@ -370,6 +370,7 @@ def get_registry_metadata_for_url(
 def synthesize_image_data(
         analysis_id: Annotated[uuid.UUID | str, Form(description="Analysis UUID")],
         project_id: Annotated[uuid.UUID | str, Form(description="Project UUID")],
+        kong_token: Annotated[str, Body(description="Analysis keyauth kong token")],
         compiled_info: Annotated[tuple, Depends(get_registry_metadata_for_url)],
 ):
     """Put all the data together for passing on to the PO."""
@@ -378,6 +379,7 @@ def synthesize_image_data(
         "image_url": f"{host}/{registry_project_external_name}/{analysis_id}",
         "analysis_id": str(analysis_id),
         "project_id": str(project_id),
+        "kong_token": kong_token,
         "registry_url": host,
         "registry_user": registry_user,
         "registry_password": registry_sec,

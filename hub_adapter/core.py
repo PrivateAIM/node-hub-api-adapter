@@ -1,24 +1,25 @@
 import functools
 import logging
 import tempfile
-from typing import Sequence
+from collections.abc import Sequence
 
 import httpx
 from fastapi import HTTPException, params, status
 from fastapi.datastructures import Headers
 from fastapi.requests import Request
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from httpx import ConnectError, DecodingError, HTTPStatusError
-from starlette.responses import Response, FileResponse
+from starlette.responses import FileResponse, Response
 
 from hub_adapter import post_processing, pre_processing
+from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.constants import CONTENT_TYPE
 from hub_adapter.utils import (
-    unzip_form_params,
-    unzip_body_object,
     create_request_data,
-    unzip_query_params,
+    unzip_body_object,
     unzip_file_params,
+    unzip_form_params,
+    unzip_query_params,
 )
 
 logger = logging.getLogger(__name__)
@@ -189,20 +190,12 @@ def route(
             downstream_path = scope["path"]
 
             content_type = str(request.headers.get(CONTENT_TYPE))
-            www_request_form = (
-                await request.form()
-                if "x-www-form-urlencoded" in content_type
-                else None
-            )
+            www_request_form = await request.form() if "x-www-form-urlencoded" in content_type else None
 
             # Prune headers
             request_headers = dict(request.headers)
-            request_headers.pop(
-                "content-length", None
-            )  # Let httpx configure content-length
-            request_headers.pop(
-                "content-type", None
-            )  # Let httpx configure content-type
+            request_headers.pop("content-length", None)  # Let httpx configure content-length
+            request_headers.pop("content-type", None)  # Let httpx configure content-type
             request_headers.pop("host", None)
 
             if pre_processing_func:  # all used pp functions found in post_processing
@@ -229,15 +222,11 @@ def route(
                 additional_params=kwargs,
             )
 
-            request_files = await unzip_file_params(
-                specified_params=file_params, additional_params=kwargs
-            )
+            request_files = await unzip_file_params(specified_params=file_params, additional_params=kwargs)
 
-            request_data = create_request_data(
-                form=request_form, body=request_body
-            )  # Either JSON or Form
+            request_data = create_request_data(form=request_form, body=request_body)  # Either JSON or Form
 
-            microsvc_path = f"{service_url}{downstream_path}"
+            microsvc_path = f"{service_url}{downstream_path.removeprefix(hub_adapter_settings.API_ROOT_PATH)}"
 
             try:
                 resp_data, status_code_from_service = await make_request(
@@ -259,7 +248,11 @@ def route(
                 logger.error(err_msg)
                 raise HTTPException(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail={"message": err_msg, "service": service_tags[0]},
+                    detail={
+                        "message": err_msg,
+                        "service": service_tags[0],
+                        "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
+                    },
                     headers={"WWW-Authenticate": "Bearer"},
                 )
 
@@ -275,13 +268,15 @@ def route(
                 )
 
             except HTTPStatusError as http_error:
-                err_msg = (
-                    f"HTTP Request: {method.upper()} {microsvc_path} - {http_error}"
-                )
+                err_msg = f"HTTP Request: {method.upper()} {microsvc_path} - {http_error}"
                 logger.error(err_msg)
                 raise HTTPException(
                     status_code=http_error.response.status_code,
-                    detail=err_msg,
+                    detail={
+                        "message": err_msg,
+                        "service": service_tags[0],
+                        "status_code": http_error.response.status_code,
+                    },
                     headers={"WWW-Authenticate": "Bearer"},
                 )
 

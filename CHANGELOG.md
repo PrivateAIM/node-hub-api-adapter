@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.2.3](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.2.2...v0.2.3) (2025-05-07)
+
+
+### Features
+
+* add kong_token to /po ep ([f3ead40](https://github.com/PrivateAIM/node-hub-api-adapter/commit/f3ead40e5405cfc80a68a0e6aa30281cdb9c0d5a))
+* add kong_token to /po ep ([96ce4b2](https://github.com/PrivateAIM/node-hub-api-adapter/commit/96ce4b2e70c885601c202e1fdb7f7b2f140fba27))
+* improved downstream error analysis ([55af611](https://github.com/PrivateAIM/node-hub-api-adapter/commit/55af611e8848d9f7d035bca62f2b4f234cea53ce))
+
+
+### Bug Fixes
+
+* po endpoint param data type ([d4712b2](https://github.com/PrivateAIM/node-hub-api-adapter/commit/d4712b27e7f006c32360c50e938406b94ff9f9bf))
+
+## [0.2.2](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.2.1...v0.2.2) (2025-05-06)
+
+
+### Bug Fixes
+
+* enable data store creation with same name but different type ([1ec3ddf](https://github.com/PrivateAIM/node-hub-api-adapter/commit/1ec3ddf97d79740b27fef0364be7ba41cd028e9a))
+* enable data store creation with same name but different type ([c853519](https://github.com/PrivateAIM/node-hub-api-adapter/commit/c85351997663c3ca417e0cbf36fe00472f506d9b))
+
+## [0.2.1](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.2.0...v0.2.1) (2025-05-05)
+
+
+### Bug Fixes
+
+* allow follow redirects ([1dbcdad](https://github.com/PrivateAIM/node-hub-api-adapter/commit/1dbcdada1d2f950b882e7bfff0341f9588f55f0b))
+* remove root path from downstream microsvc endpoint paths ([3accbd1](https://github.com/PrivateAIM/node-hub-api-adapter/commit/3accbd11735bfc5be67bcf601628e25251b2d28f))
+* remove root path from downstream microsvc endpoint paths ([f53a64d](https://github.com/PrivateAIM/node-hub-api-adapter/commit/f53a64d5757a6a7bcc4f453916955478f94a4105))
+* update deps ([93b23bd](https://github.com/PrivateAIM/node-hub-api-adapter/commit/93b23bd4313c6c8409f7e3836ceee2a364db2433))
+
 ## [0.2.0](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.1.4...v0.2.0) (2025-04-10)
 
 
