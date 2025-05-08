@@ -1,12 +1,10 @@
 """EPs for Hub provided information."""
 
-import functools
 import logging
 import pickle
 import uuid
 from typing import Annotated
 
-import httpx
 from fastapi import APIRouter, Body, Depends, Form, HTTPException, Path, Security
 from flame_hub import HubAPIError
 from flame_hub.models import (
@@ -30,6 +28,7 @@ from hub_adapter.auth import (
     verify_idp_token,
 )
 from hub_adapter.conf import hub_adapter_settings
+from hub_adapter.errors import catch_hub_errors
 from hub_adapter.models.hub import (
     AnalysisImageUrl,
     DetailedAnalysis,
@@ -40,52 +39,12 @@ hub_router = APIRouter(
         Security(verify_idp_token),
         Security(idp_oauth2_scheme_pass),
         Security(httpbearer),
-        # Depends(add_hub_jwt),
     ],
     tags=["Hub"],
     responses={404: {"description": "Not found"}},
 )
 
 logger = logging.getLogger(__name__)
-
-
-def catch_hub_errors(f):
-    """Custom error handling decorator for flame_hub_client."""
-
-    @functools.wraps(f)
-    async def inner(*args, **kwargs):
-        try:
-            return await f(*args, **kwargs)
-
-        except HubAPIError as err:
-            resp_error = err.error_response
-
-            if type(resp_error) is httpx.ConnectTimeout:
-                logger.error("Connection Timeout - Hub is currently unreachable")
-                raise HTTPException(
-                    status_code=status.HTTP_408_REQUEST_TIMEOUT,
-                    detail="Connection Timeout - Hub is currently unreacheable",  # Invalid authentication credentials
-                    headers={"WWW-Authenticate": "Bearer"},
-                ) from err
-
-            elif type(resp_error) is httpx.ConnectError:
-                err = "Connection Error - Hub is currently unreachable"
-                logger.error(err)
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=err,
-                    headers={"WWW-Authenticate": "Bearer"},
-                ) from err
-
-            else:
-                logger.error("Failed to retrieve JWT from Hub")
-                raise HTTPException(
-                    status_code=err.error_response.status_code,
-                    detail=err.error_response.message,  # Invalid authentication credentials
-                    headers={"WWW-Authenticate": "Bearer"},
-                ) from err
-
-    return inner
 
 
 @catch_hub_errors
@@ -146,7 +105,7 @@ async def list_all_projects():
 )
 @catch_hub_errors
 async def list_specific_project(
-        project_id: Annotated[uuid.UUID | str, Path(description="Project UUID.")],
+    project_id: Annotated[uuid.UUID | str, Path(description="Project UUID.")],
 ):
     """List project for a given UUID."""
     return core_client.get_project(project_id=project_id)
@@ -176,7 +135,7 @@ async def list_project_proposals(node_id: Annotated[str, Depends(get_node_id)]):
 )
 @catch_hub_errors
 async def list_project_proposal(
-        project_node_id: Annotated[uuid.UUID | str, Path(description="Proposal object UUID.")],
+    project_node_id: Annotated[uuid.UUID | str, Path(description="Proposal object UUID.")],
 ):
     """Set the approval status of a project proposal."""
     return core_client.get_project_node(project_node_id=project_node_id)
@@ -190,11 +149,11 @@ async def list_project_proposal(
 )
 @catch_hub_errors
 async def accept_reject_project_proposal(
-        project_node_id: Annotated[uuid.UUID | str, Path(description="Proposal object UUID.")],
-        approval_status: Annotated[
-            ProjectNodeApprovalStatus,
-            Form(description="Set the approval status of project for the node. Either 'rejected' or 'approved'"),
-        ],
+    project_node_id: Annotated[uuid.UUID | str, Path(description="Proposal object UUID.")],
+    approval_status: Annotated[
+        ProjectNodeApprovalStatus,
+        Form(description="Set the approval status of project for the node. Either 'rejected' or 'approved'"),
+    ],
 ):
     """Set the approval status of a project proposal."""
     return core_client.update_project_node(project_node_id=project_node_id, approval_status=approval_status)
@@ -208,7 +167,7 @@ async def accept_reject_project_proposal(
 )
 @catch_hub_errors
 async def list_analysis_nodes(
-        node_id: Annotated[str, Depends(get_node_id)],
+    node_id: Annotated[str, Depends(get_node_id)],
 ):
     """List all analysis nodes for give node."""
     if node_id:
@@ -226,7 +185,7 @@ async def list_analysis_nodes(
 )
 @catch_hub_errors
 async def list_specific_analysis_node(
-        analysis_node_id: Annotated[uuid.UUID | str, Path(description="Analysis Node UUID.")],
+    analysis_node_id: Annotated[uuid.UUID | str, Path(description="Analysis Node UUID.")],
 ):
     """List a specific analysis node."""
     return core_client.get_analysis_node(analysis_node_id=analysis_node_id)
@@ -240,11 +199,11 @@ async def list_specific_analysis_node(
 )
 @catch_hub_errors
 async def accept_reject_analysis_node(
-        analysis_node_id: Annotated[uuid.UUID | str, Path(description="Analysis Node UUID (not analysis_id).")],
-        approval_status: Annotated[
-            AnalysisNodeApprovalStatus,
-            Form(description="Set the approval status of project for the node. Either 'rejected' or 'approved'"),
-        ],
+    analysis_node_id: Annotated[uuid.UUID | str, Path(description="Analysis Node UUID (not analysis_id).")],
+    approval_status: Annotated[
+        AnalysisNodeApprovalStatus,
+        Form(description="Set the approval status of project for the node. Either 'rejected' or 'approved'"),
+    ],
 ):
     """Set the approval status of an analysis proposal."""
     return core_client.update_analysis_node(analysis_node_id=analysis_node_id, approval_status=approval_status)
@@ -270,7 +229,7 @@ async def list_all_analyses():
 )
 @catch_hub_errors
 async def list_specific_analysis(
-        analysis_id: Annotated[uuid.UUID | str, Path(description="Analysis UUID.")],
+    analysis_id: Annotated[uuid.UUID | str, Path(description="Analysis UUID.")],
 ):
     """List a specific analysis."""
     return core_client.get_analysis(analysis_id=analysis_id)
@@ -284,8 +243,8 @@ async def list_specific_analysis(
 )
 @catch_hub_errors
 async def update_specific_analysis(
-        analysis_id: Annotated[uuid.UUID | str, Path(description="Analysis UUID.")],
-        name: Annotated[str, Body(description="New analysis name.")],
+    analysis_id: Annotated[uuid.UUID | str, Path(description="Analysis UUID.")],
+    name: Annotated[str, Body(description="New analysis name.")],
 ):
     """Update analysis with a given UUID."""
     return core_client.update_analysis(analysis_id=analysis_id, name=name)
@@ -299,7 +258,7 @@ async def update_specific_analysis(
 )
 @catch_hub_errors
 async def get_registry_metadata_for_project(
-        registry_project_id: Annotated[uuid.UUID | str, Path(description="Registry project UUID.")],
+    registry_project_id: Annotated[uuid.UUID | str, Path(description="Registry project UUID.")],
 ):
     """List registry data for a project."""
 
@@ -307,7 +266,7 @@ async def get_registry_metadata_for_project(
 
 
 def get_node_metadata_for_url(
-        node_id: Annotated[uuid.UUID | str, Form(description="Node UUID")],
+    node_id: Annotated[uuid.UUID | str, Form(description="Node UUID")],
 ):
     """Get analysis metadata for a given UUID to be used in creating analysis image URL."""
     node_metadata: Node = core_client.get_node(node_id=node_id)
@@ -323,10 +282,9 @@ def get_node_metadata_for_url(
 
 
 def get_registry_metadata_for_url(
-        node_metadata: Annotated[Node, Depends(get_node_metadata_for_url)],
+    node_metadata: Annotated[Node, Depends(get_node_metadata_for_url)],
 ):
     """Get registry metadata for a given UUID to be used in creating analysis image URL."""
-
     registry_metadata = dict()
 
     try:
@@ -367,11 +325,11 @@ def get_registry_metadata_for_url(
     return host, registry_project_external_name, user, pwd
 
 
-def synthesize_image_data(
-        analysis_id: Annotated[uuid.UUID | str, Form(description="Analysis UUID")],
-        project_id: Annotated[uuid.UUID | str, Form(description="Project UUID")],
-        kong_token: Annotated[str, Body(description="Analysis keyauth kong token")],
-        compiled_info: Annotated[tuple, Depends(get_registry_metadata_for_url)],
+def compile_analysis_pod_data(
+    analysis_id: Annotated[uuid.UUID | str, Form(description="Analysis UUID")],
+    project_id: Annotated[uuid.UUID | str, Form(description="Project UUID")],
+    kong_token: Annotated[str, Body(description="Analysis keyauth kong token")],
+    compiled_info: Annotated[tuple, Depends(get_registry_metadata_for_url)],
 ):
     """Put all the data together for passing on to the PO."""
     host, registry_project_external_name, registry_user, registry_sec = compiled_info
@@ -390,7 +348,7 @@ def synthesize_image_data(
 @hub_router.post("/analysis/image", response_model=AnalysisImageUrl)
 @catch_hub_errors
 async def get_analysis_image_url(
-        image_url_resp: AnalysisImageUrl = Depends(synthesize_image_data),
+    image_url_resp: Annotated[AnalysisImageUrl, Depends(compile_analysis_pod_data)],
 ):
     """Build an analysis image URL using its metadata from the Hub."""
     return image_url_resp
@@ -416,7 +374,7 @@ async def list_all_analysis_buckets():
 )
 @catch_hub_errors
 async def list_specific_analysis_buckets(
-        analysis_bucket_id: Annotated[uuid.UUID | str, Path(description="Bucket UUID.")],
+    analysis_bucket_id: Annotated[uuid.UUID | str, Path(description="Bucket UUID.")],
 ):
     """List a specific analysis bucket."""
     return core_client.get_analysis_bucket(analysis_bucket_id=analysis_bucket_id)
@@ -442,7 +400,7 @@ async def list_all_analysis_bucket_files():
 )
 @catch_hub_errors
 async def list_specific_analysis_bucket_file(
-        analysis_bucket_file_id: Annotated[uuid.UUID | str, Path(description="Bucket file UUID.")],
+    analysis_bucket_file_id: Annotated[uuid.UUID | str, Path(description="Bucket file UUID.")],
 ):
     """List specific partial analysis bucket file."""
     return core_client.get_analysis_bucket_file(analysis_bucket_file_id=analysis_bucket_file_id)

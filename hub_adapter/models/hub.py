@@ -20,6 +20,7 @@ class DetailedAnalysis(Analysis):
 class AnalysisImageUrl(BaseModel):
     image_url: str
     project_id: str | None = None
+    kong_token: str | None = None
     analysis_id: str
     registry_url: str
     registry_user: str | None = None
