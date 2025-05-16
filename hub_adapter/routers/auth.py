@@ -3,14 +3,11 @@
 from typing import Annotated
 
 import httpx
-from fastapi import APIRouter, HTTPException, Body, Form
-from jose import jwt
+from fastapi import APIRouter, Form, HTTPException
 from starlette import status
-from starlette.requests import Request
-from starlette.responses import Response
 
-from hub_adapter.auth import realm_idp_settings
-from hub_adapter.core import route
+from hub_adapter.auth import user_oidc_config
+from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.models.conf import Token
 
 auth_router = APIRouter(
@@ -39,12 +36,12 @@ def get_token(
     payload = {
         "username": username,
         "password": password,
-        "client_id": realm_idp_settings.client_id,
-        "client_secret": realm_idp_settings.client_secret,
+        "client_id": hub_adapter_settings.API_CLIENT_ID,
+        "client_secret": hub_adapter_settings.API_CLIENT_SECRET,
         "grant_type": "password",
         "scope": "openid",
     }
-    resp = httpx.post(realm_idp_settings.token_url, data=payload)
+    resp = httpx.post(user_oidc_config.token_endpoint, data=payload)
     if not resp.status_code == httpx.codes.OK:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -53,53 +50,3 @@ def get_token(
         )
     token_data = resp.json()
     return Token(**token_data)
-
-
-@auth_router.post(
-    "/token/inspect",
-    summary="Get information about a provided token from the IDP",
-    status_code=status.HTTP_200_OK,
-)
-def inspect_token(
-    token: Annotated[str, Body(description="JSON web token")],
-) -> dict:
-    """Return information about the provided token."""
-    public_key = (
-        "-----BEGIN PUBLIC KEY-----\n"
-        f"{httpx.get(realm_idp_settings.issuer_url).json().get('public_key')}"
-        "\n-----END PUBLIC KEY-----"
-    )
-    decoded = jwt.decode(
-        token,
-        key=public_key,
-        options={"verify_signature": True, "verify_aud": False, "exp": True},
-    )
-    return decoded
-
-
-@route(
-    request_method=auth_router.post,
-    path="/authorize",
-    # status_code=status.HTTP_200_OK,
-    service_url=realm_idp_settings.authorization_url,
-)
-async def authorize(
-    request: Request,
-    response: Response,
-):
-    """Check token authorization."""
-    pass
-
-
-@route(
-    request_method=auth_router.post,
-    path="/userinfo",
-    # status_code=status.HTTP_200_OK,
-    service_url=realm_idp_settings.user_info,
-)
-async def user_info(
-    request: Request,
-    response: Response,
-):
-    """Get user information."""
-    pass

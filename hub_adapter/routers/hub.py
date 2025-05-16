@@ -15,8 +15,7 @@ from hub_adapter import node_id_pickle_path
 from hub_adapter.auth import (
     add_hub_jwt,
     get_hub_token,
-    httpbearer,
-    idp_oauth2_scheme_pass,
+    jwtbearer,
     verify_idp_token,
 )
 from hub_adapter.conf import hub_adapter_settings
@@ -52,8 +51,7 @@ from hub_adapter.models.hub import (
 hub_router = APIRouter(
     dependencies=[
         Security(verify_idp_token),
-        Security(idp_oauth2_scheme_pass),
-        Security(httpbearer),
+        Security(jwtbearer),
         Depends(add_hub_jwt),
     ],
     tags=["Hub"],

@@ -2,64 +2,53 @@
 
 import logging
 import uuid
+from functools import lru_cache
 
 import httpx
-from fastapi import Security, HTTPException
+import jwt
+from fastapi import HTTPException, Security
 from fastapi.security import (
-    OAuth2AuthorizationCodeBearer,
-    OAuth2PasswordBearer,
     HTTPBearer,
+    OAuth2AuthorizationCodeBearer,
 )
-from jose import jwt, JOSEError, ExpiredSignatureError
-from jose.exceptions import JWTClaimsError
+from jwt import PyJWKClient
 from starlette import status
 from starlette.datastructures import MutableHeaders
 from starlette.requests import Request
 
 from hub_adapter.conf import hub_adapter_settings
-from hub_adapter.models.conf import AuthConfiguration, Token
+from hub_adapter.models.conf import OIDCConfiguration, Token
 
 logger = logging.getLogger(__name__)
 
-IDP_ISSUER_URL = (
-    hub_adapter_settings.IDP_URL.rstrip("/")
-    + "/"
-    + "/".join(["realms", hub_adapter_settings.IDP_REALM])
-)
 
-# IDP i.e. Keycloak
-realm_idp_settings = AuthConfiguration(
-    server_url=hub_adapter_settings.IDP_URL,
-    realm=hub_adapter_settings.IDP_REALM,
-    client_id=hub_adapter_settings.API_CLIENT_ID,
-    client_secret=hub_adapter_settings.API_CLIENT_SECRET,
-    authorization_url=IDP_ISSUER_URL + "/protocol/openid-connect/auth",
-    token_url=IDP_ISSUER_URL + "/protocol/openid-connect/token",
-    user_info=IDP_ISSUER_URL + "/protocol/openid-connect/userinfo",
-    issuer_url=IDP_ISSUER_URL,
+@lru_cache(maxsize=2)
+def fetch_openid_config(oidc_url: str) -> OIDCConfiguration:
+    """Fetch the openid configuration from the OIDC URL."""
+    if not oidc_url.endswith(".well-known/openid-configuration"):
+        oidc_url = oidc_url.rstrip("/") + "/.well-known/openid-configuration"
+    response = httpx.get(oidc_url)
+    response.raise_for_status()
+    oidc_config = response.json()
+    return OIDCConfiguration(**oidc_config)
+
+
+user_oidc_config = fetch_openid_config(hub_adapter_settings.IDP_URL)
+svc_oidc_config = (
+    fetch_openid_config(hub_adapter_settings.NODE_SVC_OIDC_URL)
+    if hub_adapter_settings.NODE_SVC_OIDC_URL != hub_adapter_settings.IDP_URL
+    else user_oidc_config
 )
 
 idp_oauth2_scheme = OAuth2AuthorizationCodeBearer(
-    authorizationUrl=realm_idp_settings.authorization_url,
-    tokenUrl=realm_idp_settings.token_url,
+    authorizationUrl=user_oidc_config.authorization_endpoint,
+    tokenUrl=user_oidc_config.token_endpoint,
 )
 
-idp_oauth2_scheme_pass = OAuth2PasswordBearer(tokenUrl=realm_idp_settings.token_url)
-
-httpbearer = HTTPBearer(
+jwtbearer = HTTPBearer(
     scheme_name="JWT",
     description="Pass a valid JWT here for authentication. Can be obtained from /token endpoint.",
 )
-
-
-# Debugging methods
-async def get_idp_public_key() -> str:
-    """Get the IDP public key."""
-    return (
-        "-----BEGIN PUBLIC KEY-----\n"
-        f"{httpx.get(realm_idp_settings.issuer_url).json().get('public_key')}"
-        "\n-----END PUBLIC KEY-----"
-    )
 
 
 async def get_hub_public_key() -> dict:
@@ -73,18 +62,31 @@ async def verify_idp_token(token: str = Security(idp_oauth2_scheme)) -> dict:
     if not token:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str("Missing or invalid token"),
+            detail="Missing or invalid token",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
     try:
+        # Decode just to get issuer
+        unverified_claims = jwt.decode(token, options={"verify_signature": False})
+        issuer = unverified_claims.get("iss")
+
+        # If issuer is the user's OIDC, use the user's public key, otherwise use the node's internal public key
+        if issuer == user_oidc_config.issuer:
+            jwk_client = PyJWKClient(user_oidc_config.jwks_uri)
+
+        else:
+            jwk_client = PyJWKClient(svc_oidc_config.jwks_uri)
+
+        signing_key = jwk_client.get_signing_key_from_jwt(token)
+
         return jwt.decode(
             token,
-            key=await get_idp_public_key(),
+            key=signing_key,
             options={"verify_signature": True, "verify_aud": False, "exp": True},
         )
 
-    except JOSEError as e:
+    except jwt.DecodeError as e:
         logger.error(f"{status.HTTP_401_UNAUTHORIZED} - {e}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -92,12 +94,12 @@ async def verify_idp_token(token: str = Security(idp_oauth2_scheme)) -> dict:
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    except ExpiredSignatureError:
+    except jwt.ExpiredSignatureError:
         err_msg = "Authorization token expired"
         logger.error(f"{status.HTTP_401_UNAUTHORIZED} - {err_msg}")
         raise HTTPException(status_code=401, detail=err_msg)
 
-    except JWTClaimsError:
+    except jwt.MissingRequiredClaimError:
         err_msg = "Incorrect claims, check the audience and issuer."
         logger.error(f"{status.HTTP_401_UNAUTHORIZED} - {err_msg}")
         raise HTTPException(status_code=401, detail=err_msg)

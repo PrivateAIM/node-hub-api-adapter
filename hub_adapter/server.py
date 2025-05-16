@@ -4,7 +4,6 @@ import uvicorn
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
-from hub_adapter.auth import realm_idp_settings
 from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.routers.auth import auth_router
 from hub_adapter.routers.health import health_router
@@ -33,7 +32,7 @@ app = FastAPI(
     swagger_ui_init_oauth={
         # "usePkceWithAuthorizationCodeGrant": True,
         # Auth fill client ID for the docs with the below value
-        "clientId": realm_idp_settings.client_id,  # default client-id is Keycloak
+        "clientId": hub_adapter_settings.API_CLIENT_ID,  # default client-id is Keycloak
     },
     license_info={
         "name": "Apache 2.0",
