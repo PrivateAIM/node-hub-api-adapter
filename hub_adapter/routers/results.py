@@ -2,12 +2,12 @@
 
 import uuid
 
-from fastapi import APIRouter, UploadFile, Security
+from fastapi import APIRouter, Security, UploadFile
 from starlette import status
 from starlette.requests import Request
 from starlette.responses import Response
 
-from hub_adapter.auth import verify_idp_token, idp_oauth2_scheme_pass, httpbearer
+from hub_adapter.auth import jwtbearer, verify_idp_token
 from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.core import route
 from hub_adapter.models.results import ResultsUploadResponse
@@ -15,8 +15,7 @@ from hub_adapter.models.results import ResultsUploadResponse
 results_router = APIRouter(
     dependencies=[
         Security(verify_idp_token),
-        Security(idp_oauth2_scheme_pass),
-        Security(httpbearer),
+        Security(jwtbearer),
     ],
     tags=["Results"],
     responses={404: {"description": "Not found"}},

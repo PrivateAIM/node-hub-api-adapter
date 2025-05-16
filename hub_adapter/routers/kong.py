@@ -18,7 +18,7 @@ from kong_admin_client import (
 from kong_admin_client.rest import ApiException
 from starlette import status
 
-from hub_adapter.auth import httpbearer, idp_oauth2_scheme_pass, verify_idp_token
+from hub_adapter.auth import jwtbearer, verify_idp_token
 from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.models.kong import (
     DeleteProject,
@@ -35,8 +35,7 @@ from hub_adapter.models.kong import (
 kong_router = APIRouter(
     dependencies=[
         Security(verify_idp_token),
-        Security(idp_oauth2_scheme_pass),
-        Security(httpbearer),
+        Security(jwtbearer),
     ],
     tags=["Kong"],
     responses={404: {"description": "Not found"}},
@@ -45,7 +44,7 @@ kong_router = APIRouter(
 
 logger = logging.getLogger(__name__)
 kong_admin_url = hub_adapter_settings.KONG_ADMIN_SERVICE_URL
-realm = hub_adapter_settings.IDP_REALM
+REALM = "flame"
 
 
 def parse_project_info(services, client) -> dict:
@@ -504,7 +503,7 @@ async def get_analyses(
 ):
     """List all analyses (referred to as consumers by kong) available, can be filtered by analysis_id."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
-    username = f"{analysis_id}-{realm}"
+    username = f"{analysis_id}-{REALM}"
 
     with kong_admin_client.ApiClient(configuration) as api_client:
         try:
@@ -560,7 +559,7 @@ async def create_and_connect_analysis_to_project(
 
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
     response = {}
-    username = f"{analysis_id}-{realm}"
+    username = f"{analysis_id}-{REALM}"
 
     with kong_admin_client.ApiClient(configuration) as api_client:
         try:
@@ -653,7 +652,7 @@ async def create_and_connect_analysis_to_project(
 async def delete_analysis(analysis_id: Annotated[str, Path(description="UUID or unique name of the analysis.")]):
     """Delete the listed analysis."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
-    username = f"{analysis_id}-{realm}"
+    username = f"{analysis_id}-{REALM}"
 
     with kong_admin_client.ApiClient(configuration) as api_client:
         consumer_api = kong_admin_client.ConsumersApi(api_client)

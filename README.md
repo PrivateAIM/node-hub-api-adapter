@@ -25,8 +25,7 @@ users must authorize themselves with the deployed keycloak instance
 The following environment variables need to be set for operation:
 
 ```bash
-IDP_URL="http://localhost:8080"  # e.g. Keycloak
-IDP_REALM="flame"  # If different realm used in keycloak else defaults to master
+IDP_URL="https://my.user.keycloak.com/realms/flame"  # Path to IDP for user auth (if keycloak then include realm) 
 API_ROOT_PATH=""  # Change the root path where the API is served from, useful for k8s ingress
 PODORC_SERVICE_URL="http://localhost:18080"  # URL to Pod Orchestration service
 RESULTS_SERVICE_URL="http://localhost:8000"  # URL to the Results service
@@ -37,4 +36,5 @@ HUB_ROBOT_USER="hubusername"  # Need to get credentials from myself or hub team
 HUB_ROBOT_SECRET="hubpassword"  # These will be removed later once users are registered in both node and hub IDP
 API_CLIENT_ID="hub-adapter"  # Client name of this API as defined in keycloak
 API_CLIENT_SECRET="someSecret"  # Client secret of this API as defined in keycloak
+#NODE_SVC_OIDC_URL="https://data-center.node.com/keycloak/realms/flame"  # The internal IDP used by other Node microsvcs
 ```
