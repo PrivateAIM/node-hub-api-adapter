@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.5](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.2.4...v0.2.5) (2025-05-16)
+
+
+### Features
+
+* **idp:** allow for separate user IDP and dynamically build oidc config ([c6f27a3](https://github.com/PrivateAIM/node-hub-api-adapter/commit/c6f27a322ddddebfbf73b659f981ae9f12f9d9c4))
+* **idp:** allow for separate user IDP and dynamically build oidc config ([63cfaa8](https://github.com/PrivateAIM/node-hub-api-adapter/commit/63cfaa8cee2965c7a9991b25a02a6d44729d9dc6))
+
 ## [0.2.4](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.2.3...v0.2.4) (2025-05-08)
 
 
