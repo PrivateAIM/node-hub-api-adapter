@@ -35,4 +35,3 @@ class Settings(BaseModel):
 
 
 hub_adapter_settings = Settings()
-print(hub_adapter_settings)
