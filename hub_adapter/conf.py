@@ -15,6 +15,8 @@ class Settings(BaseModel):
     IDP_URL: str = os.getenv("IDP_URL", "http://localhost:8080")  # User
     # If using a different service for node OIDC, set this to the URL of that service
     NODE_SVC_OIDC_URL: str = os.getenv("NODE_SVC_OIDC_URL", os.getenv("IDP_URL", "http://localhost:8080"))
+    # JWKS URI to override the endpoints fetched from the IDP issuer (meant for local testing)
+    OVERRIDE_JWKS: str = os.getenv("OVERRIDE_JWKS")
 
     # Service URLs
     RESULTS_SERVICE_URL: str = os.getenv("RESULTS_SERVICE_URL", "http://localhost:8000")
@@ -33,3 +35,4 @@ class Settings(BaseModel):
 
 
 hub_adapter_settings = Settings()
+print(hub_adapter_settings)

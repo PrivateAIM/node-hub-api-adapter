@@ -89,8 +89,10 @@ async def verify_idp_token(token: str = Security(idp_oauth2_scheme)) -> dict:
         unverified_claims = jwt.decode(token, options={"verify_signature": False})
         issuer = unverified_claims.get("iss")
 
-        # If issuer is the user's OIDC, use the user's public key, otherwise use the node's internal public key
-        if issuer == user_oidc_config.issuer:
+        if hub_adapter_settings.OVERRIDE_JWKS:  # Override the fetched URIs
+            jwk_client = PyJWKClient(hub_adapter_settings.OVERRIDE_JWKS)
+        # If the issuer is the user's OIDC, use the user's public key, otherwise use the node's internal public key
+        elif issuer == user_oidc_config.issuer:
             jwk_client = PyJWKClient(user_oidc_config.jwks_uri)
 
         else:
