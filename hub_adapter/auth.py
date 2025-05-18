@@ -1,6 +1,7 @@
 """Handle the authorization and authentication of services."""
 
 import logging
+import time
 import uuid
 from functools import lru_cache
 
@@ -23,14 +24,31 @@ logger = logging.getLogger(__name__)
 
 
 @lru_cache(maxsize=2)
-def fetch_openid_config(oidc_url: str) -> OIDCConfiguration:
-    """Fetch the openid configuration from the OIDC URL."""
+def fetch_openid_config(oidc_url: str, max_retries: int = 6) -> OIDCConfiguration:
+    """Fetch the openid configuration from the OIDC URL. Tries until it reaches max_retries."""
     if not oidc_url.endswith(".well-known/openid-configuration"):
         oidc_url = oidc_url.rstrip("/") + "/.well-known/openid-configuration"
-    response = httpx.get(oidc_url)
-    response.raise_for_status()
-    oidc_config = response.json()
-    return OIDCConfiguration(**oidc_config)
+
+    attempt_num = 0
+    while attempt_num <= max_retries:
+        try:
+            response = httpx.get(oidc_url)
+            response.raise_for_status()
+            oidc_config = response.json()
+            return OIDCConfiguration(**oidc_config)
+
+        except httpx.ConnectError:  # OIDC Service not up yet
+            attempt_num += 1
+            wait_time = 10 * (2 ** (attempt_num - 1))  # 10s, 20s, 40s, 80s, 160s, 320s
+            logger.warning(f"Unable to contact the IDP at {oidc_url}, retrying in {wait_time} seconds")
+            time.sleep(wait_time)
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"HTTP error occurred while trying to contact the IDP: {e}")
+            raise httpx.HTTPStatusError from e
+
+    logger.error(f"Unable to contact the IDP at {oidc_url} after {max_retries} retries")
+    raise httpx.ConnectError(f"Failed to connect after {max_retries} attempts.")
 
 
 user_oidc_config = fetch_openid_config(hub_adapter_settings.IDP_URL)
