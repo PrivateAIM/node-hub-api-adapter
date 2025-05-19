@@ -3,17 +3,17 @@
 from pydantic import BaseModel
 
 
-class AuthConfiguration(BaseModel):
-    """Auth config model."""
+class OIDCConfiguration(BaseModel):
+    """OIDC config model."""
 
-    server_url: str
-    realm: str
-    client_id: str
-    client_secret: str | None = None
-    authorization_url: str
-    token_url: str
-    issuer_url: str
-    user_info: str
+    issuer: str
+    authorization_endpoint: str
+    token_endpoint: str
+    jwks_uri: str
+    userinfo_endpoint: str
+
+    class Config:
+        extra = "ignore"  # Ignore extra OIDC config fields
 
 
 class Token(BaseModel):

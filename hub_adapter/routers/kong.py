@@ -17,7 +17,7 @@ from kong_admin_client import (
 )
 from starlette import status
 
-from hub_adapter.auth import httpbearer, idp_oauth2_scheme_pass, verify_idp_token
+from hub_adapter.auth import jwtbearer, verify_idp_token
 from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.errors import catch_kong_errors
 from hub_adapter.models.kong import (
@@ -35,8 +35,7 @@ from hub_adapter.models.kong import (
 kong_router = APIRouter(
     dependencies=[
         Security(verify_idp_token),
-        Security(idp_oauth2_scheme_pass),
-        Security(httpbearer),
+        Security(jwtbearer),
     ],
     tags=["Kong"],
     responses={404: {"description": "Not found"}},
@@ -45,7 +44,7 @@ kong_router = APIRouter(
 
 logger = logging.getLogger(__name__)
 kong_admin_url = hub_adapter_settings.KONG_ADMIN_SERVICE_URL
-realm = hub_adapter_settings.IDP_REALM
+REALM = "flame"
 
 
 def parse_project_info(services, client) -> dict:
@@ -92,20 +91,24 @@ async def list_data_stores(
 
 
 @kong_router.get(
-    "/datastore/{data_store_name}",
+    "/datastore/{project_id}",
     response_model=ListServices,
     status_code=status.HTTP_200_OK,
 )
 @catch_kong_errors
 async def list_specific_data_store(
-    data_store_name: Annotated[str | None, Path(description="Unique name of the data store.")],
+    project_id: Annotated[str | None, Path(description="UUID of the associated project.")],
     detailed: Annotated[bool, Query(description="Whether to include detailed information on projects")] = False,
 ):
-    """List all available data stores (referred to as services by kong)."""
+    """List all available data stores (referred to as services by kong).
+
+    Will be composed of the Project UUID and the datastore type (fhir/s3) i.e. {project_id}-{ds_type}. This is found
+    via the tags.
+    """
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
     with kong_admin_client.ApiClient(configuration) as api_client:
         service_api_instance = kong_admin_client.ServicesApi(api_client)
-        services = service_api_instance.list_service(tags=data_store_name)
+        services = service_api_instance.list_service(tags=project_id)
 
         if detailed:
             services = parse_project_info(services, api_client)
@@ -248,9 +251,9 @@ async def create_route_to_datastore(
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
 
     # Construct path from project_id and type
-    path = f"/{project_id}/{ds_type}"
-    name = f"{project_id}-{ds_type}"
     project = str(project_id)
+    name = f"{project_id}-{ds_type}"
+    path = f"/{name}/{ds_type}"
 
     with kong_admin_client.ApiClient(configuration) as api_client:
         route_api = kong_admin_client.RoutesApi(api_client)
@@ -383,7 +386,7 @@ async def get_analyses(
 ):
     """List all analyses (referred to as consumers by kong) available, can be filtered by analysis_id."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
-    username = f"{analysis_id}-{realm}"
+    username = f"{analysis_id}-{REALM}"
 
     with kong_admin_client.ApiClient(configuration) as api_client:
         consumer_api = kong_admin_client.ConsumersApi(api_client)
@@ -429,7 +432,7 @@ async def create_and_connect_analysis_to_project(
 
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
     response = {}
-    username = f"{analysis_id}-{realm}"
+    username = f"{analysis_id}-{REALM}"
 
     with kong_admin_client.ApiClient(configuration) as api_client:
         consumer_api = kong_admin_client.ConsumersApi(api_client)
@@ -476,7 +479,7 @@ async def create_and_connect_analysis_to_project(
 async def delete_analysis(analysis_id: Annotated[str, Path(description="UUID or unique name of the analysis.")]):
     """Delete the listed analysis."""
     configuration = kong_admin_client.Configuration(host=kong_admin_url)
-    username = f"{analysis_id}-{realm}"
+    username = f"{analysis_id}-{REALM}"
 
     with kong_admin_client.ApiClient(configuration) as api_client:
         consumer_api = kong_admin_client.ConsumersApi(api_client)
