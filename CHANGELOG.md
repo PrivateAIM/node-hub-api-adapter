@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.2.6](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.2.5...v0.2.6) (2025-05-19)
+
+
+### Features
+
+* **auth:** add ability to force JWKS ([44f2960](https://github.com/PrivateAIM/node-hub-api-adapter/commit/44f29609a3edab792b1ec104ef7e761647229b6b))
+
+
+### Bug Fixes
+
+* **auth:** proper response when bad issuer URL provided ([9c90b68](https://github.com/PrivateAIM/node-hub-api-adapter/commit/9c90b68ec171d2e343bc33b4eab9fc64318cb985))
+
+
+### Performance Improvements
+
+* **idp:** create attempt routine for contacting the IDP ([e4293b2](https://github.com/PrivateAIM/node-hub-api-adapter/commit/e4293b2628b37a7372ecb8e9019e68dd5aee1a48))
+
 ## [0.2.5](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.2.4...v0.2.5) (2025-05-16)
 
 
