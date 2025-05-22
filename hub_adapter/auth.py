@@ -16,6 +16,8 @@ from flame_hub import CoreClient
 from flame_hub._auth_flows import RobotAuth
 from jwt import PyJWKClient
 from starlette import status
+from starlette.datastructures import MutableHeaders
+from starlette.requests import Request
 
 from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.models.conf import OIDCConfiguration
@@ -46,7 +48,7 @@ def fetch_openid_config(oidc_url: str, max_retries: int = 6) -> OIDCConfiguratio
             )
             time.sleep(wait_time)
 
-        except httpx.HTTPStatusError as e:
+        except httpx.HTTPStatusError:
             err_msg = f"HTTP error occurred while trying to contact the IDP: {provided_url}, is this the correct issuer URL?"
             logger.error(err_msg)
             raise HTTPException(
