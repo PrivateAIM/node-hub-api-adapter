@@ -16,8 +16,6 @@ from flame_hub import CoreClient
 from flame_hub._auth_flows import RobotAuth
 from jwt import PyJWKClient
 from starlette import status
-from starlette.datastructures import MutableHeaders
-from starlette.requests import Request
 
 from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.models.conf import OIDCConfiguration
@@ -43,14 +41,14 @@ def fetch_openid_config(oidc_url: str, max_retries: int = 6) -> OIDCConfiguratio
         except httpx.ConnectError:  # OIDC Service not up yet
             attempt_num += 1
             wait_time = 10 * (2 ** (attempt_num - 1))  # 10s, 20s, 40s, 80s, 160s, 320s
-            logger.warning(
-                f"Unable to contact the IDP at {oidc_url}, retrying in {wait_time} seconds"
-            )
+            logger.warning(f"Unable to contact the IDP at {oidc_url}, retrying in {wait_time} seconds")
             time.sleep(wait_time)
 
-        except httpx.HTTPStatusError:
-            err_msg = f"HTTP error occurred while trying to contact the IDP: {provided_url}, is this the correct issuer URL?"
-            logger.error(err_msg)
+        except httpx.HTTPStatusError as e:
+            err_msg = (
+                f"HTTP error occurred while trying to contact the IDP: {provided_url}, is this the correct issuer URL?"
+            )
+            logger.error(err_msg + f" - {e}")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={
@@ -58,7 +56,7 @@ def fetch_openid_config(oidc_url: str, max_retries: int = 6) -> OIDCConfiguratio
                     "service": "Auth",
                     "status_code": status.HTTP_404_NOT_FOUND,
                 },
-            )
+            ) from httpx.HTTPStatusError
 
     logger.error(f"Unable to contact the IDP at {oidc_url} after {max_retries} retries")
     raise httpx.ConnectError(f"Failed to connect after {max_retries} attempts.")
@@ -182,9 +180,7 @@ def get_hub_token() -> RobotAuth:
 
     if not robot_id or not robot_secret:
         logger.error("Missing robot ID or secret. Check env vars")
-        raise ValueError(
-            "Missing Hub robot credentials, check that the environment variables are set properly"
-        )
+        raise ValueError("Missing Hub robot credentials, check that the environment variables are set properly")
 
     try:
         uuid.UUID(robot_id)

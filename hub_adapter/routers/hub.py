@@ -21,7 +21,7 @@ from flame_hub.models import (
 from starlette import status
 
 from hub_adapter import node_id_pickle_path
-from hub_adapter.auth import jwtbearer, verify_idp_token, core_client
+from hub_adapter.auth import core_client, jwtbearer, verify_idp_token
 from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.errors import catch_hub_errors
 from hub_adapter.models.hub import (
@@ -64,14 +64,10 @@ async def get_node_id(debug: bool = False) -> str | None:
 
     node_id = node_cache.get(robot_id) or "nothingFound"
 
-    if (
-        robot_id not in node_cache
-    ):  # Node ID may be None since not every robot is associated with a node
+    if robot_id not in node_cache:  # Node ID may be None since not every robot is associated with a node
         logger.info("NODE_ID not set for ROBOT_USER, retrieving from Hub")
 
-        node_id_resp = core_client.find_nodes(
-            filter={"robot_id": robot_id}, fields="id"
-        )
+        node_id_resp = core_client.find_nodes(filter={"robot_id": robot_id}, fields="id")
 
         if node_id_resp and len(node_id_resp) == 1:
             node_id = str(node_id_resp[0].id)  # convert UUID type to string
@@ -133,9 +129,7 @@ async def list_project_proposals(node_id: Annotated[str, Depends(get_node_id)]):
 )
 @catch_hub_errors
 async def list_project_proposal(
-    project_node_id: Annotated[
-        uuid.UUID | str, Path(description="Proposal object UUID.")
-    ],
+    project_node_id: Annotated[uuid.UUID | str, Path(description="Proposal object UUID.")],
 ):
     """Set the approval status of a project proposal."""
     return core_client.get_project_node(project_node_id=project_node_id)
@@ -149,20 +143,14 @@ async def list_project_proposal(
 )
 @catch_hub_errors
 async def accept_reject_project_proposal(
-    project_node_id: Annotated[
-        uuid.UUID | str, Path(description="Proposal object UUID.")
-    ],
+    project_node_id: Annotated[uuid.UUID | str, Path(description="Proposal object UUID.")],
     approval_status: Annotated[
         ProjectNodeApprovalStatus,
-        Form(
-            description="Set the approval status of project for the node. Either 'rejected' or 'approved'"
-        ),
+        Form(description="Set the approval status of project for the node. Either 'rejected' or 'approved'"),
     ],
 ):
     """Set the approval status of a project proposal."""
-    return core_client.update_project_node(
-        project_node_id=project_node_id, approval_status=approval_status
-    )
+    return core_client.update_project_node(project_node_id=project_node_id, approval_status=approval_status)
 
 
 @hub_router.get(
@@ -191,9 +179,7 @@ async def list_analysis_nodes(
 )
 @catch_hub_errors
 async def list_specific_analysis_node(
-    analysis_node_id: Annotated[
-        uuid.UUID | str, Path(description="Analysis Node UUID.")
-    ],
+    analysis_node_id: Annotated[uuid.UUID | str, Path(description="Analysis Node UUID.")],
 ):
     """List a specific analysis node."""
     return core_client.get_analysis_node(analysis_node_id=analysis_node_id)
@@ -207,20 +193,14 @@ async def list_specific_analysis_node(
 )
 @catch_hub_errors
 async def accept_reject_analysis_node(
-    analysis_node_id: Annotated[
-        uuid.UUID | str, Path(description="Analysis Node UUID (not analysis_id).")
-    ],
+    analysis_node_id: Annotated[uuid.UUID | str, Path(description="Analysis Node UUID (not analysis_id).")],
     approval_status: Annotated[
         AnalysisNodeApprovalStatus,
-        Form(
-            description="Set the approval status of project for the node. Either 'rejected' or 'approved'"
-        ),
+        Form(description="Set the approval status of project for the node. Either 'rejected' or 'approved'"),
     ],
 ):
     """Set the approval status of an analysis proposal."""
-    return core_client.update_analysis_node(
-        analysis_node_id=analysis_node_id, approval_status=approval_status
-    )
+    return core_client.update_analysis_node(analysis_node_id=analysis_node_id, approval_status=approval_status)
 
 
 @hub_router.get(
@@ -272,9 +252,7 @@ async def update_specific_analysis(
 )
 @catch_hub_errors
 async def get_registry_metadata_for_project(
-    registry_project_id: Annotated[
-        uuid.UUID | str, Path(description="Registry project UUID.")
-    ],
+    registry_project_id: Annotated[uuid.UUID | str, Path(description="Registry project UUID.")],
 ):
     """List registry data for a project."""
 
@@ -312,8 +290,8 @@ def get_registry_metadata_for_url(
     try:
         registry_metadata = core_client.get_registry_project(
             node_metadata.registry_project_id,
-            include="registry",
-            fields=("account_id", "account_name", "account_secret"),
+            # include="registry",
+            # fields=("account_id", "account_name", "account_secret"),
         )
 
     except HubAPIError as err:
@@ -357,10 +335,8 @@ def get_registry_metadata_for_url(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    registry = core_client.get_registry(registry_id=registry_id)
-
-    host = registry.host
-    user = registry.account_name
+    host = registry_metadata.registry.host
+    user = registry_metadata.account_name
     pwd = registry_metadata.account_secret
 
     return host, registry_project_external_name, user, pwd
@@ -441,11 +417,7 @@ async def list_all_analysis_bucket_files():
 )
 @catch_hub_errors
 async def list_specific_analysis_bucket_file(
-    analysis_bucket_file_id: Annotated[
-        uuid.UUID | str, Path(description="Bucket file UUID.")
-    ],
+    analysis_bucket_file_id: Annotated[uuid.UUID | str, Path(description="Bucket file UUID.")],
 ):
     """List specific partial analysis bucket file."""
-    return core_client.get_analysis_bucket_file(
-        analysis_bucket_file_id=analysis_bucket_file_id
-    )
+    return core_client.get_analysis_bucket_file(analysis_bucket_file_id=analysis_bucket_file_id)
