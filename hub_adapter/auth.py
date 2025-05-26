@@ -41,13 +41,13 @@ def fetch_openid_config(oidc_url: str, max_retries: int = 6) -> OIDCConfiguratio
         except httpx.ConnectError:  # OIDC Service not up yet
             attempt_num += 1
             wait_time = 10 * (2 ** (attempt_num - 1))  # 10s, 20s, 40s, 80s, 160s, 320s
-            logger.warning(
-                f"Unable to contact the IDP at {oidc_url}, retrying in {wait_time} seconds"
-            )
+            logger.warning(f"Unable to contact the IDP at {oidc_url}, retrying in {wait_time} seconds")
             time.sleep(wait_time)
 
         except httpx.HTTPStatusError:
-            err_msg = f"HTTP error occurred while trying to contact the IDP: {provided_url}, is this the correct issuer URL?"
+            err_msg = (
+                f"HTTP error occurred while trying to contact the IDP: {provided_url}, is this the correct issuer URL?"
+            )
             logger.error(err_msg)
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -199,10 +199,10 @@ async def get_hub_token() -> dict:
         )
 
     if resp.status_code != httpx.codes.OK:
-        logger.error("Failed to retrieve JWT from Hub")
+        logger.error(f"Failed to retrieve JWT from Hub - {resp.text}")
         raise HTTPException(
             status_code=resp.status_code,
-            detail=resp.json(),  # Invalid authentication credentials
+            detail=resp.text,  # Invalid authentication credentials
             headers={"WWW-Authenticate": "Bearer"},
         )
 
