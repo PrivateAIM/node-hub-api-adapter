@@ -19,6 +19,7 @@ from flame_hub.models import (
     RegistryProject,
 )
 from starlette import status
+from starlette.requests import Request
 
 from hub_adapter import node_id_pickle_path
 from hub_adapter.auth import core_client, jwtbearer, verify_idp_token
@@ -41,13 +42,40 @@ hub_router = APIRouter(
 logger = logging.getLogger(__name__)
 
 
+def parse_query_params(request: Request) -> dict:
+    """Format the query params for the hub client."""
+    formatted_query_params = {}
+
+    query_params = dict(request.query_params)
+
+    page_params: str = query_params.get("page")
+    # filter_params: str = query_params.get("filter")  # TODO: Add filter support
+    sort_params: str = query_params.get("sort")
+    fields_params: str = query_params.get("fields")
+
+    if fields_params:
+        formatted_query_params["fields"] = fields_params.split(",")
+
+    if sort_params:
+        sort_order = "descending" if sort_params.startswith("-") else "ascending"
+        formatted_query_params["sort"] = {"by": sort_params.lstrip("+-"), "order": sort_order}
+
+    if page_params:
+        page_param_dict: dict = eval(page_params)
+        limit = page_param_dict.get("limit") or 50
+        offset = page_param_dict.get("offset") or 0
+        formatted_query_params["page"] = {"limit": limit, "offset": offset}
+
+    return formatted_query_params
+
+
 @catch_hub_errors
 async def get_node_id(debug: bool = False) -> str | None:
     """Uses the robot ID to obtain the associated node ID, sets it in the env vars, and returns it.
 
-    An empty string node_id indicates no node is associated with provided robot username.
+    An empty string node_id indicates no node is associated with the provided robot username.
 
-    If None is returned, no filtering will be applied which is useful for debugging.
+    If None is returned, no filtering will be applied, which is useful for debugging.
     """
     if debug:
         return None
@@ -86,9 +114,9 @@ async def get_node_id(debug: bool = False) -> str | None:
     response_model=list[Project],
 )
 @catch_hub_errors
-async def list_all_projects():
+async def list_all_projects(query_params: Annotated[dict, Depends(parse_query_params)]):
     """List all projects."""
-    return core_client.get_projects()
+    return core_client.find_projects(**query_params)
 
 
 @hub_router.get(
@@ -112,13 +140,15 @@ async def list_specific_project(
     response_model=list[ProjectNode],
 )
 @catch_hub_errors
-async def list_project_proposals(node_id: Annotated[str, Depends(get_node_id)]):
+async def list_project_proposals(
+    node_id: Annotated[str, Depends(get_node_id)], query_params: Annotated[dict, Depends(parse_query_params)]
+):
     """List project proposals."""
     if node_id:
-        return core_client.find_project_nodes(filter={"node_id": node_id})
+        return core_client.find_project_nodes(filter={"node_id": node_id}, **query_params)
 
     else:
-        return core_client.get_project_nodes()
+        return core_client.get_project_nodes(**query_params)
 
 
 @hub_router.get(
@@ -161,14 +191,14 @@ async def accept_reject_project_proposal(
 )
 @catch_hub_errors
 async def list_analysis_nodes(
-    node_id: Annotated[str, Depends(get_node_id)],
+    node_id: Annotated[str, Depends(get_node_id)], query_params: Annotated[dict, Depends(parse_query_params)]
 ):
     """List all analysis nodes for give node."""
     if node_id:
-        return core_client.find_analysis_nodes(filter={"node_id": node_id})
+        return core_client.find_analysis_nodes(filter={"node_id": node_id}, **query_params)
 
     else:
-        return core_client.get_analysis_nodes()
+        return core_client.find_analysis_nodes(**query_params)
 
 
 @hub_router.get(
@@ -210,9 +240,9 @@ async def accept_reject_analysis_node(
     response_model=list[Analysis],
 )
 @catch_hub_errors
-async def list_all_analyses():
+async def list_all_analyses(query_params: Annotated[dict, Depends(parse_query_params)]):
     """List all registered analyses."""
-    return core_client.get_analyses()
+    return core_client.get_analyses(**query_params)
 
 
 @hub_router.get(
@@ -260,7 +290,7 @@ async def get_registry_metadata_for_project(
 
 
 def get_node_metadata_for_url(
-    node_id: Annotated[uuid.UUID | str, Form(description="Node UUID")],
+    node_id: Annotated[uuid.UUID | str, Body(description="Node UUID")],
 ):
     """Get analysis metadata for a given UUID to be used in creating analysis image URL."""
     node_metadata: Node = core_client.get_node(node_id=node_id)
@@ -343,8 +373,8 @@ def get_registry_metadata_for_url(
 
 
 def compile_analysis_pod_data(
-    analysis_id: Annotated[uuid.UUID | str, Form(description="Analysis UUID")],
-    project_id: Annotated[uuid.UUID | str, Form(description="Project UUID")],
+    analysis_id: Annotated[uuid.UUID | str, Body(description="Analysis UUID")],
+    project_id: Annotated[uuid.UUID | str, Body(description="Project UUID")],
     compiled_info: Annotated[tuple, Depends(get_registry_metadata_for_url)],
     kong_token: Annotated[str, Body(description="Analysis keyauth kong token")] = None,
 ):
@@ -378,9 +408,9 @@ async def get_analysis_image_url(
     # response_model=BucketList,
 )
 @catch_hub_errors
-async def list_all_analysis_buckets():
+async def list_all_analysis_buckets(query_params: Annotated[dict, Depends(parse_query_params)]):
     """List all analysis buckets."""
-    return core_client.get_analysis_buckets()
+    return core_client.find_analysis_buckets(**query_params)
 
 
 @hub_router.get(
@@ -404,9 +434,9 @@ async def list_specific_analysis_buckets(
     # response_model=PartialBucketFilesList,
 )
 @catch_hub_errors
-async def list_all_analysis_bucket_files():
+async def list_all_analysis_bucket_files(query_params: Annotated[dict, Depends(parse_query_params)]):
     """List partial analysis bucket files."""
-    return core_client.get_analysis_bucket_files()
+    return core_client.get_analysis_bucket_files(**query_params)
 
 
 @hub_router.get(
