@@ -38,9 +38,7 @@ async def unzip_query_params(
             response_query_params.update(serialized_dict)
 
     elif necessary_params:
-
         for key in necessary_params:
-
             value = additional_params.get(key)
 
             if not value:  # if value is None, then skip
@@ -66,6 +64,7 @@ async def unzip_body_object(
             response_body_dict[key] = _body_dict
 
         return response_body_dict
+    return None
 
 
 async def unzip_form_params(
@@ -87,6 +86,7 @@ async def unzip_form_params(
                 body_form[key] = request_form[key]
 
         return body_form
+    return None
 
 
 async def unzip_file_params(
@@ -101,6 +101,7 @@ async def unzip_file_params(
             files[key] = file.file.read()
 
         return files
+    return None
 
 
 def remove_file(path: str) -> None:
