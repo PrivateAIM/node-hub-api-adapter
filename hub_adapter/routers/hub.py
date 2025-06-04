@@ -320,8 +320,7 @@ def get_registry_metadata_for_url(
     try:
         registry_metadata = core_client.get_registry_project(
             node_metadata.registry_project_id,
-            # include="registry",
-            # fields=("account_id", "account_name", "account_secret"),
+            fields=("account_id", "account_name", "account_secret"),
         )
 
     except HubAPIError as err:
@@ -343,6 +342,17 @@ def get_registry_metadata_for_url(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
                 "message": "No external name for node found",
+                "service": "Hub",
+                "status_code": status.HTTP_400_BAD_REQUEST,
+            },
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if not registry_metadata.account_name or registry_metadata.account_secret:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "message": "Unable to retrieve robot name or secret from the registry",
                 "service": "Hub",
                 "status_code": status.HTTP_400_BAD_REQUEST,
             },
