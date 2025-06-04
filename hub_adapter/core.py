@@ -8,7 +8,7 @@ from fastapi import HTTPException, params, status
 from fastapi.datastructures import Headers
 from fastapi.requests import Request
 from fastapi.responses import JSONResponse, StreamingResponse
-from httpx import ConnectError, DecodingError, HTTPStatusError
+from httpx import ConnectError, DecodingError, HTTPStatusError, ReadTimeout
 from starlette.responses import FileResponse, Response
 
 from hub_adapter import post_processing, pre_processing
@@ -281,6 +281,19 @@ def route(
                         "message": err_msg,
                         "service": service_tags[0],
                         "status_code": http_error.response.status_code,
+                    },
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+
+            except ReadTimeout:
+                err_msg = f"HTTP Request: {method.upper()} {microsvc_path} - Service took too long to respond."
+                logger.warning(err_msg)
+                raise HTTPException(
+                    status_code=status.HTTP_408_REQUEST_TIMEOUT,
+                    detail={
+                        "message": err_msg,
+                        "service": service_tags[0],
+                        "status_code": status.HTTP_408_REQUEST_TIMEOUT,
                     },
                     headers={"WWW-Authenticate": "Bearer"},
                 )
