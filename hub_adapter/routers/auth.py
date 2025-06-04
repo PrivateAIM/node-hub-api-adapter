@@ -6,7 +6,7 @@ import httpx
 from fastapi import APIRouter, Form, HTTPException
 from starlette import status
 
-from hub_adapter.auth import user_oidc_config
+from hub_adapter.auth import get_user_oidc_config
 from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.models.conf import Token
 
@@ -39,6 +39,7 @@ def get_token(
         "grant_type": "password",
         "scope": "openid",
     }
+    user_oidc_config = get_user_oidc_config()
     resp = httpx.post(user_oidc_config.token_endpoint, data=payload)
     if not resp.status_code == httpx.codes.OK:
         raise HTTPException(

@@ -239,13 +239,14 @@ def route(
                     file_response=file_response,
                 )
 
-            except ConnectError:
+            except ConnectError as ce:
                 err_msg = (
                     f"HTTP Request: {method.upper()} {microsvc_path} "
                     f"- HTTP Status: {status.HTTP_503_SERVICE_UNAVAILABLE} - Service is unavailable. "
                     f"Check the {service_tags[0]} service at {service_url}"
                 )
                 logger.error(err_msg)
+                logger.error(ce)
                 raise HTTPException(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                     detail={
@@ -254,12 +255,13 @@ def route(
                         "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
                     },
                     headers={"WWW-Authenticate": "Bearer"},
-                ) from ConnectError
+                )
 
-            except DecodingError:
+            except DecodingError as de:
                 err_msg = f"Service error - HTTP Request: {method.upper()} {microsvc_path} "
                 f'"- HTTP Status: {status.HTTP_500_INTERNAL_SERVER_ERROR}"'
                 logger.error(err_msg)
+                logger.error(de)
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail={
@@ -268,7 +270,7 @@ def route(
                         "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
                     },
                     headers={"WWW-Authenticate": "Bearer"},
-                ) from DecodingError
+                )
 
             except HTTPStatusError as http_error:
                 err_msg = f"HTTP Request: {method.upper()} {microsvc_path} - {http_error}"
@@ -281,7 +283,7 @@ def route(
                         "status_code": http_error.response.status_code,
                     },
                     headers={"WWW-Authenticate": "Bearer"},
-                ) from http_error
+                )
 
             response.status_code = status_code_from_service
 
