@@ -348,13 +348,13 @@ def get_registry_metadata_for_url(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    if not registry_metadata.account_name or registry_metadata.account_secret:
+    if not registry_metadata.account_name or not registry_metadata.account_secret:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail={
                 "message": "Unable to retrieve robot name or secret from the registry",
                 "service": "Hub",
-                "status_code": status.HTTP_400_BAD_REQUEST,
+                "status_code": status.HTTP_404_NOT_FOUND,
             },
             headers={"WWW-Authenticate": "Bearer"},
         )
