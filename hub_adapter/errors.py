@@ -100,6 +100,10 @@ def catch_kong_errors(f):
                 headers={"WWW-Authenticate": "Bearer"},
             ) from e
 
+        except HTTPException as http_error:
+            logger.error(http_error)
+            raise http_error
+
         except Exception as e:
             logger.error(e)
             raise HTTPException(
