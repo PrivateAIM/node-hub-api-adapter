@@ -10,7 +10,6 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from hub_adapter.auth import (
-    add_hub_jwt,
     jwtbearer,
     verify_idp_token,
 )
@@ -42,7 +41,6 @@ logger = logging.getLogger(__name__)
     path="/po",
     status_code=status.HTTP_200_OK,
     service_url=hub_adapter_settings.PODORC_SERVICE_URL,
-    dependencies=[Depends(add_hub_jwt)],
     response_model=CreatePodResponse,
     pre_processing_func="extract_po_params",
     body_params=[

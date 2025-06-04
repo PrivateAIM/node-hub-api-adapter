@@ -8,7 +8,7 @@ from fastapi import HTTPException, params, status
 from fastapi.datastructures import Headers
 from fastapi.requests import Request
 from fastapi.responses import JSONResponse, StreamingResponse
-from httpx import ConnectError, DecodingError, HTTPStatusError
+from httpx import ConnectError, DecodingError, HTTPStatusError, ReadTimeout
 from starlette.responses import FileResponse, Response
 
 from hub_adapter import post_processing, pre_processing
@@ -239,13 +239,14 @@ def route(
                     file_response=file_response,
                 )
 
-            except ConnectError:
+            except ConnectError as ce:
                 err_msg = (
                     f"HTTP Request: {method.upper()} {microsvc_path} "
                     f"- HTTP Status: {status.HTTP_503_SERVICE_UNAVAILABLE} - Service is unavailable. "
                     f"Check the {service_tags[0]} service at {service_url}"
                 )
                 logger.error(err_msg)
+                logger.error(ce)
                 raise HTTPException(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                     detail={
@@ -256,14 +257,18 @@ def route(
                     headers={"WWW-Authenticate": "Bearer"},
                 )
 
-            except DecodingError:
-                logger.error(
-                    f"HTTP Request: {method.upper()} {microsvc_path} "
-                    f'"- HTTP Status: {status.HTTP_500_INTERNAL_SERVER_ERROR} - Service error"',
-                )
+            except DecodingError as de:
+                err_msg = f"Service error - HTTP Request: {method.upper()} {microsvc_path} "
+                f'"- HTTP Status: {status.HTTP_500_INTERNAL_SERVER_ERROR}"'
+                logger.error(err_msg)
+                logger.error(de)
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Service error",
+                    detail={
+                        "message": err_msg,
+                        "service": service_tags[0],
+                        "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    },
                     headers={"WWW-Authenticate": "Bearer"},
                 )
 
@@ -276,6 +281,19 @@ def route(
                         "message": err_msg,
                         "service": service_tags[0],
                         "status_code": http_error.response.status_code,
+                    },
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+
+            except ReadTimeout:
+                err_msg = f"HTTP Request: {method.upper()} {microsvc_path} - Service took too long to respond."
+                logger.warning(err_msg)
+                raise HTTPException(
+                    status_code=status.HTTP_408_REQUEST_TIMEOUT,
+                    detail={
+                        "message": err_msg,
+                        "service": service_tags[0],
+                        "status_code": status.HTTP_408_REQUEST_TIMEOUT,
                     },
                     headers={"WWW-Authenticate": "Bearer"},
                 )

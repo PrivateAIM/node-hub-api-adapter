@@ -9,18 +9,23 @@ import httpx
 import jwt
 from fastapi import HTTPException, Security
 from fastapi.security import (
-    HTTPBearer,
-    OAuth2AuthorizationCodeBearer,
+    HTTPAuthorizationCredentials, HTTPBearer,
 )
+from flame_hub import CoreClient
+from flame_hub._auth_flows import RobotAuth
 from jwt import PyJWKClient
 from starlette import status
-from starlette.datastructures import MutableHeaders
-from starlette.requests import Request
 
 from hub_adapter.conf import hub_adapter_settings
-from hub_adapter.models.conf import OIDCConfiguration, Token
+from hub_adapter.models.conf import OIDCConfiguration
 
 logger = logging.getLogger(__name__)
+
+
+jwtbearer = HTTPBearer(
+    scheme_name="JWT",
+    description="Pass a valid JWT here for authentication. Can be obtained from /token endpoint.",
+)
 
 
 @lru_cache(maxsize=2)
@@ -38,17 +43,17 @@ def fetch_openid_config(oidc_url: str, max_retries: int = 6) -> OIDCConfiguratio
             oidc_config = response.json()
             return OIDCConfiguration(**oidc_config)
 
-        except httpx.ConnectError:  # OIDC Service not up yet
+        except (httpx.ConnectError, httpx.ReadTimeout):  # OIDC Service not up yet
             attempt_num += 1
             wait_time = 10 * (2 ** (attempt_num - 1))  # 10s, 20s, 40s, 80s, 160s, 320s
             logger.warning(f"Unable to contact the IDP at {oidc_url}, retrying in {wait_time} seconds")
             time.sleep(wait_time)
 
-        except httpx.HTTPStatusError:
+        except httpx.HTTPStatusError as e:
             err_msg = (
                 f"HTTP error occurred while trying to contact the IDP: {provided_url}, is this the correct issuer URL?"
             )
-            logger.error(err_msg)
+            logger.error(err_msg + f" - {e}")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={
@@ -56,28 +61,23 @@ def fetch_openid_config(oidc_url: str, max_retries: int = 6) -> OIDCConfiguratio
                     "service": "Auth",
                     "status_code": status.HTTP_404_NOT_FOUND,
                 },
-            )
+            ) from e
 
     logger.error(f"Unable to contact the IDP at {oidc_url} after {max_retries} retries")
-    raise httpx.ConnectError(f"Failed to connect after {max_retries} attempts.")
+    raise httpx.ConnectError(f"Unable to contact the IDP at {oidc_url} after {max_retries} retries")
 
 
-user_oidc_config = fetch_openid_config(hub_adapter_settings.IDP_URL)
-svc_oidc_config = (
-    fetch_openid_config(hub_adapter_settings.NODE_SVC_OIDC_URL)
-    if hub_adapter_settings.NODE_SVC_OIDC_URL != hub_adapter_settings.IDP_URL
-    else user_oidc_config
-)
+def get_user_oidc_config() -> OIDCConfiguration:
+    """Lazy-load the user OIDC configuration when first needed."""
+    return fetch_openid_config(hub_adapter_settings.IDP_URL)
 
-idp_oauth2_scheme = OAuth2AuthorizationCodeBearer(
-    authorizationUrl=user_oidc_config.authorization_endpoint,
-    tokenUrl=user_oidc_config.token_endpoint,
-)
 
-jwtbearer = HTTPBearer(
-    scheme_name="JWT",
-    description="Pass a valid JWT here for authentication. Can be obtained from /token endpoint.",
-)
+def get_svc_oidc_config() -> OIDCConfiguration:
+    """Lazy-load the service OIDC configuration when first needed."""
+    if hub_adapter_settings.NODE_SVC_OIDC_URL != hub_adapter_settings.IDP_URL:
+        return fetch_openid_config(hub_adapter_settings.NODE_SVC_OIDC_URL)
+    else:
+        return get_user_oidc_config()
 
 
 async def get_hub_public_key() -> dict:
@@ -86,18 +86,26 @@ async def get_hub_public_key() -> dict:
     return httpx.get(hub_jwks_ep).json()
 
 
-async def verify_idp_token(token: str = Security(idp_oauth2_scheme)) -> dict:
+async def verify_idp_token(token: HTTPAuthorizationCredentials = Security(jwtbearer)) -> dict:
     """Decode the auth token using keycloak's public key."""
+    svc = "Auth"
     if not token:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Missing or invalid token",
+            detail={
+                "message": "Missing or invalid token",
+                "service": svc,
+                "status_code": status.HTTP_401_UNAUTHORIZED,
+            },
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    user_oidc_config = get_user_oidc_config()
+    svc_oidc_config = get_svc_oidc_config()
+
     try:
         # Decode just to get issuer
-        unverified_claims = jwt.decode(token, options={"verify_signature": False})
+        unverified_claims = jwt.decode(token.credentials, options={"verify_signature": False})
         issuer = unverified_claims.get("iss")
 
         if hub_adapter_settings.OVERRIDE_JWKS:  # Override the fetched URIs
@@ -109,10 +117,10 @@ async def verify_idp_token(token: str = Security(idp_oauth2_scheme)) -> dict:
         else:
             jwk_client = PyJWKClient(svc_oidc_config.jwks_uri)
 
-        signing_key = jwk_client.get_signing_key_from_jwt(token)
+        signing_key = jwk_client.get_signing_key_from_jwt(token.credentials)
 
         return jwt.decode(
-            token,
+            token.credentials,
             key=signing_key,
             options={"verify_signature": True, "verify_aud": False, "exp": True},
         )
@@ -121,102 +129,72 @@ async def verify_idp_token(token: str = Security(idp_oauth2_scheme)) -> dict:
         logger.error(f"{status.HTTP_401_UNAUTHORIZED} - {e}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(e),  # Invalid authentication credentials
+            detail={
+                "message": f"{status.HTTP_401_UNAUTHORIZED} - {e}",
+                "service": svc,
+                "status_code": status.HTTP_401_UNAUTHORIZED,
+            },
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from e
 
     except jwt.ExpiredSignatureError:
         err_msg = "Authorization token expired"
         logger.error(f"{status.HTTP_401_UNAUTHORIZED} - {err_msg}")
-        raise HTTPException(status_code=401, detail=err_msg)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "message": err_msg,
+                "service": svc,
+                "status_code": status.HTTP_401_UNAUTHORIZED,
+            },
+        ) from jwt.ExpiredSignatureError
 
     except jwt.MissingRequiredClaimError:
         err_msg = "Incorrect claims, check the audience and issuer."
         logger.error(f"{status.HTTP_401_UNAUTHORIZED} - {err_msg}")
-        raise HTTPException(status_code=401, detail=err_msg)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "message": err_msg,
+                "service": svc,
+                "status_code": status.HTTP_401_UNAUTHORIZED,
+            },
+        ) from jwt.MissingRequiredClaimError
 
     except Exception:
         err_msg = "Unable to parse authentication token"
         logger.error(f"{status.HTTP_401_UNAUTHORIZED} - {err_msg}")
         raise HTTPException(
-            status_code=401,
-            detail=err_msg,
-        )
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "message": err_msg,
+                "service": svc,
+                "status_code": status.HTTP_401_UNAUTHORIZED,
+            },
+        ) from Exception
 
 
-async def get_hub_token() -> dict:
+def get_hub_token() -> RobotAuth:
     """Automated method for getting a robot token from the central Hub service."""
     robot_id, robot_secret = (
         hub_adapter_settings.HUB_ROBOT_USER,
         hub_adapter_settings.HUB_ROBOT_SECRET,
     )
 
-    payload = {
-        "grant_type": "robot_credentials",
-        "id": robot_id,
-        "secret": robot_secret,
-    }
-
     if not robot_id or not robot_secret:
         logger.error("Missing robot ID or secret. Check env vars")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="No credentials provided for the hub robot. Check that the environment variables are set properly",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise ValueError("Missing Hub robot credentials, check that the environment variables are set properly")
 
     try:
         uuid.UUID(robot_id)
 
     except ValueError:
         logger.error(f"Invalid robot ID: {robot_id}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Robot ID is not a valid UUID",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise ValueError(f"Invalid robot ID: {robot_id}") from ValueError
 
-    token_route = hub_adapter_settings.HUB_AUTH_SERVICE_URL.rstrip("/") + "/token"
-
-    try:
-        resp = httpx.post(token_route, data=payload)
-
-    except httpx.ConnectTimeout:
-        logger.error("Connection Timeout - Hub is currently unreacheable")
-        raise HTTPException(
-            status_code=status.HTTP_408_REQUEST_TIMEOUT,
-            detail="Connection Timeout - Hub is currently unreacheable",  # Invalid authentication credentials
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    except httpx.ConnectError:
-        err = "Connection Error - Hub is currently unreacheable"
-        logger.error(err)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=err,
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    if resp.status_code != httpx.codes.OK:
-        logger.error(f"Failed to retrieve JWT from Hub - {resp.text}")
-        raise HTTPException(
-            status_code=resp.status_code,
-            detail=resp.text,  # Invalid authentication credentials
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    token_data = resp.json()
-    token = Token(**token_data)
-    return {"Authorization": f"Bearer {token.access_token}"}
+    auth = RobotAuth(robot_id=robot_id, robot_secret=robot_secret)
+    return auth
 
 
-async def add_hub_jwt(request: Request):
-    """Add a Hub JWT to the request header."""
-    hub_token = await get_hub_token()
-    updated_headers = MutableHeaders(request._headers)
-    updated_headers.update(hub_token)
-    request._headers = updated_headers
-    request.scope.update(headers=request.headers.raw)
-
-    return request
+hub_robot = get_hub_token()
+core_client = CoreClient(auth=hub_robot)
