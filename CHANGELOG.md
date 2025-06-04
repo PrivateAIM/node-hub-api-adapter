@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.2.6](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.2.5...v0.2.6) (2025-06-04)
+
+
+### Features
+
+* add hub client to final endpoints ([6a3eb68](https://github.com/PrivateAIM/node-hub-api-adapter/commit/6a3eb68bb47be6a60d4849cde85b5fa6a35ad92e))
+* **auth:** add ability to force JWKS ([44f2960](https://github.com/PrivateAIM/node-hub-api-adapter/commit/44f29609a3edab792b1ec104ef7e761647229b6b))
+* **auth:** allow lazy loading of config processing ([860a6f2](https://github.com/PrivateAIM/node-hub-api-adapter/commit/860a6f2decb6685b4c7d7cab8fc88ba381d350dc))
+* **hub:** enable most query params for project and analysis nodes ([b38488e](https://github.com/PrivateAIM/node-hub-api-adapter/commit/b38488eeda79fec8c4abee86dceaf4663d68ac47))
+* **hub:** working image URL retrieval using hub client ([84767d5](https://github.com/PrivateAIM/node-hub-api-adapter/commit/84767d52f63feae6e88450b805560b6235cc4705))
+
+
+### Bug Fixes
+
+* **auth:** proper response when bad issuer URL provided ([9c90b68](https://github.com/PrivateAIM/node-hub-api-adapter/commit/9c90b68ec171d2e343bc33b4eab9fc64318cb985))
+* **hub:** enable account id and secret retrieval ([3202d50](https://github.com/PrivateAIM/node-hub-api-adapter/commit/3202d50c46444228154aca1c034cbdb798e4bc99))
+* **kong:** properly catch and handle manually raise HTTPExceptions ([0abc5be](https://github.com/PrivateAIM/node-hub-api-adapter/commit/0abc5be8b5c0a4a875a0219dc3d6df755cb4a5a6))
+
+
+### Performance Improvements
+
+* **idp:** create attempt routine for contacting the IDP ([e4293b2](https://github.com/PrivateAIM/node-hub-api-adapter/commit/e4293b2628b37a7372ecb8e9019e68dd5aee1a48))
+
 ## [0.2.5](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.2.4...v0.2.5) (2025-05-16)
 
 
