@@ -201,9 +201,13 @@ def get_hub_token() -> RobotAuth:
         logger.error(f"Invalid robot ID: {robot_id}")
         raise ValueError(f"Invalid robot ID: {robot_id}") from ValueError
 
-    auth = RobotAuth(robot_id=robot_id, robot_secret=robot_secret)
+    auth = RobotAuth(
+        robot_id=robot_id,
+        robot_secret=robot_secret,
+        base_url=hub_adapter_settings.HUB_AUTH_SERVICE_URL,
+    )
     return auth
 
 
 hub_robot = get_hub_token()
-core_client = CoreClient(auth=hub_robot)
+core_client = CoreClient(auth=hub_robot, base_url=hub_adapter_settings.HUB_SERVICE_URL)
