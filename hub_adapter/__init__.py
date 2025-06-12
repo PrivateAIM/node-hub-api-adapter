@@ -1,7 +1,7 @@
 """Package initialization step."""
 
-import logging
-import logging.handlers as handlers
+import logging.config
+import sys
 from pathlib import Path
 
 root_dir = Path(__file__).parent.resolve()
@@ -17,34 +17,54 @@ log_dir = root_dir.joinpath("logs")
 log_dir.mkdir(parents=True, exist_ok=True)
 
 logging.basicConfig(
-    level=logging.WARNING,
-    force=True,
+    level=logging.INFO,
 )
 
-main_logger = logging.getLogger("hub_adapter")
-main_logger.setLevel(logging.DEBUG)
+logging_config = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "file_formatter": {
+            "format": "%(levelname)s - %(module)s:L%(lineno)d - %(asctime)s - %(message)s",
+            "datefmt": "%Y-%m-%d %H:%M:%S",
+        },
+        "console_formatter": {
+            "format": "%(asctime)s - %(levelname)s: %(message)s",
+            "datefmt": "%Y-%m-%d %H:%M:%S",
+        },
+    },
+    "handlers": {
+        "file_handler": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": str(log_dir.joinpath("node_hub_api_adapter.log")),
+            "encoding": "utf-8",
+            "mode": "a",
+            "maxBytes": 4098 * 10,  # 4MB file max
+            "backupCount": 5,
+            "formatter": "file_formatter",
+            "level": "DEBUG",
+        },
+        "console_handler": {
+            "class": "logging.StreamHandler",
+            "stream": sys.stdout,
+            "formatter": "console_formatter",
+            "level": "INFO",
+        },
+    },
+    "root": {
+        "level": "DEBUG",
+        "handlers": ["file_handler", "console_handler"],
+    },
+    "loggers": {
+        "httpx": {
+            "handlers": ["console_handler", "file_handler"],
+            "level": "INFO",
+        },
+        "httpcore": {
+            "handlers": ["console_handler", "file_handler"],
+            "level": "INFO",
+        },
+    },
+}
 
-# Log Handler
-logHandler = handlers.RotatingFileHandler(
-    filename=log_dir.joinpath("node_hub_api_adapter.log"),
-    encoding="utf-8",
-    mode="a",
-    maxBytes=4098 * 10,  # 4MB file max
-    backupCount=5,
-)
-logh_format = logging.Formatter(
-    fmt="%(levelname)s - %(module)s:L%(lineno)d - %(asctime)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
-logHandler.setFormatter(logh_format)
-logHandler.setLevel(logging.DEBUG)
-
-main_logger.addHandler(logHandler)
-
-# Console Handler
-# streamHandler = logging.StreamHandler()
-# stream_format = logging.Formatter("%(asctime)s - %(levelname)s: %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
-# streamHandler.setFormatter(stream_format)
-# streamHandler.setLevel(logging.INFO)
-#
-# main_logger.addHandler(streamHandler)
+logging.config.dictConfig(logging_config)
