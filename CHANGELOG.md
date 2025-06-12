@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.7](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.2.6...v0.2.7) (2025-06-12)
+
+
+### Bug Fixes
+
+* **hub:** pass hub URLs to hub client ([11478dc](https://github.com/PrivateAIM/node-hub-api-adapter/commit/11478dc7bd21e0aa3e2323e70616b98dc0f6f925))
+
 ## [0.2.6](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.2.5...v0.2.6) (2025-06-04)
 
 
