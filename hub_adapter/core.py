@@ -68,7 +68,7 @@ async def make_request(
     if not files:
         files = {}
 
-    async with httpx.AsyncClient(headers=headers, timeout=60.0) as client:
+    async with httpx.AsyncClient(headers=headers, timeout=60.0, mounts=None) as client:
         r = await client.request(
             url=url,
             method=method,

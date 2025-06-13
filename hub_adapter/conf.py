@@ -2,6 +2,7 @@
 
 import os
 
+import httpx
 from pydantic import BaseModel
 
 
@@ -10,6 +11,11 @@ class Settings(BaseModel):
     """Settings for Hub Adapter API."""
 
     API_ROOT_PATH: str = os.getenv("API_ROOT_PATH", "")
+
+    # Proxies
+    HTTP_PROXY: str = os.getenv("HA_HTTP_PROXY")
+    HTTPS_PROXY: str = os.getenv("HA_HTTPS_PROXY")
+    PROXY_MOUNTS: dict | None = None
 
     # IDP Settings
     IDP_URL: str = os.getenv("IDP_URL", "http://localhost:8080")  # User
@@ -35,3 +41,9 @@ class Settings(BaseModel):
 
 
 hub_adapter_settings = Settings()
+
+if hub_adapter_settings.HTTP_PROXY or hub_adapter_settings.HTTPS_PROXY:
+    hub_adapter_settings.PROXY_MOUNTS = {
+        "http://": httpx.HTTPTransport(proxy=hub_adapter_settings.HTTP_PROXY or hub_adapter_settings.HTTPS_PROXY),
+        "https://": httpx.HTTPTransport(proxy=hub_adapter_settings.HTTPS_PROXY or hub_adapter_settings.HTTP_PROXY),
+    }

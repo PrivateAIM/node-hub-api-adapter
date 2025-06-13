@@ -47,13 +47,13 @@ def fetch_openid_config(oidc_url: str, max_retries: int = 6) -> OIDCConfiguratio
         except (httpx.ConnectError, httpx.ReadTimeout):  # OIDC Service not up yet
             attempt_num += 1
             wait_time = 10 * (2 ** (attempt_num - 1))  # 10s, 20s, 40s, 80s, 160s, 320s
-            logger.warning(
-                f"Unable to contact the IDP at {oidc_url}, retrying in {wait_time} seconds"
-            )
+            logger.warning(f"Unable to contact the IDP at {oidc_url}, retrying in {wait_time} seconds")
             time.sleep(wait_time)
 
         except httpx.HTTPStatusError as e:
-            err_msg = f"HTTP error occurred while trying to contact the IDP: {provided_url}, is this the correct issuer URL?"
+            err_msg = (
+                f"HTTP error occurred while trying to contact the IDP: {provided_url}, is this the correct issuer URL?"
+            )
             logger.error(err_msg + f" - {e}")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -65,9 +65,7 @@ def fetch_openid_config(oidc_url: str, max_retries: int = 6) -> OIDCConfiguratio
             ) from e
 
     logger.error(f"Unable to contact the IDP at {oidc_url} after {max_retries} retries")
-    raise httpx.ConnectError(
-        f"Unable to contact the IDP at {oidc_url} after {max_retries} retries"
-    )
+    raise httpx.ConnectError(f"Unable to contact the IDP at {oidc_url} after {max_retries} retries")
 
 
 def get_user_oidc_config() -> OIDCConfiguration:
@@ -110,9 +108,7 @@ async def verify_idp_token(
 
     try:
         # Decode just to get issuer
-        unverified_claims = jwt.decode(
-            token.credentials, options={"verify_signature": False}
-        )
+        unverified_claims = jwt.decode(token.credentials, options={"verify_signature": False})
         issuer = unverified_claims.get("iss")
 
         if hub_adapter_settings.OVERRIDE_JWKS:  # Override the fetched URIs
@@ -190,9 +186,7 @@ def get_hub_token() -> RobotAuth:
 
     if not robot_id or not robot_secret:
         logger.error("Missing robot ID or secret. Check env vars")
-        raise ValueError(
-            "Missing Hub robot credentials, check that the environment variables are set properly"
-        )
+        raise ValueError("Missing Hub robot credentials, check that the environment variables are set properly")
 
     try:
         uuid.UUID(robot_id)
@@ -204,10 +198,16 @@ def get_hub_token() -> RobotAuth:
     auth = RobotAuth(
         robot_id=robot_id,
         robot_secret=robot_secret,
-        base_url=hub_adapter_settings.HUB_AUTH_SERVICE_URL,
+        client=httpx.Client(
+            base_url=hub_adapter_settings.HUB_AUTH_SERVICE_URL, mounts=hub_adapter_settings.PROXY_MOUNTS
+        ),
     )
     return auth
 
 
 hub_robot = get_hub_token()
-core_client = CoreClient(auth=hub_robot, base_url=hub_adapter_settings.HUB_SERVICE_URL)
+core_client = CoreClient(
+    client=httpx.Client(
+        base_url=hub_adapter_settings.HUB_SERVICE_URL, mounts=hub_adapter_settings.PROXY_MOUNTS, auth=hub_robot
+    ),
+)
