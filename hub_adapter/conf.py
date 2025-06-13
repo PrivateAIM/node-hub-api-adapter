@@ -3,7 +3,7 @@
 import os
 
 import httpx
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 
 # Init settings
@@ -16,6 +16,17 @@ class Settings(BaseModel):
     HTTP_PROXY: str = os.getenv("HA_HTTP_PROXY")
     HTTPS_PROXY: str = os.getenv("HA_HTTPS_PROXY")
     PROXY_MOUNTS: dict | None = None
+
+    @model_validator(mode="after")
+    def set_proxy_mounts(self):
+        if self.HTTP_PROXY or self.HTTPS_PROXY:
+            self.PROXY_MOUNTS = {
+                "http://": httpx.HTTPTransport(proxy=self.HTTP_PROXY or self.HTTPS_PROXY),
+                "https://": httpx.HTTPTransport(proxy=self.HTTPS_PROXY or self.HTTP_PROXY),
+            }
+        else:
+            self.PROXY_MOUNTS = {}
+        return self
 
     # IDP Settings
     IDP_URL: str = os.getenv("IDP_URL", "http://localhost:8080")  # User
@@ -41,9 +52,3 @@ class Settings(BaseModel):
 
 
 hub_adapter_settings = Settings()
-
-if hub_adapter_settings.HTTP_PROXY or hub_adapter_settings.HTTPS_PROXY:
-    hub_adapter_settings.PROXY_MOUNTS = {
-        "http://": httpx.HTTPTransport(proxy=hub_adapter_settings.HTTP_PROXY or hub_adapter_settings.HTTPS_PROXY),
-        "https://": httpx.HTTPTransport(proxy=hub_adapter_settings.HTTPS_PROXY or hub_adapter_settings.HTTP_PROXY),
-    }
