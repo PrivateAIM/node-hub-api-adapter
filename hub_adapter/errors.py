@@ -22,6 +22,19 @@ def catch_hub_errors(f):
         try:
             return await f(*args, **kwargs)
 
+        except httpx.ProxyError:
+            err = "Proxy Error - Unable to contact the Hub"
+            logger.error(err)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "message": err,
+                    "service": "proxy",
+                    "status_code": status.HTTP_400_BAD_REQUEST,
+                },
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
         except HubAPIError as err:
             resp_error = err.error_response
 

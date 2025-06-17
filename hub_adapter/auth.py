@@ -29,6 +29,19 @@ jwtbearer = HTTPBearer(
 )
 
 
+class ProxiedPyJWKClient(PyJWKClient):
+    """Custom class to override the PyJWKClient to use proxies when available."""
+
+    def __init__(self, url):
+        super().__init__(url)
+
+    def fetch_data(self):
+        with httpx.Client(mounts=hub_adapter_settings.PROXY_MOUNTS) as client:
+            response = client.get(self.uri)
+            response.raise_for_status()
+            return response.json()
+
+
 @lru_cache(maxsize=2)
 def fetch_openid_config(oidc_url: str, max_retries: int = 6) -> OIDCConfiguration:
     """Fetch the openid configuration from the OIDC URL. Tries until it reaches max_retries."""
@@ -47,13 +60,13 @@ def fetch_openid_config(oidc_url: str, max_retries: int = 6) -> OIDCConfiguratio
         except (httpx.ConnectError, httpx.ReadTimeout):  # OIDC Service not up yet
             attempt_num += 1
             wait_time = 10 * (2 ** (attempt_num - 1))  # 10s, 20s, 40s, 80s, 160s, 320s
-            logger.warning(
-                f"Unable to contact the IDP at {oidc_url}, retrying in {wait_time} seconds"
-            )
+            logger.warning(f"Unable to contact the IDP at {oidc_url}, retrying in {wait_time} seconds")
             time.sleep(wait_time)
 
         except httpx.HTTPStatusError as e:
-            err_msg = f"HTTP error occurred while trying to contact the IDP: {provided_url}, is this the correct issuer URL?"
+            err_msg = (
+                f"HTTP error occurred while trying to contact the IDP: {provided_url}, is this the correct issuer URL?"
+            )
             logger.error(err_msg + f" - {e}")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -65,9 +78,7 @@ def fetch_openid_config(oidc_url: str, max_retries: int = 6) -> OIDCConfiguratio
             ) from e
 
     logger.error(f"Unable to contact the IDP at {oidc_url} after {max_retries} retries")
-    raise httpx.ConnectError(
-        f"Unable to contact the IDP at {oidc_url} after {max_retries} retries"
-    )
+    raise httpx.ConnectError(f"Unable to contact the IDP at {oidc_url} after {max_retries} retries")
 
 
 def get_user_oidc_config() -> OIDCConfiguration:
@@ -110,19 +121,17 @@ async def verify_idp_token(
 
     try:
         # Decode just to get issuer
-        unverified_claims = jwt.decode(
-            token.credentials, options={"verify_signature": False}
-        )
+        unverified_claims = jwt.decode(token.credentials, options={"verify_signature": False})
         issuer = unverified_claims.get("iss")
 
         if hub_adapter_settings.OVERRIDE_JWKS:  # Override the fetched URIs
-            jwk_client = PyJWKClient(hub_adapter_settings.OVERRIDE_JWKS)
+            jwk_client = ProxiedPyJWKClient(hub_adapter_settings.OVERRIDE_JWKS)
         # If the issuer is the user's OIDC, use the user's public key, otherwise use the node's internal public key
         elif issuer == user_oidc_config.issuer:
-            jwk_client = PyJWKClient(user_oidc_config.jwks_uri)
+            jwk_client = ProxiedPyJWKClient(user_oidc_config.jwks_uri)
 
         else:
-            jwk_client = PyJWKClient(svc_oidc_config.jwks_uri)
+            jwk_client = ProxiedPyJWKClient(svc_oidc_config.jwks_uri)
 
         signing_key = jwk_client.get_signing_key_from_jwt(token.credentials)
 
@@ -131,6 +140,21 @@ async def verify_idp_token(
             key=signing_key,
             options={"verify_signature": True, "verify_aud": False, "exp": True},
         )
+
+    except httpx.ConnectError as e:
+        err_msg = f"{status.HTTP_404_NOT_FOUND} - {e}"
+        if hub_adapter_settings.PROXY_MOUNTS:
+            err_msg += f" - Possibly an issue with the forward proxy: {hub_adapter_settings.HTTP_PROXY}"
+        logger.error(err_msg)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "message": f"{status.HTTP_404_NOT_FOUND} - {err_msg}",
+                "service": svc,
+                "status_code": status.HTTP_404_NOT_FOUND,
+            },
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from e
 
     except jwt.DecodeError as e:
         logger.error(f"{status.HTTP_401_UNAUTHORIZED} - {e}")
@@ -190,9 +214,7 @@ def get_hub_token() -> RobotAuth:
 
     if not robot_id or not robot_secret:
         logger.error("Missing robot ID or secret. Check env vars")
-        raise ValueError(
-            "Missing Hub robot credentials, check that the environment variables are set properly"
-        )
+        raise ValueError("Missing Hub robot credentials, check that the environment variables are set properly")
 
     try:
         uuid.UUID(robot_id)
@@ -204,10 +226,16 @@ def get_hub_token() -> RobotAuth:
     auth = RobotAuth(
         robot_id=robot_id,
         robot_secret=robot_secret,
-        base_url=hub_adapter_settings.HUB_AUTH_SERVICE_URL,
+        client=httpx.Client(
+            base_url=hub_adapter_settings.HUB_AUTH_SERVICE_URL, mounts=hub_adapter_settings.PROXY_MOUNTS
+        ),
     )
     return auth
 
 
 hub_robot = get_hub_token()
-core_client = CoreClient(auth=hub_robot, base_url=hub_adapter_settings.HUB_SERVICE_URL)
+core_client = CoreClient(
+    client=httpx.Client(
+        base_url=hub_adapter_settings.HUB_SERVICE_URL, mounts=hub_adapter_settings.PROXY_MOUNTS, auth=hub_robot
+    ),
+)

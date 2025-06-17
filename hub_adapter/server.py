@@ -65,4 +65,4 @@ for router in routers:
 
 
 if __name__ == "__main__":
-    uvicorn.run("server:app", host="127.0.0.1", port=8081, reload=False)
+    uvicorn.run("server:app", host="127.0.0.1", port=8081, reload=False, log_config=None)
