@@ -42,7 +42,7 @@ logging_config = {
             "maxBytes": 4098 * 10,  # 4MB file max
             "backupCount": 5,
             "formatter": "file_formatter",
-            "level": "DEBUG",
+            "level": "INFO",
         },
         "console_handler": {
             "class": "logging.StreamHandler",
@@ -52,15 +52,11 @@ logging_config = {
         },
     },
     "root": {
-        "level": "DEBUG",
+        "level": "INFO",
         "handlers": ["file_handler", "console_handler"],
     },
     "loggers": {
-        "httpx": {
-            "handlers": ["console_handler", "file_handler"],
-            "level": "INFO",
-        },
-        "httpcore": {
+        "flame_hub": {
             "handlers": ["console_handler", "file_handler"],
             "level": "INFO",
         },
