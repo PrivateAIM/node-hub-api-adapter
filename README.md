@@ -37,5 +37,7 @@ HUB_ROBOT_SECRET="hubpassword"  # These will be removed later once users are reg
 API_CLIENT_ID="hub-adapter"  # Client name of this API as defined in keycloak
 API_CLIENT_SECRET="someSecret"  # Client secret of this API as defined in keycloak
 #NODE_SVC_OIDC_URL="https://data-center.node.com/keycloak/realms/flame"  # The internal IDP used by other Node microsvcs
-#OVERRIDE_JWKS=""  # JWKS URI to override the endpoints fetched from the IDP issuer (meant for local testing)  
+OVERRIDE_JWKS=""  # JWKS URI to override the endpoints fetched from the IDP issuer (meant for local testing)
+HA_HTTP_PROXY=""  # Forward proxy address for HTTP requests
+HA_HTTPS_PROXY=""  # Forward proxy address for HTTPS requests
 ```
