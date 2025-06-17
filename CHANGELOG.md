@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.2.7](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.2.6...v0.2.7) (2025-06-17)
+
+
+### Features
+
+* **proxy:** add custom PyJWKClient class to handle IDP token ([7190ae9](https://github.com/PrivateAIM/node-hub-api-adapter/commit/7190ae9a004dee1328e388777842b9811adc7711))
+* **proxy:** enable proxies for hub communication ([db7696c](https://github.com/PrivateAIM/node-hub-api-adapter/commit/db7696c318d4b33899514ead052d38f19c89874c))
+
+
+### Bug Fixes
+
+* **hub:** pass hub URLs to hub client ([11478dc](https://github.com/PrivateAIM/node-hub-api-adapter/commit/11478dc7bd21e0aa3e2323e70616b98dc0f6f925))
+* **logs:** improved logging to console and file ([f170d12](https://github.com/PrivateAIM/node-hub-api-adapter/commit/f170d12e4bbb96ec305c1ff73951debc908ba76a))
+
+
+### Documentation
+
+* add proxy env vars to README ([bd6de95](https://github.com/PrivateAIM/node-hub-api-adapter/commit/bd6de95a9a64637a5f977ea2c9c9f9bc891fdfff))
+
 ## [0.2.6](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.2.5...v0.2.6) (2025-06-04)
 
 
