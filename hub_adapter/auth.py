@@ -29,6 +29,19 @@ jwtbearer = HTTPBearer(
 )
 
 
+class ProxiedPyJWKClient(PyJWKClient):
+    """Custom class to override the PyJWKClient to use proxies when available."""
+
+    def __init__(self, url):
+        super().__init__(url)
+
+    def fetch_data(self):
+        with httpx.Client(mounts=hub_adapter_settings.PROXY_MOUNTS) as client:
+            response = client.get(self.uri)
+            response.raise_for_status()
+            return response.json()
+
+
 @lru_cache(maxsize=2)
 def fetch_openid_config(oidc_url: str, max_retries: int = 6) -> OIDCConfiguration:
     """Fetch the openid configuration from the OIDC URL. Tries until it reaches max_retries."""
@@ -112,13 +125,13 @@ async def verify_idp_token(
         issuer = unverified_claims.get("iss")
 
         if hub_adapter_settings.OVERRIDE_JWKS:  # Override the fetched URIs
-            jwk_client = PyJWKClient(hub_adapter_settings.OVERRIDE_JWKS)
+            jwk_client = ProxiedPyJWKClient(hub_adapter_settings.OVERRIDE_JWKS)
         # If the issuer is the user's OIDC, use the user's public key, otherwise use the node's internal public key
         elif issuer == user_oidc_config.issuer:
-            jwk_client = PyJWKClient(user_oidc_config.jwks_uri)
+            jwk_client = ProxiedPyJWKClient(user_oidc_config.jwks_uri)
 
         else:
-            jwk_client = PyJWKClient(svc_oidc_config.jwks_uri)
+            jwk_client = ProxiedPyJWKClient(svc_oidc_config.jwks_uri)
 
         signing_key = jwk_client.get_signing_key_from_jwt(token.credentials)
 
@@ -127,6 +140,21 @@ async def verify_idp_token(
             key=signing_key,
             options={"verify_signature": True, "verify_aud": False, "exp": True},
         )
+
+    except httpx.ConnectError as e:
+        err_msg = f"{status.HTTP_404_NOT_FOUND} - {e}"
+        if hub_adapter_settings.PROXY_MOUNTS:
+            err_msg += f" - Possibly an issue with the forward proxy: {hub_adapter_settings.HTTP_PROXY}"
+        logger.error(err_msg)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "message": f"{status.HTTP_404_NOT_FOUND} - {err_msg}",
+                "service": svc,
+                "status_code": status.HTTP_404_NOT_FOUND,
+            },
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from e
 
     except jwt.DecodeError as e:
         logger.error(f"{status.HTTP_401_UNAUTHORIZED} - {e}")
