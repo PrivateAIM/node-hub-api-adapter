@@ -52,7 +52,9 @@ def fetch_openid_config(oidc_url: str, max_retries: int = 6) -> OIDCConfiguratio
     attempt_num = 0
     while attempt_num <= max_retries:
         try:
-            response = httpx.get(oidc_url)
+            with httpx.Client(mounts=hub_adapter_settings.PROXY_MOUNTS) as client:
+                response = client.get(oidc_url)
+
             response.raise_for_status()
             oidc_config = response.json()
             return OIDCConfiguration(**oidc_config)
