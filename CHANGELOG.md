@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.8](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.2.7...v0.2.8) (2025-06-20)
+
+
+### Bug Fixes
+
+* **proxy:** enable proxy mounts for /token endpoint ([8f54e6c](https://github.com/PrivateAIM/node-hub-api-adapter/commit/8f54e6cdb9c9c150ab63eec8170dcab14a86b600))
+
 ## [0.2.7](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.2.6...v0.2.7) (2025-06-17)
 
 
