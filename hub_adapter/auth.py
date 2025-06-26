@@ -95,6 +95,7 @@ def get_user_oidc_config() -> OIDCConfiguration:
 
 def get_svc_oidc_config() -> OIDCConfiguration:
     """Lazy-load the service OIDC configuration when first needed."""
+    # Services always use internal IDP so set them to true
     if hub_adapter_settings.NODE_SVC_OIDC_URL != hub_adapter_settings.IDP_URL:
         return fetch_openid_config(hub_adapter_settings.NODE_SVC_OIDC_URL, bypass_proxy=True)
     else:
