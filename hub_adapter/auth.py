@@ -43,17 +43,22 @@ class ProxiedPyJWKClient(PyJWKClient):
 
 
 @lru_cache(maxsize=2)
-def fetch_openid_config(oidc_url: str, max_retries: int = 6) -> OIDCConfiguration:
+def fetch_openid_config(oidc_url: str, max_retries: int = 6, bypass_proxy: bool = False) -> OIDCConfiguration:
     """Fetch the openid configuration from the OIDC URL. Tries until it reaches max_retries."""
     provided_url = oidc_url
     if not oidc_url.endswith(".well-known/openid-configuration"):
         oidc_url = oidc_url.rstrip("/") + "/.well-known/openid-configuration"
 
+    response = {}
     attempt_num = 0
     while attempt_num <= max_retries:
         try:
-            with httpx.Client(mounts=hub_adapter_settings.PROXY_MOUNTS) as client:
-                response = client.get(oidc_url)
+            if bypass_proxy:  # For internal k8s/containerized communications
+                response = httpx.get(oidc_url)
+
+            else:
+                with httpx.Client(mounts=hub_adapter_settings.PROXY_MOUNTS) as client:
+                    response = client.get(oidc_url)
 
             response.raise_for_status()
             oidc_config = response.json()
@@ -91,7 +96,9 @@ def get_user_oidc_config() -> OIDCConfiguration:
 def get_svc_oidc_config() -> OIDCConfiguration:
     """Lazy-load the service OIDC configuration when first needed."""
     if hub_adapter_settings.NODE_SVC_OIDC_URL != hub_adapter_settings.IDP_URL:
-        return fetch_openid_config(hub_adapter_settings.NODE_SVC_OIDC_URL)
+        return fetch_openid_config(
+            hub_adapter_settings.NODE_SVC_OIDC_URL, bypass_proxy=hub_adapter_settings.STRICT_INTERNAL
+        )
     else:
         return get_user_oidc_config()
 
