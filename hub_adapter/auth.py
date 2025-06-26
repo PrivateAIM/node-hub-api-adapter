@@ -90,15 +90,13 @@ def fetch_openid_config(oidc_url: str, max_retries: int = 6, bypass_proxy: bool 
 
 def get_user_oidc_config() -> OIDCConfiguration:
     """Lazy-load the user OIDC configuration when first needed."""
-    return fetch_openid_config(hub_adapter_settings.IDP_URL)
+    return fetch_openid_config(hub_adapter_settings.IDP_URL, bypass_proxy=hub_adapter_settings.INTERNAL_IDP)
 
 
 def get_svc_oidc_config() -> OIDCConfiguration:
     """Lazy-load the service OIDC configuration when first needed."""
     if hub_adapter_settings.NODE_SVC_OIDC_URL != hub_adapter_settings.IDP_URL:
-        return fetch_openid_config(
-            hub_adapter_settings.NODE_SVC_OIDC_URL, bypass_proxy=hub_adapter_settings.STRICT_INTERNAL
-        )
+        return fetch_openid_config(hub_adapter_settings.NODE_SVC_OIDC_URL, bypass_proxy=True)
     else:
         return get_user_oidc_config()
 

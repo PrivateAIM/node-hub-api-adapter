@@ -30,11 +30,10 @@ class Settings(BaseModel):
 
     # IDP Settings
     IDP_URL: str = os.getenv("IDP_URL", "http://localhost:8080")  # User
+    # Set this to false if HTTP_PROXY or HTTPS_PROXY is set, and the IDP is outside the proxy, otherwise proxy is ignored for auth
+    INTERNAL_IDP: bool = os.getenv("INTERNAL_IDP", True).lower() in ("true", "1", "t")
     # If using a different service for node OIDC, set this to the URL of that service
     NODE_SVC_OIDC_URL: str = os.getenv("NODE_SVC_OIDC_URL", os.getenv("IDP_URL", "http://localhost:8080"))
-
-    # If deployed in a containerized setting e.g. k8s or docker, then set this to True to ensure internal communication
-    STRICT_INTERNAL: str = os.getenv("STRICT_INTERNAL", False)
 
     # JWKS URI to override the endpoints fetched from the IDP issuer (meant for local testing)
     OVERRIDE_JWKS: str = os.getenv("OVERRIDE_JWKS")

@@ -40,5 +40,5 @@ API_CLIENT_SECRET="someSecret"  # Client secret of this API as defined in keyclo
 OVERRIDE_JWKS=""  # JWKS URI to override the endpoints fetched from the IDP issuer (meant for local testing)
 HA_HTTP_PROXY=""  # Forward proxy address for HTTP requests
 HA_HTTPS_PROXY=""  # Forward proxy address for HTTPS requests
-STRICT_INTERNAL="false"  # If deployed in a containerized setting e.g. docker or k8s, then set this to True to ensure internal communication
+INTERNAL_IDP="true"  # Set this to false if HTTP_PROXY or HTTPS_PROXY is set, and the IDP is outside the proxy, otherwise proxy is ignored for auth
 ```
