@@ -22,23 +22,43 @@ users must authorize themselves with the deployed keycloak instance
 
 ## Environment
 
-The following environment variables need to be set for operation:
+The following environment variables need to be set for operation, find a detailed description of each in the table
+further down:
 
 ```bash
-IDP_URL="https://my.user.keycloak.com/realms/flame"  # Path to IDP for user auth (if keycloak then include realm) 
-API_ROOT_PATH=""  # Change the root path where the API is served from, useful for k8s ingress
+IDP_URL="https://my.user.keycloak.com/realms/flame"  # URL to the IDP used for user authentication. If the IDP is Keycloak, be sure to include the realm
+API_ROOT_PATH=""  # Subpath to serve the API on    
 PODORC_SERVICE_URL="http://localhost:18080"  # URL to Pod Orchestration service
 RESULTS_SERVICE_URL="http://localhost:8000"  # URL to the Results service
 KONG_ADMIN_SERVICE_URL="http://localhost:8000"  # URL to the Kong gateway service
 HUB_AUTH_SERVICE_URL="https://auth.privateaim.dev"  # URL for auth EPs for the Hub
 HUB_SERVICE_URL="https://core.privateaim.dev"  # URL for project/analysis EPs for the Hub
-HUB_ROBOT_USER="hubusername"  # Need to get credentials from myself or hub team
-HUB_ROBOT_SECRET="hubpassword"  # These will be removed later once users are registered in both node and hub IDP
-API_CLIENT_ID="hub-adapter"  # Client name of this API as defined in keycloak
-API_CLIENT_SECRET="someSecret"  # Client secret of this API as defined in keycloak
+HUB_ROBOT_USER=""  # Robot UUID for a registered node
+HUB_ROBOT_SECRET=""  # Robot secret for a registered node
+API_CLIENT_ID="hub-adapter"  # IDP Client ID for this hub-adapter service
+API_CLIENT_SECRET=""  # IDP Client Secret for this hub-adapter service
 #NODE_SVC_OIDC_URL="https://data-center.node.com/keycloak/realms/flame"  # The internal IDP used by other Node microsvcs
 OVERRIDE_JWKS=""  # JWKS URI to override the endpoints fetched from the IDP issuer (meant for local testing)
 HA_HTTP_PROXY=""  # Forward proxy address for HTTP requests
 HA_HTTPS_PROXY=""  # Forward proxy address for HTTPS requests
 INTERNAL_IDP="true"  # Set this to false if HTTP_PROXY or HTTPS_PROXY is set, and the IDP is outside the proxy, otherwise proxy is ignored for auth
 ```
+
+| EnvVar                 | Description                                                                                                                  |           Default           | Required |
+|------------------------|------------------------------------------------------------------------------------------------------------------------------|:---------------------------:|:--------:|
+| IDP_URL                | URL to the IDP used for user authentication. If the IDP is Keycloak, be sure to include the realm                            |                             |    x     |
+| API_ROOT_PATH          | Subpath to serve the API on                                                                                                  |                             |          |
+| PODORC_SERVICE_URL     | URL to the pod orchestrator service                                                                                          |                             |    x     |
+| RESULTS_SERVICE_URL    | URL to the Results service                                                                                                   |                             |    x     |
+| KONG_ADMIN_SERVICE_URL | URL to the Kong gateway service                                                                                              |                             |    x     |
+| HUB_SERVICE_URL        | URL to the core Hub service                                                                                                  | https://core.privateaim.dev |    x     |
+| HUB_AUTH_SERVICE_URL   | URL to the auth Hub service                                                                                                  | https://auth.privateaim.dev |    x     |
+| HUB_ROBOT_USER         | Robot UUID for a registered node                                                                                             |                             |    x     |
+| HUB_ROBOT_SECRET       | Robot secret for a registered node                                                                                           |                             |    x     |
+| API_CLIENT_ID          | IDP Client ID for this hub-adapter service                                                                                   |         hub-adapter         |    x     |
+| API_CLIENT_SECRET      | IDP Client Secret for this hub-adapter service                                                                               |                             |    x     |
+| NODE_SVC_OIDC_URL      | The IDP URL usd for the other Node services when different from the IDP used for user authentication.                        |                             |          |
+| OVERRIDE_JWKS          | JWKS URI to override the endpoints fetched from the IDP issuer (meant for local testing)                                     |                             |          |
+| HA_HTTP_PROXY          | Forward proxy address for HTTP requests                                                                                      |                             |          |
+| HA_HTTPS_PROXY         | Forward proxy address for HTTPS requests                                                                                     |                             |          |
+| INTERNAL_IDP           | Set this to false if HTTP_PROXY or HTTPS_PROXY is set, and the IDP is outside the proxy, otherwise proxy is ignored for auth |            true             |          |
