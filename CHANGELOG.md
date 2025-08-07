@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.2.9](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.2.8...v0.2.9) (2025-08-07)
+
+
+### Features
+
+* **proxy:** respect env vars for proxies including NO_PROXY ([5cfd6d5](https://github.com/PrivateAIM/node-hub-api-adapter/commit/5cfd6d52010cc2e9310ae1ae0fd8f4b498b40f41))
+* **proxy:** respect env vars for proxies including NO_PROXY ([08bc017](https://github.com/PrivateAIM/node-hub-api-adapter/commit/08bc0177697f7746107d98ba5af8497cea408fe9))
+
+
+### Bug Fixes
+
+* **proxy:** change env var for proxy idp check ([d86b203](https://github.com/PrivateAIM/node-hub-api-adapter/commit/d86b2038f22c104b1f11a79412efb0431c94598e))
+
+
+### Documentation
+
+* **proxy:** add note ([84cdf00](https://github.com/PrivateAIM/node-hub-api-adapter/commit/84cdf001ef99f36d51adfed902e102e3e12a8d0f))
+* update README with table ([9a36352](https://github.com/PrivateAIM/node-hub-api-adapter/commit/9a36352c4c584e3cbdbf62b03aab7c9ee80b6621))
+
 ## [0.2.8](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.2.7...v0.2.8) (2025-06-26)
 
 
