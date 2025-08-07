@@ -40,7 +40,7 @@ def get_token(
         "scope": "openid",
     }
     user_oidc_config = get_user_oidc_config()
-    with httpx.Client(mounts=hub_adapter_settings.PROXY_MOUNTS) as client:
+    with httpx.Client() as client:
         resp = client.post(user_oidc_config.token_endpoint, data=payload)
 
     if not resp.status_code == httpx.codes.OK:
