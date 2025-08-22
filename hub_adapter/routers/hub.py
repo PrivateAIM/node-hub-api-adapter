@@ -309,7 +309,7 @@ async def list_all_nodes(query_params: Annotated[dict, Depends(parse_query_param
 )
 @catch_hub_errors
 async def list_specific_node(
-    node_id: Annotated[uuid.UUID | str, Path(description="Analysis UUID.")],
+    node_id: Annotated[uuid.UUID | str, Path(description="Node UUID.")],
 ):
     """List a specific node."""
     return core_client.get_node(node_id=node_id)
