@@ -21,6 +21,7 @@ from hub_adapter.models.podorc import (
     LogResponse,
     PodResponse,
     StatusResponse,
+    CleanupPodResponse,
 )
 from hub_adapter.routers.hub import compile_analysis_pod_data
 
@@ -157,4 +158,23 @@ async def delete_analysis(
     analysis_id: Annotated[uuid.UUID | None, Path(description="UUID of the analysis.")],
 ):
     """Delete a specific analysis run."""
+    pass
+
+
+@route(
+    request_method=po_router.delete,
+    path="/po/cleanup/{cleanup_type}",
+    status_code=status.HTTP_200_OK,
+    response_model=CleanupPodResponse,
+    service_url=hub_adapter_settings.PODORC_SERVICE_URL,
+)
+async def cleanup_node(
+    request: Request,
+    response: Response,
+    cleanup_type: Annotated[str | None, Path(description="What type of cleanup.")],
+):
+    """Delete specific types of resources.
+
+    Should be a comma separated combination of the following entries: 'all', 'analyzes', 'services', 'mb', 'rs'
+    """
     pass
