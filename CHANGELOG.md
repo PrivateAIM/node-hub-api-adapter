@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.2.10](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.2.9...v0.2.10) (2025-08-25)
+
+
+### Features
+
+* **hub:** add endpoint for getting nodes and node type ([5d65c24](https://github.com/PrivateAIM/node-hub-api-adapter/commit/5d65c2473a537461e87940a8f70a91daf4d75c05))
+* **hub:** add endpoint for getting nodes and node type ([2fe7b6b](https://github.com/PrivateAIM/node-hub-api-adapter/commit/2fe7b6b9591a529a9b0980091bb2dd3708bdec28))
+* **po:** implement cleanup ep ([ccc7119](https://github.com/PrivateAIM/node-hub-api-adapter/commit/ccc7119a6738c0278c7895798564cefd72e72a45))
+
+
+### Documentation
+
+* **hub:** fix path param description ([ef2b471](https://github.com/PrivateAIM/node-hub-api-adapter/commit/ef2b471aad6955c5e4d7a0b011c09d0d28b1ae6e))
+
 ## [0.2.9](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.2.8...v0.2.9) (2025-08-07)
 
 
