@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.11](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.2.10...v0.2.11) (2025-08-25)
+
+
+### Documentation
+
+* **logs:** fixed a mistake in the logs ([8992b8f](https://github.com/PrivateAIM/node-hub-api-adapter/commit/8992b8f2139f384992e44af18d81365292514cfc))
+
 ## [0.2.10](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.2.9...v0.2.10) (2025-08-25)
 
 
