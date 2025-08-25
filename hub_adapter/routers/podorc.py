@@ -10,6 +10,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from hub_adapter.auth import (
+    add_internal_token_if_missing,
     jwtbearer,
     verify_idp_token,
 )
@@ -26,10 +27,7 @@ from hub_adapter.models.podorc import (
 from hub_adapter.routers.hub import compile_analysis_pod_data
 
 po_router = APIRouter(
-    dependencies=[
-        Security(verify_idp_token),
-        Security(jwtbearer),
-    ],
+    dependencies=[Security(verify_idp_token), Security(jwtbearer), Depends(add_internal_token_if_missing)],
     tags=["PodOrc"],
     responses={404: {"description": "Not found"}},
 )

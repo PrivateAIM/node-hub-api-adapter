@@ -1,9 +1,7 @@
 """Handle the authorization and authentication of services."""
 
 import logging
-import time
 import uuid
-from functools import lru_cache
 
 import httpx
 import jwt
@@ -16,9 +14,12 @@ from flame_hub import CoreClient
 from flame_hub._auth_flows import RobotAuth
 from jwt import PyJWKClient
 from starlette import status
+from starlette.datastructures import MutableHeaders
+from starlette.requests import Request
 
 from hub_adapter.conf import hub_adapter_settings
-from hub_adapter.models.conf import OIDCConfiguration
+from hub_adapter.models.conf import Token
+from hub_adapter.oidc import check_oidc_configs_match, get_svc_oidc_config, get_user_oidc_config
 
 logger = logging.getLogger(__name__)
 
@@ -40,66 +41,6 @@ class ProxiedPyJWKClient(PyJWKClient):
             response = client.get(self.uri)
             response.raise_for_status()
             return response.json()
-
-
-@lru_cache(maxsize=2)
-def fetch_openid_config(
-    oidc_url: str,
-    max_retries: int = 6,
-) -> OIDCConfiguration:
-    """Fetch the openid configuration from the OIDC URL. Tries until it reaches max_retries."""
-    provided_url = oidc_url
-    if not oidc_url.endswith(".well-known/openid-configuration"):
-        oidc_url = oidc_url.rstrip("/") + "/.well-known/openid-configuration"
-
-    response = {}
-    attempt_num = 0
-    while attempt_num <= max_retries:
-        try:
-            response = httpx.get(oidc_url)
-
-            response.raise_for_status()
-            oidc_config = response.json()
-            return OIDCConfiguration(**oidc_config)
-
-        except (httpx.ConnectError, httpx.ReadTimeout):  # OIDC Service not up yet
-            attempt_num += 1
-            wait_time = 10 * (2 ** (attempt_num - 1))  # 10s, 20s, 40s, 80s, 160s, 320s
-            logger.warning(
-                f"Unable to contact the IDP at {oidc_url}, retrying in {wait_time} seconds"
-            )
-            time.sleep(wait_time)
-
-        except httpx.HTTPStatusError as e:
-            err_msg = f"HTTP error occurred while trying to contact the IDP: {provided_url}, is this the correct issuer URL?"
-            logger.error(err_msg + f" - {e}")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail={
-                    "message": err_msg,
-                    "service": "Auth",
-                    "status_code": status.HTTP_404_NOT_FOUND,
-                },
-            ) from e
-
-    logger.error(f"Unable to contact the IDP at {oidc_url} after {max_retries} retries")
-    raise httpx.ConnectError(
-        f"Unable to contact the IDP at {oidc_url} after {max_retries} retries"
-    )
-
-
-def get_user_oidc_config() -> OIDCConfiguration:
-    """Lazy-load the user OIDC configuration when first needed."""
-    return fetch_openid_config(hub_adapter_settings.IDP_URL)
-
-
-def get_svc_oidc_config() -> OIDCConfiguration:
-    """Lazy-load the service OIDC configuration when first needed."""
-    # Services always use internal IDP so set them to true
-    if hub_adapter_settings.NODE_SVC_OIDC_URL != hub_adapter_settings.IDP_URL:
-        return fetch_openid_config(hub_adapter_settings.NODE_SVC_OIDC_URL)
-    else:
-        return get_user_oidc_config()
 
 
 async def get_hub_public_key() -> dict:
@@ -129,9 +70,7 @@ async def verify_idp_token(
 
     try:
         # Decode just to get issuer
-        unverified_claims = jwt.decode(
-            token.credentials, options={"verify_signature": False}
-        )
+        unverified_claims = jwt.decode(token.credentials, options={"verify_signature": False})
         issuer = unverified_claims.get("iss")
 
         if hub_adapter_settings.OVERRIDE_JWKS:  # Override the fetched URIs
@@ -215,6 +154,43 @@ async def verify_idp_token(
         ) from Exception
 
 
+def get_internal_token() -> dict | None:
+    """If the Hub Adapter is set up tp use an external IDP, it needs to retrieve a JWT from the internal keycloak
+    to make requests to the PO."""
+    configs_match, oidc_config = check_oidc_configs_match()
+
+    if not configs_match:
+        logger.debug("External IDP different from internal, retrieving JWT from internal keycloak")
+        payload = {
+            "grant_type": "client_credentials",
+            "client_id": hub_adapter_settings.API_CLIENT_ID,
+            "client_secret": hub_adapter_settings.API_CLIENT_SECRET,
+        }
+
+        with httpx.Client() as client:
+            resp = client.post(oidc_config.token_endpoint, data=payload)
+            resp.raise_for_status()
+            token_data = resp.json()
+
+        token = Token(**token_data)
+        return {"Authorization": f"Bearer {token.access_token}"}
+
+    return None
+
+
+async def add_internal_token_if_missing(request: Request) -> Request:
+    """Adds a JWT from the internal IDP is not present in the request."""
+    internal_token = get_internal_token()
+    if internal_token:
+        updated_headers = MutableHeaders(request.headers)
+        updated_headers.update(internal_token)
+        logger.debug("Added internal keycloak JWT to request headers")
+        request._headers = updated_headers
+        request.scope.update(headers=request.headers.raw)
+
+    return request
+
+
 def get_hub_token() -> RobotAuth:
     """Automated method for getting a robot token from the central Hub service."""
     robot_id, robot_secret = (
@@ -224,9 +200,7 @@ def get_hub_token() -> RobotAuth:
 
     if not robot_id or not robot_secret:
         logger.error("Missing robot ID or secret. Check env vars")
-        raise ValueError(
-            "Missing Hub robot credentials, check that the environment variables are set properly"
-        )
+        raise ValueError("Missing Hub robot credentials, check that the environment variables are set properly")
 
     try:
         uuid.UUID(robot_id)

@@ -1,4 +1,4 @@
-"""Auth related endpoints."""
+"""Endpoints for manually retrieving an JWT."""
 
 from typing import Annotated
 
@@ -6,9 +6,9 @@ import httpx
 from fastapi import APIRouter, Form, HTTPException
 from starlette import status
 
-from hub_adapter.auth import get_user_oidc_config
 from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.models.conf import Token
+from hub_adapter.oidc import get_svc_oidc_config
 
 auth_router = APIRouter(
     tags=["Auth"],
@@ -39,9 +39,9 @@ def get_token(
         "grant_type": "password",
         "scope": "openid",
     }
-    user_oidc_config = get_user_oidc_config()
+    oidc_config = get_svc_oidc_config()
     with httpx.Client() as client:
-        resp = client.post(user_oidc_config.token_endpoint, data=payload)
+        resp = client.post(oidc_config.token_endpoint, data=payload)
 
     if not resp.status_code == httpx.codes.OK:
         raise HTTPException(
