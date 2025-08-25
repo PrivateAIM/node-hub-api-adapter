@@ -37,3 +37,12 @@ class PodResponse(BaseModel):
 
 class CreatePodResponse(BaseModel):
     status: AnalysisStatus
+
+
+class CleanupPodResponse(BaseModel):
+    all: str | None = None
+    analyzes: str | None = None
+    services: str | None = None
+    mb: str | None = None
+    rs: str | None = None
+    zombies: str | None = None
