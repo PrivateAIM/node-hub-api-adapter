@@ -184,7 +184,7 @@ async def add_internal_token_if_missing(request: Request) -> Request:
     if internal_token:
         updated_headers = MutableHeaders(request.headers)
         updated_headers.update(internal_token)
-        logger.debug("Added Hub JWT to request headers")
+        logger.debug("Added internal keycloak JWT to request headers")
         request._headers = updated_headers
         request.scope.update(headers=request.headers.raw)
 
