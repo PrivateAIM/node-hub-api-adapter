@@ -1,10 +1,13 @@
 """Methods for verifying auth."""
 
+import asyncio
+
 import uvicorn
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
 from hub_adapter.conf import hub_adapter_settings
+from hub_adapter.headless import auto_start_analyses
 from hub_adapter.routers.auth import auth_router
 from hub_adapter.routers.health import health_router
 from hub_adapter.routers.hub import hub_router
@@ -64,5 +67,24 @@ for router in routers:
     app.include_router(router)
 
 
+async def run_server():
+    """Start the hub adapter API server."""
+    config = uvicorn.Config(app, host="127.0.0.1", port=8081, reload=False, log_config=None)
+    server = uvicorn.Server(config)
+    await server.serve()
+
+
+async def headless_probing():
+    """Check for available analyses in the background and start them automatically."""
+    while True:
+        await auto_start_analyses()
+        await asyncio.sleep(2)
+
+
+async def main():
+    # Run both tasks concurrently
+    await asyncio.gather(run_server(), headless_probing())
+
+
 if __name__ == "__main__":
-    uvicorn.run("server:app", host="127.0.0.1", port=8081, reload=False, log_config=None)
+    asyncio.run(main())

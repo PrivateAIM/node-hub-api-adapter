@@ -154,39 +154,38 @@ async def verify_idp_token(
         ) from Exception
 
 
-def get_internal_token() -> dict | None:
+async def get_internal_token(oidc_config) -> dict | None:
     """If the Hub Adapter is set up tp use an external IDP, it needs to retrieve a JWT from the internal keycloak
     to make requests to the PO."""
-    configs_match, oidc_config = check_oidc_configs_match()
 
-    if not configs_match:
-        logger.debug("External IDP different from internal, retrieving JWT from internal keycloak")
-        payload = {
-            "grant_type": "client_credentials",
-            "client_id": hub_adapter_settings.API_CLIENT_ID,
-            "client_secret": hub_adapter_settings.API_CLIENT_SECRET,
-        }
+    payload = {
+        "grant_type": "client_credentials",
+        "client_id": hub_adapter_settings.API_CLIENT_ID,
+        "client_secret": hub_adapter_settings.API_CLIENT_SECRET,
+    }
 
-        with httpx.Client() as client:
-            resp = client.post(oidc_config.token_endpoint, data=payload)
-            resp.raise_for_status()
-            token_data = resp.json()
+    with httpx.Client() as client:
+        resp = client.post(oidc_config.token_endpoint, data=payload)
+        resp.raise_for_status()
+        token_data = resp.json()
 
-        token = Token(**token_data)
-        return {"Authorization": f"Bearer {token.access_token}"}
-
-    return None
+    token = Token(**token_data)
+    return {"Authorization": f"Bearer {token.access_token}"}
 
 
 async def add_internal_token_if_missing(request: Request) -> Request:
     """Adds a JWT from the internal IDP is not present in the request."""
-    internal_token = get_internal_token()
-    if internal_token:
-        updated_headers = MutableHeaders(request.headers)
-        updated_headers.update(internal_token)
-        logger.debug("Added internal keycloak JWT to request headers")
-        request._headers = updated_headers
-        request.scope.update(headers=request.headers.raw)
+    configs_match, oidc_config = check_oidc_configs_match()
+
+    if not configs_match:
+        logger.debug("External IDP different from internal, retrieving JWT from internal keycloak")
+        internal_token = await get_internal_token(oidc_config)
+        if internal_token:
+            updated_headers = MutableHeaders(request.headers)
+            updated_headers.update(internal_token)
+            logger.debug("Added internal keycloak JWT to request headers")
+            request._headers = updated_headers
+            request.scope.update(headers=request.headers.raw)
 
     return request
 

@@ -42,12 +42,18 @@ hub_router = APIRouter(
 
 logger = logging.getLogger(__name__)
 
+_node_type_cache = None
+
 
 def parse_query_params(request: Request) -> dict:
+    """Extract and format the query params for the hub client."""
+    query_params = dict(request.query_params)
+    return format_query_params(query_params)
+
+
+def format_query_params(query_params: dict) -> dict:
     """Format the query params for the hub client."""
     formatted_query_params = {}
-
-    query_params = dict(request.query_params)
 
     page_params: str = query_params.get("page")
     # filter_params: str = query_params.get("filter")  # TODO: Add filter support
@@ -96,14 +102,10 @@ async def get_node_id(debug: bool = False) -> str | None:
 
     node_id = node_cache.get(robot_id) or "nothingFound"
 
-    if (
-        robot_id not in node_cache
-    ):  # Node ID may be None since not every robot is associated with a node
+    if robot_id not in node_cache:  # Node ID may be None since not every robot is associated with a node
         logger.info("NODE_ID not set for ROBOT_USER, retrieving from Hub")
 
-        node_id_resp = core_client.find_nodes(
-            filter={"robot_id": robot_id}, fields="id"
-        )
+        node_id_resp = core_client.find_nodes(filter={"robot_id": robot_id}, fields="id")
 
         if node_id_resp and len(node_id_resp) == 1:
             node_id = str(node_id_resp[0].id)  # convert UUID type to string
@@ -154,9 +156,7 @@ async def list_project_proposals(
 ):
     """List project proposals."""
     if node_id:
-        return core_client.find_project_nodes(
-            filter={"node_id": node_id}, **query_params
-        )
+        return core_client.find_project_nodes(filter={"node_id": node_id}, **query_params)
 
     else:
         return core_client.get_project_nodes(**query_params)
@@ -170,9 +170,7 @@ async def list_project_proposals(
 )
 @catch_hub_errors
 async def list_project_proposal(
-    project_node_id: Annotated[
-        uuid.UUID | str, Path(description="Proposal object UUID.")
-    ],
+    project_node_id: Annotated[uuid.UUID | str, Path(description="Proposal object UUID.")],
 ):
     """Set the approval status of a project proposal."""
     return core_client.get_project_node(project_node_id=project_node_id)
@@ -186,20 +184,14 @@ async def list_project_proposal(
 )
 @catch_hub_errors
 async def accept_reject_project_proposal(
-    project_node_id: Annotated[
-        uuid.UUID | str, Path(description="Proposal object UUID.")
-    ],
+    project_node_id: Annotated[uuid.UUID | str, Path(description="Proposal object UUID.")],
     approval_status: Annotated[
         ProjectNodeApprovalStatus,
-        Form(
-            description="Set the approval status of project for the node. Either 'rejected' or 'approved'"
-        ),
+        Form(description="Set the approval status of project for the node. Either 'rejected' or 'approved'"),
     ],
 ):
     """Set the approval status of a project proposal."""
-    return core_client.update_project_node(
-        project_node_id=project_node_id, approval_status=approval_status
-    )
+    return core_client.update_project_node(project_node_id=project_node_id, approval_status=approval_status)
 
 
 @hub_router.get(
@@ -215,9 +207,7 @@ async def list_analysis_nodes(
 ):
     """List all analysis nodes for give node."""
     if node_id:
-        return core_client.find_analysis_nodes(
-            filter={"node_id": node_id}, **query_params
-        )
+        return core_client.find_analysis_nodes(filter={"node_id": node_id}, **query_params)
 
     else:
         return core_client.find_analysis_nodes(**query_params)
@@ -231,9 +221,7 @@ async def list_analysis_nodes(
 )
 @catch_hub_errors
 async def list_specific_analysis_node(
-    analysis_node_id: Annotated[
-        uuid.UUID | str, Path(description="Analysis Node UUID.")
-    ],
+    analysis_node_id: Annotated[uuid.UUID | str, Path(description="Analysis Node UUID.")],
 ):
     """List a specific analysis node."""
     return core_client.get_analysis_node(analysis_node_id=analysis_node_id)
@@ -247,20 +235,14 @@ async def list_specific_analysis_node(
 )
 @catch_hub_errors
 async def accept_reject_analysis_node(
-    analysis_node_id: Annotated[
-        uuid.UUID | str, Path(description="Analysis Node UUID (not analysis_id).")
-    ],
+    analysis_node_id: Annotated[uuid.UUID | str, Path(description="Analysis Node UUID (not analysis_id).")],
     approval_status: Annotated[
         AnalysisNodeApprovalStatus,
-        Form(
-            description="Set the approval status of project for the node. Either 'rejected' or 'approved'"
-        ),
+        Form(description="Set the approval status of project for the node. Either 'rejected' or 'approved'"),
     ],
 ):
     """Set the approval status of an analysis proposal."""
-    return core_client.update_analysis_node(
-        analysis_node_id=analysis_node_id, approval_status=approval_status
-    )
+    return core_client.update_analysis_node(analysis_node_id=analysis_node_id, approval_status=approval_status)
 
 
 @hub_router.get(
@@ -324,9 +306,14 @@ async def list_specific_node(
 @catch_hub_errors
 async def get_node_type():
     """Return what type of node this API is deployed on."""
-    node_id = await get_node_id()
-    node_resp = core_client.get_node(node_id=node_id)
-    return {"type": node_resp.type}
+    global _node_type_cache
+
+    if _node_type_cache is None:
+        node_id = await get_node_id()
+        node_resp = core_client.get_node(node_id=node_id)
+        _node_type_cache = {"type": node_resp.type}
+
+    return _node_type_cache
 
 
 @hub_router.post(
@@ -352,9 +339,7 @@ async def update_specific_analysis(
 )
 @catch_hub_errors
 async def get_registry_metadata_for_project(
-    registry_project_id: Annotated[
-        uuid.UUID | str, Path(description="Registry project UUID.")
-    ],
+    registry_project_id: Annotated[uuid.UUID | str, Path(description="Registry project UUID.")],
 ):
     """List registry data for a project."""
 
@@ -533,11 +518,7 @@ async def list_all_analysis_bucket_files(
 )
 @catch_hub_errors
 async def list_specific_analysis_bucket_file(
-    analysis_bucket_file_id: Annotated[
-        uuid.UUID | str, Path(description="Bucket file UUID.")
-    ],
+    analysis_bucket_file_id: Annotated[uuid.UUID | str, Path(description="Bucket file UUID.")],
 ):
     """List specific partial analysis bucket file."""
-    return core_client.get_analysis_bucket_file(
-        analysis_bucket_file_id=analysis_bucket_file_id
-    )
+    return core_client.get_analysis_bucket_file(analysis_bucket_file_id=analysis_bucket_file_id)
