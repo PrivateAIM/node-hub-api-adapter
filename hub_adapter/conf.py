@@ -10,8 +10,11 @@ class Settings(BaseModel):
     """Settings for Hub Adapter API."""
 
     API_ROOT_PATH: str = os.getenv("API_ROOT_PATH", "")
+
     HTTP_PROXY: str = os.getenv("HTTP_PROXY", "")
     HTTPS_PROXY: str = os.getenv("HTTPS_PROXY", "")
+
+    HEADLESS: bool = os.getenv("HEADLESS", "False").lower() in ("true", "1", "yes")
 
     # IDP Settings
     IDP_URL: str = os.getenv("IDP_URL", "http://localhost:8080")  # User

@@ -69,21 +69,35 @@ for router in routers:
 
 async def run_server():
     """Start the hub adapter API server."""
-    config = uvicorn.Config(app, host="127.0.0.1", port=8081, reload=False, log_config=None)
+    config = uvicorn.Config(
+        app, host="127.0.0.1", port=8081, reload=False, log_config=None
+    )
     server = uvicorn.Server(config)
     await server.serve()
 
 
-async def headless_probing():
-    """Check for available analyses in the background and start them automatically."""
+async def headless_probing(interval: int = 10):
+    """Check for available analyses in the background and start them automatically.
+
+    Parameters
+    ----------
+    interval : int
+        Time in seconds to wait between checks.
+    """
     while True:
         await auto_start_analyses()
-        await asyncio.sleep(2)
+        await asyncio.sleep(interval)
 
 
 async def main():
     # Run both tasks concurrently
-    await asyncio.gather(run_server(), headless_probing())
+    tasks = [asyncio.create_task(run_server())]
+
+    if hub_adapter_settings.HEADLESS:
+        headless_operation = asyncio.create_task(headless_probing(interval=5))
+        tasks.append(headless_operation)
+
+    await asyncio.gather(*tasks)
 
 
 if __name__ == "__main__":

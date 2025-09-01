@@ -41,6 +41,7 @@ API_CLIENT_SECRET=""  # IDP Client Secret for this hub-adapter service
 OVERRIDE_JWKS=""  # JWKS URI to override the endpoints fetched from the IDP issuer (meant for local testing)
 HTTP_PROXY=""  # Forward proxy address for HTTP requests
 HTTPS_PROXY=""  # Forward proxy address for HTTPS requests
+HEADLESS=false  # Whether the API should also operate in "headless" mode where it'll start analyses automatically
 ```
 
 | EnvVar                 | Description                                                                                                       |           Default           | Required |
@@ -60,3 +61,4 @@ HTTPS_PROXY=""  # Forward proxy address for HTTPS requests
 | OVERRIDE_JWKS          | JWKS URI to override the endpoints fetched from the IDP issuer (meant for local testing)                          |                             |          |
 | HTTP_PROXY             | Forward proxy address for HTTP requests                                                                           |                             |          |
 | HTTPS_PROXY            | Forward proxy address for HTTPS requests                                                                          |                             |          |
+| HEADLESS               | Whether the API should also operate in "headless" mode where it'll start analyses automatically                   |            false            |          |
