@@ -1,11 +1,13 @@
 """Endpoints for manually retrieving an JWT."""
 
+import ssl
 from typing import Annotated
 
 import httpx
-from fastapi import APIRouter, Form, HTTPException
+from fastapi import APIRouter, Form, HTTPException, Depends
 from starlette import status
 
+from hub_adapter.auth import get_ssl_context
 from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.models.conf import Token
 from hub_adapter.oidc import get_svc_oidc_config
@@ -25,6 +27,7 @@ auth_router = APIRouter(
 def get_token(
     username: Annotated[str, Form(description="Keycloak username")],
     password: Annotated[str, Form(description="Keycloak password")],
+    ssl_ctx: Annotated[ssl.SSLContext, Depends(get_ssl_context)],
 ) -> Token:
     """Get a JWT from the IDP by passing a valid username and password.
 
@@ -40,7 +43,7 @@ def get_token(
         "scope": "openid",
     }
     oidc_config = get_svc_oidc_config()
-    with httpx.Client() as client:
+    with httpx.Client(verify=ssl_ctx) as client:
         resp = client.post(oidc_config.token_endpoint, data=payload)
 
     if not resp.status_code == httpx.codes.OK:

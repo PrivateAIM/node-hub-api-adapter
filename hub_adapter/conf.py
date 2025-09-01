@@ -13,6 +13,8 @@ class Settings(BaseModel):
     HTTP_PROXY: str = os.getenv("HTTP_PROXY", "")
     HTTPS_PROXY: str = os.getenv("HTTPS_PROXY", "")
 
+    EXTRA_CA_CERTS: str = os.getenv("EXTRA_CA_CERTS")
+
     # IDP Settings
     IDP_URL: str = os.getenv("IDP_URL", "http://localhost:8080")  # User
     # If using a different service for node OIDC, set this to the URL of that service
