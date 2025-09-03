@@ -4,11 +4,12 @@ import ssl
 from typing import Annotated
 
 import httpx
-from fastapi import APIRouter, Form, HTTPException, Depends
+from fastapi import APIRouter, Depends, Form, HTTPException
 from starlette import status
 
 from hub_adapter.auth import get_ssl_context
-from hub_adapter.conf import hub_adapter_settings
+from hub_adapter.conf import Settings
+from hub_adapter.dependencies import get_settings
 from hub_adapter.models.conf import Token
 from hub_adapter.oidc import get_svc_oidc_config
 
@@ -25,6 +26,7 @@ auth_router = APIRouter(
     response_model=Token,
 )
 def get_token(
+    hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
     username: Annotated[str, Form(description="Keycloak username")],
     password: Annotated[str, Form(description="Keycloak password")],
     ssl_ctx: Annotated[ssl.SSLContext, Depends(get_ssl_context)],

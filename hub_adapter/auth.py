@@ -1,10 +1,11 @@
 """Handle the authorization and authentication of services."""
 
 import logging
+from typing import Annotated
 
 import httpx
 import jwt
-from fastapi import HTTPException, Security
+from fastapi import Depends, HTTPException, Security
 from fastapi.security import (
     HTTPAuthorizationCredentials,
     HTTPBearer,
@@ -14,8 +15,8 @@ from starlette import status
 from starlette.datastructures import MutableHeaders
 from starlette.requests import Request
 
-from hub_adapter.conf import hub_adapter_settings
-from hub_adapter.dependencies import get_ssl_context
+from hub_adapter.conf import Settings
+from hub_adapter.dependencies import get_settings, get_ssl_context
 from hub_adapter.models.conf import Token
 from hub_adapter.oidc import (
     check_oidc_configs_match,
@@ -46,13 +47,14 @@ class ProxiedPyJWKClient(PyJWKClient):
             return response.json()
 
 
-async def get_hub_public_key() -> dict:
+async def get_hub_public_key(hub_adapter_settings: Annotated[Settings, Depends(get_settings)]) -> dict:
     """Get the central hub service public key."""
     hub_jwks_ep = hub_adapter_settings.HUB_AUTH_SERVICE_URL.rstrip("/") + "/jwks"
     return httpx.get(hub_jwks_ep).json()
 
 
 async def verify_idp_token(
+    hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
     token: HTTPAuthorizationCredentials = Security(jwtbearer),
 ) -> dict:
     """Decode the auth token using keycloak's public key."""
@@ -157,7 +159,9 @@ async def verify_idp_token(
         ) from Exception
 
 
-async def get_internal_token(oidc_config) -> dict | None:
+async def get_internal_token(
+    oidc_config, hub_adapter_settings: Annotated[Settings, Depends(get_settings)]
+) -> dict | None:
     """If the Hub Adapter is set up tp use an external IDP, it needs to retrieve a JWT from the internal keycloak
     to make requests to the PO."""
 

@@ -1,12 +1,14 @@
 """Methods for verifying auth."""
 
 import asyncio
+from typing import Annotated
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from starlette.middleware.cors import CORSMiddleware
 
-from hub_adapter.conf import hub_adapter_settings
+from hub_adapter.conf import Settings
+from hub_adapter.dependencies import get_settings
 from hub_adapter.headless import auto_start_analyses
 from hub_adapter.routers.auth import auth_router
 from hub_adapter.routers.health import health_router
@@ -35,14 +37,14 @@ app = FastAPI(
     swagger_ui_init_oauth={
         # "usePkceWithAuthorizationCodeGrant": True,
         # Auth fill client ID for the docs with the below value
-        "clientId": hub_adapter_settings.API_CLIENT_ID,  # default client-id is Keycloak
+        "clientId": get_settings().API_CLIENT_ID,  # default client-id is Keycloak
     },
     license_info={
         "name": "Apache 2.0",
         "url": "https://www.apache.org/licenses/LICENSE-2.0.html",
         "identifier": "Apache-2.0",
     },
-    root_path=hub_adapter_settings.API_ROOT_PATH,
+    root_path=get_settings().API_ROOT_PATH,
 )
 
 app.add_middleware(
@@ -89,7 +91,7 @@ async def headless_probing(interval: int = 10):
         await asyncio.sleep(interval)
 
 
-async def main():
+async def main(hub_adapter_settings: Annotated[Settings, Depends(get_settings)],):
     # Run both tasks concurrently
     tasks = [asyncio.create_task(run_server())]
 

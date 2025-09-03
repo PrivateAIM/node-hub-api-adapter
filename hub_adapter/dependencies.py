@@ -18,7 +18,7 @@ from flame_hub._core_client import Node
 from starlette import status
 
 from hub_adapter import node_id_pickle_path
-from hub_adapter.conf import hub_adapter_settings
+from hub_adapter.conf import Settings
 from hub_adapter.errors import catch_hub_errors
 
 _node_type_cache = None
@@ -27,7 +27,12 @@ logger = logging.getLogger(__name__)
 
 
 @lru_cache
-def get_ssl_context() -> ssl.SSLContext:
+def get_settings():
+    return Settings()
+
+
+@lru_cache
+def get_ssl_context(hub_adapter_settings: Annotated[Settings, Depends(get_settings)]) -> ssl.SSLContext:
     """Check if there are additional certificates present and if so, load them."""
     cert_path = hub_adapter_settings.EXTRA_CA_CERTS
     ctx = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
@@ -38,6 +43,7 @@ def get_ssl_context() -> ssl.SSLContext:
 
 def get_flame_hub_auth_flow(
     ssl_ctx: Annotated[ssl.SSLContext, Depends(get_ssl_context)],
+    hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
 ) -> RobotAuth:
     """Automated method for getting a robot token from the central Hub service."""
     robot_id, robot_secret = (
@@ -73,6 +79,7 @@ def get_core_client(
         Depends(get_flame_hub_auth_flow),
     ],
     ssl_ctx: Annotated[ssl.SSLContext, Depends(get_ssl_context)],
+    hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
 ):
     return flame_hub.CoreClient(
         client=httpx.Client(base_url=hub_adapter_settings.HUB_SERVICE_URL, auth=hub_robot, verify=ssl_ctx)
@@ -81,7 +88,9 @@ def get_core_client(
 
 @catch_hub_errors
 async def get_node_id(
-    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)], debug: bool = False
+    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
+    hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
+    debug: bool = False,
 ) -> str | None:
     """Uses the robot ID to obtain the associated node ID, sets it in the env vars, and returns it.
 

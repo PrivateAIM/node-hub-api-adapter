@@ -2,22 +2,26 @@
 
 import logging
 import uuid
+from typing import Annotated
 
-from fastapi import HTTPException
+from fastapi import Depends, HTTPException
 from httpx import HTTPStatusError
 from starlette import status
 
 from hub_adapter.auth import get_internal_token
-from hub_adapter.conf import hub_adapter_settings
+from hub_adapter.conf import Settings
 from hub_adapter.core import make_request
-from hub_adapter.oidc import check_oidc_configs_match
-from hub_adapter.routers.hub import (
+from hub_adapter.dependencies import (
     compile_analysis_pod_data,
-    format_query_params,
     get_node_id,
     get_node_metadata_for_url,
-    get_node_type,
     get_registry_metadata_for_url,
+    get_settings,
+)
+from hub_adapter.oidc import check_oidc_configs_match
+from hub_adapter.routers.hub import (
+    format_query_params,
+    get_node_type,
     list_analysis_nodes,
 )
 from hub_adapter.routers.kong import (
@@ -48,12 +52,8 @@ async def auto_start_analyses():
     node_id = await get_node_id()
     node_type = await get_node_type()
 
-    formatted_query_params = format_query_params(
-        {"sort": "-updated_at", "include": "analysis"}
-    )
-    analyses = await list_analysis_nodes(
-        node_id=node_id, query_params=formatted_query_params
-    )
+    formatted_query_params = format_query_params({"sort": "-updated_at", "include": "analysis"})
+    analyses = await list_analysis_nodes(node_id=node_id, query_params=formatted_query_params)
     valid_projects = await get_valid_projects()
     ready_to_start_analyses = parse_analyses(analyses, valid_projects)
 
@@ -78,48 +78,32 @@ async def auto_start_analyses():
         await start_analysis_pod(analysis_props=props, kong_token=kong_token)
 
 
-async def register_analysis(
-    analysis_id: str, project_id: str, attempt: int = 1, max_attempts: int = 5
-) -> dict | None:
+async def register_analysis(analysis_id: str, project_id: str, attempt: int = 1, max_attempts: int = 5) -> dict | None:
     """Register an analysis with kong."""
     logger.info(f"Attempt {attempt} at starting analysis {analysis_id}")
     try:
-        kong_resp = await create_and_connect_analysis_to_project(
-            project_id, analysis_id
-        )
+        kong_resp = await create_and_connect_analysis_to_project(project_id, analysis_id)
         return kong_resp
 
     except HTTPException as e:
         if e.status_code == status.HTTP_404_NOT_FOUND:
-            logger.error(
-                f"{e.detail['message']}, failed to start analysis {analysis_id}"
-            )
+            logger.error(f"{e.detail['message']}, failed to start analysis {analysis_id}")
 
         elif e.status_code == status.HTTP_409_CONFLICT:
-            logger.warning(
-                f"Analysis {analysis_id} already registered, checking if pod exists..."
-            )
+            logger.warning(f"Analysis {analysis_id} already registered, checking if pod exists...")
             pod_exists = await pod_running(analysis_id)
             if pod_exists is None:  # Status could not be obtained, skip and try later
                 pass
 
-            elif (
-                not pod_exists
-            ):  # Status obtained and if not running, delete kong consumer
-                logger.info(
-                    f"No pod found for {analysis_id}, will delete kong consumer and retry"
-                )
+            elif not pod_exists:  # Status obtained and if not running, delete kong consumer
+                logger.info(f"No pod found for {analysis_id}, will delete kong consumer and retry")
                 await delete_analysis(analysis_id=analysis_id)
 
                 if attempt < max_attempts:
-                    return await register_analysis(
-                        analysis_id, project_id, attempt + 1, max_attempts
-                    )
+                    return await register_analysis(analysis_id, project_id, attempt + 1, max_attempts)
 
             else:
-                logger.info(
-                    f"Pod already exists for analysis {analysis_id}, skipping start sequence"
-                )
+                logger.info(f"Pod already exists for analysis {analysis_id}, skipping start sequence")
 
         else:
             logger.error(f"Failed to start analysis {analysis_id}, {e}")
@@ -141,7 +125,9 @@ async def fetch_token_header() -> dict:
     return token
 
 
-async def start_analysis_pod(analysis_props: dict, kong_token: str):
+async def start_analysis_pod(
+    analysis_props: dict, kong_token: str, hub_adapter_settings: Annotated[Settings, Depends(get_settings)]
+):
     """Start a new analysis pod."""
     logger.info(f"Starting new analysis pod for {analysis_props['analysis_id']}")
 
@@ -164,17 +150,15 @@ async def start_analysis_pod(analysis_props: dict, kong_token: str):
             headers=headers,
             data=props,
         )
-        logger.info(
-            f"Analysis start response for {analysis_props["analysis_id"]}: {resp_data['status']}"
-        )
+        logger.info(f"Analysis start response for {analysis_props['analysis_id']}: {resp_data['status']}")
 
     except HTTPStatusError as e:
-        logger.error(
-            f"Unable to start analysis {analysis_props['analysis_id']} due to the following error: {e}"
-        )
+        logger.error(f"Unable to start analysis {analysis_props['analysis_id']} due to the following error: {e}")
 
 
-async def fetch_analysis_status(analysis_id: uuid.UUID | str) -> dict:
+async def fetch_analysis_status(
+    analysis_id: uuid.UUID | str, hub_adapter_settings: Annotated[Settings, Depends(get_settings)]
+) -> dict:
     """Fetch the status for a specific analysis run. For headless operation"""
     headers = await fetch_token_header()
     microsvc_path = f"{hub_adapter_settings.PODORC_SERVICE_URL}/po/{analysis_id}/status"
@@ -188,9 +172,7 @@ async def fetch_analysis_status(analysis_id: uuid.UUID | str) -> dict:
         )
 
     except HTTPStatusError as e:
-        logger.error(
-            f"Unable to fetch the status of analysis {analysis_id} due to the following error: {e}"
-        )
+        logger.error(f"Unable to fetch the status of analysis {analysis_id} due to the following error: {e}")
 
     return resp_data
 
@@ -220,12 +202,7 @@ def parse_analyses(analyses: list, valid_projects: set) -> set:
             entry.run_status,
             entry.approval_status,
         )
-        if (
-            approved == "approved"
-            and build_status == "finished"
-            and not run_status
-            and project_id in valid_projects
-        ):
+        if approved == "approved" and build_status == "finished" and not run_status and project_id in valid_projects:
             valid_entry = (analysis_id, project_id, node_id, build_status, run_status)
             ready_analyses.add(valid_entry)
 

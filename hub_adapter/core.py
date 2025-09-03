@@ -2,9 +2,10 @@ import functools
 import logging
 import tempfile
 from collections.abc import Sequence
+from typing import Annotated
 
 import httpx
-from fastapi import HTTPException, params, status
+from fastapi import Depends, HTTPException, params, status
 from fastapi.datastructures import Headers
 from fastapi.requests import Request
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -12,8 +13,9 @@ from httpx import ConnectError, DecodingError, HTTPStatusError, ReadTimeout
 from starlette.responses import FileResponse, Response
 
 from hub_adapter import post_processing, pre_processing
-from hub_adapter.conf import hub_adapter_settings
+from hub_adapter.conf import Settings
 from hub_adapter.constants import CONTENT_TYPE
+from hub_adapter.dependencies import get_settings
 from hub_adapter.utils import (
     create_request_data,
     unzip_body_object,
@@ -104,6 +106,7 @@ async def make_request(
 
 
 def route(
+    hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
     request_method,
     path: str,
     service_url: str,
