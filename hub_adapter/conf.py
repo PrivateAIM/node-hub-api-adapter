@@ -14,6 +14,8 @@ class Settings(BaseModel):
     HTTP_PROXY: str = os.getenv("HTTP_PROXY", "")
     HTTPS_PROXY: str = os.getenv("HTTPS_PROXY", "")
 
+    EXTRA_CA_CERTS: str = os.getenv("EXTRA_CA_CERTS")
+
     HEADLESS: bool = os.getenv("HEADLESS", "False").lower() in ("true", "1", "yes")
 
     # IDP Settings

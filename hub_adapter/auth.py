@@ -1,10 +1,14 @@
 """Handle the authorization and authentication of services."""
 
 import logging
+import ssl
 import uuid
+from functools import lru_cache
+from pathlib import Path
 
 import httpx
 import jwt
+import truststore
 from fastapi import HTTPException, Security
 from fastapi.security import (
     HTTPAuthorizationCredentials,
@@ -19,7 +23,11 @@ from starlette.requests import Request
 
 from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.models.conf import Token
-from hub_adapter.oidc import check_oidc_configs_match, get_svc_oidc_config, get_user_oidc_config
+from hub_adapter.oidc import (
+    check_oidc_configs_match,
+    get_svc_oidc_config,
+    get_user_oidc_config,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +38,16 @@ jwtbearer = HTTPBearer(
 )
 
 
+@lru_cache
+def get_ssl_context() -> ssl.SSLContext:
+    """Check if there are additional certificates present and if so, load them."""
+    cert_path = hub_adapter_settings.EXTRA_CA_CERTS
+    ctx = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    if cert_path and Path(cert_path).exists():
+        ctx.load_verify_locations(cafile=cert_path)
+    return ctx
+
+
 class ProxiedPyJWKClient(PyJWKClient):
     """Custom class to override the PyJWKClient to use proxies when available."""
 
@@ -37,7 +55,8 @@ class ProxiedPyJWKClient(PyJWKClient):
         super().__init__(url)
 
     def fetch_data(self):
-        with httpx.Client() as client:
+        ssl_ctx = get_ssl_context()
+        with httpx.Client(verify=ssl_ctx) as client:
             response = client.get(self.uri)
             response.raise_for_status()
             return response.json()
@@ -164,7 +183,7 @@ async def get_internal_token(oidc_config) -> dict | None:
         "client_secret": hub_adapter_settings.API_CLIENT_SECRET,
     }
 
-    with httpx.Client() as client:
+    with httpx.Client(verify=get_ssl_context()) as client:
         resp = client.post(oidc_config.token_endpoint, data=payload)
         resp.raise_for_status()
         token_data = resp.json()
@@ -213,6 +232,7 @@ def get_hub_token() -> RobotAuth:
         robot_secret=robot_secret,
         client=httpx.Client(
             base_url=hub_adapter_settings.HUB_AUTH_SERVICE_URL,
+            verify=get_ssl_context(),
         ),
     )
     return auth
@@ -223,5 +243,6 @@ core_client = CoreClient(
     client=httpx.Client(
         base_url=hub_adapter_settings.HUB_SERVICE_URL,
         auth=hub_robot,
+        verify=get_ssl_context(),
     ),
 )
