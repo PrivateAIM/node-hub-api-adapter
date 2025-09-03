@@ -15,11 +15,7 @@ def create_request_data(form: dict | None, body: dict | None) -> dict | None:
 async def serialize_query_content(key, value) -> dict:
     """For each key, value, serialize the content and return as such."""
     serialized_data = await serialize_response(response_content=value)
-    if isinstance(serialized_data, dict):
-        serialized = serialized_data
-
-    else:
-        serialized = {key: serialized_data}
+    serialized = serialized_data if isinstance(serialized_data, dict) else {key: serialized_data}
 
     return serialized
 

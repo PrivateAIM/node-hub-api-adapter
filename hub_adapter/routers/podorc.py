@@ -16,6 +16,7 @@ from hub_adapter.auth import (
 )
 from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.core import route
+from hub_adapter.dependencies import compile_analysis_pod_data
 from hub_adapter.models.podorc import (
     CleanupPodResponse,
     CreateAnalysis,
@@ -24,7 +25,6 @@ from hub_adapter.models.podorc import (
     PodResponse,
     StatusResponse,
 )
-from hub_adapter.routers.hub import compile_analysis_pod_data
 
 po_router = APIRouter(
     dependencies=[Security(verify_idp_token), Security(jwtbearer), Depends(add_internal_token_if_missing)],

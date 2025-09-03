@@ -1,27 +1,21 @@
 """Handle the authorization and authentication of services."""
 
 import logging
-import ssl
-import uuid
-from functools import lru_cache
-from pathlib import Path
 
 import httpx
 import jwt
-import truststore
 from fastapi import HTTPException, Security
 from fastapi.security import (
     HTTPAuthorizationCredentials,
     HTTPBearer,
 )
-from flame_hub import CoreClient
-from flame_hub._auth_flows import RobotAuth
 from jwt import PyJWKClient
 from starlette import status
 from starlette.datastructures import MutableHeaders
 from starlette.requests import Request
 
 from hub_adapter.conf import hub_adapter_settings
+from hub_adapter.dependencies import get_ssl_context
 from hub_adapter.models.conf import Token
 from hub_adapter.oidc import (
     check_oidc_configs_match,
@@ -38,25 +32,15 @@ jwtbearer = HTTPBearer(
 )
 
 
-@lru_cache
-def get_ssl_context() -> ssl.SSLContext:
-    """Check if there are additional certificates present and if so, load them."""
-    cert_path = hub_adapter_settings.EXTRA_CA_CERTS
-    ctx = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-    if cert_path and Path(cert_path).exists():
-        ctx.load_verify_locations(cafile=cert_path)
-    return ctx
-
-
 class ProxiedPyJWKClient(PyJWKClient):
     """Custom class to override the PyJWKClient to use proxies when available."""
 
     def __init__(self, url):
         super().__init__(url)
+        self._ssl_ctx = get_ssl_context()
 
     def fetch_data(self):
-        ssl_ctx = get_ssl_context()
-        with httpx.Client(verify=ssl_ctx) as client:
+        with httpx.Client(verify=self._ssl_ctx) as client:
             response = client.get(self.uri)
             response.raise_for_status()
             return response.json()
@@ -207,42 +191,3 @@ async def add_internal_token_if_missing(request: Request) -> Request:
             request.scope.update(headers=request.headers.raw)
 
     return request
-
-
-def get_hub_token() -> RobotAuth:
-    """Automated method for getting a robot token from the central Hub service."""
-    robot_id, robot_secret = (
-        hub_adapter_settings.HUB_ROBOT_USER,
-        hub_adapter_settings.HUB_ROBOT_SECRET,
-    )
-
-    if not robot_id or not robot_secret:
-        logger.error("Missing robot ID or secret. Check env vars")
-        raise ValueError("Missing Hub robot credentials, check that the environment variables are set properly")
-
-    try:
-        uuid.UUID(robot_id)
-
-    except ValueError:
-        logger.error(f"Invalid robot ID: {robot_id}")
-        raise ValueError(f"Invalid robot ID: {robot_id}") from ValueError
-
-    auth = RobotAuth(
-        robot_id=robot_id,
-        robot_secret=robot_secret,
-        client=httpx.Client(
-            base_url=hub_adapter_settings.HUB_AUTH_SERVICE_URL,
-            verify=get_ssl_context(),
-        ),
-    )
-    return auth
-
-
-hub_robot = get_hub_token()
-core_client = CoreClient(
-    client=httpx.Client(
-        base_url=hub_adapter_settings.HUB_SERVICE_URL,
-        auth=hub_robot,
-        verify=get_ssl_context(),
-    ),
-)

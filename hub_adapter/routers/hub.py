@@ -1,12 +1,11 @@
 """EPs for Hub provided information."""
 
 import logging
-import pickle
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, Form, HTTPException, Path, Security
-from flame_hub import HubAPIError
+import flame_hub
+from fastapi import APIRouter, Body, Depends, Form, Path, Security
 from flame_hub.models import (
     Analysis,
     AnalysisBucket,
@@ -21,9 +20,8 @@ from flame_hub.models import (
 from starlette import status
 from starlette.requests import Request
 
-from hub_adapter import node_id_pickle_path
-from hub_adapter.auth import core_client, jwtbearer, verify_idp_token
-from hub_adapter.conf import hub_adapter_settings
+from hub_adapter.auth import jwtbearer, verify_idp_token
+from hub_adapter.dependencies import compile_analysis_pod_data, get_core_client, get_node_id
 from hub_adapter.errors import catch_hub_errors
 from hub_adapter.models.hub import (
     AnalysisImageUrl,
@@ -41,8 +39,6 @@ hub_router = APIRouter(
 )
 
 logger = logging.getLogger(__name__)
-
-_node_type_cache = None
 
 
 def parse_query_params(request: Request) -> dict:
@@ -79,44 +75,6 @@ def format_query_params(query_params: dict) -> dict:
     return formatted_query_params
 
 
-@catch_hub_errors
-async def get_node_id(debug: bool = False) -> str | None:
-    """Uses the robot ID to obtain the associated node ID, sets it in the env vars, and returns it.
-
-    An empty string node_id indicates no node is associated with the provided robot username.
-
-    If None is returned, no filtering will be applied, which is useful for debugging.
-    """
-    if debug:
-        return None
-
-    robot_id = hub_adapter_settings.HUB_ROBOT_USER
-
-    node_cache = {}
-    if node_id_pickle_path.is_file():
-        with open(node_id_pickle_path, "rb") as f:
-            node_cache = pickle.load(f)
-
-    # Returns None if key not in dict or '' if no Node ID was found
-    # Need to default to an intentionally wrong nodeId if nothing found otherwise Hub will return all resources
-
-    node_id = node_cache.get(robot_id) or "nothingFound"
-
-    if robot_id not in node_cache:  # Node ID may be None since not every robot is associated with a node
-        logger.info("NODE_ID not set for ROBOT_USER, retrieving from Hub")
-
-        node_id_resp = core_client.find_nodes(filter={"robot_id": robot_id}, fields="id")
-
-        if node_id_resp and len(node_id_resp) == 1:
-            node_id = str(node_id_resp[0].id)  # convert UUID type to string
-            node_cache[robot_id] = node_id
-
-            with open(node_id_pickle_path, "wb") as f:
-                pickle.dump(node_cache, f)
-
-    return node_id
-
-
 @hub_router.get(
     "/projects",
     summary="List all of the projects",
@@ -124,7 +82,10 @@ async def get_node_id(debug: bool = False) -> str | None:
     response_model=list[Project],
 )
 @catch_hub_errors
-async def list_all_projects(query_params: Annotated[dict, Depends(parse_query_params)]):
+async def list_all_projects(
+    query_params: Annotated[dict, Depends(parse_query_params)],
+    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
+):
     """List all projects."""
     return core_client.find_projects(**query_params)
 
@@ -138,6 +99,7 @@ async def list_all_projects(query_params: Annotated[dict, Depends(parse_query_pa
 @catch_hub_errors
 async def list_specific_project(
     project_id: Annotated[uuid.UUID | str, Path(description="Project UUID.")],
+    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     """List project for a given UUID."""
     return core_client.get_project(project_id=project_id)
@@ -153,6 +115,7 @@ async def list_specific_project(
 async def list_project_proposals(
     node_id: Annotated[str, Depends(get_node_id)],
     query_params: Annotated[dict, Depends(parse_query_params)],
+    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     """List project proposals."""
     if node_id:
@@ -171,6 +134,7 @@ async def list_project_proposals(
 @catch_hub_errors
 async def list_project_proposal(
     project_node_id: Annotated[uuid.UUID | str, Path(description="Proposal object UUID.")],
+    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     """Set the approval status of a project proposal."""
     return core_client.get_project_node(project_node_id=project_node_id)
@@ -189,6 +153,7 @@ async def accept_reject_project_proposal(
         ProjectNodeApprovalStatus,
         Form(description="Set the approval status of project for the node. Either 'rejected' or 'approved'"),
     ],
+    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     """Set the approval status of a project proposal."""
     return core_client.update_project_node(project_node_id=project_node_id, approval_status=approval_status)
@@ -204,6 +169,7 @@ async def accept_reject_project_proposal(
 async def list_analysis_nodes(
     node_id: Annotated[str, Depends(get_node_id)],
     query_params: Annotated[dict, Depends(parse_query_params)],
+    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     """List all analysis nodes for give node."""
     if node_id:
@@ -222,6 +188,7 @@ async def list_analysis_nodes(
 @catch_hub_errors
 async def list_specific_analysis_node(
     analysis_node_id: Annotated[uuid.UUID | str, Path(description="Analysis Node UUID.")],
+    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     """List a specific analysis node."""
     return core_client.get_analysis_node(analysis_node_id=analysis_node_id)
@@ -240,6 +207,7 @@ async def accept_reject_analysis_node(
         AnalysisNodeApprovalStatus,
         Form(description="Set the approval status of project for the node. Either 'rejected' or 'approved'"),
     ],
+    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     """Set the approval status of an analysis proposal."""
     return core_client.update_analysis_node(analysis_node_id=analysis_node_id, approval_status=approval_status)
@@ -252,7 +220,10 @@ async def accept_reject_analysis_node(
     response_model=list[Analysis],
 )
 @catch_hub_errors
-async def list_all_analyses(query_params: Annotated[dict, Depends(parse_query_params)]):
+async def list_all_analyses(
+    query_params: Annotated[dict, Depends(parse_query_params)],
+    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
+):
     """List all registered analyses."""
     return core_client.get_analyses(**query_params)
 
@@ -266,6 +237,7 @@ async def list_all_analyses(query_params: Annotated[dict, Depends(parse_query_pa
 @catch_hub_errors
 async def list_specific_analysis(
     analysis_id: Annotated[uuid.UUID | str, Path(description="Analysis UUID.")],
+    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     """List a specific analysis."""
     return core_client.get_analysis(analysis_id=analysis_id)
@@ -278,7 +250,10 @@ async def list_specific_analysis(
     response_model=list[Node],
 )
 @catch_hub_errors
-async def list_all_nodes(query_params: Annotated[dict, Depends(parse_query_params)]):
+async def list_all_nodes(
+    query_params: Annotated[dict, Depends(parse_query_params)],
+    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
+):
     """List all nodes."""
     return core_client.get_nodes(**query_params)
 
@@ -292,6 +267,7 @@ async def list_all_nodes(query_params: Annotated[dict, Depends(parse_query_param
 @catch_hub_errors
 async def list_specific_node(
     node_id: Annotated[uuid.UUID | str, Path(description="Node UUID.")],
+    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     """List a specific node."""
     return core_client.get_node(node_id=node_id)
@@ -304,7 +280,7 @@ async def list_specific_node(
     response_model=NodeTypeResponse,
 )
 @catch_hub_errors
-async def get_node_type():
+async def get_node_type(core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)]):
     """Return what type of node this API is deployed on."""
     global _node_type_cache
 
@@ -326,6 +302,7 @@ async def get_node_type():
 async def update_specific_analysis(
     analysis_id: Annotated[uuid.UUID | str, Path(description="Analysis UUID.")],
     name: Annotated[str, Body(description="New analysis name.")],
+    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     """Update analysis with a given UUID."""
     return core_client.update_analysis(analysis_id=analysis_id, name=name)
@@ -340,123 +317,11 @@ async def update_specific_analysis(
 @catch_hub_errors
 async def get_registry_metadata_for_project(
     registry_project_id: Annotated[uuid.UUID | str, Path(description="Registry project UUID.")],
+    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     """List registry data for a project."""
 
     return core_client.get_registry_project(registry_project_id=registry_project_id)
-
-
-def get_node_metadata_for_url(
-    node_id: Annotated[uuid.UUID | str, Body(description="Node UUID")],
-):
-    """Get analysis metadata for a given UUID to be used in creating analysis image URL."""
-    node_metadata: Node = core_client.get_node(node_id=node_id)
-
-    if not node_metadata.registry_project_id:
-        err_msg = f"No registry project associated with node {node_id}"
-        logger.error(err_msg)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "message": err_msg,
-                "service": "Hub",
-                "status_code": status.HTTP_400_BAD_REQUEST,
-            },
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    return node_metadata
-
-
-def get_registry_metadata_for_url(
-    node_metadata: Annotated[Node, Depends(get_node_metadata_for_url)],
-):
-    """Get registry metadata for a given UUID to be used in creating analysis image URL."""
-    registry_metadata = dict()
-
-    try:
-        registry_metadata = core_client.get_registry_project(
-            node_metadata.registry_project_id,
-            fields=("account_id", "account_name", "account_secret"),
-        )
-
-    except HubAPIError as err:
-        err_msg = f"Registry Project {node_metadata.registry_project_id} not found"
-        logger.error(err_msg)
-        if err.error_response.status_code == status.HTTP_404_NOT_FOUND:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail={
-                    "message": err_msg,
-                    "service": "Hub",
-                    "status_code": status.HTTP_404_NOT_FOUND,
-                },
-                headers={"WWW-Authenticate": "Bearer"},
-            ) from err
-
-    if not registry_metadata.external_name:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "message": "No external name for node found",
-                "service": "Hub",
-                "status_code": status.HTTP_400_BAD_REQUEST,
-            },
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    if not registry_metadata.account_name or not registry_metadata.account_secret:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "message": "Unable to retrieve robot name or secret from the registry",
-                "service": "Hub",
-                "status_code": status.HTTP_404_NOT_FOUND,
-            },
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    registry_project_external_name = registry_metadata.external_name
-    registry_id = registry_metadata.registry_id
-
-    if not registry_id:
-        err = f"No registry is associated with node {registry_project_external_name}"
-        logger.error(err)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "message": err,
-                "service": "Hub",
-                "status_code": status.HTTP_400_BAD_REQUEST,
-            },
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    host = registry_metadata.registry.host
-    user = registry_metadata.account_name
-    pwd = registry_metadata.account_secret
-
-    return host, registry_project_external_name, user, pwd
-
-
-def compile_analysis_pod_data(
-    analysis_id: Annotated[uuid.UUID | str, Body(description="Analysis UUID")],
-    project_id: Annotated[uuid.UUID | str, Body(description="Project UUID")],
-    compiled_info: Annotated[tuple, Depends(get_registry_metadata_for_url)],
-    kong_token: Annotated[str, Body(description="Analysis keyauth kong token")] = None,
-):
-    """Put all the data together for passing on to the PO."""
-    host, registry_project_external_name, registry_user, registry_sec = compiled_info
-    compiled_response = {
-        "image_url": f"{host}/{registry_project_external_name}/{analysis_id}",
-        "analysis_id": str(analysis_id),
-        "project_id": str(project_id),
-        "kong_token": kong_token,
-        "registry_url": host,
-        "registry_user": registry_user,
-        "registry_password": registry_sec,
-    }
-    return compiled_response
 
 
 @hub_router.post("/analysis/image", response_model=AnalysisImageUrl)
@@ -477,6 +342,7 @@ async def get_analysis_image_url(
 @catch_hub_errors
 async def list_all_analysis_buckets(
     query_params: Annotated[dict, Depends(parse_query_params)],
+    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     """List all analysis buckets."""
     return core_client.find_analysis_buckets(**query_params)
@@ -491,6 +357,7 @@ async def list_all_analysis_buckets(
 @catch_hub_errors
 async def list_specific_analysis_buckets(
     analysis_bucket_id: Annotated[uuid.UUID | str, Path(description="Bucket UUID.")],
+    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     """List a specific analysis bucket."""
     return core_client.get_analysis_bucket(analysis_bucket_id=analysis_bucket_id)
@@ -505,6 +372,7 @@ async def list_specific_analysis_buckets(
 @catch_hub_errors
 async def list_all_analysis_bucket_files(
     query_params: Annotated[dict, Depends(parse_query_params)],
+    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     """List partial analysis bucket files."""
     return core_client.get_analysis_bucket_files(**query_params)
@@ -519,6 +387,7 @@ async def list_all_analysis_bucket_files(
 @catch_hub_errors
 async def list_specific_analysis_bucket_file(
     analysis_bucket_file_id: Annotated[uuid.UUID | str, Path(description="Bucket file UUID.")],
+    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     """List specific partial analysis bucket file."""
     return core_client.get_analysis_bucket_file(analysis_bucket_file_id=analysis_bucket_file_id)
