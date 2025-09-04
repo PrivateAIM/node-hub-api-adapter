@@ -151,7 +151,7 @@ class TestHeadless:
         mock_registry_metadata.return_value = {}  # Not needed
         mock_node_metadata.return_value = {}  # Not needed
         mock_pod_data.return_value = {}  # Not needed
-        mock_token_header.return_value = {}  # Not needed
+        mock_token_header.return_value = {"foo"}  # Just need something
 
         sim_input = {
             "analysis_id": TEST_MOCK_ANALYSIS_ID,
@@ -184,7 +184,7 @@ class TestHeadless:
     @patch("hub_adapter.headless.GoGoAnalysis.fetch_token_header")
     async def test_fetch_analysis_status(self, mock_header, mock_request, mock_logger):
         """Test fetching the status of an analysis."""
-        mock_header.return_value = {}  # Not needed
+        mock_header.return_value = {"foo"}  # Just need something
 
         mock_request.return_value = {"status": "running"}, status.HTTP_200_OK
         status_resp = await self.analyzer.fetch_analysis_status(TEST_MOCK_ANALYSIS_ID)
