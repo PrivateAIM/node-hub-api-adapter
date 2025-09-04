@@ -1,32 +1,264 @@
 """Collection of unit tests for testing headless operation."""
 
-from pathlib import Path
+from unittest.mock import patch
 
 import pytest
-import respx
-from dotenv import load_dotenv
+from fastapi import HTTPException
+from flame_hub._core_client import AnalysisNode
+from kong_admin_client import ListRoute200Response
+from starlette import status
 
-from hub_adapter.headless import register_analysis
-from hub_adapter.routers.kong import create_and_connect_analysis_to_project
-from tests.constants import TEST_MOCK_ANALYSIS_ID, TEST_MOCK_PROJECT_ID
-from tests.mock_responses import mock_kong_analysis_creation_response
-
-foo = create_and_connect_analysis_to_project
+from hub_adapter.headless import (
+    auto_start_analyses,
+    fetch_analysis_status,
+    get_valid_projects,
+    parse_analyses,
+    pod_running,
+    register_analysis,
+    start_analysis_pod,
+)
+from tests.constants import (
+    ANALYSIS_NODES_RESP,
+    KONG_ANALYSIS_SUCCESS_RESP,
+    KONG_GET_ROUTE_RESPONSE,
+    TEST_MOCK_ANALYSIS_ID,
+    TEST_MOCK_NODE_ID,
+    TEST_MOCK_PROJECT_ID,
+)
 
 
 class TestHeadless:
-    """Headless methods."""
+    """Headless unit tests."""
 
-    @staticmethod
-    @respx.mock
+    @patch("hub_adapter.headless.create_and_connect_analysis_to_project")
     @pytest.mark.asyncio
-    async def test_register_analysis():
+    async def test_register_analysis(self, mock_create_and_connect_analysis_to_project):
         """Test registering an analysis with kong."""
-        import os
-        test_env_file = Path("./.env.test")
-        load_dotenv(test_env_file, override=True)
-        os.getenv("KONG_ADMIN_SERVICE_URL")
-        respx.get("http://kong.test/routes").mock(return_value=mock_kong_analysis_creation_response)
-        respx.post("http://kong.test/consumers").mock(return_value=mock_kong_analysis_creation_response)
+        mock_create_and_connect_analysis_to_project.return_value = KONG_ANALYSIS_SUCCESS_RESP
         resp = await register_analysis(TEST_MOCK_ANALYSIS_ID, TEST_MOCK_PROJECT_ID)
-        foo = 2
+
+        mock_create_and_connect_analysis_to_project.assert_called_once_with(TEST_MOCK_PROJECT_ID, TEST_MOCK_ANALYSIS_ID)
+        assert resp == KONG_ANALYSIS_SUCCESS_RESP
+
+    @pytest.mark.asyncio
+    @patch("hub_adapter.headless.logger")
+    @patch("hub_adapter.headless.pod_running")  # Reverse order from parameters
+    @patch("hub_adapter.headless.create_and_connect_analysis_to_project")
+    async def test_register_analysis_conflict_pod_exists(self, mock_create_and_connect, mock_pod_running, mock_logger):
+        """Test registering an analysis with kong and there is already a pod running."""
+        # Pod exists already
+        mock_create_and_connect.side_effect = HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail={"message": "Conflict"}
+        )
+        mock_pod_running.return_value = True
+        pod_exists_resp = await register_analysis(TEST_MOCK_ANALYSIS_ID, TEST_MOCK_PROJECT_ID)
+
+        # check logs
+        assert mock_logger.info.call_count == 2  # Attempt log and pod exists log
+        assert mock_logger.warning.call_count == 1
+        mock_logger.warning.assert_called_with(
+            f"Analysis {TEST_MOCK_ANALYSIS_ID} already registered, checking if pod exists..."
+        )
+        mock_logger.info.assert_called_with(
+            f"Pod already exists for analysis {TEST_MOCK_ANALYSIS_ID}, skipping start sequence"
+        )
+
+        # Return None if pod already exists
+        assert pod_exists_resp is None
+
+    @pytest.mark.asyncio
+    @patch("hub_adapter.headless.logger")
+    @patch("hub_adapter.headless.pod_running")
+    @patch("hub_adapter.headless.delete_analysis")
+    @patch("hub_adapter.headless.create_and_connect_analysis_to_project")
+    async def test_register_analysis_conflict_no_pod(
+        self, mock_create_and_connect, mock_delete_analysis, mock_pod_running, mock_logger
+    ):
+        """Test registering an analysis with kong and there is a conflict but no pod running."""
+        # No pod found, but consumer found, and delete was successful
+        mock_create_and_connect.side_effect = HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail={"message": "Conflict"}
+        )
+        mock_delete_analysis.return_value = 200
+        mock_pod_running.return_value = False
+
+        max_attempts = 5
+        pod_exists_resp = await register_analysis(
+            TEST_MOCK_ANALYSIS_ID, TEST_MOCK_PROJECT_ID, attempt=1, max_attempts=max_attempts
+        )
+
+        # check logs
+        assert mock_logger.info.call_count == max_attempts * 2
+        assert mock_logger.warning.call_count == max_attempts
+        mock_logger.warning.assert_called_with(
+            f"Analysis {TEST_MOCK_ANALYSIS_ID} already registered, checking if pod exists..."
+        )
+        mock_logger.info.assert_called_with(
+            f"No pod found for {TEST_MOCK_ANALYSIS_ID}, will delete kong consumer and retry"
+        )
+        mock_logger.error.assert_called_with(
+            f"Failed to start analysis {TEST_MOCK_ANALYSIS_ID} after {max_attempts} attempts"
+        )
+
+        # Return None if pod already exists
+        assert pod_exists_resp is None
+
+    @pytest.mark.asyncio
+    @patch("hub_adapter.headless.logger")
+    @patch("hub_adapter.headless.create_and_connect_analysis_to_project")
+    async def test_register_analysis_missing_datastore(self, mock_create_and_connect, mock_logger):
+        """Test registering an analysis with kong and data store is missing."""
+        fake_err_msg = "Not found"
+        mock_create_and_connect.side_effect = HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail={"message": fake_err_msg}
+        )
+        missing_db_resp = await register_analysis(TEST_MOCK_ANALYSIS_ID, TEST_MOCK_PROJECT_ID)
+        assert mock_logger.error.call_count == 1
+        mock_logger.error.assert_called_with(f"{fake_err_msg}, failed to start analysis {TEST_MOCK_ANALYSIS_ID}")
+        assert missing_db_resp is None
+
+    @patch("hub_adapter.headless.fetch_analysis_status")
+    @pytest.mark.asyncio
+    async def test_pod_running(self, mock_fetch_analysis_status):
+        """Test checking whether the pod is running."""
+        # Pod running
+        mock_fetch_analysis_status.return_value = {"status": "running"}
+        pod_running_resp = await pod_running(TEST_MOCK_ANALYSIS_ID)
+        assert pod_running_resp  # True
+
+        mock_fetch_analysis_status.return_value = {"status": ""}
+        pod_not_running_resp = await pod_running(TEST_MOCK_ANALYSIS_ID)
+        assert not pod_not_running_resp  # False
+
+        mock_fetch_analysis_status.return_value = None
+        pod_running_error = await pod_running(TEST_MOCK_ANALYSIS_ID)
+        assert pod_running_error is None
+
+    @patch("hub_adapter.headless.logger")
+    @patch("hub_adapter.headless.make_request")
+    @patch("hub_adapter.headless.fetch_token_header")
+    @patch("hub_adapter.headless.compile_analysis_pod_data")
+    @patch("hub_adapter.headless.get_node_metadata_for_url")
+    @patch("hub_adapter.headless.get_registry_metadata_for_url")
+    @pytest.mark.asyncio
+    async def test_start_analysis_pod(
+        self, mock_registry_metadata, mock_node_metadata, mock_pod_data, mock_token_header, mock_request, mock_logger
+    ):
+        """Test starting an analysis pod."""
+        # These first methods are for feeding into one another
+        mock_registry_metadata.return_value = {}  # Not needed
+        mock_node_metadata.return_value = {}  # Not needed
+        mock_pod_data.return_value = {}  # Not needed
+        mock_token_header.return_value = {}  # Not needed
+
+        sim_input = {
+            "analysis_id": TEST_MOCK_ANALYSIS_ID,
+            "project_id": TEST_MOCK_PROJECT_ID,
+            "node_id": TEST_MOCK_ANALYSIS_ID,
+        }
+
+        # Working
+        mock_request.return_value = {"status": "running"}, status.HTTP_201_CREATED
+        pod_resp, status_code = await start_analysis_pod(sim_input, "fakeKongToken")
+        assert mock_logger.info.call_count == 2
+        mock_logger.info.assert_called_with(f"Analysis start response for {TEST_MOCK_ANALYSIS_ID}: running")
+        assert pod_resp == {"status": "running"}
+        assert status_code == status.HTTP_201_CREATED
+
+        # Problem
+        mock_request.side_effect = HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="she's dead jim"
+        )
+        pod_failed_resp = await start_analysis_pod(sim_input, "fakeKongToken")
+        assert mock_logger.error.call_count == 1
+        mock_logger.error.assert_called_with(
+            f"Unable to start analysis {TEST_MOCK_ANALYSIS_ID} due to the following error: 503: she's dead jim"
+        )
+        assert pod_failed_resp is None
+
+    @pytest.mark.asyncio
+    @patch("hub_adapter.headless.logger")
+    @patch("hub_adapter.headless.make_request")
+    @patch("hub_adapter.headless.fetch_token_header")
+    async def test_fetch_analysis_status(self, mock_header, mock_request, mock_logger):
+        """Test fetching the status of an analysis."""
+        mock_header.return_value = {}  # Not needed
+
+        mock_request.return_value = {"status": "running"}, status.HTTP_200_OK
+        status_resp = await fetch_analysis_status(TEST_MOCK_ANALYSIS_ID)
+        assert status_resp == {"status": "running"}
+
+        mock_request.side_effect = HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="she's dead jim"
+        )
+        status_failed_resp = await fetch_analysis_status(TEST_MOCK_ANALYSIS_ID)
+        assert mock_logger.error.call_count == 1
+        mock_logger.error.assert_called_with(
+            f"Unable to fetch the status of analysis {TEST_MOCK_ANALYSIS_ID} due "
+            f"to the following error: 503: she's dead jim"
+        )
+        assert status_failed_resp is None
+
+    @pytest.mark.asyncio
+    @patch("hub_adapter.headless.list_projects")
+    async def test_get_valid_projects(self, mock_projects):
+        """Test getting and parsing projects (routes) from kong."""
+
+        mock_projects.return_value = ListRoute200Response(**KONG_GET_ROUTE_RESPONSE)
+        projects = await get_valid_projects()
+        assert projects == {TEST_MOCK_PROJECT_ID}
+        assert isinstance(projects, set)
+
+    def test_parse_analyses(self):
+        """Test parsing analyses choosing whether they should be started i.e. built but no run status."""
+        formatted_analyses = [AnalysisNode(**analysis) for analysis in ANALYSIS_NODES_RESP]
+        assert len(formatted_analyses) == 5
+        ready_analyses = parse_analyses(formatted_analyses, {TEST_MOCK_PROJECT_ID})
+
+        assert len(ready_analyses) == 1
+        assert isinstance(ready_analyses, set)
+        analysis_id, project_id, node_id, build_status, run_status = list(ready_analyses).pop()
+
+        assert analysis_id == TEST_MOCK_ANALYSIS_ID
+        assert project_id == TEST_MOCK_PROJECT_ID
+        assert node_id == TEST_MOCK_NODE_ID
+        assert build_status == "finished"
+        assert run_status is None
+
+    @patch("hub_adapter.headless.get_node_id")
+    @patch("hub_adapter.headless.get_node_type")
+    @patch("hub_adapter.headless.list_analysis_nodes")
+    @patch("hub_adapter.headless.get_valid_projects")
+    @patch("hub_adapter.headless.register_analysis")
+    @patch("hub_adapter.headless.start_analysis_pod")
+    @pytest.mark.asyncio
+    async def test_auto_start_analyses(
+        self,
+        mock_start_pod,
+        mock_registration,
+        mock_projects,
+        mock_analysis_nodes,
+        mock_node_type,
+        mock_node_id,
+    ):
+        """Test automatically starting analysis pods."""
+
+        class FakeKeycloak:
+            key: str = "fakeKey"
+
+        mock_node_id.return_value = TEST_MOCK_NODE_ID
+        mock_node_type.return_value = {"type": "default"}
+        mock_analysis_nodes.return_value = [AnalysisNode(**analysis) for analysis in ANALYSIS_NODES_RESP]
+        mock_projects.return_value = {TEST_MOCK_PROJECT_ID}
+        mock_registration.return_value = {"keyauth": FakeKeycloak()}
+        mock_start_pod.return_value = {}, status.HTTP_201_CREATED
+
+        analyses_started = await auto_start_analyses()
+        assert len(analyses_started) == 1
+        assert TEST_MOCK_ANALYSIS_ID in analyses_started
+
+        # Aggregator starts with different key
+        mock_node_type.return_value = {"type": "aggregator"}
+        aggregator_started = await auto_start_analyses()
+        assert len(aggregator_started) == 1
+        assert TEST_MOCK_ANALYSIS_ID in aggregator_started

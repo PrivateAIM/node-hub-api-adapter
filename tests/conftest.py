@@ -1,5 +1,6 @@
 """Test FastAPI app instance."""
 
+import os
 import time
 
 import httpx
@@ -10,12 +11,25 @@ from fastapi.testclient import TestClient
 from tests.constants import TEST_ANALYSIS, TEST_DS, TEST_PROJECT
 from tests.pseudo_auth import BearerAuth
 
+# TODO figure out how to incorporate into headless tests
+# @pytest.fixture
+# def load_test_env(monkeypatch):
+#     env_values = dotenv_values(".env.test")
+#     for key, value in env_values.items():
+#         monkeypatch.setenv(key, value)
+# @pytest.fixture(scope="session", autouse=True)
+# def load_test_env():
+#     # Force override with .env.test
+#     load_dotenv(".env.test", override=True)
 
-@pytest.fixture
-def load_test_env(monkeypatch):
-    env_values = dotenv_values("../.env.test")
-    for key, value in env_values.items():
-        monkeypatch.setenv(key, value)
+
+def use_test_env(func):
+    def wrapper(*args, **kwargs):
+        env_values = dotenv_values(".env.test")
+        os.environ.update(env_values)
+        return func(*args, **kwargs)
+
+    return wrapper
 
 
 @pytest.fixture(scope="session")

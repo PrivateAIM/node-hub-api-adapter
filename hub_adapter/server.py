@@ -4,7 +4,7 @@ import asyncio
 from typing import Annotated
 
 import uvicorn
-from fastapi import FastAPI, Depends
+from fastapi import Depends, FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
 from hub_adapter.conf import Settings
@@ -71,9 +71,7 @@ for router in routers:
 
 async def run_server():
     """Start the hub adapter API server."""
-    config = uvicorn.Config(
-        app, host="127.0.0.1", port=8081, reload=False, log_config=None
-    )
+    config = uvicorn.Config(app, host="127.0.0.1", port=8081, reload=False, log_config=None)
     server = uvicorn.Server(config)
     await server.serve()
 
@@ -91,7 +89,9 @@ async def headless_probing(interval: int = 10):
         await asyncio.sleep(interval)
 
 
-async def main(hub_adapter_settings: Annotated[Settings, Depends(get_settings)],):
+async def main(
+    hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
+):
     # Run both tasks concurrently
     tasks = [asyncio.create_task(run_server())]
 

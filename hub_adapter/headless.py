@@ -2,14 +2,11 @@
 
 import logging
 import uuid
-from typing import Annotated
 
-from fastapi import Depends, HTTPException
-from httpx import HTTPStatusError
+from fastapi import HTTPException
 from starlette import status
 
 from hub_adapter.auth import get_internal_token
-from hub_adapter.conf import Settings
 from hub_adapter.core import make_request
 from hub_adapter.dependencies import (
     compile_analysis_pod_data,
@@ -33,22 +30,7 @@ from hub_adapter.routers.kong import (
 logger = logging.getLogger(__name__)
 
 
-class StartAnalysisRequest:
-    """Class designed for starting a new analysis run automatically."""
-
-    def __init__(self, analysis_id, project_id, node_id, build_status, run_status):
-        self.analysis_id = analysis_id
-        self.project_id = project_id
-        self.node_id = node_id
-        self.build_status = build_status
-        self.run_status = run_status
-
-        # For controlling how many times to try and create a kong data store
-        self.attempt = 0
-        self.max_attempts = 3
-
-
-async def auto_start_analyses():
+async def auto_start_analyses() -> set:
     node_id = await get_node_id()
     node_type = await get_node_type()
 
@@ -57,6 +39,7 @@ async def auto_start_analyses():
     valid_projects = await get_valid_projects()
     ready_to_start_analyses = parse_analyses(analyses, valid_projects)
 
+    analyses_started = set()
     for analysis in ready_to_start_analyses:
         analysis_id, project_id, node_id, _, _ = analysis
         if node_type["type"] == "default":
@@ -75,7 +58,11 @@ async def auto_start_analyses():
             "node_id": node_id,
             "kong_token": kong_token,
         }
-        await start_analysis_pod(analysis_props=props, kong_token=kong_token)
+        start_resp, status_code = await start_analysis_pod(analysis_props=props, kong_token=kong_token)
+        if status_code == status.HTTP_201_CREATED:
+            analyses_started.add(analysis_id)
+
+    return analyses_started
 
 
 async def register_analysis(analysis_id: str, project_id: str, attempt: int = 1, max_attempts: int = 5) -> dict | None:
@@ -102,6 +89,9 @@ async def register_analysis(analysis_id: str, project_id: str, attempt: int = 1,
                 if attempt < max_attempts:
                     return await register_analysis(analysis_id, project_id, attempt + 1, max_attempts)
 
+                else:
+                    logger.error(f"Failed to start analysis {analysis_id} after {max_attempts} attempts")
+
             else:
                 logger.info(f"Pod already exists for analysis {analysis_id}, skipping start sequence")
 
@@ -125,9 +115,7 @@ async def fetch_token_header() -> dict:
     return token
 
 
-async def start_analysis_pod(
-    analysis_props: dict, kong_token: str, hub_adapter_settings: Annotated[Settings, Depends(get_settings)]
-):
+async def start_analysis_pod(analysis_props: dict, kong_token: str) -> tuple[dict, int] | None:
     """Start a new analysis pod."""
     logger.info(f"Starting new analysis pod for {analysis_props['analysis_id']}")
 
@@ -141,27 +129,26 @@ async def start_analysis_pod(
     )
 
     headers = await fetch_token_header()
-    microsvc_path = f"{hub_adapter_settings.PODORC_SERVICE_URL}/po/"
+    microsvc_path = f"{get_settings().PODORC_SERVICE_URL}/po/"
 
     try:
-        resp_data, _ = await make_request(
+        resp_data, status_code = await make_request(
             url=microsvc_path,
             method="post",
             headers=headers,
             data=props,
         )
         logger.info(f"Analysis start response for {analysis_props['analysis_id']}: {resp_data['status']}")
+        return resp_data, status_code
 
-    except HTTPStatusError as e:
+    except HTTPException as e:
         logger.error(f"Unable to start analysis {analysis_props['analysis_id']} due to the following error: {e}")
 
 
-async def fetch_analysis_status(
-    analysis_id: uuid.UUID | str, hub_adapter_settings: Annotated[Settings, Depends(get_settings)]
-) -> dict:
+async def fetch_analysis_status(analysis_id: uuid.UUID | str) -> dict | None:
     """Fetch the status for a specific analysis run. For headless operation"""
     headers = await fetch_token_header()
-    microsvc_path = f"{hub_adapter_settings.PODORC_SERVICE_URL}/po/{analysis_id}/status"
+    microsvc_path = f"{get_settings().PODORC_SERVICE_URL}/po/{analysis_id}/status"
     resp_data = None
 
     try:
@@ -171,7 +158,7 @@ async def fetch_analysis_status(
             headers=headers,
         )
 
-    except HTTPStatusError as e:
+    except HTTPException as e:
         logger.error(f"Unable to fetch the status of analysis {analysis_id} due to the following error: {e}")
 
     return resp_data
