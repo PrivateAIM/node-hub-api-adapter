@@ -42,6 +42,7 @@ OVERRIDE_JWKS=""  # JWKS URI to override the endpoints fetched from the IDP issu
 HTTP_PROXY=""  # Forward proxy address for HTTP requests
 HTTPS_PROXY=""  # Forward proxy address for HTTPS requests
 HEADLESS=false  # Whether the API should also operate in "headless" mode where it'll start analyses automatically
+HEADLESS_INTERVAL=60  # How often (in seconds) the server should check for new analyses
 ```
 
 | EnvVar                 | Description                                                                                                       |           Default           | Required |
@@ -62,3 +63,4 @@ HEADLESS=false  # Whether the API should also operate in "headless" mode where i
 | HTTP_PROXY             | Forward proxy address for HTTP requests                                                                           |                             |          |
 | HTTPS_PROXY            | Forward proxy address for HTTPS requests                                                                          |                             |          |
 | HEADLESS               | Whether the API should also operate in "headless" mode where it'll start analyses automatically                   |            false            |          |
+| HEADLESS_INTERVAL      | How often (in seconds) the server should check for new analyses                                                   |             60              |          |

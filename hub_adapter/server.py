@@ -1,13 +1,12 @@
 """Methods for verifying auth."""
 
 import asyncio
-from typing import Annotated
+import os
 
 import uvicorn
-from fastapi import Depends, FastAPI
+from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
-from hub_adapter.conf import Settings
 from hub_adapter.dependencies import get_settings
 from hub_adapter.headless import auto_start_analyses
 from hub_adapter.routers.auth import auth_router
@@ -76,7 +75,7 @@ async def run_server():
     await server.serve()
 
 
-async def headless_probing(interval: int = 10):
+async def headless_probing(interval: int = 60):
     """Check for available analyses in the background and start them automatically.
 
     Parameters
@@ -89,14 +88,15 @@ async def headless_probing(interval: int = 10):
         await asyncio.sleep(interval)
 
 
-async def main(
-    hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
-):
+async def main():
     # Run both tasks concurrently
     tasks = [asyncio.create_task(run_server())]
 
-    if hub_adapter_settings.HEADLESS:
-        headless_operation = asyncio.create_task(headless_probing(interval=5))
+    headless: bool = os.getenv("HEADLESS", "False").lower() in ("true", "1", "yes")
+    headless_interval: int = int(os.getenv("HEADLESS_INTERVAL", "60"))
+
+    if headless:
+        headless_operation = asyncio.create_task(headless_probing(interval=headless_interval))
         tasks.append(headless_operation)
 
     await asyncio.gather(*tasks)

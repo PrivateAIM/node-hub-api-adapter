@@ -16,8 +16,6 @@ class Settings(BaseModel):
 
     EXTRA_CA_CERTS: str = os.getenv("EXTRA_CA_CERTS")
 
-    HEADLESS: bool = os.getenv("HEADLESS", "False").lower() in ("true", "1", "yes")
-
     # IDP Settings
     IDP_URL: str = os.getenv("IDP_URL", "http://localhost:8080")  # User
     # If using a different service for node OIDC, set this to the URL of that service
