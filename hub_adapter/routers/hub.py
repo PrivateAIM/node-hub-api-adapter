@@ -21,7 +21,7 @@ from starlette import status
 from starlette.requests import Request
 
 from hub_adapter.auth import jwtbearer, verify_idp_token
-from hub_adapter.dependencies import compile_analysis_pod_data, get_core_client, get_node_id
+from hub_adapter.dependencies import compile_analysis_pod_data, get_core_client, get_node_id, get_node_type_cache
 from hub_adapter.errors import catch_hub_errors
 from hub_adapter.models.hub import (
     AnalysisImageUrl,
@@ -280,16 +280,9 @@ async def list_specific_node(
     response_model=NodeTypeResponse,
 )
 @catch_hub_errors
-async def get_node_type(core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)]):
+async def get_node_type(node_type: Annotated[dict | None, Depends(get_node_type_cache)]):
     """Return what type of node this API is deployed on."""
-    global _node_type_cache
-
-    if _node_type_cache is None:
-        node_id = await get_node_id()
-        node_resp = core_client.get_node(node_id=node_id)
-        _node_type_cache = {"type": node_resp.type}
-
-    return _node_type_cache
+    return node_type
 
 
 @hub_router.post(

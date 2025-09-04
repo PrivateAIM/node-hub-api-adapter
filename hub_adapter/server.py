@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
 from hub_adapter.dependencies import get_settings
-from hub_adapter.headless import auto_start_analyses
+from hub_adapter.headless import GoGoAnalysis
 from hub_adapter.routers.auth import auth_router
 from hub_adapter.routers.health import health_router
 from hub_adapter.routers.hub import hub_router
@@ -83,8 +83,9 @@ async def headless_probing(interval: int = 60):
     interval : int
         Time in seconds to wait between checks.
     """
+    analysis_initiator = GoGoAnalysis()
     while True:
-        await auto_start_analyses()
+        await analysis_initiator.auto_start_analyses()
         await asyncio.sleep(interval)
 
 

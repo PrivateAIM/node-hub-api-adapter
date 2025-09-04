@@ -1,12 +1,12 @@
 """Adapter API Settings."""
 
 import os
-
-from pydantic import BaseModel
+from dataclasses import dataclass
 
 
 # Init settings
-class Settings(BaseModel):
+@dataclass(frozen=True)
+class Settings:
     """Settings for Hub Adapter API."""
 
     API_ROOT_PATH: str = os.getenv("API_ROOT_PATH", "")

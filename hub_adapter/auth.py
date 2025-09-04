@@ -38,7 +38,7 @@ class ProxiedPyJWKClient(PyJWKClient):
 
     def __init__(self, url):
         super().__init__(url)
-        self._ssl_ctx = get_ssl_context()
+        self._ssl_ctx = get_ssl_context(get_settings())
 
     def fetch_data(self):
         with httpx.Client(verify=self._ssl_ctx) as client:
@@ -146,9 +146,9 @@ async def verify_idp_token(
             },
         ) from jwt.MissingRequiredClaimError
 
-    except Exception:
+    except Exception as e:
         err_msg = "Unable to parse authentication token"
-        logger.error(f"{status.HTTP_401_UNAUTHORIZED} - {err_msg}")
+        logger.error(f"{status.HTTP_401_UNAUTHORIZED} - {e}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={
