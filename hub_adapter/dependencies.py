@@ -136,8 +136,13 @@ async def get_node_type_cache(
 
     if _node_type_cache is None:
         node_id = await get_node_id(core_client=core_client, hub_adapter_settings=hub_adapter_settings)
-        node_resp = core_client.get_node(node_id=node_id)
-        _node_type_cache = {"type": node_resp.type}
+
+        try:
+            node_resp = core_client.get_node(node_id=node_id)
+            _node_type_cache = {"type": node_resp.type}
+
+        except httpx.ConnectError as e:
+            logger.error(f"Error connecting to Hub: {e}")
 
     return _node_type_cache
 

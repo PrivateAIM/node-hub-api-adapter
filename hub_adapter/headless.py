@@ -4,6 +4,7 @@ import logging
 import uuid
 
 from fastapi import HTTPException
+from httpx import ConnectError
 from starlette import status
 
 from hub_adapter.auth import get_internal_token
@@ -56,13 +57,21 @@ class GoGoAnalysis:
         node_type = await get_node_type_cache(hub_adapter_settings=self.settings, core_client=self.core_client)
 
         formatted_query_params = format_query_params({"sort": "-updated_at", "include": "analysis"})
-        analyses = await list_analysis_nodes(
-            core_client=self.core_client, node_id=node_id, query_params=formatted_query_params
-        )
+
+        analyses_started = set()
+
+        try:
+            analyses = await list_analysis_nodes(
+                core_client=self.core_client, node_id=node_id, query_params=formatted_query_params
+            )
+
+        except ConnectError as e:
+            logger.error(f"Unable to start analyses, error connecting to Hub: {e}")
+            return analyses_started
+
         valid_projects = await self.get_valid_projects()
         ready_to_start_analyses = self.parse_analyses(analyses, valid_projects)
 
-        analyses_started = set()
         for analysis in ready_to_start_analyses:
             analysis_id, project_id, node_id, _, _ = analysis
             if node_type["type"] == "default":
@@ -93,7 +102,9 @@ class GoGoAnalysis:
         """Register an analysis with kong."""
         logger.info(f"Attempt {attempt} at starting analysis {analysis_id}")
         try:
-            kong_resp = await create_and_connect_analysis_to_project(project_id, analysis_id)
+            kong_resp = await create_and_connect_analysis_to_project(
+                hub_adapter_settings=self.settings, project_id=project_id, analysis_id=analysis_id
+            )
             return kong_resp
 
         except HTTPException as e:
@@ -132,7 +143,7 @@ class GoGoAnalysis:
 
     async def fetch_token_header(self) -> dict:
         """Append OIDC token to headers."""
-        _, oidc_config = check_oidc_configs_match(self.settings)
+        _, oidc_config = check_oidc_configs_match()
         token = await get_internal_token(oidc_config, self.settings)
         return token
 
@@ -140,8 +151,8 @@ class GoGoAnalysis:
         """Start a new analysis pod."""
         logger.info(f"Starting new analysis pod for {analysis_props['analysis_id']}")
 
-        node_metadata = get_node_metadata_for_url(analysis_props["node_id"])
-        analysis_info = get_registry_metadata_for_url(node_metadata)
+        node_metadata = get_node_metadata_for_url(analysis_props["node_id"], core_client=self.core_client)
+        analysis_info = get_registry_metadata_for_url(node_metadata, core_client=self.core_client)
         props = compile_analysis_pod_data(
             analysis_id=analysis_props["analysis_id"],
             project_id=analysis_props["project_id"],
@@ -181,17 +192,27 @@ class GoGoAnalysis:
         except HTTPException as e:
             logger.error(f"Unable to fetch the status of analysis {analysis_id} due to the following error: {e}")
 
+        except ConnectError as e:
+            logger.error(f"Unable to contact the PO: {e}")
+
         return resp_data
 
     async def get_valid_projects(self) -> set:
         """Collect the available data stores and create a set of project UUIDs with a valid data store."""
-        kong_routes = await list_projects(hub_adapter_settings=self.settings, project_id=None, detailed=False)
+        kong_routes = None
+        try:
+            kong_routes = await list_projects(hub_adapter_settings=self.settings, project_id=None, detailed=False)
+
+        except HTTPException as e:
+            logger.error(f"Route retrieval failed, unable to contact Kong: {e}")
+
         valid_projects = set()
 
-        for route in kong_routes.data:
-            proj_uuid_chunks = route.name.split("-")[:-1]
-            proj_uuid = "-".join(proj_uuid_chunks)
-            valid_projects.add(proj_uuid)
+        if kong_routes:
+            for route in kong_routes.data:
+                proj_uuid_chunks = route.name.split("-")[:-1]
+                proj_uuid = "-".join(proj_uuid_chunks)
+                valid_projects.add(proj_uuid)
 
         return valid_projects
 

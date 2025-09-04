@@ -422,7 +422,7 @@ async def create_and_connect_analysis_to_project(
     analysis_id: Annotated[str, Body(description="UUID or name of the analysis")],
 ):
     """Create a new analysis and link it to a project."""
-    proj_resp = await list_projects(project_id=project_id, detailed=False)
+    proj_resp = await list_projects(hub_adapter_settings=hub_adapter_settings, project_id=project_id, detailed=False)
 
     # Tags are used to annotate routes (projects) with datastore type and original project ID
     route_tags = set()

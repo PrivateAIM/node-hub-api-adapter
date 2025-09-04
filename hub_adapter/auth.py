@@ -171,7 +171,7 @@ async def get_internal_token(
         "client_secret": hub_adapter_settings.API_CLIENT_SECRET,
     }
 
-    with httpx.Client(verify=get_ssl_context()) as client:
+    with httpx.Client(verify=get_ssl_context(hub_adapter_settings)) as client:
         resp = client.post(oidc_config.token_endpoint, data=payload)
         resp.raise_for_status()
         token_data = resp.json()

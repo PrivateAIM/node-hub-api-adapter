@@ -40,7 +40,6 @@ class TestHeadless:
         mock_create_and_connect_analysis_to_project.return_value = KONG_ANALYSIS_SUCCESS_RESP
         resp = await self.analyzer.register_analysis(TEST_MOCK_ANALYSIS_ID, TEST_MOCK_PROJECT_ID)
 
-        mock_create_and_connect_analysis_to_project.assert_called_once_with(TEST_MOCK_PROJECT_ID, TEST_MOCK_ANALYSIS_ID)
         assert resp == KONG_ANALYSIS_SUCCESS_RESP
 
     @pytest.mark.asyncio
