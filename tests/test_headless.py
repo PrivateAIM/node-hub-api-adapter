@@ -4,7 +4,9 @@ from unittest.mock import patch
 
 import pytest
 from fastapi import HTTPException
+from flame_hub import HubAPIError
 from flame_hub._core_client import AnalysisNode
+from httpx import ConnectError, HTTPStatusError, Request, Response
 from kong_admin_client import ListRoute200Response
 from starlette import status
 
@@ -137,6 +139,35 @@ class TestHeadless:
         assert pod_running_error is None
 
     @patch("hub_adapter.headless.logger")
+    @patch("hub_adapter.headless.check_oidc_configs_match")
+    @patch("hub_adapter.headless.get_internal_token")
+    @pytest.mark.asyncio
+    async def test_fetch_token_header(self, mock_fetch_token, mock_config_check, mock_logger):
+        """Test checking whether the pod is running."""
+        # Success
+        mock_fetch_token.return_value = {"Authorization": "Bearer test_token"}
+        mock_config_check.return_value = True, "http://myIDP.com"
+        token_resp = await self.analyzer.fetch_token_header()
+        assert token_resp == {"Authorization": "Bearer test_token"}
+
+        # Failure
+        mock_fetch_token.side_effect = HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="IDP can't be reached"
+        )
+        no_connect_error_resp = await self.analyzer.fetch_token_header()
+        assert no_connect_error_resp is None
+        mock_logger.error.assert_called_with("Unable to fetch OIDC token: 503: IDP can't be reached")
+
+        mock_fetch_token.side_effect = HTTPStatusError(
+            message="IDP exchange failed",
+            request=Request(url="/", method="GET"),
+            response=Response(status_code=status.HTTP_401_UNAUTHORIZED),
+        )
+        exchange_error_resp = await self.analyzer.fetch_token_header()
+        assert exchange_error_resp is None
+        mock_logger.error.assert_called_with("Unable to fetch OIDC token: IDP exchange failed")
+
+    @patch("hub_adapter.headless.logger")
     @patch("hub_adapter.headless.make_request")
     @patch("hub_adapter.headless.GoGoAnalysis.fetch_token_header")
     @patch("hub_adapter.headless.compile_analysis_pod_data")
@@ -186,30 +217,46 @@ class TestHeadless:
         """Test fetching the status of an analysis."""
         mock_header.return_value = {"foo"}  # Just need something
 
+        # Success
         mock_request.return_value = {"status": "running"}, status.HTTP_200_OK
         status_resp = await self.analyzer.fetch_analysis_status(TEST_MOCK_ANALYSIS_ID)
         assert status_resp == {"status": "running"}
 
+        # Failures
         mock_request.side_effect = HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="she's dead jim"
         )
-        status_failed_resp = await self.analyzer.fetch_analysis_status(TEST_MOCK_ANALYSIS_ID)
+        status_http_failed_resp = await self.analyzer.fetch_analysis_status(TEST_MOCK_ANALYSIS_ID)
         assert mock_logger.error.call_count == 1
         mock_logger.error.assert_called_with(
             f"Unable to fetch the status of analysis {TEST_MOCK_ANALYSIS_ID} due "
             f"to the following error: 503: she's dead jim"
         )
-        assert status_failed_resp is None
+        assert status_http_failed_resp is None
+
+        mock_request.side_effect = ConnectError(message="Connection failure")
+        status_connect_failed_resp = await self.analyzer.fetch_analysis_status(TEST_MOCK_ANALYSIS_ID)
+        assert mock_logger.error.call_count == 2  # Includes the error above
+        mock_logger.error.assert_called_with("Unable to contact the PO: Connection failure")
+        assert status_connect_failed_resp is None
 
     @pytest.mark.asyncio
+    @patch("hub_adapter.headless.logger")
     @patch("hub_adapter.headless.list_projects")
-    async def test_get_valid_projects(self, mock_projects):
+    async def test_get_valid_projects(self, mock_projects, mock_logger):
         """Test getting and parsing projects (routes) from kong."""
 
+        # Success
         mock_projects.return_value = ListRoute200Response(**KONG_GET_ROUTE_RESPONSE)
         projects = await self.analyzer.get_valid_projects()
         assert projects == {TEST_MOCK_PROJECT_ID}
         assert isinstance(projects, set)
+
+        # Failure
+        mock_projects.side_effect = HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Kong off")
+        no_projects = await self.analyzer.get_valid_projects()
+        assert no_projects == set()
+        mock_logger.error.assert_called_with("Route retrieval failed, unable to contact Kong: 503: Kong off")
 
     def test_parse_analyses(self):
         """Test parsing analyses choosing whether they should be started i.e. built but no run status."""
@@ -227,6 +274,7 @@ class TestHeadless:
         assert build_status == "finished"
         assert run_status is None
 
+    @patch("hub_adapter.headless.logger")
     @patch("hub_adapter.headless.get_node_id")
     @patch("hub_adapter.headless.get_node_type_cache")
     @patch("hub_adapter.headless.list_analysis_nodes")
@@ -242,6 +290,7 @@ class TestHeadless:
         mock_analysis_nodes,
         mock_node_type,
         mock_node_id,
+        mock_logger,
     ):
         """Test automatically starting analysis pods."""
 
@@ -264,3 +313,21 @@ class TestHeadless:
         aggregator_started = await self.analyzer.auto_start_analyses()
         assert len(aggregator_started) == 1
         assert TEST_MOCK_ANALYSIS_ID in aggregator_started
+
+        # Failure - Hub connection
+        mock_analysis_nodes.side_effect = ConnectError(message="Service unavailable")
+        no_resp = await self.analyzer.auto_start_analyses()
+        assert no_resp == set()
+        mock_logger.error.assert_called_with("Unable to start analyses, error connecting to Hub: Service unavailable")
+
+        # Failure - Hub Python Client can't contact Hub
+        mock_node_type.side_effect = HubAPIError(message="Hub unavailable", request=Request(method="GET", url="/"))
+        node_type_fail_resp = await self.analyzer.auto_start_analyses()
+        assert node_type_fail_resp is None
+        mock_logger.error.assert_called_with("Unable to connect to the Hub: Hub unavailable")
+
+        # Failure - Hub Python Client can't contact Hub
+        mock_node_id.side_effect = HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Hub gone")
+        node_id_fail_resp = await self.analyzer.auto_start_analyses()
+        assert node_id_fail_resp is None
+        mock_logger.error.assert_called_with("Unable to connect to the Hub: 503: Hub gone")
