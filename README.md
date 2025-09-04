@@ -43,6 +43,7 @@ HTTP_PROXY=""  # Forward proxy address for HTTP requests
 HTTPS_PROXY=""  # Forward proxy address for HTTPS requests
 HEADLESS=false  # Whether the API should also operate in "headless" mode where it'll start analyses automatically
 HEADLESS_INTERVAL=60  # How often (in seconds) the server should check for new analyses
+EXTRA_CA_CERTS=""  # Path to a concatenated file containing all of the additional SSL certificates needed for communication
 ```
 
 | EnvVar                 | Description                                                                                                       |           Default           | Required |
@@ -64,3 +65,4 @@ HEADLESS_INTERVAL=60  # How often (in seconds) the server should check for new a
 | HTTPS_PROXY            | Forward proxy address for HTTPS requests                                                                          |                             |          |
 | HEADLESS               | Whether the API should also operate in "headless" mode where it'll start analyses automatically                   |            false            |          |
 | HEADLESS_INTERVAL      | How often (in seconds) the server should check for new analyses                                                   |             60              |          |
+| EXTRA_CA_CERTS         | Path to a concatenated file containing all of the additional SSL certificates needed for communication            |                             |          |
