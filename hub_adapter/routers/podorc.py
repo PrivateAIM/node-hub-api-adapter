@@ -14,8 +14,8 @@ from hub_adapter.auth import (
     jwtbearer,
     verify_idp_token,
 )
-from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.core import route
+from hub_adapter.dependencies import compile_analysis_pod_data, get_settings
 from hub_adapter.models.podorc import (
     CleanupPodResponse,
     CreateAnalysis,
@@ -24,7 +24,6 @@ from hub_adapter.models.podorc import (
     PodResponse,
     StatusResponse,
 )
-from hub_adapter.routers.hub import compile_analysis_pod_data
 
 po_router = APIRouter(
     dependencies=[Security(verify_idp_token), Security(jwtbearer), Depends(add_internal_token_if_missing)],
@@ -39,7 +38,7 @@ logger = logging.getLogger(__name__)
     request_method=po_router.post,
     path="/po",
     status_code=status.HTTP_200_OK,
-    service_url=hub_adapter_settings.PODORC_SERVICE_URL,
+    service_url=get_settings().PODORC_SERVICE_URL,
     response_model=CreatePodResponse,
     pre_processing_func="extract_po_params",
     body_params=[
@@ -65,7 +64,7 @@ async def create_analysis(
     request_method=po_router.get,
     path="/po/{analysis_id}/logs",
     status_code=status.HTTP_200_OK,
-    service_url=hub_adapter_settings.PODORC_SERVICE_URL,
+    service_url=get_settings().PODORC_SERVICE_URL,
     response_model=LogResponse,
     query_params=["analysis_id"],
 )
@@ -82,7 +81,7 @@ async def get_analysis_logs(
     request_method=po_router.get,
     path="/po/{analysis_id}/history",
     status_code=status.HTTP_200_OK,
-    service_url=hub_adapter_settings.PODORC_SERVICE_URL,
+    service_url=get_settings().PODORC_SERVICE_URL,
     response_model=LogResponse,
     query_params=["analysis_id"],
 )
@@ -100,7 +99,7 @@ async def get_analysis_log_history(
     path="/po/{analysis_id}/status",
     status_code=status.HTTP_200_OK,
     response_model=StatusResponse,
-    service_url=hub_adapter_settings.PODORC_SERVICE_URL,
+    service_url=get_settings().PODORC_SERVICE_URL,
 )
 async def get_analysis_status(
     request: Request,
@@ -116,7 +115,7 @@ async def get_analysis_status(
     path="/po/{analysis_id}/pods",
     status_code=status.HTTP_200_OK,
     response_model=PodResponse,
-    service_url=hub_adapter_settings.PODORC_SERVICE_URL,
+    service_url=get_settings().PODORC_SERVICE_URL,
 )
 async def get_analysis_pods(
     request: Request,
@@ -132,7 +131,7 @@ async def get_analysis_pods(
     path="/po/{analysis_id}/stop",
     status_code=status.HTTP_200_OK,
     response_model=StatusResponse,
-    service_url=hub_adapter_settings.PODORC_SERVICE_URL,
+    service_url=get_settings().PODORC_SERVICE_URL,
 )
 async def stop_analysis(
     request: Request,
@@ -148,7 +147,7 @@ async def stop_analysis(
     path="/po/{analysis_id}/delete",
     status_code=status.HTTP_200_OK,
     response_model=StatusResponse,
-    service_url=hub_adapter_settings.PODORC_SERVICE_URL,
+    service_url=get_settings().PODORC_SERVICE_URL,
 )
 async def delete_analysis(
     request: Request,
@@ -164,7 +163,7 @@ async def delete_analysis(
     path="/po/cleanup/{cleanup_type}",
     status_code=status.HTTP_200_OK,
     response_model=CleanupPodResponse,
-    service_url=hub_adapter_settings.PODORC_SERVICE_URL,
+    service_url=get_settings().PODORC_SERVICE_URL,
 )
 async def cleanup_node(
     request: Request,

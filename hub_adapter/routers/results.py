@@ -8,8 +8,8 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from hub_adapter.auth import jwtbearer, verify_idp_token
-from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.core import route
+from hub_adapter.dependencies import get_settings
 from hub_adapter.models.results import ResultsUploadResponse
 
 results_router = APIRouter(
@@ -26,7 +26,7 @@ results_router = APIRouter(
     request_method=results_router.get,
     path="/local/{object_id}",
     status_code=status.HTTP_200_OK,
-    service_url=hub_adapter_settings.RESULTS_SERVICE_URL,
+    service_url=get_settings().RESULTS_SERVICE_URL,
     response_model=None,
     file_response=True,
 )
@@ -43,7 +43,7 @@ async def retrieve_intermediate_result_from_local(
     request_method=results_router.put,
     path="/local",
     status_code=status.HTTP_202_ACCEPTED,
-    service_url=hub_adapter_settings.RESULTS_SERVICE_URL,
+    service_url=get_settings().RESULTS_SERVICE_URL,
     response_model=ResultsUploadResponse,
     file_params=["file"],
 )
@@ -59,7 +59,7 @@ async def submit_intermediate_result_to_local(
     request_method=results_router.get,
     path="/intermediate/{object_id}",
     status_code=status.HTTP_200_OK,
-    service_url=hub_adapter_settings.RESULTS_SERVICE_URL,
+    service_url=get_settings().RESULTS_SERVICE_URL,
     response_model=None,
     file_response=True,
 )
@@ -76,7 +76,7 @@ async def retrieve_intermediate_result_from_hub(
     request_method=results_router.put,
     path="/intermediate",
     status_code=status.HTTP_202_ACCEPTED,
-    service_url=hub_adapter_settings.RESULTS_SERVICE_URL,
+    service_url=get_settings().RESULTS_SERVICE_URL,
     response_model=ResultsUploadResponse,
     file_params=["file"],
 )
@@ -95,7 +95,7 @@ async def submit_intermediate_result_to_hub(
     request_method=results_router.put,
     path="/final",
     status_code=status.HTTP_204_NO_CONTENT,
-    service_url=hub_adapter_settings.RESULTS_SERVICE_URL,
+    service_url=get_settings().RESULTS_SERVICE_URL,
     response_model=None,
     file_params=["file"],
 )

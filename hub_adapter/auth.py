@@ -1,25 +1,28 @@
 """Handle the authorization and authentication of services."""
 
 import logging
-import uuid
+from typing import Annotated
 
 import httpx
 import jwt
-from fastapi import HTTPException, Security
+from fastapi import Depends, HTTPException, Security
 from fastapi.security import (
     HTTPAuthorizationCredentials,
     HTTPBearer,
 )
-from flame_hub import CoreClient
-from flame_hub._auth_flows import RobotAuth
 from jwt import PyJWKClient
 from starlette import status
 from starlette.datastructures import MutableHeaders
 from starlette.requests import Request
 
-from hub_adapter.conf import hub_adapter_settings
+from hub_adapter.conf import Settings
+from hub_adapter.dependencies import get_settings, get_ssl_context
 from hub_adapter.models.conf import Token
-from hub_adapter.oidc import check_oidc_configs_match, get_svc_oidc_config, get_user_oidc_config
+from hub_adapter.oidc import (
+    check_oidc_configs_match,
+    get_svc_oidc_config,
+    get_user_oidc_config,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -35,21 +38,23 @@ class ProxiedPyJWKClient(PyJWKClient):
 
     def __init__(self, url):
         super().__init__(url)
+        self._ssl_ctx = get_ssl_context(get_settings())
 
     def fetch_data(self):
-        with httpx.Client() as client:
+        with httpx.Client(verify=self._ssl_ctx) as client:
             response = client.get(self.uri)
             response.raise_for_status()
             return response.json()
 
 
-async def get_hub_public_key() -> dict:
+async def get_hub_public_key(hub_adapter_settings: Annotated[Settings, Depends(get_settings)]) -> dict:
     """Get the central hub service public key."""
     hub_jwks_ep = hub_adapter_settings.HUB_AUTH_SERVICE_URL.rstrip("/") + "/jwks"
     return httpx.get(hub_jwks_ep).json()
 
 
 async def verify_idp_token(
+    hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
     token: HTTPAuthorizationCredentials = Security(jwtbearer),
 ) -> dict:
     """Decode the auth token using keycloak's public key."""
@@ -141,9 +146,9 @@ async def verify_idp_token(
             },
         ) from jwt.MissingRequiredClaimError
 
-    except Exception:
+    except Exception as e:
         err_msg = "Unable to parse authentication token"
-        logger.error(f"{status.HTTP_401_UNAUTHORIZED} - {err_msg}")
+        logger.error(f"{status.HTTP_401_UNAUTHORIZED} - {e}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={
@@ -154,75 +159,39 @@ async def verify_idp_token(
         ) from Exception
 
 
-def get_internal_token() -> dict | None:
+async def get_internal_token(
+    oidc_config, hub_adapter_settings: Annotated[Settings, Depends(get_settings)]
+) -> dict | None:
     """If the Hub Adapter is set up tp use an external IDP, it needs to retrieve a JWT from the internal keycloak
     to make requests to the PO."""
-    configs_match, oidc_config = check_oidc_configs_match()
 
-    if not configs_match:
-        logger.debug("External IDP different from internal, retrieving JWT from internal keycloak")
-        payload = {
-            "grant_type": "client_credentials",
-            "client_id": hub_adapter_settings.API_CLIENT_ID,
-            "client_secret": hub_adapter_settings.API_CLIENT_SECRET,
-        }
+    payload = {
+        "grant_type": "client_credentials",
+        "client_id": hub_adapter_settings.API_CLIENT_ID,
+        "client_secret": hub_adapter_settings.API_CLIENT_SECRET,
+    }
 
-        with httpx.Client() as client:
-            resp = client.post(oidc_config.token_endpoint, data=payload)
-            resp.raise_for_status()
-            token_data = resp.json()
+    with httpx.Client(verify=get_ssl_context(hub_adapter_settings)) as client:
+        resp = client.post(oidc_config.token_endpoint, data=payload)
+        resp.raise_for_status()
+        token_data = resp.json()
 
-        token = Token(**token_data)
-        return {"Authorization": f"Bearer {token.access_token}"}
-
-    return None
+    token = Token(**token_data)
+    return {"Authorization": f"Bearer {token.access_token}"}
 
 
 async def add_internal_token_if_missing(request: Request) -> Request:
     """Adds a JWT from the internal IDP is not present in the request."""
-    internal_token = get_internal_token()
-    if internal_token:
-        updated_headers = MutableHeaders(request.headers)
-        updated_headers.update(internal_token)
-        logger.debug("Added internal keycloak JWT to request headers")
-        request._headers = updated_headers
-        request.scope.update(headers=request.headers.raw)
+    configs_match, oidc_config = check_oidc_configs_match()
+
+    if not configs_match:
+        logger.debug("External IDP different from internal, retrieving JWT from internal keycloak")
+        internal_token = await get_internal_token(oidc_config)
+        if internal_token:
+            updated_headers = MutableHeaders(request.headers)
+            updated_headers.update(internal_token)
+            logger.debug("Added internal keycloak JWT to request headers")
+            request._headers = updated_headers
+            request.scope.update(headers=request.headers.raw)
 
     return request
-
-
-def get_hub_token() -> RobotAuth:
-    """Automated method for getting a robot token from the central Hub service."""
-    robot_id, robot_secret = (
-        hub_adapter_settings.HUB_ROBOT_USER,
-        hub_adapter_settings.HUB_ROBOT_SECRET,
-    )
-
-    if not robot_id or not robot_secret:
-        logger.error("Missing robot ID or secret. Check env vars")
-        raise ValueError("Missing Hub robot credentials, check that the environment variables are set properly")
-
-    try:
-        uuid.UUID(robot_id)
-
-    except ValueError:
-        logger.error(f"Invalid robot ID: {robot_id}")
-        raise ValueError(f"Invalid robot ID: {robot_id}") from ValueError
-
-    auth = RobotAuth(
-        robot_id=robot_id,
-        robot_secret=robot_secret,
-        client=httpx.Client(
-            base_url=hub_adapter_settings.HUB_AUTH_SERVICE_URL,
-        ),
-    )
-    return auth
-
-
-hub_robot = get_hub_token()
-core_client = CoreClient(
-    client=httpx.Client(
-        base_url=hub_adapter_settings.HUB_SERVICE_URL,
-        auth=hub_robot,
-    ),
-)

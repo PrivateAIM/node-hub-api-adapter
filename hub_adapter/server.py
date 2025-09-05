@@ -1,16 +1,23 @@
 """Methods for verifying auth."""
 
+import asyncio
+import logging
+import os
+
 import uvicorn
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
-from hub_adapter.conf import hub_adapter_settings
+from hub_adapter.dependencies import get_settings
+from hub_adapter.headless import GoGoAnalysis
 from hub_adapter.routers.auth import auth_router
 from hub_adapter.routers.health import health_router
 from hub_adapter.routers.hub import hub_router
 from hub_adapter.routers.kong import kong_router
 from hub_adapter.routers.podorc import po_router
 from hub_adapter.routers.results import results_router
+
+logger = logging.getLogger(__name__)
 
 # API metadata
 tags_metadata = [
@@ -32,14 +39,14 @@ app = FastAPI(
     swagger_ui_init_oauth={
         # "usePkceWithAuthorizationCodeGrant": True,
         # Auth fill client ID for the docs with the below value
-        "clientId": hub_adapter_settings.API_CLIENT_ID,  # default client-id is Keycloak
+        "clientId": get_settings().API_CLIENT_ID,  # default client-id is Keycloak
     },
     license_info={
         "name": "Apache 2.0",
         "url": "https://www.apache.org/licenses/LICENSE-2.0.html",
         "identifier": "Apache-2.0",
     },
-    root_path=hub_adapter_settings.API_ROOT_PATH,
+    root_path=get_settings().API_ROOT_PATH,
 )
 
 app.add_middleware(
@@ -64,5 +71,41 @@ for router in routers:
     app.include_router(router)
 
 
+async def run_server(host: str, port: int, reload: bool):
+    """Start the hub adapter API server."""
+    config = uvicorn.Config(app, host=host, port=port, reload=reload)
+    server = uvicorn.Server(config)
+    await server.serve()
+
+
+async def headless_probing(interval: int = 60):
+    """Check for available analyses in the background and start them automatically.
+
+    Parameters
+    ----------
+    interval : int
+        Time in seconds to wait between checks.
+    """
+    analysis_initiator = GoGoAnalysis()
+    while True:
+        await analysis_initiator.auto_start_analyses()
+        await asyncio.sleep(interval)
+
+
+async def deploy(host: str = "127.0.0.1", port: int = 8081, reload: bool = False):
+    # Run both tasks concurrently
+    tasks = [asyncio.create_task(run_server(host, port, reload))]
+
+    headless: bool = os.getenv("HEADLESS", "False").lower() in ("true", "1", "yes")
+    logger.info(f"Headless enabled: {headless}")
+    headless_interval: int = int(os.getenv("HEADLESS_INTERVAL", "60"))
+
+    if headless:
+        headless_operation = asyncio.create_task(headless_probing(interval=headless_interval))
+        tasks.append(headless_operation)
+
+    await asyncio.gather(*tasks)
+
+
 if __name__ == "__main__":
-    uvicorn.run("server:app", host="127.0.0.1", port=8081, reload=False, log_config=None)
+    asyncio.run(deploy())

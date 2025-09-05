@@ -1,4 +1,5 @@
 """Collection of methods related to gathering OIDC configurations."""
+
 import logging
 import time
 from functools import lru_cache
@@ -7,7 +8,7 @@ import httpx
 from fastapi import HTTPException
 from starlette import status
 
-from hub_adapter.conf import hub_adapter_settings
+from hub_adapter.dependencies import get_settings
 from hub_adapter.models.conf import OIDCConfiguration
 
 logger = logging.getLogger(__name__)
@@ -23,7 +24,6 @@ def fetch_openid_config(
     if not oidc_url.endswith(".well-known/openid-configuration"):
         oidc_url = oidc_url.rstrip("/") + "/.well-known/openid-configuration"
 
-    response = {}
     attempt_num = 0
     while attempt_num <= max_retries:
         try:
@@ -59,14 +59,16 @@ def fetch_openid_config(
 
 def get_user_oidc_config() -> OIDCConfiguration:
     """Lazy-load the user OIDC configuration when first needed."""
-    return fetch_openid_config(hub_adapter_settings.IDP_URL)
+    settings = get_settings()
+    return fetch_openid_config(settings.IDP_URL)
 
 
 def get_svc_oidc_config() -> OIDCConfiguration:
     """Lazy-load the service OIDC configuration when first needed."""
+    settings = get_settings()
     # Services always use internal IDP
-    if hub_adapter_settings.NODE_SVC_OIDC_URL != hub_adapter_settings.IDP_URL:
-        return fetch_openid_config(hub_adapter_settings.NODE_SVC_OIDC_URL)
+    if settings.NODE_SVC_OIDC_URL != settings.IDP_URL:
+        return fetch_openid_config(settings.NODE_SVC_OIDC_URL)
     else:
         return get_user_oidc_config()
 

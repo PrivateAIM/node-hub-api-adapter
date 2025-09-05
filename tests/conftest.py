@@ -1,18 +1,20 @@
 """Test FastAPI app instance."""
+
 import time
 
 import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from hub_adapter.server import app
-from tests.constants import TEST_DS, TEST_PROJECT, TEST_ANALYSIS
+from tests.constants import TEST_ANALYSIS, TEST_DS, TEST_PROJECT
 from tests.pseudo_auth import BearerAuth
 
 
 @pytest.fixture(scope="session")
 def test_client():
     """Test API client."""
+    from hub_adapter.server import app
+
     with TestClient(app) as test_client:
         yield test_client
 
@@ -41,12 +43,7 @@ def setup_kong(test_client, test_token):
     test_project_link = {
         "data_store_id": TEST_DS,
         "project_id": TEST_PROJECT,
-        "methods": [
-            "GET",
-            "POST",
-            "PUT",
-            "DELETE"
-        ],
+        "methods": ["GET", "POST", "PUT", "DELETE"],
         "ds_type": "fhir",
         "protocols": ["http"],
     }

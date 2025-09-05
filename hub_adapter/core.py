@@ -12,8 +12,8 @@ from httpx import ConnectError, DecodingError, HTTPStatusError, ReadTimeout
 from starlette.responses import FileResponse, Response
 
 from hub_adapter import post_processing, pre_processing
-from hub_adapter.conf import hub_adapter_settings
 from hub_adapter.constants import CONTENT_TYPE
+from hub_adapter.dependencies import get_settings
 from hub_adapter.utils import (
     create_request_data,
     unzip_body_object,
@@ -226,7 +226,7 @@ def route(
 
             request_data = create_request_data(form=request_form, body=request_body)  # Either JSON or Form
 
-            microsvc_path = f"{service_url}{downstream_path.removeprefix(hub_adapter_settings.API_ROOT_PATH)}"
+            microsvc_path = f"{service_url}{downstream_path.removeprefix(get_settings().API_ROOT_PATH)}"
 
             try:
                 resp_data, status_code_from_service = await make_request(

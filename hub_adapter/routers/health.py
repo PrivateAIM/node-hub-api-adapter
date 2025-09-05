@@ -1,14 +1,16 @@
 """EPs for checking the API health and the health of the downstream microservices."""
 
 import logging
+from typing import Annotated
 
 import httpx
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from httpx import ConnectError
 from starlette import status
 
-from hub_adapter.conf import hub_adapter_settings
-from hub_adapter.models.health import HealthCheck, DownstreamHealthCheck
+from hub_adapter.conf import Settings
+from hub_adapter.dependencies import get_settings
+from hub_adapter.models.health import DownstreamHealthCheck, HealthCheck
 
 health_router = APIRouter(
     tags=["Health"],
@@ -44,7 +46,7 @@ def get_health() -> HealthCheck:
     status_code=status.HTTP_200_OK,
     response_model=DownstreamHealthCheck,
 )
-def get_health_downstream_services():
+def get_health_downstream_services(hub_adapter_settings: Annotated[Settings, Depends(get_settings)]):
     """Return the health of the downstream microservices."""
     health_eps = {
         "po": hub_adapter_settings.PODORC_SERVICE_URL.rstrip("/") + "/po/healthz",

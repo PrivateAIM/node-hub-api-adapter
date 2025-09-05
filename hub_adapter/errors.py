@@ -90,7 +90,7 @@ def catch_kong_errors(f):
             return await f(*args, **kwargs)
 
         except ApiException as e:
-            logger.error(e)
+            logger.error(f"Kong error: {e}")
             raise HTTPException(
                 status_code=e.status,
                 detail={
@@ -102,7 +102,7 @@ def catch_kong_errors(f):
             ) from e
 
         except MaxRetryError as e:
-            logger.error(e)
+            logger.error(f"Kong error: {e}")
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail={
@@ -114,7 +114,7 @@ def catch_kong_errors(f):
             ) from e
 
         except HTTPException as http_error:
-            logger.error(http_error)
+            logger.error(f"Kong error: {http_error}")
             raise http_error
 
         except Exception as e:
