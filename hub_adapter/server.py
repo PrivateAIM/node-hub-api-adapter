@@ -1,6 +1,7 @@
 """Methods for verifying auth."""
 
 import asyncio
+import logging
 import os
 
 import uvicorn
@@ -15,6 +16,8 @@ from hub_adapter.routers.hub import hub_router
 from hub_adapter.routers.kong import kong_router
 from hub_adapter.routers.podorc import po_router
 from hub_adapter.routers.results import results_router
+
+logger = logging.getLogger(__name__)
 
 # API metadata
 tags_metadata = [
@@ -68,9 +71,9 @@ for router in routers:
     app.include_router(router)
 
 
-async def run_server():
+async def run_server(host: str, port: int, reload: bool):
     """Start the hub adapter API server."""
-    config = uvicorn.Config(app, host="127.0.0.1", port=8081, reload=False, log_config=None)
+    config = uvicorn.Config(app, host=host, port=port, reload=reload)
     server = uvicorn.Server(config)
     await server.serve()
 
@@ -89,11 +92,12 @@ async def headless_probing(interval: int = 60):
         await asyncio.sleep(interval)
 
 
-async def main():
+async def deploy(host: str = "127.0.0.1", port: int = 8081, reload: bool = False):
     # Run both tasks concurrently
-    tasks = [asyncio.create_task(run_server())]
+    tasks = [asyncio.create_task(run_server(host, port, reload))]
 
     headless: bool = os.getenv("HEADLESS", "False").lower() in ("true", "1", "yes")
+    logger.info(f"Headless enabled: {headless}")
     headless_interval: int = int(os.getenv("HEADLESS_INTERVAL", "60"))
 
     if headless:
@@ -104,4 +108,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(deploy())

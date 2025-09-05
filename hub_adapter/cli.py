@@ -1,17 +1,17 @@
 """Command line interface."""
 
+import asyncio
 import logging
 import sys
 
 import click
-import uvicorn
+
+from hub_adapter.server import deploy
 
 logger = logging.getLogger(__name__)
 
 
-@click.group(
-    help="FLAME API Gateway Command Line Utilities on {}".format(sys.executable)
-)
+@click.group(help=f"FLAME API Gateway Command Line Utilities on {sys.executable}")
 @click.version_option()
 def main():
     """Entry method."""
@@ -24,7 +24,7 @@ def main():
 @click.option("-r", "--reload", is_flag=True, default=False, help="Enable reload")
 def serve(host, port, reload):
     """Start the API RESTful server."""
-    uvicorn.run("hub_adapter.server:app", host=host, port=int(port), reload=reload)
+    asyncio.run(deploy(host=host, port=int(port), reload=reload))
 
 
 if __name__ == "__main__":
