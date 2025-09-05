@@ -129,7 +129,7 @@ async def delete_data_store(
 
     # Delete related projects and analyses first, data_store_name is same as associated project in kong (route)
     # {ProjectUUID}-{datastore type}
-    await delete_route(project_route_id=data_store_name)
+    await delete_route(hub_adapter_settings=hub_adapter_settings, project_route_id=data_store_name)
 
     # Delete data store
     with kong_admin_client.ApiClient(configuration) as api_client:
