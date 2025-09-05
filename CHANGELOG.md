@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.2.11](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.2.10...v0.2.11) (2025-09-05)
+
+
+### Features
+
+* **headless:** add ability to define probe interval via env var ([c497096](https://github.com/PrivateAIM/node-hub-api-adapter/commit/c497096d81b6138b81c00a177e3817cbd7e130a7))
+* **headless:** add env var to toggle headless ([1fd690f](https://github.com/PrivateAIM/node-hub-api-adapter/commit/1fd690f8865ce62d9a236b376fdccea211ca956c))
+* **ssl:** add ability to provide additional certificates ([764026e](https://github.com/PrivateAIM/node-hub-api-adapter/commit/764026e50a3a93dc21e791b5f994ada1d9b0881b))
+
+
+### Bug Fixes
+
+* **headless:** working analysis start and improved try/except ([79c7970](https://github.com/PrivateAIM/node-hub-api-adapter/commit/79c7970a009cb8be832b5f4fe8d1709a6c5a5dd2))
+* **kong:** add missing dependency injection ([0ac11ef](https://github.com/PrivateAIM/node-hub-api-adapter/commit/0ac11ef236ead454e6987a5cf4fc3bfd6efab676))
+
+
+### Documentation
+
+* **logs:** fixed a mistake in the logs ([8992b8f](https://github.com/PrivateAIM/node-hub-api-adapter/commit/8992b8f2139f384992e44af18d81365292514cfc))
+* **ssl:** add EXTRA_CA_CERTS env var to README ([386e815](https://github.com/PrivateAIM/node-hub-api-adapter/commit/386e81504ef5a3200340c6c2a47a668a18d8c935))
+
 ## [0.2.10](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.2.9...v0.2.10) (2025-08-25)
 
 
