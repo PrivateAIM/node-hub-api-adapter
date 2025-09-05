@@ -144,6 +144,11 @@ async def delete_data_store(
         return status.HTTP_200_OK
 
 
+@kong_router.post(
+    "/datastore",
+    response_model=Service,
+    status_code=status.HTTP_201_CREATED,
+)
 @catch_kong_errors
 async def create_service(
     hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
@@ -177,17 +182,11 @@ async def create_service(
         return api_response
 
 
-@kong_router.post(
-    "/datastore",
-    response_model=Service,
-    status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(create_service)],
+@kong_router.get(
+    "/project",
+    response_model=ListRoutes,
+    status_code=status.HTTP_200_OK,
 )
-async def create_data_store():
-    """Create a datastore (referred to as services by kong) by providing necessary metadata."""
-    return status.HTTP_201_CREATED
-
-
 @catch_kong_errors
 async def list_projects(
     hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
@@ -209,7 +208,7 @@ async def list_projects(
         api_response = api_instance.list_route(tags=project)
 
         if len(api_response.data) == 0:
-            logger.info("No routes found.")
+            logger.debug("Kong: No routes (projects) found.")
 
         if detailed:
             service_api_instance = kong_admin_client.ServicesApi(api_client)
@@ -230,19 +229,10 @@ async def list_projects(
         return api_response
 
 
-@kong_router.get(
+@kong_router.post(
     "/project",
-    response_model=ListRoutes,
-    status_code=status.HTTP_200_OK,
+    response_model=LinkDataStoreProject,
 )
-async def get_projects(projects: Annotated[ListRoutes, Depends(list_projects)]):
-    """List all projects (referred to as routes by kong) available, can be filtered by project_id.
-
-    Set "detailed" to True to include detailed information on the linked data stores.
-    """
-    return projects
-
-
 @catch_kong_errors
 async def create_route_to_datastore(
     hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
@@ -311,21 +301,12 @@ async def create_route_to_datastore(
 
 
 @kong_router.post(
-    "/project",
-    response_model=LinkDataStoreProject,
-)
-async def create_project_and_connect_to_datastore(
-    proj_link_response: Annotated[LinkDataStoreProject, Depends(create_route_to_datastore)],
-):
-    """Connect a project (referred to as a route by kong) to an existing data store."""
-    return proj_link_response
-
-
-@kong_router.post(
     "/initialize",
     response_model=LinkDataStoreProject,
 )
+@catch_kong_errors
 async def create_datastore_and_project_with_link(
+    hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
     datastore: Annotated[Service, Depends(create_service)],
     project_id: Annotated[uuid.UUID, Body(description="UUID of the project")],
     methods: Annotated[list[HttpMethodCode], Body(description="List of acceptable HTTP methods")] = ["GET"],
@@ -337,6 +318,7 @@ async def create_datastore_and_project_with_link(
 ):
     """Creates a new datastore (service) and a new project (route), then links them together."""
     proj_response = await create_route_to_datastore(
+        hub_adapter_settings=hub_adapter_settings,
         project_id=project_id,
         data_store_id=datastore.id,
         methods=methods,
@@ -346,6 +328,11 @@ async def create_datastore_and_project_with_link(
     return proj_response
 
 
+@kong_router.delete(
+    "/project/{project_id}",
+    status_code=status.HTTP_200_OK,
+    response_model=DeleteProject,
+)
 @catch_kong_errors
 async def delete_route(
     hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
@@ -372,15 +359,6 @@ async def delete_route(
         logger.info(f"Project {route.id} disconnected from data store {route.service.id}")
 
         return DeleteProject(removed=route, status=status.HTTP_200_OK)
-
-
-@kong_router.delete(
-    "/project/{project_id}",
-    status_code=status.HTTP_200_OK,
-    response_model=DeleteProject,
-)
-async def delete_project(proj_delete_response: Annotated[DeleteProject, Depends(delete_route)]):
-    return proj_delete_response
 
 
 @kong_router.get(
