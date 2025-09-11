@@ -59,8 +59,17 @@ def get_flame_hub_auth_flow(
         uuid.UUID(robot_id)
 
     except ValueError:
-        logger.error(f"Invalid robot ID: {robot_id}")
-        raise ValueError(f"Invalid robot ID: {robot_id}") from ValueError
+        err_msg = f"Invalid robot ID: {robot_id}"
+        logger.error(err_msg)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "message": err_msg,
+                "service": "Hub",
+                "status_code": status.HTTP_400_BAD_REQUEST,
+            },
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from ValueError
 
     auth = RobotAuth(
         robot_id=robot_id,
