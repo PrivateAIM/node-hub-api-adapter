@@ -140,13 +140,16 @@ async def delete_data_store(
 
     # Delete related projects and analyses first, data_store_name is same as associated project in kong (route)
     # {ProjectUUID}-{datastore type}
-    await delete_route(hub_adapter_settings=hub_adapter_settings, project_route_id=data_store_name)
+    try:
+        await delete_route(hub_adapter_settings=hub_adapter_settings, project_route_id=data_store_name)
+
+    except HTTPException:
+        logger.info(f"No routes for service {data_store_name} found")
 
     # Delete data store
     with kong_admin_client.ApiClient(configuration) as api_client:
         svc_api = kong_admin_client.ServicesApi(api_client)
 
-        # Can't delete by svc name so have to get svc ID
         svc = svc_api.get_service(service_id_or_name=data_store_name)
         svc_api.delete_service(service_id_or_name=svc.id)
 
@@ -258,9 +261,9 @@ async def create_route_to_datastore(
 ):
     """Connect a project to a data store (referred to as a route by kong)."""
     configuration = kong_admin_client.Configuration(host=hub_adapter_settings.KONG_ADMIN_SERVICE_URL)
-    ds_type = ds_type.value
-    methods = [method.value for method in methods]
-    protocols = [protocol.value for protocol in protocols]
+    ds_type = ds_type.value if isinstance(ds_type, DataStoreType) else ds_type
+    methods = [method.value if isinstance(method, HttpMethodCode) else method for method in methods]
+    protocols = [protocol.value if isinstance(protocol, ProtocolCode) else protocol for protocol in protocols]
 
     # Construct path from project_id and type
     project = str(project_id)
@@ -354,7 +357,7 @@ async def create_datastore_and_project_with_link(
 
 
 @kong_router.delete(
-    "/project/{project_id}",
+    "/project/{project_route_id}",
     status_code=status.HTTP_200_OK,
     response_model=DeleteProject,
 )
@@ -554,7 +557,7 @@ async def test_connection(
         raise KongConsumerApiKeyError
 
 
-def probe_data_service(url: str, apikey: str, is_fhir: bool, attempt: int = 1, max_attempts: int = 5) -> int:
+def probe_data_service(url: str, apikey: str, is_fhir: bool, attempt: int = 1, max_attempts: int = 4) -> int:
     """Use httpx to probe the data service."""
     svc_resp = httpx.get(
         url,
