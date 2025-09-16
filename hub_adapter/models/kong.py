@@ -18,11 +18,11 @@ from kong_admin_client import (
 from pydantic import BaseModel, constr
 
 
-class DataStoreType(Enum):
+class DataStoreType(str, Enum):
     """Data store types."""
 
-    S3: str = "s3"
-    FHIR: str = "fhir"
+    S3 = "s3"
+    FHIR = "fhir"
 
 
 class ServiceRequest(CreateServiceRequest):

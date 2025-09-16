@@ -13,6 +13,75 @@ from urllib3.exceptions import MaxRetryError
 logger = logging.getLogger(__name__)
 
 
+class KongError(HTTPException):
+    pass
+
+
+class BucketError(KongError):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "message": "Bucket does not exist or is set to private",
+                "service": "MinIO",
+                "status_code": status.HTTP_403_FORBIDDEN,
+            },
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+class KongGatewayError(KongError):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={
+                "message": "Unable to contact upstream service, likely an incorrect port",
+                "service": "Kong",
+                "status_code": status.HTTP_502_BAD_GATEWAY,
+            },
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+class FhirServerError(KongError):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "message": "FHIR server name resolution failed",
+                "service": "FHIR",
+                "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
+            },
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+class FhirEndpointError(KongError):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "message": "FHIR endpoint not found, check path",
+                "service": "FHIR",
+                "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
+            },
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+class KongConsumerApiKeyError(KongError):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "message": "Unable to obtain API key for health consumer",
+                "service": "Kong",
+                "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
+            },
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
 def catch_hub_errors(f):
     """Custom error handling decorator for flame_hub_client."""
 
@@ -112,6 +181,10 @@ def catch_kong_errors(f):
                 },
                 headers={"WWW-Authenticate": "Bearer"},
             ) from e
+
+        except KongError as e:
+            logger.error(f"Kong error: {e}")
+            raise e
 
         except HTTPException as http_error:
             logger.error(f"Kong error: {http_error}")
