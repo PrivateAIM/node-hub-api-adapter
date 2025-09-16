@@ -170,12 +170,12 @@ async def create_service(
             title="Data store metadata.",
         ),
     ],
-    ds_type: Annotated[str, Body(description="Data store type. Either 's3' or 'fhir'")],
+    ds_type: Annotated[DataStoreType, Body(description="Data store type. Either 's3' or 'fhir'")],
 ) -> Service:
     """Create a datastore (referred to as services by kong) by providing necessary metadata."""
     configuration = kong_admin_client.Configuration(host=hub_adapter_settings.KONG_ADMIN_SERVICE_URL)
 
-    datastore_name = f"{datastore.name}-{ds_type}"
+    datastore_name = f"{datastore.name}-{ds_type.value}"
 
     with kong_admin_client.ApiClient(configuration) as api_client:
         api_instance = kong_admin_client.ServicesApi(api_client)
@@ -254,10 +254,13 @@ async def create_route_to_datastore(
         list[ProtocolCode],
         Body(description="List of acceptable transfer protocols. A combo of 'http', 'grpc', 'grpcs', 'tls', 'tcp'"),
     ] = ["http"],
-    ds_type: Annotated[str, Body(description="Data store type. Either 's3' or 'fhir'")] = "fhir",
+    ds_type: Annotated[DataStoreType, Body(description="Data store type. Either 's3' or 'fhir'")] = "fhir",
 ):
     """Connect a project to a data store (referred to as a route by kong)."""
     configuration = kong_admin_client.Configuration(host=hub_adapter_settings.KONG_ADMIN_SERVICE_URL)
+    ds_type = ds_type.value
+    methods = [method.value for method in methods]
+    protocols = [protocol.value for protocol in protocols]
 
     # Construct path from project_id and type
     project = str(project_id)
@@ -325,7 +328,7 @@ async def create_datastore_and_project_with_link(
         list[ProtocolCode],
         Body(description="List of acceptable transfer protocols. A combo of 'http', 'grpc', 'grpcs', 'tls', 'tcp'"),
     ] = ["http"],
-    ds_type: Annotated[str, Body(description="Data store type. Either 's3' or 'fhir'")] = DataStoreType.FHIR,
+    ds_type: Annotated[DataStoreType, Body(description="Data store type. Either 's3' or 'fhir'")] = DataStoreType.FHIR,
 ):
     """Creates a new datastore (service) and a new project (route), then links them together with a health consumer."""
     proj_response = await create_route_to_datastore(
@@ -342,7 +345,9 @@ async def create_datastore_and_project_with_link(
 
     except HTTPException as error:  # if connection fails, delete service and route, then raise error
         logger.error("Failed to validate connection to datastore, deleting service and route")
-        await delete_data_store(hub_adapter_settings=hub_adapter_settings, data_store_name=f"{project_id}-{ds_type}")
+        await delete_data_store(
+            hub_adapter_settings=hub_adapter_settings, data_store_name=f"{project_id}-{ds_type.value}"
+        )
         raise error
 
     return proj_response
@@ -488,7 +493,7 @@ async def create_and_connect_analysis_to_project(
 async def test_connection(
     hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
     project_id: Annotated[str | uuid.UUID, Path(description="UUID or unique name of the project.")],
-    ds_type: Annotated[str, Path(description='Either "fhir" or "s3"')],
+    ds_type: Annotated[DataStoreType, Path(description='Either "fhir" or "s3"')],
 ):
     """Test whether Kong can read the requested data source.
 
@@ -505,7 +510,7 @@ async def test_connection(
         )
 
     configuration = kong_admin_client.Configuration(host=hub_adapter_settings.KONG_ADMIN_SERVICE_URL)
-    route_id = f"{project_id}-{ds_type.lower()}"
+    route_id = f"{project_id}-{ds_type.value}"
     apikey = None
 
     # Get API key for project (route) health consumer and route info
@@ -549,17 +554,18 @@ async def test_connection(
         raise KongConsumerApiKeyError
 
 
-def probe_data_service(url: str, apikey: str, is_fhir: bool, attempt: int = 1, max_attempts: int = 3) -> int:
+def probe_data_service(url: str, apikey: str, is_fhir: bool, attempt: int = 1, max_attempts: int = 5) -> int:
     """Use httpx to probe the data service."""
     svc_resp = httpx.get(
         url,
         headers={"apikey": apikey},
     )
     if svc_resp.status_code != 200:
-        if attempt < max_attempts:  # Sometimes it takes a bit for kong to finish creating a route/service
+        if attempt <= max_attempts:  # Sometimes it takes a bit for kong to finish creating a route/service
             time.sleep(attempt)  # Wait a little longer each attempt
             return probe_data_service(url=url, apikey=apikey, is_fhir=is_fhir, attempt=attempt + 1)
 
+        logger.error(f"Unable to connect to data service after {attempt - 1} attempt(s)")
         if svc_resp.status_code == status.HTTP_403_FORBIDDEN and not is_fhir:
             raise BucketError
 
@@ -583,7 +589,7 @@ def probe_data_service(url: str, apikey: str, is_fhir: bool, attempt: int = 1, m
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-    logger.info(f"Successfully able to reach data store after {attempt} attempts")
+    logger.info(f"Successfully able to reach data service after {attempt} attempt(s)")
     return status.HTTP_200_OK
 
 

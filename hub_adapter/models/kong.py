@@ -15,7 +15,7 @@ from kong_admin_client import (
     RouteService,
     Service,
 )
-from pydantic import BaseModel, constr
+from pydantic import BaseModel
 
 
 class DataStoreType(str, Enum):
@@ -23,6 +23,31 @@ class DataStoreType(str, Enum):
 
     S3 = "s3"
     FHIR = "fhir"
+
+
+class HttpMethodCode(str, Enum):
+    """HTTP method codes."""
+
+    GET = "GET"
+    POST = "POST"
+    PUT = "PUT"
+    PATCH = "PATCH"
+    DELETE = "DELETE"
+    OPTIONS = "OPTIONS"
+    HEAD = "HEAD"
+    CONNECT = "CONNECT"
+    TRACE = "TRACE"
+    CUSTOM = "CUSTOM"
+
+
+class ProtocolCode(str, Enum):
+    """Protocol codes."""
+
+    HTTP = "http"
+    GRPC = "grpc"
+    GRPCS = "grpcs"
+    TLS = "tls"
+    TCP = "tcp"
 
 
 class ServiceRequest(CreateServiceRequest):
@@ -108,7 +133,3 @@ class DeleteProject(BaseModel):
 
     removed: Route | None
     status: int | None = None
-
-
-HttpMethodCode = constr(pattern=r"(GET|POST|PUT|PATCH|DELETE|OPTIONS|HEAD|CONNECT|TRACE|CUSTOM)")
-ProtocolCode = constr(pattern=r"(http|grpc|grpcs|tls|tcp)")
