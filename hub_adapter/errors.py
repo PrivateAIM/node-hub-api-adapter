@@ -13,6 +13,34 @@ from urllib3.exceptions import MaxRetryError
 logger = logging.getLogger(__name__)
 
 
+class ProxyError(HTTPException):
+    pass
+
+
+class HubTimeoutError(HTTPException):
+    pass
+
+
+class HubConnectError(HTTPException):
+    pass
+
+
+class KongError(HTTPException):
+    pass
+
+
+class KongTimeoutError(HTTPException):
+    pass
+
+
+class KongConnectError(HTTPException):
+    pass
+
+
+class KongConflictError(HTTPException):
+    pass
+
+
 def catch_hub_errors(f):
     """Custom error handling decorator for flame_hub_client."""
 
@@ -22,10 +50,10 @@ def catch_hub_errors(f):
         try:
             return await f(*args, **kwargs)
 
-        except httpx.ProxyError:
+        except httpx.ProxyError as e:
             err = "Proxy Error - Unable to contact the Hub"
             logger.error(err)
-            raise HTTPException(
+            raise ProxyError(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={
                     "message": err,
@@ -33,7 +61,7 @@ def catch_hub_errors(f):
                     "status_code": status.HTTP_400_BAD_REQUEST,
                 },
                 headers={"WWW-Authenticate": "Bearer"},
-            )
+            ) from e
 
         except HubAPIError as err:
             resp_error = err.error_response
@@ -41,7 +69,7 @@ def catch_hub_errors(f):
             if type(resp_error) is httpx.ConnectTimeout:
                 err = "Connection Timeout - Hub is currently unreachable"
                 logger.error(err)
-                raise HTTPException(
+                raise HubTimeoutError(
                     status_code=status.HTTP_408_REQUEST_TIMEOUT,
                     detail={
                         "message": err,
@@ -54,7 +82,7 @@ def catch_hub_errors(f):
             elif type(resp_error) is httpx.ConnectError:
                 err = "Connection Error - Hub is currently unreachable"
                 logger.error(err)
-                raise HTTPException(
+                raise HubConnectError(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                     detail={
                         "message": err,
@@ -90,20 +118,46 @@ def catch_kong_errors(f):
             return await f(*args, **kwargs)
 
         except ApiException as e:
-            logger.error(f"Kong error: {e}")
-            raise HTTPException(
-                status_code=e.status,
-                detail={
-                    "message": e.reason,
-                    "service": svc,
-                    "status_code": e.status,
-                },
-                headers={"WWW-Authenticate": "Bearer"},
-            ) from e
+            if e.status == status.HTTP_409_CONFLICT:
+                err = "Kong consumer conflict"
+                logger.error(err)
+                raise KongConflictError(
+                    status_code=e.status,
+                    detail={
+                        "message": err,
+                        "service": svc,
+                        "status_code": e.status,
+                    },
+                    headers={"WWW-Authenticate": "Bearer"},
+                ) from e
+
+            elif e.status == status.HTTP_404_NOT_FOUND:
+                logger.error("Kong service not found")
+                raise KongConnectError(
+                    status_code=e.status,
+                    detail={
+                        "message": e.reason,
+                        "service": svc,
+                        "status_code": e.status,
+                    },
+                    headers={"WWW-Authenticate": "Bearer"},
+                ) from e
+
+            else:
+                logger.error(f"Kong error: {e}")
+                raise KongError(
+                    status_code=e.status,
+                    detail={
+                        "message": e.reason,
+                        "service": svc,
+                        "status_code": e.status,
+                    },
+                    headers={"WWW-Authenticate": "Bearer"},
+                ) from e
 
         except MaxRetryError as e:
             logger.error(f"Kong error: {e}")
-            raise HTTPException(
+            raise KongTimeoutError(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail={
                     "message": "Kong service unavailable",

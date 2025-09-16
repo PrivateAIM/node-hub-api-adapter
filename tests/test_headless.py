@@ -192,7 +192,7 @@ class TestHeadless:
 
         # Working
         mock_request.return_value = {"status": "running"}, status.HTTP_201_CREATED
-        pod_resp, status_code = await self.analyzer.start_analysis_pod(sim_input, "fakeKongToken")
+        pod_resp, status_code = await self.analyzer.send_start_request(sim_input, "fakeKongToken")
         assert mock_logger.info.call_count == 2
         mock_logger.info.assert_called_with(f"Analysis start response for {TEST_MOCK_ANALYSIS_ID}: running")
         assert pod_resp == {"status": "running"}
@@ -202,7 +202,7 @@ class TestHeadless:
         mock_request.side_effect = HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="she's dead jim"
         )
-        pod_failed_resp = await self.analyzer.start_analysis_pod(sim_input, "fakeKongToken")
+        pod_failed_resp = await self.analyzer.send_start_request(sim_input, "fakeKongToken")
         assert mock_logger.error.call_count == 1
         mock_logger.error.assert_called_with(
             f"Unable to start analysis {TEST_MOCK_ANALYSIS_ID} due to the following error: 503: she's dead jim"

@@ -14,6 +14,7 @@ from hub_adapter.routers.auth import auth_router
 from hub_adapter.routers.health import health_router
 from hub_adapter.routers.hub import hub_router
 from hub_adapter.routers.kong import kong_router
+from hub_adapter.routers.meta import meta_router
 from hub_adapter.routers.podorc import po_router
 from hub_adapter.routers.results import results_router
 
@@ -22,14 +23,15 @@ logger = logging.getLogger(__name__)
 # API metadata
 tags_metadata = [
     {"name": "Auth", "description": "Endpoints for authorization specific tasks."},
+    {"name": "Meta", "description": "Custom Hub Adapter endpoints which combine endpoints from other APIs."},
     {
         "name": "Health",
         "description": "Endpoints for checking the health of this API and the downstream services.",
     },
-    {"name": "Hub", "description": "Endpoints for the central Hub service."},
+    {"name": "Hub", "description": "Gateway endpoints for the central Hub service."},
     {"name": "Kong", "description": "Endpoints for the Kong gateway service."},
-    {"name": "PodOrc", "description": "Endpoints for the Pod Orchestration service."},
-    {"name": "Results", "description": "Endpoints for the Results service."},
+    {"name": "PodOrc", "description": "Gateway endpoints for the Pod Orchestration service."},
+    {"name": "Results", "description": "Gateway endpoints for the Results service."},
 ]
 
 app = FastAPI(
@@ -60,6 +62,7 @@ app.add_middleware(
 
 routers = (
     po_router,
+    meta_router,
     results_router,
     hub_router,
     kong_router,
