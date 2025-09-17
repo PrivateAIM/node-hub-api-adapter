@@ -26,9 +26,9 @@ from hub_adapter.dependencies import get_settings
 from hub_adapter.errors import (
     BucketError,
     FhirEndpointError,
-    FhirServerError,
     KongConsumerApiKeyError,
     KongGatewayError,
+    KongServiceError,
     catch_kong_errors,
 )
 from hub_adapter.models.kong import (
@@ -55,7 +55,7 @@ kong_router = APIRouter(
 )
 
 logger = logging.getLogger(__name__)
-REALM = "flame"
+FLAME = "flame"
 
 
 def parse_project_info(services, client) -> dict:
@@ -402,7 +402,7 @@ async def get_analyses(
 ):
     """List all analyses (referred to as consumers by kong) available, can be filtered by analysis_id."""
     configuration = kong_admin_client.Configuration(host=hub_adapter_settings.KONG_ADMIN_SERVICE_URL)
-    username = f"{analysis_id}-{REALM}"
+    username = f"{analysis_id}-{FLAME}"
 
     with kong_admin_client.ApiClient(configuration) as api_client:
         consumer_api = kong_admin_client.ConsumersApi(api_client)
@@ -449,7 +449,7 @@ async def create_and_connect_analysis_to_project(
 
     configuration = kong_admin_client.Configuration(host=hub_adapter_settings.KONG_ADMIN_SERVICE_URL)
     response = {}
-    username = f"{analysis_id}-{REALM}"
+    username = f"{analysis_id}-{FLAME}"
 
     with kong_admin_client.ApiClient(configuration) as api_client:
         consumer_api = kong_admin_client.ConsumersApi(api_client)
@@ -519,7 +519,7 @@ async def test_connection(
     # Get API key for project (route) health consumer and route info
     with kong_admin_client.ApiClient(configuration) as api_client:
         # Check if health consumer exists for route/project
-        health_consumer_id = f"{route_id}-health-flame"
+        health_consumer_id = f"{route_id}-health-{FLAME}"
         consumer_api = kong_admin_client.ConsumersApi(api_client)
 
         try:
@@ -563,8 +563,10 @@ def probe_data_service(url: str, apikey: str, is_fhir: bool, attempt: int = 1, m
         url,
         headers={"apikey": apikey},
     )
+    svc = "FHIR" if is_fhir else "S3"
     if svc_resp.status_code != 200:
-        if attempt <= max_attempts:  # Sometimes it takes a bit for kong to finish creating a route/service
+        # Sometimes it takes a bit for kong to finish creating a route/service
+        if svc_resp.status_code == status.HTTP_404_NOT_FOUND and attempt <= max_attempts:
             time.sleep(attempt)  # Wait a little longer each attempt
             return probe_data_service(url=url, apikey=apikey, is_fhir=is_fhir, attempt=attempt + 1)
 
@@ -572,14 +574,14 @@ def probe_data_service(url: str, apikey: str, is_fhir: bool, attempt: int = 1, m
         if svc_resp.status_code == status.HTTP_403_FORBIDDEN and not is_fhir:
             raise BucketError
 
-        elif svc_resp.status_code == status.HTTP_503_SERVICE_UNAVAILABLE and is_fhir:
-            raise FhirServerError
+        elif svc_resp.status_code == status.HTTP_503_SERVICE_UNAVAILABLE:
+            raise KongServiceError(server_type=svc)
 
         elif svc_resp.status_code == status.HTTP_404_NOT_FOUND and is_fhir:
             raise FhirEndpointError
 
         elif svc_resp.status_code == status.HTTP_502_BAD_GATEWAY:
-            raise KongGatewayError
+            raise KongGatewayError(server_type=svc)
 
         else:
             raise HTTPException(
@@ -604,7 +606,7 @@ async def delete_analysis(
 ):
     """Delete the listed analysis."""
     configuration = kong_admin_client.Configuration(host=hub_adapter_settings.KONG_ADMIN_SERVICE_URL)
-    username = f"{analysis_id}-{REALM}"
+    username = f"{analysis_id}-{FLAME}"
 
     with kong_admin_client.ApiClient(configuration) as api_client:
         consumer_api = kong_admin_client.ConsumersApi(api_client)

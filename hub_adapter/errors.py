@@ -31,25 +31,25 @@ class BucketError(KongError):
 
 
 class KongGatewayError(KongError):
-    def __init__(self):
+    def __init__(self, server_type: str):
         super().__init__(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail={
-                "message": "Unable to contact upstream service, likely an incorrect port",
-                "service": "Kong",
+                "message": f"Unable to contact the {server_type} service, likely an incorrect port",
+                "service": server_type,
                 "status_code": status.HTTP_502_BAD_GATEWAY,
             },
             headers={"WWW-Authenticate": "Bearer"},
         )
 
 
-class FhirServerError(KongError):
-    def __init__(self):
+class KongServiceError(KongError):
+    def __init__(self, server_type: str):
         super().__init__(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail={
-                "message": "FHIR server name resolution failed",
-                "service": "FHIR",
+                "message": f"{server_type} server name resolution failed",
+                "service": server_type,
                 "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
             },
             headers={"WWW-Authenticate": "Bearer"},
@@ -61,7 +61,7 @@ class FhirEndpointError(KongError):
         super().__init__(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail={
-                "message": "FHIR endpoint not found, check path",
+                "message": "FHIR endpoint not found, check the data path",
                 "service": "FHIR",
                 "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
             },
@@ -72,11 +72,11 @@ class FhirEndpointError(KongError):
 class KongConsumerApiKeyError(KongError):
     def __init__(self):
         super().__init__(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail={
                 "message": "Unable to obtain API key for health consumer",
                 "service": "Kong",
-                "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
+                "status_code": status.HTTP_404_NOT_FOUND,
             },
             headers={"WWW-Authenticate": "Bearer"},
         )
