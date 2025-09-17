@@ -30,7 +30,8 @@ IDP_URL="https://my.user.keycloak.com/realms/flame"  # URL to the IDP used for u
 API_ROOT_PATH=""  # Subpath to serve the API on    
 PODORC_SERVICE_URL="http://localhost:18080"  # URL to Pod Orchestration service
 RESULTS_SERVICE_URL="http://localhost:8000"  # URL to the Results service
-KONG_ADMIN_SERVICE_URL="http://localhost:8000"  # URL to the Kong gateway service
+KONG_ADMIN_SERVICE_URL="http://localhost:8000"  # URL to the Kong admin service
+KONG_PROXY_SERVICE_URL="http://localhost:8000"  # URL to the Kong proxy service
 HUB_AUTH_SERVICE_URL="https://auth.privateaim.dev"  # URL for auth EPs for the Hub
 HUB_SERVICE_URL="https://core.privateaim.dev"  # URL for project/analysis EPs for the Hub
 HUB_ROBOT_USER=""  # Robot UUID for a registered node
@@ -52,7 +53,8 @@ EXTRA_CA_CERTS=""  # Path to a concatenated file containing all of the additiona
 | API_ROOT_PATH          | Subpath to serve the API on                                                                                       |                             |          |
 | PODORC_SERVICE_URL     | URL to the pod orchestrator service                                                                               |                             |    x     |
 | RESULTS_SERVICE_URL    | URL to the Results service                                                                                        |                             |    x     |
-| KONG_ADMIN_SERVICE_URL | URL to the Kong gateway service                                                                                   |                             |    x     |
+| KONG_ADMIN_SERVICE_URL | URL to the Kong admin service                                                                                     |                             |    x     |
+| KONG_PROXY_SERVICE_URL | URL to the Kong proxy service                                                                                     |                             |    x     |
 | HUB_SERVICE_URL        | URL to the core Hub service                                                                                       | https://core.privateaim.dev |    x     |
 | HUB_AUTH_SERVICE_URL   | URL to the auth Hub service                                                                                       | https://auth.privateaim.dev |    x     |
 | HUB_ROBOT_USER         | Robot UUID for a registered node                                                                                  |                             |    x     |
