@@ -59,11 +59,11 @@ class KongServiceError(KongError):
 class FhirEndpointError(KongError):
     def __init__(self):
         super().__init__(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail={
                 "message": "FHIR endpoint not found, check the data path",
                 "service": "FHIR",
-                "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
+                "status_code": status.HTTP_404_NOT_FOUND,
             },
             headers={"WWW-Authenticate": "Bearer"},
         )

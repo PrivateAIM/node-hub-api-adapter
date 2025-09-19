@@ -1,12 +1,12 @@
 """Unit tests for the kong endpoints."""
-from http.client import HTTPException
-from unittest.mock import Mock, patch
+
+from unittest.mock import MagicMock, patch
 
 import pytest
-import starlette
+from fastapi import HTTPException
 from starlette import status
 
-from hub_adapter.errors import BucketError, KongError
+from hub_adapter.errors import BucketError, FhirEndpointError, KongError, KongGatewayError, KongServiceError
 from hub_adapter.routers.kong import FLAME, probe_data_service
 from tests.constants import DS_TYPE, TEST_MOCK_ANALYSIS_ID, TEST_MOCK_PROJECT_ID
 
@@ -121,15 +121,22 @@ class TestKongEndpoints:
 class TestConnection:
     """Tests for methods related to probing the connection via Kong."""
 
-    @patch("httpx.get")
-    def probe_data_service_test(self, mock_get, status: int, error_type: KongError):
-        """Test registering an analysis with kong."""
-        mock_response = Mock()
-        mock_response.status_code = status.HTTP_403_FORBIDDEN
-        mock_get.return_value = mock_response
+    @staticmethod
+    def probe_data_service_test(status_code: int, error_type: KongError, is_fhir: bool = False):
+        """Template unit test for testing various expected errors raised by probe_data_service."""
+        mock_response = MagicMock()
+        mock_response.status_code = status_code
 
-        with pytest.raises(BucketError) as bucket_error:
-            probe_data_service(url="fakeurl", apikey="fakekey", is_fhir=False, attempt=1)
+        with patch("httpx.get", return_value=mock_response), pytest.raises(error_type) as expected_error:
+            probe_data_service(url="fakeurl", apikey="fakekey", is_fhir=is_fhir, attempt=1, max_attempts=0)
 
-        assert bucket_error.type is BucketError
-        assert bucket_error.value.status_code == status.HTTP_403_FORBIDDEN
+        assert expected_error.type is error_type
+        assert expected_error.value.status_code == status_code
+
+    def test_probe_data_service(self):
+        """Actual unit test for probe_data_service."""
+        self.probe_data_service_test(status.HTTP_403_FORBIDDEN, BucketError)
+        self.probe_data_service_test(status.HTTP_503_SERVICE_UNAVAILABLE, KongServiceError)
+        self.probe_data_service_test(status.HTTP_404_NOT_FOUND, FhirEndpointError, is_fhir=True)
+        self.probe_data_service_test(status.HTTP_404_NOT_FOUND, HTTPException)
+        self.probe_data_service_test(status.HTTP_502_BAD_GATEWAY, KongGatewayError)
