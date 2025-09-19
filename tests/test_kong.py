@@ -1,14 +1,19 @@
 """Unit tests for the kong endpoints."""
+from http.client import HTTPException
+from unittest.mock import Mock, patch
 
+import pytest
+import starlette
 from starlette import status
 
-from hub_adapter.routers.kong import FLAME
+from hub_adapter.errors import BucketError, KongError
+from hub_adapter.routers.kong import FLAME, probe_data_service
 from tests.constants import DS_TYPE, TEST_MOCK_ANALYSIS_ID, TEST_MOCK_PROJECT_ID
 
 test_svc_name = test_route_name = f"{TEST_MOCK_PROJECT_ID}-{DS_TYPE}"
 
 
-class TestKong:
+class TestKongEndpoints:
     """Kong EP tests. Dependent on having a running instance of Kong and admin URL defined in ENV."""
 
     def test_list_data_stores(self, test_client, setup_kong, test_token):
@@ -111,3 +116,20 @@ class TestKong:
 
         d = test_client.delete(f"/kong/analysis/{TEST_MOCK_ANALYSIS_ID}", auth=test_token)
         assert d.status_code == status.HTTP_200_OK
+
+
+class TestConnection:
+    """Tests for methods related to probing the connection via Kong."""
+
+    @patch("httpx.get")
+    def probe_data_service_test(self, mock_get, status: int, error_type: KongError):
+        """Test registering an analysis with kong."""
+        mock_response = Mock()
+        mock_response.status_code = status.HTTP_403_FORBIDDEN
+        mock_get.return_value = mock_response
+
+        with pytest.raises(BucketError) as bucket_error:
+            probe_data_service(url="fakeurl", apikey="fakekey", is_fhir=False, attempt=1)
+
+        assert bucket_error.type is BucketError
+        assert bucket_error.value.status_code == status.HTTP_403_FORBIDDEN
