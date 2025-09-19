@@ -1,12 +1,13 @@
 """Test FastAPI app instance."""
 
+import os
 import time
 
 import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from tests.constants import TEST_ANALYSIS, TEST_DS, TEST_PROJECT
+from tests.constants import DS_TYPE, TEST_MOCK_PROJECT_ID, TEST_MOCK_ANALYSIS_ID
 from tests.pseudo_auth import BearerAuth
 
 
@@ -22,7 +23,9 @@ def test_client():
 @pytest.fixture(scope="package")
 def test_token(test_client) -> BearerAuth:
     """Get a new access token from the IDP."""
-    test_user, test_pwd = "flameuser", "flamepwd"
+    test_user, test_pwd = os.getenv("IDP_USER"), os.getenv("IDP_PWD")
+    assert test_user
+    assert test_pwd
 
     resp = test_client.post("/token", data={"username": test_user, "password": test_pwd})
     assert resp.status_code == httpx.codes.OK
@@ -34,35 +37,42 @@ def test_token(test_client) -> BearerAuth:
 def setup_kong(test_client, test_token):
     """Setup Kong instance with test data."""
     test_datastore = {
-        "name": TEST_DS,
-        "protocol": "http",
-        "host": "server.fire.ly",
-        "port": 80,
-        "path": "/mydefinedpath",
+        "datastore": {
+            "name": TEST_MOCK_PROJECT_ID,
+            "protocol": "http",
+            "host": "test.server",
+            "port": 80,
+            "path": "/fhir",
+        },
+        "ds_type": DS_TYPE,
     }
     test_project_link = {
-        "data_store_id": TEST_DS,
-        "project_id": TEST_PROJECT,
+        "data_store_id": f"{TEST_MOCK_PROJECT_ID}-{DS_TYPE}",
+        "project_id": TEST_MOCK_PROJECT_ID,
         "methods": ["GET", "POST", "PUT", "DELETE"],
-        "ds_type": "fhir",
+        "ds_type": DS_TYPE,
         "protocols": ["http"],
     }
 
-    test_client.post("/kong/datastore", auth=test_token, json=test_datastore)
-    test_client.post("/kong/datastore/project", auth=test_token, json=test_project_link)
+    try:
+        ds_resp = test_client.post("/kong/datastore", auth=test_token, json=test_datastore)
+        assert ds_resp.status_code == httpx.codes.CREATED
 
-    yield
+        route_resp = test_client.post("/kong/project", auth=test_token, json=test_project_link)
+        assert route_resp.status_code == httpx.codes.CREATED
 
-    test_client.put(f"/kong/disconnect/{TEST_PROJECT}", auth=test_token)
-    test_client.delete(f"/kong/datastore/{TEST_DS}", auth=test_token)
+        yield
+
+    finally:
+        test_client.delete(f"/kong/datastore/{TEST_MOCK_PROJECT_ID}-{DS_TYPE}", auth=test_token)
 
 
 @pytest.fixture(scope="module")
 def setup_po(test_client, test_token):
     """Setup pod orchestrator instance with test data."""
     test_pod = {
-        "analysis_id": TEST_ANALYSIS,
-        "project_id": TEST_PROJECT,
+        "analysis_id": TEST_MOCK_ANALYSIS_ID,
+        "project_id": TEST_MOCK_PROJECT_ID,
     }
 
     r = test_client.post("/po", auth=test_token, json=test_pod)
@@ -71,4 +81,4 @@ def setup_po(test_client, test_token):
 
     yield
 
-    test_client.delete(f"/po/{TEST_ANALYSIS}/delete", auth=test_token)
+    test_client.delete(f"/po/{TEST_MOCK_ANALYSIS_ID}/delete", auth=test_token)

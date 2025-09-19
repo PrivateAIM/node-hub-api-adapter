@@ -246,6 +246,7 @@ async def list_projects(
 @kong_router.post(
     "/project",
     response_model=LinkDataStoreProject,
+    status_code=status.HTTP_201_CREATED,
 )
 @catch_kong_errors
 async def create_route_to_datastore(
@@ -359,7 +360,7 @@ async def create_datastore_and_project_with_link(
 @kong_router.delete(
     "/project/{project_route_id}",
     status_code=status.HTTP_200_OK,
-    response_model=DeleteProject,
+    # response_model=DeleteProject,
 )
 @catch_kong_errors
 async def delete_route(

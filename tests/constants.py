@@ -1,8 +1,6 @@
 """String constants for tests."""
 
-TEST_DS = "unitTestDataStore"
-TEST_PROJECT = "unittestproject"  # Must be all lower case for podorc unittests
-TEST_ANALYSIS = "unittestanalysis"  # Must be all lower case for podorc unittests
+DS_TYPE = "fhir"
 
 TEST_MOCK_ANALYSIS_ID = "1c9cb547-4afc-4398-bcb6-954bc61a1bb1"
 TEST_MOCK_PROJECT_ID = "9cbefefe-2420-4b8e-8ac1-f48148a9fd40"

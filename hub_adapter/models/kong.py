@@ -55,7 +55,7 @@ class ServiceRequest(CreateServiceRequest):
 
     protocol: str | None = "http"
     port: int | None = 80
-    path: str | None = "/somewhere"
+    path: str
     client_certificate: CreateServiceRequestClientCertificate | None = None
     tls_verify: bool | None = None
     ca_certificates: list[str] | None = None
