@@ -15,7 +15,6 @@ from hub_adapter.routers.health import health_router
 from hub_adapter.routers.hub import hub_router
 from hub_adapter.routers.kong import kong_router
 from hub_adapter.routers.podorc import po_router
-from hub_adapter.routers.results import results_router
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +28,6 @@ tags_metadata = [
     {"name": "Hub", "description": "Endpoints for the central Hub service."},
     {"name": "Kong", "description": "Endpoints for the Kong gateway service."},
     {"name": "PodOrc", "description": "Endpoints for the Pod Orchestration service."},
-    {"name": "Results", "description": "Endpoints for the Results service."},
 ]
 
 app = FastAPI(
@@ -60,7 +58,6 @@ app.add_middleware(
 
 routers = (
     po_router,
-    results_router,
     hub_router,
     kong_router,
     health_router,
