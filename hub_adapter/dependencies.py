@@ -19,7 +19,7 @@ from starlette import status
 
 from hub_adapter import node_id_pickle_path
 from hub_adapter.conf import Settings
-from hub_adapter.errors import catch_hub_errors
+from hub_adapter.errors import HubConnectError, catch_hub_errors
 
 _node_type_cache = None
 
@@ -125,7 +125,21 @@ async def get_node_id(
     if robot_id not in node_cache:  # Node ID may be None since not every robot is associated with a node
         logger.info("NODE_ID not set for ROBOT_USER, retrieving from Hub")
 
-        node_id_resp = core_client.find_nodes(filter={"robot_id": robot_id}, fields="id")
+        try:
+            node_id_resp = core_client.find_nodes(filter={"robot_id": robot_id}, fields="id")
+
+        except httpx.ConnectError as e:
+            err = "Connection Error - Hub is currently unreachable"
+            logger.error(err)
+            raise HubConnectError(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail={
+                    "message": err,
+                    "service": "Hub",
+                    "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
+                },
+                headers={"WWW-Authenticate": "Bearer"},
+            ) from e
 
         if node_id_resp and len(node_id_resp) == 1:
             node_id = str(node_id_resp[0].id)  # convert UUID type to string
@@ -137,6 +151,7 @@ async def get_node_id(
     return node_id
 
 
+@catch_hub_errors
 async def get_node_type_cache(
     hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
@@ -151,7 +166,17 @@ async def get_node_type_cache(
             _node_type_cache = {"type": node_resp.type}
 
         except httpx.ConnectError as e:
-            logger.error(f"Error connecting to Hub: {e}")
+            err = "Connection Error - Hub is currently unreachable"
+            logger.error(err)
+            raise HubConnectError(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail={
+                    "message": err,
+                    "service": "Hub",
+                    "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
+                },
+                headers={"WWW-Authenticate": "Bearer"},
+            ) from e
 
     return _node_type_cache
 

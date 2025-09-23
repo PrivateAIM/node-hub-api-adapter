@@ -11,6 +11,7 @@ from kong_admin_client import ListRoute200Response
 from starlette import status
 
 from hub_adapter.conf import Settings
+from hub_adapter.errors import KongConflictError, KongConnectError
 from hub_adapter.headless import GoGoAnalysis
 from tests.constants import (
     ANALYSIS_NODES_RESP,
@@ -42,7 +43,7 @@ class TestHeadless:
         mock_create_and_connect_analysis_to_project.return_value = KONG_ANALYSIS_SUCCESS_RESP
         resp = await self.analyzer.register_analysis(TEST_MOCK_ANALYSIS_ID, TEST_MOCK_PROJECT_ID)
 
-        assert resp == KONG_ANALYSIS_SUCCESS_RESP
+        assert resp == (KONG_ANALYSIS_SUCCESS_RESP, status.HTTP_201_CREATED)
 
     @pytest.mark.asyncio
     @patch("hub_adapter.headless.logger")
@@ -51,7 +52,7 @@ class TestHeadless:
     async def test_register_analysis_conflict_pod_exists(self, mock_create_and_connect, mock_pod_running, mock_logger):
         """Test registering an analysis with kong and there is already a pod running."""
         # Pod exists already
-        mock_create_and_connect.side_effect = HTTPException(
+        mock_create_and_connect.side_effect = KongConflictError(
             status_code=status.HTTP_409_CONFLICT, detail={"message": "Conflict"}
         )
         mock_pod_running.return_value = True
@@ -80,7 +81,7 @@ class TestHeadless:
     ):
         """Test registering an analysis with kong and there is a conflict but no pod running."""
         # No pod found, but consumer found, and delete was successful
-        mock_create_and_connect.side_effect = HTTPException(
+        mock_create_and_connect.side_effect = KongConflictError(
             status_code=status.HTTP_409_CONFLICT, detail={"message": "Conflict"}
         )
         mock_delete_analysis.return_value = 200
@@ -113,7 +114,7 @@ class TestHeadless:
     async def test_register_analysis_missing_datastore(self, mock_create_and_connect, mock_logger):
         """Test registering an analysis with kong and data store is missing."""
         fake_err_msg = "Not found"
-        mock_create_and_connect.side_effect = HTTPException(
+        mock_create_and_connect.side_effect = KongConnectError(
             status_code=status.HTTP_404_NOT_FOUND, detail={"message": fake_err_msg}
         )
         missing_db_resp = await self.analyzer.register_analysis(TEST_MOCK_ANALYSIS_ID, TEST_MOCK_PROJECT_ID)
@@ -174,7 +175,7 @@ class TestHeadless:
     @patch("hub_adapter.headless.get_node_metadata_for_url")
     @patch("hub_adapter.headless.get_registry_metadata_for_url")
     @pytest.mark.asyncio
-    async def test_start_analysis_pod(
+    async def test_send_start_request(
         self, mock_registry_metadata, mock_node_metadata, mock_pod_data, mock_token_header, mock_request, mock_logger
     ):
         """Test starting an analysis pod."""
@@ -192,7 +193,7 @@ class TestHeadless:
 
         # Working
         mock_request.return_value = {"status": "running"}, status.HTTP_201_CREATED
-        pod_resp, status_code = await self.analyzer.start_analysis_pod(sim_input, "fakeKongToken")
+        pod_resp, status_code = await self.analyzer.send_start_request(sim_input, "fakeKongToken")
         assert mock_logger.info.call_count == 2
         mock_logger.info.assert_called_with(f"Analysis start response for {TEST_MOCK_ANALYSIS_ID}: running")
         assert pod_resp == {"status": "running"}
@@ -202,7 +203,7 @@ class TestHeadless:
         mock_request.side_effect = HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="she's dead jim"
         )
-        pod_failed_resp = await self.analyzer.start_analysis_pod(sim_input, "fakeKongToken")
+        pod_failed_resp = await self.analyzer.send_start_request(sim_input, "fakeKongToken")
         assert mock_logger.error.call_count == 1
         mock_logger.error.assert_called_with(
             f"Unable to start analysis {TEST_MOCK_ANALYSIS_ID} due to the following error: 503: she's dead jim"
@@ -275,12 +276,11 @@ class TestHeadless:
         assert run_status is None
 
     @patch("hub_adapter.headless.logger")
-    @patch("hub_adapter.headless.get_node_id")
-    @patch("hub_adapter.headless.get_node_type_cache")
+    @patch("hub_adapter.headless.GoGoAnalysis.describe_node")
     @patch("hub_adapter.headless.list_analysis_nodes")
     @patch("hub_adapter.headless.GoGoAnalysis.get_valid_projects")
     @patch("hub_adapter.headless.GoGoAnalysis.register_analysis")
-    @patch("hub_adapter.headless.GoGoAnalysis.start_analysis_pod")
+    @patch("hub_adapter.headless.GoGoAnalysis.send_start_request")
     @pytest.mark.asyncio
     async def test_auto_start_analyses(
         self,
@@ -288,8 +288,7 @@ class TestHeadless:
         mock_registration,
         mock_projects,
         mock_analysis_nodes,
-        mock_node_type,
-        mock_node_id,
+        mock_describe_node,
         mock_logger,
     ):
         """Test automatically starting analysis pods."""
@@ -297,11 +296,10 @@ class TestHeadless:
         class FakeKeycloak:
             key: str = "fakeKey"
 
-        mock_node_id.return_value = TEST_MOCK_NODE_ID
-        mock_node_type.return_value = {"type": "default"}
+        mock_describe_node.return_value = TEST_MOCK_NODE_ID, "default"
         mock_analysis_nodes.return_value = [AnalysisNode(**analysis) for analysis in ANALYSIS_NODES_RESP]
         mock_projects.return_value = {TEST_MOCK_PROJECT_ID}
-        mock_registration.return_value = {"keyauth": FakeKeycloak()}
+        mock_registration.return_value = {"keyauth": FakeKeycloak()}, status.HTTP_201_CREATED
         mock_start_pod.return_value = {}, status.HTTP_201_CREATED
 
         analyses_started = await self.analyzer.auto_start_analyses()
@@ -309,7 +307,7 @@ class TestHeadless:
         assert TEST_MOCK_ANALYSIS_ID in analyses_started
 
         # Aggregator starts with different key
-        mock_node_type.return_value = {"type": "aggregator"}
+        mock_describe_node.return_value = TEST_MOCK_NODE_ID, "aggregator"
         aggregator_started = await self.analyzer.auto_start_analyses()
         assert len(aggregator_started) == 1
         assert TEST_MOCK_ANALYSIS_ID in aggregator_started
@@ -321,13 +319,15 @@ class TestHeadless:
         mock_logger.error.assert_called_with("Unable to start analyses, error connecting to Hub: Service unavailable")
 
         # Failure - Hub Python Client can't contact Hub
-        mock_node_type.side_effect = HubAPIError(message="Hub unavailable", request=Request(method="GET", url="/"))
+        mock_describe_node.side_effect = HubAPIError(message="Hub unavailable", request=Request(method="GET", url="/"))
         node_type_fail_resp = await self.analyzer.auto_start_analyses()
         assert node_type_fail_resp is None
         mock_logger.error.assert_called_with("Unable to connect to the Hub: Hub unavailable")
 
         # Failure - Hub Python Client can't contact Hub
-        mock_node_id.side_effect = HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Hub gone")
+        mock_describe_node.side_effect = HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Hub gone"
+        )
         node_id_fail_resp = await self.analyzer.auto_start_analyses()
         assert node_id_fail_resp is None
         mock_logger.error.assert_called_with("Unable to connect to the Hub: 503: Hub gone")
