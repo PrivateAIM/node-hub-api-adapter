@@ -503,7 +503,7 @@ async def test_connection(
 
     Because we use the key-auth plugin, a consumer is required for pinging the data service.
     """
-    if hub_adapter_settings.KONG_PROXY_SERVICE_URL is None:
+    if not hub_adapter_settings.KONG_PROXY_SERVICE_URL:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={

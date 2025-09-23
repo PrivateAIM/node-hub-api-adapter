@@ -4,11 +4,27 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
+from kong_admin_client import ApiException, ListKeyAuthsForConsumer200Response, Route
 from starlette import status
 
-from hub_adapter.errors import BucketError, FhirEndpointError, KongError, KongGatewayError, KongServiceError
-from hub_adapter.routers.kong import FLAME, probe_data_service
-from tests.constants import DS_TYPE, TEST_MOCK_ANALYSIS_ID, TEST_MOCK_PROJECT_ID
+from hub_adapter.conf import Settings
+from hub_adapter.errors import (
+    BucketError,
+    FhirEndpointError,
+    KongConsumerApiKeyError,
+    KongError,
+    KongGatewayError,
+    KongServiceError,
+)
+from hub_adapter.models.kong import DataStoreType
+from hub_adapter.routers.kong import FLAME, probe_data_service, test_connection
+from tests.constants import (
+    DS_TYPE,
+    KONG_ANALYSIS_SUCCESS_RESP,
+    KONG_GET_ROUTE_RESPONSE,
+    TEST_MOCK_ANALYSIS_ID,
+    TEST_MOCK_PROJECT_ID,
+)
 
 test_svc_name = test_route_name = f"{TEST_MOCK_PROJECT_ID}-{DS_TYPE}"
 
@@ -121,8 +137,66 @@ class TestKongEndpoints:
 class TestConnection:
     """Tests for methods related to probing the connection via Kong."""
 
+    @pytest.mark.asyncio
+    async def test_test_connection_missing_proxy_url(self):
+        """Unit test for test_connection in which the proxy URL is not set."""
+        settings = Settings(KONG_PROXY_SERVICE_URL="")
+
+        with pytest.raises(HTTPException) as err:
+            await test_connection(
+                hub_adapter_settings=settings, project_id=TEST_MOCK_PROJECT_ID, ds_type=DataStoreType.FHIR
+            )
+
+        assert err.value.detail["service"] == "Kong"
+        assert err.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+
+    @pytest.mark.asyncio
+    @patch("hub_adapter.routers.kong.logger")
+    @patch("kong_admin_client.ConsumersApi.get_consumer")
+    @patch("hub_adapter.routers.kong.create_and_connect_analysis_to_project")
+    @patch("kong_admin_client.RoutesApi.get_route")
+    @patch("kong_admin_client.KeyAuthsApi.list_key_auths_for_consumer")
+    @patch("hub_adapter.routers.kong.probe_data_service")
+    async def test_test_connection(
+        self,
+        mock_probe_data_service,
+        mock_list_key_auths_for_consumer,
+        mock_get_route,
+        mock_analysis_connect,
+        mock_get_consumer,
+        mock_logger,
+        test_settings,
+    ):
+        """Unit test for test_connection checking if the health consumer exists."""
+        # Health consumer not made yet but should be made if an ApiException occurs
+        mock_get_consumer.side_effect = ApiException(status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        mock_analysis_connect.return_value = {}  # Just needs to be not None
+        mock_get_route.return_value = Route(**KONG_GET_ROUTE_RESPONSE["data"][0])
+
+        # Successful health retrieval
+        mock_list_key_auths_for_consumer.return_value = ListKeyAuthsForConsumer200Response(
+            data=[KONG_ANALYSIS_SUCCESS_RESP["keyauth"]]
+        )
+        mock_probe_data_service.return_value = status.HTTP_200_OK
+        success_resp = await test_connection(
+            hub_adapter_settings=test_settings, project_id=TEST_MOCK_PROJECT_ID, ds_type=DataStoreType.FHIR
+        )
+        mock_logger.warning.assert_called_with(f"No health consumer found for {TEST_MOCK_PROJECT_ID}, creating one now")
+        assert success_resp == status.HTTP_200_OK
+
+        # Failed health retrieval
+        mock_list_key_auths_for_consumer.return_value = {}
+        with pytest.raises(KongConsumerApiKeyError) as err:
+            await test_connection(
+                hub_adapter_settings=test_settings, project_id=TEST_MOCK_PROJECT_ID, ds_type=DataStoreType.FHIR
+            )
+
+        assert err.value.status_code == status.HTTP_404_NOT_FOUND
+
     @staticmethod
-    def probe_data_service_test(status_code: int, error_type: KongError, is_fhir: bool = False):
+    def probe_data_service_test(
+        status_code: int, error_type: type[KongError] | type[HTTPException], is_fhir: bool = False
+    ):
         """Template unit test for testing various expected errors raised by probe_data_service."""
         mock_response = MagicMock()
         mock_response.status_code = status_code
@@ -135,8 +209,17 @@ class TestConnection:
 
     def test_probe_data_service(self):
         """Actual unit test for probe_data_service."""
+        # Missing and private bucket
         self.probe_data_service_test(status.HTTP_403_FORBIDDEN, BucketError)
+
+        # Kong service unreachable
         self.probe_data_service_test(status.HTTP_503_SERVICE_UNAVAILABLE, KongServiceError)
+
+        # Missing FHIR endpoint, bad path
         self.probe_data_service_test(status.HTTP_404_NOT_FOUND, FhirEndpointError, is_fhir=True)
+
+        # Unable to contact storage service
         self.probe_data_service_test(status.HTTP_404_NOT_FOUND, HTTPException)
+
+        # Bad URL
         self.probe_data_service_test(status.HTTP_502_BAD_GATEWAY, KongGatewayError)

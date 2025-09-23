@@ -2,12 +2,15 @@
 
 import os
 import time
+from pathlib import Path
 
 import httpx
 import pytest
+from dotenv import load_dotenv
 from fastapi.testclient import TestClient
 
-from tests.constants import DS_TYPE, TEST_MOCK_PROJECT_ID, TEST_MOCK_ANALYSIS_ID
+from hub_adapter.conf import Settings
+from tests.constants import DS_TYPE, TEST_MOCK_ANALYSIS_ID, TEST_MOCK_PROJECT_ID
 from tests.pseudo_auth import BearerAuth
 
 
@@ -18,6 +21,34 @@ def test_client():
 
     with TestClient(app) as test_client:
         yield test_client
+
+
+@pytest.fixture(scope="package")
+def test_settings() -> Settings:
+    """Create fake settings for testing."""
+    env_test_path = Path(__file__).parent.joinpath(".env.test")
+    if env_test_path.exists():
+        load_dotenv(env_test_path)
+        return Settings()
+
+    else:
+        return Settings(
+            IDP_URL="https://test.deployment/keycloak/realms/flame",
+            API_ROOT_PATH="",
+            PODORC_SERVICE_URL="http://localhost:8000",
+            RESULTS_SERVICE_URL="http://localhost:8005",
+            KONG_ADMIN_SERVICE_URL="http://localhost:8001",
+            KONG_PROXY_SERVICE_URL="http://localhost:8002",
+            HUB_AUTH_SERVICE_URL="https://auth.privateaim.dev",
+            HUB_SERVICE_URL="https://core.privateaim.dev",
+            HUB_ROBOT_USER="096434d8-1e26-4594-9883-64ca1d55e129",  # fake uuid
+            HUB_ROBOT_SECRET="foobar",
+            API_CLIENT_ID="hub-adapter-test",
+            API_CLIENT_SECRET="notASecret",
+            HTTP_PROXY="http://squid.proxy:3128",
+            HTTPS_PROXY="http://squid.proxy:3128",
+            NODE_SVC_OIDC_URL="https://test.deployment/keycloak/realms/flame",
+        )
 
 
 @pytest.fixture(scope="package")
@@ -34,7 +65,7 @@ def test_token(test_client) -> BearerAuth:
 
 
 @pytest.fixture(scope="module")
-def setup_kong(test_client, test_token):
+def setup_kong(test_client, test_token, test_settings):
     """Setup Kong instance with test data."""
     test_datastore = {
         "datastore": {
