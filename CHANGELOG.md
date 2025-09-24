@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.2.12](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.2.11...v0.2.12) (2025-09-24)
+
+
+### Features
+
+* **kong:** add specific services to error messages ([6009c3a](https://github.com/PrivateAIM/node-hub-api-adapter/commit/6009c3a4153f34d1a08a35fd5c70073fe4c5fc13))
+* **kong:** first version connection test endpoint ([52954f2](https://github.com/PrivateAIM/node-hub-api-adapter/commit/52954f2edbe3a65f236f0956bad393a35750ba85))
+* **kong:** incorporate connection test during data store initialization ([050f117](https://github.com/PrivateAIM/node-hub-api-adapter/commit/050f117559d0f3bff54499d6ffbff9b4a34778aa))
+* **meta:** add endpoint for initializing an analysis using headless methods ([2ac9818](https://github.com/PrivateAIM/node-hub-api-adapter/commit/2ac981879d4af1555638e9ef2bd2bc442ab5c14e))
+
+
+### Bug Fixes
+
+* **auth:** raise HTTPException on invalid robot UUID ([726bb6f](https://github.com/PrivateAIM/node-hub-api-adapter/commit/726bb6fef6cead77fb105cd4da2b59b371bf5653))
+* **headless:** update exceptions ([976092a](https://github.com/PrivateAIM/node-hub-api-adapter/commit/976092a0518f3c306e1c1680ee6a7b63252ceae2))
+* **kong:** better enum handling ([fc4cd33](https://github.com/PrivateAIM/node-hub-api-adapter/commit/fc4cd33851f11253777e481d2e39486d518b7af7))
+
+
+### Documentation
+
+* add KONG_PROXY_SERVICE_URL to README ([8a4482b](https://github.com/PrivateAIM/node-hub-api-adapter/commit/8a4482b624957ae5c43306d2cc96e7a59863bc36))
+
 ## [0.2.11](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.2.10...v0.2.11) (2025-09-05)
 
 
