@@ -40,6 +40,70 @@ class KongConnectError(HTTPException):
 class KongConflictError(HTTPException):
     pass
 
+class BucketError(KongError):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "message": "Bucket does not exist or is set to private",
+                "service": "MinIO",
+                "status_code": status.HTTP_403_FORBIDDEN,
+            },
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+class KongGatewayError(KongError):
+    def __init__(self, server_type: str):
+        super().__init__(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={
+                "message": f"Unable to contact the {server_type} service, likely an incorrect port",
+                "service": server_type,
+                "status_code": status.HTTP_502_BAD_GATEWAY,
+            },
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+class KongServiceError(KongError):
+    def __init__(self, server_type: str):
+        super().__init__(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "message": f"{server_type} server name resolution failed",
+                "service": server_type,
+                "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
+            },
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+class FhirEndpointError(KongError):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "message": "FHIR endpoint not found, check the data path",
+                "service": "FHIR",
+                "status_code": status.HTTP_404_NOT_FOUND,
+            },
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+class KongConsumerApiKeyError(KongError):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "message": "Unable to obtain API key for health consumer",
+                "service": "Kong",
+                "status_code": status.HTTP_404_NOT_FOUND,
+            },
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
 
 def catch_hub_errors(f):
     """Custom error handling decorator for flame_hub_client."""

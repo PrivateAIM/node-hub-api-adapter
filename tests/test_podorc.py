@@ -1,9 +1,10 @@
 """Test the pod orchestrator eps."""
+
 import time
 
 from starlette import status
 
-from tests.constants import TEST_ANALYSIS
+from tests.constants import TEST_MOCK_ANALYSIS_ID
 
 
 class TestPodOrc:
@@ -11,31 +12,31 @@ class TestPodOrc:
 
     def test_get_po_status(self, test_client, setup_po, test_token):
         """Test the get_analysis_status method."""
-        r = test_client.get(f"/po/{TEST_ANALYSIS}/status", auth=test_token)
+        r = test_client.get(f"/po/{TEST_MOCK_ANALYSIS_ID}/status", auth=test_token)
         assert r.status_code == status.HTTP_200_OK
 
         resp = r.json()
         assert "status" in resp
         pod_statuses = resp["status"]
         for pod_name, pod_status in pod_statuses.items():
-            assert pod_name.startswith(TEST_ANALYSIS)
+            assert pod_name.startswith(TEST_MOCK_ANALYSIS_ID)
             assert pod_status == "running"
 
     def test_get_po_logs(self, test_client, setup_po, test_token):
         """Test the get_analysis_logs method."""
-        r = test_client.get(f"/po/{TEST_ANALYSIS}/logs", auth=test_token)
+        r = test_client.get(f"/po/{TEST_MOCK_ANALYSIS_ID}/logs", auth=test_token)
         assert r.status_code == status.HTTP_200_OK
 
         resp = r.json()
         assert "logs" in resp
         pod_logs = resp["logs"]
         for pod_name, pod_log in pod_logs.items():
-            assert pod_name.startswith(TEST_ANALYSIS)
+            assert pod_name.startswith(TEST_MOCK_ANALYSIS_ID)
             assert isinstance(pod_log, list)
 
     def test_get_po_pods(self, test_client, setup_po, test_token):
         """Test the get_analysis_pods method."""
-        r = test_client.get(f"/po/{TEST_ANALYSIS}/pods", auth=test_token)
+        r = test_client.get(f"/po/{TEST_MOCK_ANALYSIS_ID}/pods", auth=test_token)
         assert r.status_code == status.HTTP_200_OK
 
         resp = r.json()

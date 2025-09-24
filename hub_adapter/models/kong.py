@@ -15,14 +15,39 @@ from kong_admin_client import (
     RouteService,
     Service,
 )
-from pydantic import BaseModel, constr
+from pydantic import BaseModel
 
 
-class DataStoreType(Enum):
+class DataStoreType(str, Enum):
     """Data store types."""
 
-    S3: str = "s3"
-    FHIR: str = "fhir"
+    S3 = "s3"
+    FHIR = "fhir"
+
+
+class HttpMethodCode(str, Enum):
+    """HTTP method codes."""
+
+    GET = "GET"
+    POST = "POST"
+    PUT = "PUT"
+    PATCH = "PATCH"
+    DELETE = "DELETE"
+    OPTIONS = "OPTIONS"
+    HEAD = "HEAD"
+    CONNECT = "CONNECT"
+    TRACE = "TRACE"
+    CUSTOM = "CUSTOM"
+
+
+class ProtocolCode(str, Enum):
+    """Protocol codes."""
+
+    HTTP = "http"
+    GRPC = "grpc"
+    GRPCS = "grpcs"
+    TLS = "tls"
+    TCP = "tcp"
 
 
 class ServiceRequest(CreateServiceRequest):
@@ -30,7 +55,7 @@ class ServiceRequest(CreateServiceRequest):
 
     protocol: str | None = "http"
     port: int | None = 80
-    path: str | None = "/somewhere"
+    path: str
     client_certificate: CreateServiceRequestClientCertificate | None = None
     tls_verify: bool | None = None
     ca_certificates: list[str] | None = None
@@ -108,7 +133,3 @@ class DeleteProject(BaseModel):
 
     removed: Route | None
     status: int | None = None
-
-
-HttpMethodCode = constr(pattern=r"(GET|POST|PUT|PATCH|DELETE|OPTIONS|HEAD|CONNECT|TRACE|CUSTOM)")
-ProtocolCode = constr(pattern=r"(http|grpc|grpcs|tls|tcp)")
