@@ -208,7 +208,7 @@ class TestConnection:
         assert expected_error.value.status_code == status_code
 
     def test_probe_data_service(self):
-        """Actual unit test for probe_data_service."""
+        """Actual unit test for probe_data_service. Checks all errors that should occur."""
         # Missing and private bucket
         self.probe_data_service_test(status.HTTP_403_FORBIDDEN, BucketError)
 
