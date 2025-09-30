@@ -59,7 +59,8 @@ async def initialize_analysis(
         )
 
     valid_projects = await initiator.get_valid_projects()
-    parsed_analyses = initiator.parse_analyses([analysis[0]], valid_projects, ignore_run_status=True)
+    is_default_node = node_type == "default"
+    parsed_analyses = initiator.parse_analyses([analysis[0]], valid_projects, is_default_node, ignore_run_status=True)
     ready_to_start_analyses = [analysis[0] for analysis in parsed_analyses]
 
     if analysis_params.analysis_id not in ready_to_start_analyses:

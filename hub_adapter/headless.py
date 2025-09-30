@@ -76,7 +76,8 @@ class GoGoAnalysis:
             return analyses_started
 
         valid_projects = await self.get_valid_projects()
-        ready_to_start_analyses = self.parse_analyses(analyses, valid_projects)
+        is_default_node = node_type == "default"
+        ready_to_start_analyses = self.parse_analyses(analyses, valid_projects, is_default_node)
 
         for analysis in ready_to_start_analyses:
             analysis_id, project_id, node_id, _, _ = analysis
@@ -262,7 +263,9 @@ class GoGoAnalysis:
         return valid_projects
 
     @staticmethod
-    def parse_analyses(analyses: list, valid_projects: set, ignore_run_status: bool = False) -> set:
+    def parse_analyses(
+        analyses: list, valid_projects: set, is_default_node: bool = True, ignore_run_status: bool = False
+    ) -> set:
         """Iterate through analyses and check whether they are approved, built, and have a run status."""
         ready_analyses = set()
         for entry in analyses:
@@ -274,7 +277,10 @@ class GoGoAnalysis:
                 entry.run_status,
                 entry.approval_status,
             )
-            is_valid = approved == "approved" and build_status == "finished" and project_id in valid_projects
+            is_valid = approved == "approved" and build_status == "finished"
+
+            if is_default_node:  # If aggregator, then skip this since kong route is not needed
+                is_valid = is_valid and project_id in valid_projects
 
             if not ignore_run_status:
                 is_valid = is_valid and not run_status  # Headless will check run status, endpoint will not
