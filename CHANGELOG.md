@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.13](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.2.12...v0.2.13) (2025-10-02)
+
+
+### Bug Fixes
+
+* **headless:** add HTTPStatusError catch ([682a496](https://github.com/PrivateAIM/node-hub-api-adapter/commit/682a49690db473f941e9f90416ada7f1a0b21c72))
+* **headless:** catch more PO errors and limit analyses scope to 1 day ([eb4a3b5](https://github.com/PrivateAIM/node-hub-api-adapter/commit/eb4a3b5b2d189da851554f36cd5bed1bc6794661))
+* **headless:** disable kong route check if aggregator node ([4c2f336](https://github.com/PrivateAIM/node-hub-api-adapter/commit/4c2f336bb2eab097954c958639334ed1822d5e4a))
+* **meta:** allow analysis to be restarted ([62fc29a](https://github.com/PrivateAIM/node-hub-api-adapter/commit/62fc29ae5ac5680e13fd922273910126fe7376ea))
+
 ## [0.2.12](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.2.11...v0.2.12) (2025-09-24)
 
 
