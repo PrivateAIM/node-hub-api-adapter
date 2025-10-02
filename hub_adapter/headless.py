@@ -210,7 +210,7 @@ class GoGoAnalysis:
                 logger.info(f"Analysis start response for {analysis_props['analysis_id']}: {resp_data['status']}")
                 return resp_data, status_code
 
-            except HTTPException as e:
+            except (HTTPException, HTTPStatusError) as e:
                 logger.error(
                     f"Unable to start analysis {analysis_props['analysis_id']} due to the following error: {e}"
                 )
