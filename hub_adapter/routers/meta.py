@@ -60,7 +60,9 @@ async def initialize_analysis(
 
     valid_projects = await initiator.get_valid_projects()
     is_default_node = node_type == "default"
-    parsed_analyses = initiator.parse_analyses([analysis[0]], valid_projects, is_default_node, ignore_run_status=True)
+    parsed_analyses = initiator.parse_analyses(
+        [analysis[0]], valid_projects, is_default_node, enforce_time_and_status_check=False
+    )
     ready_to_start_analyses = [analysis[0] for analysis in parsed_analyses]
 
     if analysis_params.analysis_id not in ready_to_start_analyses:
@@ -73,15 +75,15 @@ async def initialize_analysis(
             },
         )
 
-    po_resp, po_status_code = await initiator.register_and_start_analysis(
+    start_resp, start_status_code = await initiator.register_and_start_analysis(
         node_id=node_id, node_type=node_type, **analysis_params.model_dump()
     )
 
-    if po_resp:
-        return po_resp
+    if start_resp:
+        return start_resp
 
     else:
         raise HTTPException(
-            status_code=po_status_code,
-            detail={"message": "Failed to initialize analysis", "status_code": po_status_code},
+            status_code=start_status_code,
+            detail={"message": "Failed to initialize analysis", "status_code": start_status_code},
         )

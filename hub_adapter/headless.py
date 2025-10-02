@@ -1,11 +1,13 @@
 """Collection of methods for running in headless mode in which analyses are detected and started automatically."""
 
 import logging
+import time
 import uuid
+from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException
 from flame_hub import HubAPIError
-from httpx import ConnectError, HTTPStatusError
+from httpx import ConnectError, HTTPStatusError, ReadTimeout, RemoteProtocolError
 from starlette import status
 
 from hub_adapter.auth import get_internal_token
@@ -84,6 +86,7 @@ class GoGoAnalysis:
             start_resp, status_code = await self.register_and_start_analysis(
                 analysis_id, project_id, node_id, node_type
             )
+
             if start_resp is None:
                 continue
 
@@ -142,6 +145,7 @@ class GoGoAnalysis:
             logger.warning(f"Analysis {analysis_id} already registered, checking if pod exists...")
             pod_exists = await self.pod_running(analysis_id)
             if pod_exists is None:  # Status could not be obtained, skip and try later
+                logger.warning(f"Status for analysis {analysis_id} could not be obtained, will try again")
                 pass
 
             elif not pod_exists:  # Status obtained and if not running, delete kong consumer
@@ -169,7 +173,9 @@ class GoGoAnalysis:
         """Check whether a pod with the given analysis_id is already running."""
         pod_status = await self.fetch_analysis_status(analysis_id=analysis_id)
         if pod_status:
-            return bool(pod_status["status"])  # If anything exists
+            # null, 'finished', 'failed', and 'stopped' means no pod present
+            existing_pod_statuses = ("started", "starting", "running", "stopping")
+            return bool(pod_status["status"] and pod_status["status"] in existing_pod_statuses)
 
         return None  # Error occurred and no status retrieved
 
@@ -210,13 +216,34 @@ class GoGoAnalysis:
                 logger.info(f"Analysis start response for {analysis_props['analysis_id']}: {resp_data['status']}")
                 return resp_data, status_code
 
-            except (HTTPException, HTTPStatusError) as e:
+            except HTTPException as e:
                 logger.error(
                     f"Unable to start analysis {analysis_props['analysis_id']} due to the following error: {e}"
                 )
+                return e.detail, e.status_code
 
-            except ConnectError as e:
+            except HTTPStatusError as e:
+                logger.error(
+                    f"Unable to start analysis {analysis_props['analysis_id']} "
+                    f"due to the following error: {e.response.text}"
+                )
+                return None, e.response.status_code
+
+            except (ConnectError, RemoteProtocolError) as e:
                 logger.error(f"Pod Orchestrator unreachable - {e}")
+                return None, status.HTTP_500_INTERNAL_SERVER_ERROR
+
+            except ReadTimeout:
+                logger.warning(
+                    f"Analysis {analysis_props['analysis_id']} taking longer than usual to start, waiting 60 seconds"
+                )
+                time.sleep(60)
+                resp = {
+                    "message": "PodOrc failed to respond in time likely due to an image pull taking too long",
+                    "service": "PO",
+                    "status_code": status.HTTP_408_REQUEST_TIMEOUT,
+                }
+                return resp, status.HTTP_408_REQUEST_TIMEOUT
 
         else:  # No token available or PO unreachable
             return None, status.HTTP_404_NOT_FOUND
@@ -264,26 +291,30 @@ class GoGoAnalysis:
 
     @staticmethod
     def parse_analyses(
-        analyses: list, valid_projects: set, is_default_node: bool = True, ignore_run_status: bool = False
+        analyses: list, valid_projects: set, is_default_node: bool = True, enforce_time_and_status_check: bool = True
     ) -> set:
         """Iterate through analyses and check whether they are approved, built, and have a run status."""
         ready_analyses = set()
         for entry in analyses:
-            analysis_id, project_id, node_id, build_status, run_status, approved = (
+            analysis_id, project_id, node_id, build_status, run_status, approved, created_at = (
                 str(entry.analysis_id),
                 str(entry.analysis.project_id),
                 str(entry.node_id),
                 entry.analysis.build_status,
                 entry.run_status,
                 entry.approval_status,
+                entry.created_at,  # Already parsed as datetime object from python hub client
             )
+
             is_valid = approved == "approved" and build_status == "finished"
 
             if is_default_node:  # If aggregator, then skip this since kong route is not needed
                 is_valid = is_valid and project_id in valid_projects
 
-            if not ignore_run_status:
-                is_valid = is_valid and not run_status  # Headless will check run status, endpoint will not
+            if enforce_time_and_status_check:
+                # Need timezone.utc to make it offset-aware otherwise will not work with created_at datetime obj
+                is_recent = (datetime.now(timezone.utc) - created_at) < timedelta(hours=24)
+                is_valid = is_valid and is_recent and not run_status
 
             if is_valid:
                 valid_entry = (analysis_id, project_id, node_id, build_status, run_status)
