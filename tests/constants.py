@@ -1,5 +1,7 @@
 """String constants for tests."""
 
+from datetime import datetime, timezone
+
 DS_TYPE = "fhir"
 
 TEST_MOCK_ANALYSIS_ID = "1c9cb547-4afc-4398-bcb6-954bc61a1bb1"
@@ -40,7 +42,7 @@ ANALYSIS_NODES_RESP = [
     },
     {  # Ready to start
         "id": "ac776c7f-c39d-4484-9a37-fa7109017192",
-        "created_at": 1756790836,
+        "created_at": datetime.now(timezone.utc),
         "updated_at": 1756790836,
         "analysis_realm_id": "ac776c7f-c39d-4484-9a37-fa7109017192",
         "node_realm_id": "ac776c7f-c39d-4484-9a37-fa7109017192",
@@ -54,7 +56,37 @@ ANALYSIS_NODES_RESP = [
         "analysis": {
             "project_id": TEST_MOCK_PROJECT_ID,
             "build_status": "finished",
-            "created_at": 1756790836,
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": 1756790836,
+            "id": "ac776c7f-c39d-4484-9a37-fa7109017192",
+            "configuration_locked": True,
+            "nodes": 2,
+            "realm_id": "ac776c7f-c39d-4484-9a37-fa7109017192",
+            "user_id": "ac776c7f-c39d-4484-9a37-fa7109017192",
+            "description": None,
+            "master_image_id": None,
+            "registry_id": None,
+            "run_status": None,
+            "name": None,
+        },
+    },
+    {
+        "id": "ac776c7f-c39d-4484-9a37-fa7109017192",
+        "created_at": 1756790836,  # Should fail since too old
+        "updated_at": 1756790836,
+        "analysis_realm_id": "ac776c7f-c39d-4484-9a37-fa7109017192",
+        "node_realm_id": "ac776c7f-c39d-4484-9a37-fa7109017192",
+        "comment": None,
+        "artifact_tag": None,
+        "artifact_digest": None,
+        "analysis_id": TEST_MOCK_ANALYSIS_ID,
+        "node_id": TEST_MOCK_NODE_ID,
+        "approval_status": "approved",
+        "run_status": None,
+        "analysis": {
+            "project_id": TEST_MOCK_PROJECT_ID,
+            "build_status": "finished",
+            "created_at": 1756790836,  # Should fail since too old
             "updated_at": 1756790836,
             "id": "ac776c7f-c39d-4484-9a37-fa7109017192",
             "configuration_locked": True,

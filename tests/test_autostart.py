@@ -69,7 +69,7 @@ class TestAutostart:
         )
 
         # Return None if pod already exists
-        assert pod_exists_resp is None
+        assert pod_exists_resp == (None, 409)
 
     @pytest.mark.asyncio
     @patch("hub_adapter.autostart.logger")
@@ -106,7 +106,7 @@ class TestAutostart:
         )
 
         # Return None if pod already exists
-        assert pod_exists_resp is None
+        assert pod_exists_resp == (None, 409)
 
     @pytest.mark.asyncio
     @patch("hub_adapter.autostart.logger")
@@ -120,7 +120,7 @@ class TestAutostart:
         missing_db_resp = await self.analyzer.register_analysis(TEST_MOCK_ANALYSIS_ID, TEST_MOCK_PROJECT_ID)
         assert mock_logger.error.call_count == 1
         mock_logger.error.assert_called_with(f"{fake_err_msg}, failed to start analysis {TEST_MOCK_ANALYSIS_ID}")
-        assert missing_db_resp is None
+        assert missing_db_resp == (None, 404)
 
     @patch("hub_adapter.autostart.GoGoAnalysis.fetch_analysis_status")
     @pytest.mark.asyncio
@@ -200,15 +200,14 @@ class TestAutostart:
         assert status_code == status.HTTP_201_CREATED
 
         # Problem
-        mock_request.side_effect = HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="she's dead jim"
-        )
+        po_err_msg = "she's dead jim"
+        mock_request.side_effect = HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=po_err_msg)
         pod_failed_resp = await self.analyzer.send_start_request(sim_input, "fakeKongToken")
         assert mock_logger.error.call_count == 1
         mock_logger.error.assert_called_with(
             f"Unable to start analysis {TEST_MOCK_ANALYSIS_ID} due to the following error: 503: she's dead jim"
         )
-        assert pod_failed_resp is None
+        assert pod_failed_resp == (po_err_msg, status.HTTP_503_SERVICE_UNAVAILABLE)
 
     @pytest.mark.asyncio
     @patch("hub_adapter.autostart.logger")
@@ -262,7 +261,7 @@ class TestAutostart:
     def test_parse_analyses(self):
         """Test parsing analyses choosing whether they should be started i.e. built but no run status."""
         formatted_analyses = [AnalysisNode(**analysis) for analysis in ANALYSIS_NODES_RESP]
-        assert len(formatted_analyses) == 5
+        assert len(formatted_analyses) == 6
         ready_analyses = self.analyzer.parse_analyses(formatted_analyses, {TEST_MOCK_PROJECT_ID})
 
         assert len(ready_analyses) == 1
