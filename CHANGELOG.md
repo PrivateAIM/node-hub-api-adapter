@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.14](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.2.13...v0.2.14) (2025-10-14)
+
+
+### Features
+
+* **error:** add ReadTimeout error when querying hub ([d41ef9a](https://github.com/PrivateAIM/node-hub-api-adapter/commit/d41ef9a9017c235067b9299815e5ef7e9ceeeb55))
+
 ## [0.2.13](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.2.12...v0.2.13) (2025-10-02)
 
 
