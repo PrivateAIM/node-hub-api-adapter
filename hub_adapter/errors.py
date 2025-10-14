@@ -127,6 +127,19 @@ def catch_hub_errors(f):
                 headers={"WWW-Authenticate": "Bearer"},
             ) from e
 
+        except httpx.ReadTimeout as e:
+            err = "ReadTimeout Error - Hub is offline or undergoing maintenance"
+            logger.error(err)
+            raise HubTimeoutError(
+                status_code=status.HTTP_408_REQUEST_TIMEOUT,
+                detail={
+                    "message": err,
+                    "service": svc,
+                    "status_code": status.HTTP_408_REQUEST_TIMEOUT,
+                },
+                headers={"WWW-Authenticate": "Bearer"},
+            ) from e
+
         except HubAPIError as err:
             resp_error = err.error_response
 
