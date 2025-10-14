@@ -1,4 +1,4 @@
-"""Collection of unit tests for testing headless operation."""
+"""Collection of unit tests for testing autostart operation."""
 
 from unittest.mock import patch
 
@@ -10,9 +10,9 @@ from httpx import ConnectError, HTTPStatusError, Request, Response
 from kong_admin_client import ListRoute200Response
 from starlette import status
 
+from hub_adapter.autostart import GoGoAnalysis
 from hub_adapter.conf import Settings
 from hub_adapter.errors import KongConflictError, KongConnectError
-from hub_adapter.headless import GoGoAnalysis
 from tests.constants import (
     ANALYSIS_NODES_RESP,
     KONG_ANALYSIS_SUCCESS_RESP,
@@ -23,8 +23,8 @@ from tests.constants import (
 )
 
 
-class TestHeadless:
-    """Headless unit tests."""
+class TestAutostart:
+    """Autostart unit tests."""
 
     def setup_method(self):
         """Set up test fixtures before each test method."""
@@ -36,7 +36,7 @@ class TestHeadless:
         self.analyzer.settings = Settings()
         self.analyzer.core_client = None
 
-    @patch("hub_adapter.headless.create_and_connect_analysis_to_project")
+    @patch("hub_adapter.autostart.create_and_connect_analysis_to_project")
     @pytest.mark.asyncio
     async def test_register_analysis(self, mock_create_and_connect_analysis_to_project):
         """Test registering an analysis with kong."""
@@ -46,9 +46,9 @@ class TestHeadless:
         assert resp == (KONG_ANALYSIS_SUCCESS_RESP, status.HTTP_201_CREATED)
 
     @pytest.mark.asyncio
-    @patch("hub_adapter.headless.logger")
-    @patch("hub_adapter.headless.GoGoAnalysis.pod_running")  # Reverse order from parameters
-    @patch("hub_adapter.headless.create_and_connect_analysis_to_project")
+    @patch("hub_adapter.autostart.logger")
+    @patch("hub_adapter.autostart.GoGoAnalysis.pod_running")  # Reverse order from parameters
+    @patch("hub_adapter.autostart.create_and_connect_analysis_to_project")
     async def test_register_analysis_conflict_pod_exists(self, mock_create_and_connect, mock_pod_running, mock_logger):
         """Test registering an analysis with kong and there is already a pod running."""
         # Pod exists already
@@ -69,13 +69,13 @@ class TestHeadless:
         )
 
         # Return None if pod already exists
-        assert pod_exists_resp is None
+        assert pod_exists_resp == (None, 409)
 
     @pytest.mark.asyncio
-    @patch("hub_adapter.headless.logger")
-    @patch("hub_adapter.headless.GoGoAnalysis.pod_running")
-    @patch("hub_adapter.headless.delete_analysis")
-    @patch("hub_adapter.headless.create_and_connect_analysis_to_project")
+    @patch("hub_adapter.autostart.logger")
+    @patch("hub_adapter.autostart.GoGoAnalysis.pod_running")
+    @patch("hub_adapter.autostart.delete_analysis")
+    @patch("hub_adapter.autostart.create_and_connect_analysis_to_project")
     async def test_register_analysis_conflict_no_pod(
         self, mock_create_and_connect, mock_delete_analysis, mock_pod_running, mock_logger
     ):
@@ -106,11 +106,11 @@ class TestHeadless:
         )
 
         # Return None if pod already exists
-        assert pod_exists_resp is None
+        assert pod_exists_resp == (None, 409)
 
     @pytest.mark.asyncio
-    @patch("hub_adapter.headless.logger")
-    @patch("hub_adapter.headless.create_and_connect_analysis_to_project")
+    @patch("hub_adapter.autostart.logger")
+    @patch("hub_adapter.autostart.create_and_connect_analysis_to_project")
     async def test_register_analysis_missing_datastore(self, mock_create_and_connect, mock_logger):
         """Test registering an analysis with kong and data store is missing."""
         fake_err_msg = "Not found"
@@ -120,9 +120,9 @@ class TestHeadless:
         missing_db_resp = await self.analyzer.register_analysis(TEST_MOCK_ANALYSIS_ID, TEST_MOCK_PROJECT_ID)
         assert mock_logger.error.call_count == 1
         mock_logger.error.assert_called_with(f"{fake_err_msg}, failed to start analysis {TEST_MOCK_ANALYSIS_ID}")
-        assert missing_db_resp is None
+        assert missing_db_resp == (None, 404)
 
-    @patch("hub_adapter.headless.GoGoAnalysis.fetch_analysis_status")
+    @patch("hub_adapter.autostart.GoGoAnalysis.fetch_analysis_status")
     @pytest.mark.asyncio
     async def test_pod_running(self, mock_fetch_analysis_status):
         """Test checking whether the pod is running."""
@@ -139,9 +139,9 @@ class TestHeadless:
         pod_running_error = await self.analyzer.pod_running(TEST_MOCK_ANALYSIS_ID)
         assert pod_running_error is None
 
-    @patch("hub_adapter.headless.logger")
-    @patch("hub_adapter.headless.check_oidc_configs_match")
-    @patch("hub_adapter.headless.get_internal_token")
+    @patch("hub_adapter.autostart.logger")
+    @patch("hub_adapter.autostart.check_oidc_configs_match")
+    @patch("hub_adapter.autostart.get_internal_token")
     @pytest.mark.asyncio
     async def test_fetch_token_header(self, mock_fetch_token, mock_config_check, mock_logger):
         """Test checking whether the pod is running."""
@@ -168,12 +168,12 @@ class TestHeadless:
         assert exchange_error_resp is None
         mock_logger.error.assert_called_with("Unable to fetch OIDC token: IDP exchange failed")
 
-    @patch("hub_adapter.headless.logger")
-    @patch("hub_adapter.headless.make_request")
-    @patch("hub_adapter.headless.GoGoAnalysis.fetch_token_header")
-    @patch("hub_adapter.headless.compile_analysis_pod_data")
-    @patch("hub_adapter.headless.get_node_metadata_for_url")
-    @patch("hub_adapter.headless.get_registry_metadata_for_url")
+    @patch("hub_adapter.autostart.logger")
+    @patch("hub_adapter.autostart.make_request")
+    @patch("hub_adapter.autostart.GoGoAnalysis.fetch_token_header")
+    @patch("hub_adapter.autostart.compile_analysis_pod_data")
+    @patch("hub_adapter.autostart.get_node_metadata_for_url")
+    @patch("hub_adapter.autostart.get_registry_metadata_for_url")
     @pytest.mark.asyncio
     async def test_send_start_request(
         self, mock_registry_metadata, mock_node_metadata, mock_pod_data, mock_token_header, mock_request, mock_logger
@@ -200,20 +200,19 @@ class TestHeadless:
         assert status_code == status.HTTP_201_CREATED
 
         # Problem
-        mock_request.side_effect = HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="she's dead jim"
-        )
+        po_err_msg = "she's dead jim"
+        mock_request.side_effect = HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=po_err_msg)
         pod_failed_resp = await self.analyzer.send_start_request(sim_input, "fakeKongToken")
         assert mock_logger.error.call_count == 1
         mock_logger.error.assert_called_with(
             f"Unable to start analysis {TEST_MOCK_ANALYSIS_ID} due to the following error: 503: she's dead jim"
         )
-        assert pod_failed_resp is None
+        assert pod_failed_resp == (po_err_msg, status.HTTP_503_SERVICE_UNAVAILABLE)
 
     @pytest.mark.asyncio
-    @patch("hub_adapter.headless.logger")
-    @patch("hub_adapter.headless.make_request")
-    @patch("hub_adapter.headless.GoGoAnalysis.fetch_token_header")
+    @patch("hub_adapter.autostart.logger")
+    @patch("hub_adapter.autostart.make_request")
+    @patch("hub_adapter.autostart.GoGoAnalysis.fetch_token_header")
     async def test_fetch_analysis_status(self, mock_header, mock_request, mock_logger):
         """Test fetching the status of an analysis."""
         mock_header.return_value = {"foo"}  # Just need something
@@ -242,8 +241,8 @@ class TestHeadless:
         assert status_connect_failed_resp is None
 
     @pytest.mark.asyncio
-    @patch("hub_adapter.headless.logger")
-    @patch("hub_adapter.headless.list_projects")
+    @patch("hub_adapter.autostart.logger")
+    @patch("hub_adapter.autostart.list_projects")
     async def test_get_valid_projects(self, mock_projects, mock_logger):
         """Test getting and parsing projects (routes) from kong."""
 
@@ -262,7 +261,7 @@ class TestHeadless:
     def test_parse_analyses(self):
         """Test parsing analyses choosing whether they should be started i.e. built but no run status."""
         formatted_analyses = [AnalysisNode(**analysis) for analysis in ANALYSIS_NODES_RESP]
-        assert len(formatted_analyses) == 5
+        assert len(formatted_analyses) == 6
         ready_analyses = self.analyzer.parse_analyses(formatted_analyses, {TEST_MOCK_PROJECT_ID})
 
         assert len(ready_analyses) == 1
@@ -275,12 +274,12 @@ class TestHeadless:
         assert build_status == "finished"
         assert run_status is None
 
-    @patch("hub_adapter.headless.logger")
-    @patch("hub_adapter.headless.GoGoAnalysis.describe_node")
-    @patch("hub_adapter.headless.list_analysis_nodes")
-    @patch("hub_adapter.headless.GoGoAnalysis.get_valid_projects")
-    @patch("hub_adapter.headless.GoGoAnalysis.register_analysis")
-    @patch("hub_adapter.headless.GoGoAnalysis.send_start_request")
+    @patch("hub_adapter.autostart.logger")
+    @patch("hub_adapter.autostart.GoGoAnalysis.describe_node")
+    @patch("hub_adapter.autostart.list_analysis_nodes")
+    @patch("hub_adapter.autostart.GoGoAnalysis.get_valid_projects")
+    @patch("hub_adapter.autostart.GoGoAnalysis.register_analysis")
+    @patch("hub_adapter.autostart.GoGoAnalysis.send_start_request")
     @pytest.mark.asyncio
     async def test_auto_start_analyses(
         self,

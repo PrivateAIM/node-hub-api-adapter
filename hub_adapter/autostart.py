@@ -1,4 +1,4 @@
-"""Collection of methods for running in headless mode in which analyses are detected and started automatically."""
+"""Collection of methods for running in autostart mode in which analyses are detected and started automatically."""
 
 import logging
 import time
@@ -46,7 +46,7 @@ class GoGoAnalysis:
         self.gather_deps()  # populates self.settings and self.core_client
 
     def gather_deps(self):
-        """Gather all the dependencies needed to run the headless mode."""
+        """Gather all the dependencies needed to run the autostart mode."""
         settings = get_settings()
         ssl_ctx = get_ssl_context(settings)
         hub_robot = get_flame_hub_auth_flow(ssl_ctx, settings)
@@ -249,7 +249,7 @@ class GoGoAnalysis:
             return None, status.HTTP_404_NOT_FOUND
 
     async def fetch_analysis_status(self, analysis_id: uuid.UUID | str) -> dict | None:
-        """Fetch the status for a specific analysis run. For headless operation"""
+        """Fetch the status for a specific analysis run. For autostart operation"""
         headers = await self.fetch_token_header()
         microsvc_path = f"{get_settings().PODORC_SERVICE_URL}/po/{analysis_id}/status"
         resp_data = None
@@ -308,13 +308,18 @@ class GoGoAnalysis:
 
             is_valid = approved == "approved" and build_status == "finished"
 
-            if is_default_node:  # If aggregator, then skip this since kong route is not needed
-                is_valid = is_valid and project_id in valid_projects
-
-            if enforce_time_and_status_check:
+            if enforce_time_and_status_check and is_valid:
                 # Need timezone.utc to make it offset-aware otherwise will not work with created_at datetime obj
                 is_recent = (datetime.now(timezone.utc) - created_at) < timedelta(hours=24)
                 is_valid = is_valid and is_recent and not run_status
+
+            if is_default_node and is_valid:  # If aggregator, then skip this since kong route is not needed
+                is_valid = is_valid and project_id in valid_projects
+                if not is_valid:
+                    logger.info(
+                        f"Cannot start analysis {analysis_id} because its project with ID {project_id} is not valid. "
+                        f"Project is either not approved or missing a data store"
+                    )
 
             if is_valid:
                 valid_entry = (analysis_id, project_id, node_id, build_status, run_status)
