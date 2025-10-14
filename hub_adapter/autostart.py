@@ -308,13 +308,18 @@ class GoGoAnalysis:
 
             is_valid = approved == "approved" and build_status == "finished"
 
-            if is_default_node:  # If aggregator, then skip this since kong route is not needed
-                is_valid = is_valid and project_id in valid_projects
-
-            if enforce_time_and_status_check:
+            if enforce_time_and_status_check and is_valid:
                 # Need timezone.utc to make it offset-aware otherwise will not work with created_at datetime obj
                 is_recent = (datetime.now(timezone.utc) - created_at) < timedelta(hours=24)
                 is_valid = is_valid and is_recent and not run_status
+
+            if is_default_node and is_valid:  # If aggregator, then skip this since kong route is not needed
+                is_valid = is_valid and project_id in valid_projects
+                if not is_valid:
+                    logger.info(
+                        f"Cannot start analysis {analysis_id} because its project with ID {project_id} is not valid. "
+                        f"Project is either not approved or missing a data store"
+                    )
 
             if is_valid:
                 valid_entry = (analysis_id, project_id, node_id, build_status, run_status)
