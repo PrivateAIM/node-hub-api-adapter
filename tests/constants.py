@@ -21,7 +21,7 @@ ANALYSIS_NODES_RESP = [
         "approval_status": "approved",
         "run_status": "finished",  # Shouldn't start because finished
         "analysis": {
-            "name": "headless-test",
+            "name": "autostart-test",
             "project_id": TEST_MOCK_PROJECT_ID,
             "build_status": "finished",
             "created_at": 1756790836,

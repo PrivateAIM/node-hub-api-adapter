@@ -14,8 +14,8 @@ from hub_adapter.auth import (
     jwtbearer,
     verify_idp_token,
 )
+from hub_adapter.autostart import GoGoAnalysis
 from hub_adapter.dependencies import get_core_client
-from hub_adapter.headless import GoGoAnalysis
 from hub_adapter.models.podorc import (
     CreatePodResponse,
 )

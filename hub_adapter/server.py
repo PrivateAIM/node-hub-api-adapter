@@ -8,8 +8,8 @@ import uvicorn
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
+from hub_adapter.autostart import GoGoAnalysis
 from hub_adapter.dependencies import get_settings
-from hub_adapter.headless import GoGoAnalysis
 from hub_adapter.routers.auth import auth_router
 from hub_adapter.routers.health import health_router
 from hub_adapter.routers.hub import hub_router
@@ -78,7 +78,7 @@ async def run_server(host: str, port: int, reload: bool):
     await server.serve()
 
 
-async def headless_probing(interval: int = 60):
+async def autostart_probing(interval: int = 60):
     """Check for available analyses in the background and start them automatically.
 
     Parameters
@@ -96,13 +96,13 @@ async def deploy(host: str = "127.0.0.1", port: int = 8081, reload: bool = False
     # Run both tasks concurrently
     tasks = [asyncio.create_task(run_server(host, port, reload))]
 
-    headless: bool = os.getenv("HEADLESS", "False").lower() in ("true", "1", "yes")
-    logger.info(f"Headless enabled: {headless}")
-    headless_interval: int = int(os.getenv("HEADLESS_INTERVAL", "60"))
+    autostart: bool = os.getenv("AUTOSTART", "False").lower() in ("true", "1", "yes")
+    logger.info(f"Autostart enabled: {autostart}")
+    autostart_interval: int = int(os.getenv("AUTOSTART_INTERVAL", "60"))
 
-    if headless:
-        headless_operation = asyncio.create_task(headless_probing(interval=headless_interval))
-        tasks.append(headless_operation)
+    if autostart:
+        autostart_operation = asyncio.create_task(autostart_probing(interval=autostart_interval))
+        tasks.append(autostart_operation)
 
     await asyncio.gather(*tasks)
 
