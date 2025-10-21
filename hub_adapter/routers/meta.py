@@ -5,20 +5,24 @@ import uuid
 from typing import Annotated
 
 import flame_hub
-from fastapi import APIRouter, Depends, Form, HTTPException, Security
+import httpx
+from fastapi import APIRouter, Depends, Form, HTTPException, Path, Security
 from pydantic import BaseModel
 from starlette import status
 
 from hub_adapter.auth import (
     add_internal_token_if_missing,
+    get_internal_token,
     jwtbearer,
     verify_idp_token,
 )
 from hub_adapter.autostart import GoGoAnalysis
-from hub_adapter.dependencies import get_core_client
-from hub_adapter.models.podorc import (
-    CreatePodResponse,
-)
+from hub_adapter.conf import Settings
+from hub_adapter.core import make_request
+from hub_adapter.dependencies import get_core_client, get_settings
+from hub_adapter.models.podorc import StatusResponse
+from hub_adapter.oidc import check_oidc_configs_match
+from hub_adapter.routers.kong import delete_analysis
 
 meta_router = APIRouter(
     dependencies=[Security(verify_idp_token), Security(jwtbearer), Depends(add_internal_token_if_missing)],
@@ -36,7 +40,7 @@ class InitializeAnalysis(BaseModel):
 
 @meta_router.post(
     "/analysis/initialize",
-    response_model=CreatePodResponse,
+    response_model=StatusResponse,
     status_code=status.HTTP_201_CREATED,
 )
 async def initialize_analysis(
@@ -87,3 +91,64 @@ async def initialize_analysis(
             status_code=start_status_code,
             detail={"message": "Failed to initialize analysis", "status_code": start_status_code},
         )
+
+
+@meta_router.delete(
+    "/analysis/terminate/{analysis_id}",
+    response_model=StatusResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def terminate_analysis(
+    analysis_id: Annotated[str | uuid.UUID, Path(description="Analysis UUID that should be terminated")],
+    hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
+):
+    """Perform the required checks to stop an analysis and delete it and its components.
+
+    This method will first delete the kong consumer and then send the delete command to the PO.
+    """
+    await delete_analysis(analysis_id=analysis_id, hub_adapter_settings=hub_adapter_settings)
+
+    configs_match, oidc_config = check_oidc_configs_match()
+    headers = await get_internal_token(oidc_config, hub_adapter_settings)
+
+    microsvc_path = f"{get_settings().PODORC_SERVICE_URL}/po/delete/{analysis_id}"
+
+    try:
+        resp_data, status_code = await make_request(
+            url=microsvc_path,
+            method="delete",
+            headers=headers,
+        )
+
+    except httpx.ConnectError as e:
+        msg = "Connection Error - PO is currently unreachable"
+        logger.error(msg)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={  # Invalid authentication credentials
+                "message": msg,
+                "service": "PO",
+                "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
+            },
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from e
+
+    except Exception as e:
+        logger.error(e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "message": f"Service error - {e}",
+                "service": "PO",
+                "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+            },
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from e
+
+    if not resp_data:
+        logger.info(f"Analysis {analysis_id} had no pods running that could be terminated")
+
+    else:
+        logger.info(f"Analysis {analysis_id} was terminated")
+
+    return resp_data
