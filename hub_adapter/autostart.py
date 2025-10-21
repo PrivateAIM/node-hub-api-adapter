@@ -172,12 +172,12 @@ class GoGoAnalysis:
     async def pod_running(self, analysis_id: str) -> bool | None:
         """Check whether a pod with the given analysis_id is already running."""
         pod_status = await self.fetch_analysis_status(analysis_id=analysis_id)
-        if pod_status:
+        if pod_status is not None:
             # null, 'finished', 'failed', and 'stopped' means no pod present
             existing_pod_statuses = ("started", "starting", "running", "stopping")
-            return bool(pod_status[analysis_id] and pod_status[analysis_id] in existing_pod_statuses)
+            return bool(analysis_id in pod_status and pod_status[analysis_id] in existing_pod_statuses)
 
-        return None  # Error occurred and no status retrieved
+        return pod_status  # Error occurred and no status retrieved
 
     async def fetch_token_header(self) -> dict | None:
         """Append OIDC token to headers."""
