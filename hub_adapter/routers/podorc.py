@@ -18,8 +18,8 @@ from hub_adapter.core import route
 from hub_adapter.dependencies import compile_analysis_pod_data, get_settings
 from hub_adapter.models.podorc import (
     CleanupPodResponse,
+    CleanUpType,
     CreateAnalysis,
-    CreatePodResponse,
     LogResponse,
     PodResponse,
     StatusResponse,
@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
     path="/po",
     status_code=status.HTTP_200_OK,
     service_url=get_settings().PODORC_SERVICE_URL,
-    response_model=CreatePodResponse,
+    response_model=StatusResponse,
     pre_processing_func="extract_po_params",
     body_params=[
         "analysis_id",
@@ -62,41 +62,84 @@ async def create_analysis(
 
 @route(
     request_method=po_router.get,
-    path="/po/{analysis_id}/logs",
+    path="/po/logs",
     status_code=status.HTTP_200_OK,
     service_url=get_settings().PODORC_SERVICE_URL,
     response_model=LogResponse,
-    query_params=["analysis_id"],
 )
-async def get_analysis_logs(
+async def get_all_analysis_logs(
     request: Request,
     response: Response,
-    analysis_id: Annotated[uuid.UUID | None, Path(description="UUID of the analysis.")],
 ):
-    """Get the logs for a specific analysis run."""
+    """Get all analysis pod logs."""
     pass
 
 
 @route(
     request_method=po_router.get,
-    path="/po/{analysis_id}/history",
+    path="/po/logs/{analysis_id}",
     status_code=status.HTTP_200_OK,
     service_url=get_settings().PODORC_SERVICE_URL,
     response_model=LogResponse,
-    query_params=["analysis_id"],
+)
+async def get_analysis_logs(
+    request: Request,
+    response: Response,
+    analysis_id: Annotated[uuid.UUID, Path(description="UUID of the analysis.")],
+):
+    """Get the analysis pod logs."""
+    pass
+
+
+@route(
+    request_method=po_router.get,
+    path="/po/history",
+    status_code=status.HTTP_200_OK,
+    service_url=get_settings().PODORC_SERVICE_URL,
+    response_model=LogResponse,
+)
+async def get_all_analysis_log_history(
+    request: Request,
+    response: Response,
+):
+    """Get all previous analysis pod logs."""
+    pass
+
+
+@route(
+    request_method=po_router.get,
+    path="/po/history/{analysis_id}",
+    status_code=status.HTTP_200_OK,
+    service_url=get_settings().PODORC_SERVICE_URL,
+    response_model=LogResponse,
 )
 async def get_analysis_log_history(
     request: Request,
     response: Response,
     analysis_id: Annotated[uuid.UUID | None, Path(description="UUID of the analysis.")],
 ):
-    """Get the previous logs for a specific analysis."""
+    """Get the previous analysis pod logs."""
     pass
 
 
 @route(
     request_method=po_router.get,
-    path="/po/{analysis_id}/status",
+    path="/po/status",
+    status_code=status.HTTP_200_OK,
+    response_model=StatusResponse,
+    service_url=get_settings().PODORC_SERVICE_URL,
+)
+async def get_all_analysis_status(
+    request: Request,
+    response: Response,
+):
+    """Get all analysis run statuses."""
+    pass
+
+
+@route(
+    request_method=po_router.get,
+    path="/po/status/{analysis_id}",
     status_code=status.HTTP_200_OK,
     response_model=StatusResponse,
     service_url=get_settings().PODORC_SERVICE_URL,
@@ -106,13 +149,29 @@ async def get_analysis_status(
     response: Response,
     analysis_id: Annotated[uuid.UUID | None, Path(description="UUID of the analysis.")],
 ):
-    """Get the status for a specific analysis run."""
+    """Get a specific analysis pod run status."""
+
     pass
 
 
 @route(
     request_method=po_router.get,
-    path="/po/{analysis_id}/pods",
+    path="/po/pods",
+    status_code=status.HTTP_200_OK,
+    response_model=PodResponse,
+    service_url=get_settings().PODORC_SERVICE_URL,
+)
+async def get_all_analysis_pods(
+    request: Request,
+    response: Response,
+):
+    """Get all running pods in the k8s cluster."""
+    pass
+
+
+@route(
+    request_method=po_router.get,
+    path="/po/pods/{analysis_id}",
     status_code=status.HTTP_200_OK,
     response_model=PodResponse,
     service_url=get_settings().PODORC_SERVICE_URL,
@@ -122,13 +181,28 @@ async def get_analysis_pods(
     response: Response,
     analysis_id: Annotated[uuid.UUID | None, Path(description="UUID of the analysis.")],
 ):
-    """Get the pods for a specific analysis run."""
+    """Get information on a specific running analysis pod in the k8s cluster."""
     pass
 
 
 @route(
     request_method=po_router.put,
-    path="/po/{analysis_id}/stop",
+    path="/po/stop",
+    status_code=status.HTTP_200_OK,
+    response_model=StatusResponse,
+    service_url=get_settings().PODORC_SERVICE_URL,
+)
+async def stop_all_analyses(
+    request: Request,
+    response: Response,
+):
+    """Stop all analysis pods."""
+    pass
+
+
+@route(
+    request_method=po_router.put,
+    path="/po/stop/{analysis_id}",
     status_code=status.HTTP_200_OK,
     response_model=StatusResponse,
     service_url=get_settings().PODORC_SERVICE_URL,
@@ -144,7 +218,22 @@ async def stop_analysis(
 
 @route(
     request_method=po_router.delete,
-    path="/po/{analysis_id}/delete",
+    path="/po/delete",
+    status_code=status.HTTP_200_OK,
+    response_model=StatusResponse,
+    service_url=get_settings().PODORC_SERVICE_URL,
+)
+async def delete_all_analyses(
+    request: Request,
+    response: Response,
+):
+    """Delete all analysis pods."""
+    pass
+
+
+@route(
+    request_method=po_router.delete,
+    path="/po/delete/{analysis_id}",
     status_code=status.HTTP_200_OK,
     response_model=StatusResponse,
     service_url=get_settings().PODORC_SERVICE_URL,
@@ -168,10 +257,11 @@ async def delete_analysis(
 async def cleanup_node(
     request: Request,
     response: Response,
-    cleanup_type: Annotated[str | None, Path(description="What type of cleanup.")],
+    cleanup_type: Annotated[CleanUpType, Path(description="What type of cleanup.")],
 ):
     """Delete specific types of resources.
 
-    Should be a comma separated combination of the following entries: 'all', 'analyzes', 'services', 'mb', 'rs'
+    Should be a comma separated combination of the following entries:
+    'all', 'analyzes', 'services', 'mb', 'rs', 'keycloak'
     """
     pass
