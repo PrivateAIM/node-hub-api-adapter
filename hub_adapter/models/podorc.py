@@ -7,6 +7,8 @@ from pydantic import BaseModel, RootModel, field_validator
 
 
 class CleanUpType(str, Enum):
+    """Canned strings for cleanup endpoint"""
+
     all = "all"
     analyzes = "analyzes"
     services = "services"
@@ -16,6 +18,8 @@ class CleanUpType(str, Enum):
 
 
 class CreateAnalysis(BaseModel):
+    """Required body params for PO analysis creation"""
+
     analysis_id: str
     project_id: str
     registry_url: str
@@ -32,6 +36,8 @@ class LogReport(RootModel[dict[uuid.UUID, list[str | None]]]):
 
 
 class LogResponse(BaseModel):
+    """Response for log endpoint"""
+
     analysis: LogReport | None = None
     nginx: LogReport | None = None
 
@@ -41,6 +47,8 @@ class PodResponse(RootModel[dict[uuid.UUID, list[str | None]]]):
 
 
 class PodStatus(str, Enum):
+    """Custom PO run statuses."""
+
     STARTING = "starting"
     STARTED = "started"
 
@@ -74,6 +82,8 @@ class StatusResponse(RootModel[dict[uuid.UUID, PodStatus]]):
 
 
 class CleanupPodResponse(BaseModel):
+    """Response model for cleanup endpoint"""
+
     all: str | None = None
     analyzes: str | None = None
     services: str | None = None
