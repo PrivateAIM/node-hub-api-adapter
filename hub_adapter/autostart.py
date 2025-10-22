@@ -172,12 +172,12 @@ class GoGoAnalysis:
     async def pod_running(self, analysis_id: str) -> bool | None:
         """Check whether a pod with the given analysis_id is already running."""
         pod_status = await self.fetch_analysis_status(analysis_id=analysis_id)
-        if pod_status:
+        if pod_status is not None:
             # null, 'finished', 'failed', and 'stopped' means no pod present
             existing_pod_statuses = ("started", "starting", "running", "stopping")
-            return bool(pod_status["status"] and pod_status["status"] in existing_pod_statuses)
+            return bool(analysis_id in pod_status and pod_status[analysis_id] in existing_pod_statuses)
 
-        return None  # Error occurred and no status retrieved
+        return pod_status  # Error occurred and no status retrieved
 
     async def fetch_token_header(self) -> dict | None:
         """Append OIDC token to headers."""
@@ -195,8 +195,9 @@ class GoGoAnalysis:
 
         node_metadata = get_node_metadata_for_url(analysis_props["node_id"], core_client=self.core_client)
         analysis_info = get_registry_metadata_for_url(node_metadata, core_client=self.core_client)
+        analysis_id = analysis_props["analysis_id"]
         props = compile_analysis_pod_data(
-            analysis_id=analysis_props["analysis_id"],
+            analysis_id=analysis_id,
             project_id=analysis_props["project_id"],
             compiled_info=analysis_info,
             kong_token=kong_token,
@@ -213,21 +214,21 @@ class GoGoAnalysis:
                     headers=headers,
                     data=props,
                 )
-                logger.info(f"Analysis start response for {analysis_props['analysis_id']}: {resp_data['status']}")
+                logger.info(f"Analysis start response for {analysis_id}: {resp_data[analysis_id]}")
                 return resp_data, status_code
 
             except HTTPException as e:
-                logger.error(
-                    f"Unable to start analysis {analysis_props['analysis_id']} due to the following error: {e}"
-                )
+                logger.error(f"Unable to start analysis {analysis_id} due to the following error: {e}")
                 return e.detail, e.status_code
 
             except HTTPStatusError as e:
-                logger.error(
-                    f"Unable to start analysis {analysis_props['analysis_id']} "
-                    f"due to the following error: {e.response.text}"
-                )
-                return None, e.response.status_code
+                logger.error(f"Unable to start analysis {analysis_id} due to the following error: {e.response.text}")
+                resp = {
+                    "message": f"PodOrc encountered the following error: {e.response.text}",
+                    "service": "PO",
+                    "status_code": e.response.status_code,
+                }
+                return resp, e.response.status_code
 
             except (ConnectError, RemoteProtocolError) as e:
                 logger.error(f"Pod Orchestrator unreachable - {e}")
@@ -251,7 +252,7 @@ class GoGoAnalysis:
     async def fetch_analysis_status(self, analysis_id: uuid.UUID | str) -> dict | None:
         """Fetch the status for a specific analysis run. For autostart operation"""
         headers = await self.fetch_token_header()
-        microsvc_path = f"{get_settings().PODORC_SERVICE_URL}/po/{analysis_id}/status"
+        microsvc_path = f"{get_settings().PODORC_SERVICE_URL}/po/status/{analysis_id}"
         resp_data = None
 
         if headers:
