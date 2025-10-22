@@ -83,13 +83,25 @@ async def initialize_analysis(
         node_id=node_id, node_type=node_type, **analysis_params.model_dump()
     )
 
-    if start_resp:
+    if start_status_code == status.HTTP_201_CREATED:
         return start_resp
+
+    elif start_resp:
+        raise HTTPException(
+            status_code=start_status_code,
+            detail=start_resp,
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
     else:
         raise HTTPException(
             status_code=start_status_code,
-            detail={"message": "Failed to initialize analysis", "status_code": start_status_code},
+            detail={
+                "message": "Failed to initialize analysis",
+                "service": "PO",
+                "status_code": start_status_code,
+            },
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
 

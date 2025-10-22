@@ -223,7 +223,12 @@ class GoGoAnalysis:
 
             except HTTPStatusError as e:
                 logger.error(f"Unable to start analysis {analysis_id} due to the following error: {e.response.text}")
-                return None, e.response.status_code
+                resp = {
+                    "message": f"PodOrc encountered the following error: {e.response.text}",
+                    "service": "PO",
+                    "status_code": e.response.status_code,
+                }
+                return resp, e.response.status_code
 
             except (ConnectError, RemoteProtocolError) as e:
                 logger.error(f"Pod Orchestrator unreachable - {e}")
