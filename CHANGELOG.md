@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.3.0](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.2.14...v0.3.0) (2025-10-22)
+
+
+### ⚠ BREAKING CHANGES
+
+* force breaking change update
+
+### Features
+
+* force breaking change update ([ec24b89](https://github.com/PrivateAIM/node-hub-api-adapter/commit/ec24b8970276b763cfbdb37164c73cd90e23bcb7))
+* **meta:** add analysis terminate method to meta router ([7060f2a](https://github.com/PrivateAIM/node-hub-api-adapter/commit/7060f2a2657d712f430d61f8ae37af85d1be894f))
+* **po:** update PO endpoints and response models ([b447242](https://github.com/PrivateAIM/node-hub-api-adapter/commit/b44724267f299938652bb0c7af62c19f661b43f6))
+
+
+### Bug Fixes
+
+* **po:** parsing pod status response ([f185a0e](https://github.com/PrivateAIM/node-hub-api-adapter/commit/f185a0e7720cb1b579587dcc355761f443582bfb))
+
 ## [0.2.14](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.2.13...v0.2.14) (2025-10-14)
 
 
