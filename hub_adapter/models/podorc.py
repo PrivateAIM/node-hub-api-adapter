@@ -3,7 +3,7 @@
 import uuid
 from enum import Enum
 
-from pydantic import BaseModel, RootModel, field_validator
+from pydantic import BaseModel, RootModel
 
 
 class CleanUpType(str, Enum):
@@ -63,19 +63,13 @@ class PodStatus(str, Enum):
 
 
 class AnalysisStatus(BaseModel):
-    """Inner structure of StatusResponse"""
+    """Status report for an analysis from the PodOrchestrator"""
 
-    model_config = {"extra": "allow"}
-
-    @field_validator("*")
-    @classmethod
-    def validate_status(cls, v):
-        if v not in [status.value for status in PodStatus]:
-            raise ValueError(f"Status must be one of {[s.value for s in PodStatus]}, got: {v}")
-        return v
+    status: PodStatus
+    progress: int
 
 
-class StatusResponse(RootModel[dict[uuid.UUID, PodStatus]]):
+class StatusResponse(RootModel[dict[uuid.UUID, AnalysisStatus]]):
     """Response with dynamic UUID keys and dynamic analysis keys"""
 
     pass
