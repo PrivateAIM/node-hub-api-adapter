@@ -8,6 +8,8 @@ from flame_hub._core_client import Node
 DS_TYPE = "fhir"
 NODE_TYPE = "default"
 
+TEST_URL = "https://api.example.com"
+
 TEST_MOCK_ANALYSIS_ID = "1c9cb547-4afc-4398-bcb6-954bc61a1bb1"
 TEST_MOCK_PROJECT_ID = "9cbefefe-2420-4b8e-8ac1-f48148a9fd40"
 TEST_MOCK_NODE_ID = "9c521144-364d-4cdc-8ec4-cb62a537f10c"

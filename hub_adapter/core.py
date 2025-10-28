@@ -255,7 +255,7 @@ def route(
                         "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
                     },
                     headers={"WWW-Authenticate": "Bearer"},
-                )
+                ) from ce
 
             except DecodingError as de:
                 err_msg = f"Service error - HTTP Request: {method.upper()} {microsvc_path} "
@@ -270,7 +270,7 @@ def route(
                         "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
                     },
                     headers={"WWW-Authenticate": "Bearer"},
-                )
+                ) from de
 
             except HTTPStatusError as http_error:
                 err_msg = f"HTTP Request: {method.upper()} {microsvc_path} - {http_error}"
@@ -283,7 +283,7 @@ def route(
                         "status_code": http_error.response.status_code,
                     },
                     headers={"WWW-Authenticate": "Bearer"},
-                )
+                ) from http_error
 
             except ReadTimeout:
                 err_msg = f"HTTP Request: {method.upper()} {microsvc_path} - Service took too long to respond."
@@ -296,7 +296,7 @@ def route(
                         "status_code": status.HTTP_408_REQUEST_TIMEOUT,
                     },
                     headers={"WWW-Authenticate": "Bearer"},
-                )
+                ) from ReadTimeout
 
             response.status_code = status_code_from_service
 
