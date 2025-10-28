@@ -20,7 +20,6 @@ from hub_adapter.dependencies import (
     get_node_metadata_for_url,
     get_node_type_cache,
     get_registry_metadata_for_url,
-    get_settings,
     get_ssl_context,
 )
 from hub_adapter.errors import HubConnectError
@@ -48,13 +47,10 @@ class TestDeps:
 
             yield  # Test runs here
 
-    def test_get_settings(self):
+    def test_get_ssl_context(self, test_settings):
         """Test the get_ssl_context method."""
-        returned_settings = get_settings()
-        assert self.mock_settings.return_value == returned_settings
+        from dataclasses import replace
 
-    def test_get_ssl_context(self):
-        """Test the get_ssl_context method."""
         # Clear the cache to avoid conflicts
         get_ssl_context.cache_clear()
 
@@ -70,8 +66,10 @@ class TestDeps:
 
         # Valid file
         get_ssl_context.cache_clear()
-        self.mock_settings.EXTRA_CA_CERTS = str(cert_file_path)
-        context = get_ssl_context(self.mock_settings)
+
+        added_certs_settings = replace(test_settings, EXTRA_CA_CERTS=str(cert_file_path))
+
+        context = get_ssl_context(added_certs_settings)
         assert context is not None
         assert len(context._ctx.get_ca_certs()) == 2  # 2 certificates in test file
 
@@ -124,19 +122,8 @@ class TestDeps:
 
     @patch("hub_adapter.dependencies.get_node_id")
     @pytest.mark.asyncio
-    async def test_working_get_node_type_cache(self, mock_node_id):
-        """Test the working get_node_type_cache method."""
-        mock_node_id.return_value = TEST_MOCK_NODE.id
-        with patch("flame_hub._core_client.CoreClient.get_node") as cc_response:
-            cc_response.return_value = TEST_MOCK_NODE
-
-            good_cache = await get_node_type_cache(self.mock_settings, self.cc)
-            assert good_cache["type"] == TEST_MOCK_NODE.type
-
-    @patch("hub_adapter.dependencies.get_node_id")
-    @pytest.mark.asyncio
-    async def test_broken_get_node_type_cache(self, mock_node_id):
-        """Test the broken get_node_type_cache method."""
+    async def test_get_node_type_cache(self, mock_node_id):
+        """Test the get_node_type_cache method."""
         mock_node_id.return_value = TEST_MOCK_NODE.id
         with patch("flame_hub._core_client.CoreClient.get_node") as cc_response:
             cc_response.side_effect = httpx.ConnectError(message="Hub is dead")
@@ -145,6 +132,12 @@ class TestDeps:
                 await get_node_type_cache(self.mock_settings, self.cc)
 
             assert hubError.value.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+
+            cc_response.side_effect = None
+            cc_response.return_value = TEST_MOCK_NODE
+
+            good_cache = await get_node_type_cache(self.mock_settings, self.cc)
+            assert good_cache["type"] == TEST_MOCK_NODE.type
 
     @patch("flame_hub._core_client.CoreClient.get_node")
     def test_get_node_metadata_for_url(self, mock_node):
