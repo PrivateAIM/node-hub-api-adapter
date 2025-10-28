@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from fastapi.testclient import TestClient
 
 from hub_adapter.conf import Settings
-from tests.constants import DS_TYPE, TEST_MOCK_ANALYSIS_ID, TEST_MOCK_PROJECT_ID
+from tests.constants import DS_TYPE, TEST_MOCK_ANALYSIS_ID, TEST_MOCK_PROJECT_ID, TEST_MOCK_ROBOT_USER
 from tests.pseudo_auth import BearerAuth
 
 
@@ -41,7 +41,7 @@ def test_settings() -> Settings:
             KONG_PROXY_SERVICE_URL="http://localhost:8002",
             HUB_AUTH_SERVICE_URL="https://auth.privateaim.dev",
             HUB_SERVICE_URL="https://core.privateaim.dev",
-            HUB_ROBOT_USER="096434d8-1e26-4594-9883-64ca1d55e129",  # fake uuid
+            HUB_ROBOT_USER=TEST_MOCK_ROBOT_USER,  # fake uuid
             HUB_ROBOT_SECRET="foobar",
             API_CLIENT_ID="hub-adapter-test",
             API_CLIENT_SECRET="notASecret",

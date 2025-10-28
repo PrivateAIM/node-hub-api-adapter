@@ -1,12 +1,35 @@
 """String constants for tests."""
 
+import uuid
 from datetime import datetime, timezone
 
+from flame_hub._core_client import Node
+
 DS_TYPE = "fhir"
+NODE_TYPE = "default"
 
 TEST_MOCK_ANALYSIS_ID = "1c9cb547-4afc-4398-bcb6-954bc61a1bb1"
 TEST_MOCK_PROJECT_ID = "9cbefefe-2420-4b8e-8ac1-f48148a9fd40"
 TEST_MOCK_NODE_ID = "9c521144-364d-4cdc-8ec4-cb62a537f10c"
+
+TEST_MOCK_ROBOT_USER = "096434d8-1e26-4594-9883-64ca1d55e129"
+
+TEST_MOCK_NODE = Node(
+    id=uuid.UUID(TEST_MOCK_NODE_ID),
+    public_key="fakeKey",
+    online=True,
+    registry=None,
+    registry_project_id=uuid.UUID(TEST_MOCK_PROJECT_ID),
+    robot_id=uuid.UUID(TEST_MOCK_ROBOT_USER),
+    created_at=datetime.now(timezone.utc),
+    updated_at=datetime.now(timezone.utc),
+    external_name=None,
+    hidden=False,
+    name=TEST_MOCK_NODE_ID,
+    realm_id=None,
+    registry_id=None,
+    type=NODE_TYPE,
+)
 
 ANALYSIS_NODES_RESP = [
     {
@@ -37,7 +60,6 @@ ANALYSIS_NODES_RESP = [
             "master_image_id": None,
             "registry_id": None,
             "run_status": None,
-            "name": None,
         },
     },
     {  # Ready to start

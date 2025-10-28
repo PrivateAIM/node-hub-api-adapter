@@ -89,7 +89,7 @@ def get_core_client(
     ],
     ssl_ctx: Annotated[ssl.SSLContext, Depends(get_ssl_context)],
     hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
-):
+) -> flame_hub.CoreClient:
     return flame_hub.CoreClient(
         client=httpx.Client(base_url=hub_adapter_settings.HUB_SERVICE_URL, auth=hub_robot, verify=ssl_ctx)
     )
@@ -99,7 +99,7 @@ def get_core_client(
 async def get_node_id(
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
     hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
-    debug: bool = False,
+    force_refresh: bool = False,
 ) -> str | None:
     """Uses the robot ID to obtain the associated node ID, sets it in the env vars, and returns it.
 
@@ -107,13 +107,11 @@ async def get_node_id(
 
     If None is returned, no filtering will be applied, which is useful for debugging.
     """
-    if debug:
-        return None
-
     robot_id = hub_adapter_settings.HUB_ROBOT_USER
 
     node_cache = {}
-    if node_id_pickle_path.is_file():
+
+    if not force_refresh and node_id_pickle_path.is_file():
         with open(node_id_pickle_path, "rb") as f:
             node_cache = pickle.load(f)
 
@@ -184,9 +182,9 @@ async def get_node_type_cache(
 def get_node_metadata_for_url(
     node_id: Annotated[uuid.UUID | str, Body(description="Node UUID")],
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
-):
+) -> Node | None:
     """Get analysis metadata for a given UUID to be used in creating analysis image URL."""
-    node_metadata: Node = core_client.get_node(node_id=node_id)
+    node_metadata: Node | None = core_client.get_node(node_id=node_id)
 
     if not node_metadata.registry_project_id:
         err_msg = f"No registry project associated with node {node_id}"
