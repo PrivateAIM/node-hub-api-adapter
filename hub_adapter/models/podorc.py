@@ -66,7 +66,7 @@ class AnalysisStatus(BaseModel):
     """Status report for an analysis from the PodOrchestrator"""
 
     status: PodStatus
-    progress: int
+    progress: int | None = None
 
 
 class StatusResponse(RootModel[dict[uuid.UUID, AnalysisStatus]]):
