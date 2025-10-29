@@ -5,10 +5,19 @@ from datetime import datetime, timezone
 
 from flame_hub._core_client import Node
 
+from hub_adapter.models.conf import OIDCConfiguration
+
 DS_TYPE = "fhir"
 NODE_TYPE = "default"
 
 TEST_URL = "https://api.example.com"
+TEST_OIDC = OIDCConfiguration(
+    issuer=TEST_URL,
+    authorization_endpoint=TEST_URL,
+    token_endpoint=TEST_URL,
+    jwks_uri=TEST_URL,
+    userinfo_endpoint=TEST_URL,
+)
 
 TEST_MOCK_ANALYSIS_ID = "1c9cb547-4afc-4398-bcb6-954bc61a1bb1"
 TEST_MOCK_PROJECT_ID = "9cbefefe-2420-4b8e-8ac1-f48148a9fd40"
@@ -268,3 +277,19 @@ KONG_ANALYSIS_SUCCESS_RESP = {
         "tags": [TEST_MOCK_PROJECT_ID],
     },
 }
+
+TEST_JWKS_RESPONSE = {
+    "keys": [
+        {
+            "key_ops": ["verify"],
+            "ext": "true",
+            "kty": "RSA",
+            "n": "0KXvS0gNKz9GO1S-R3FwPCP45IbGr3xYpkNa-_QcvT1bWykB_pCHGRNHAXvAvDrkFqwEYrNJVq20RD_pafxXy12axj_oSg1XJprUmsGEgmU9JEo1PIWyo49uJHiiolMaNwsSZS-v0L0RDWlXtTh5YNgN0kt2awjd4oz8836CH2c94qXSbtfmcBkh2AY4EzZfEwbWfJPS6FcWUr9hM_pBXB69anb35mp-UN_ndYP_nnFbieA1W3IFB3DK6siNZEZTiZxiBP1-VR3Qpzahr_qWxVv6KfWQ5ixMfu5mQpGFjjy_jzckxtr-f3zO0MIKCe_cdTj77KsIaeGtrVdWP_UN-Q",
+            "e": "AQAB",
+            "alg": "RS256",
+            "kid": "3d08b96f-ceb8-43e2-912b-10df205ae4d4",
+        }
+    ]
+}
+
+TEST_JWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30"
