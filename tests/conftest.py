@@ -1,7 +1,6 @@
 """Test FastAPI app instance."""
 
 import os
-import time
 from pathlib import Path
 
 import httpx
@@ -13,8 +12,6 @@ from hub_adapter.auth import verify_idp_token
 from hub_adapter.conf import Settings
 from tests.constants import (
     FAKE_USER,
-    TEST_MOCK_ANALYSIS_ID,
-    TEST_MOCK_PROJECT_ID,
     TEST_MOCK_ROBOT_USER,
     TEST_URL,
 )
@@ -85,20 +82,3 @@ def test_token(test_client) -> BearerAuth:
     assert resp.status_code == httpx.codes.OK
     token = resp.json()["access_token"]
     return BearerAuth(token=token)
-
-
-@pytest.fixture(scope="module")
-def setup_po(test_client, test_token):
-    """Setup pod orchestrator instance with test data."""
-    test_pod = {
-        "analysis_id": TEST_MOCK_ANALYSIS_ID,
-        "project_id": TEST_MOCK_PROJECT_ID,
-    }
-
-    r = test_client.post("/po", auth=test_token, json=test_pod)
-    assert r.status_code == httpx.codes.OK
-    time.sleep(2)  # Need time for k8s
-
-    yield
-
-    test_client.delete(f"/po/{TEST_MOCK_ANALYSIS_ID}/delete", auth=test_token)
