@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 def fetch_openid_config(
     oidc_url: str,
     max_retries: int = 6,
+    wait_interval: int = 10,
 ) -> OIDCConfiguration:
     """Fetch the openid configuration from the OIDC URL. Tries until it reaches max_retries."""
     provided_url = oidc_url
@@ -35,7 +36,7 @@ def fetch_openid_config(
 
         except (httpx.ConnectError, httpx.ReadTimeout):  # OIDC Service not up yet
             attempt_num += 1
-            wait_time = 10 * (2 ** (attempt_num - 1))  # 10s, 20s, 40s, 80s, 160s, 320s
+            wait_time = wait_interval * (2 ** (attempt_num - 1))  # 10s, 20s, 40s, 80s, 160s, 320s
             logger.warning(f"Unable to contact the IDP at {oidc_url}, retrying in {wait_time} seconds")
             time.sleep(wait_time)
 
