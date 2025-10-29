@@ -18,6 +18,15 @@ TEST_OIDC = OIDCConfiguration(
     jwks_uri=TEST_URL,
     userinfo_endpoint=TEST_URL,
 )
+TEST_SVC_URL = "https://service.example"
+TEST_SVC_OIDC = OIDCConfiguration(
+    issuer=TEST_SVC_URL,
+    authorization_endpoint=TEST_SVC_URL,
+    token_endpoint=TEST_SVC_URL,
+    jwks_uri=TEST_SVC_URL,
+    userinfo_endpoint=TEST_SVC_URL,
+)
+
 
 TEST_MOCK_ANALYSIS_ID = "1c9cb547-4afc-4398-bcb6-954bc61a1bb1"
 TEST_MOCK_PROJECT_ID = "9cbefefe-2420-4b8e-8ac1-f48148a9fd40"
@@ -290,6 +299,22 @@ TEST_JWKS_RESPONSE = {
             "kid": "3d08b96f-ceb8-43e2-912b-10df205ae4d4",
         }
     ]
+}
+
+TEST_OIDC_RESPONSE = {
+    "authorization_endpoint": TEST_URL,
+    "issuer": TEST_URL,
+    "jwks_uri": TEST_URL,
+    "token_endpoint": TEST_URL,
+    "userinfo_endpoint": TEST_URL,
+}
+
+TEST_OIDC_SVC_RESPONSE = {
+    "authorization_endpoint": TEST_SVC_URL,
+    "issuer": TEST_SVC_URL,
+    "jwks_uri": TEST_SVC_URL,
+    "token_endpoint": TEST_SVC_URL,
+    "userinfo_endpoint": TEST_SVC_URL,
 }
 
 TEST_JWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30"

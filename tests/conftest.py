@@ -10,7 +10,13 @@ from dotenv import load_dotenv
 from fastapi.testclient import TestClient
 
 from hub_adapter.conf import Settings
-from tests.constants import DS_TYPE, TEST_MOCK_ANALYSIS_ID, TEST_MOCK_PROJECT_ID, TEST_MOCK_ROBOT_USER
+from tests.constants import (
+    DS_TYPE,
+    TEST_MOCK_ANALYSIS_ID,
+    TEST_MOCK_PROJECT_ID,
+    TEST_MOCK_ROBOT_USER,
+    TEST_URL,
+)
 from tests.pseudo_auth import BearerAuth
 
 
@@ -33,7 +39,7 @@ def test_settings() -> Settings:
 
     else:
         return Settings(
-            IDP_URL="https://test.deployment/keycloak/realms/flame",
+            IDP_URL=TEST_URL,
             API_ROOT_PATH="",
             PODORC_SERVICE_URL="http://localhost:8000",
             RESULTS_SERVICE_URL="http://localhost:8005",
@@ -47,7 +53,7 @@ def test_settings() -> Settings:
             API_CLIENT_SECRET="notASecret",
             HTTP_PROXY="http://squid.proxy:3128",
             HTTPS_PROXY="http://squid.proxy:3128",
-            NODE_SVC_OIDC_URL="https://test.deployment/keycloak/realms/flame",
+            NODE_SVC_OIDC_URL=TEST_URL,
         )
 
 
