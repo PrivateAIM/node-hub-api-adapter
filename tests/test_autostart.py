@@ -127,11 +127,11 @@ class TestAutostart:
     async def test_pod_running(self, mock_fetch_analysis_status):
         """Test checking whether the pod is running."""
         # Pod running
-        mock_fetch_analysis_status.return_value = {"status": "running"}
+        mock_fetch_analysis_status.return_value = {TEST_MOCK_ANALYSIS_ID: "running"}
         pod_running_resp = await self.analyzer.pod_running(TEST_MOCK_ANALYSIS_ID)
         assert pod_running_resp  # True
 
-        mock_fetch_analysis_status.return_value = {"status": ""}
+        mock_fetch_analysis_status.return_value = {TEST_MOCK_ANALYSIS_ID: ""}
         pod_not_running_resp = await self.analyzer.pod_running(TEST_MOCK_ANALYSIS_ID)
         assert not pod_not_running_resp  # False
 
@@ -192,11 +192,11 @@ class TestAutostart:
         }
 
         # Working
-        mock_request.return_value = {"status": "running"}, status.HTTP_201_CREATED
+        mock_request.return_value = {TEST_MOCK_ANALYSIS_ID: "running"}, status.HTTP_201_CREATED
         pod_resp, status_code = await self.analyzer.send_start_request(sim_input, "fakeKongToken")
         assert mock_logger.info.call_count == 2
         mock_logger.info.assert_called_with(f"Analysis start response for {TEST_MOCK_ANALYSIS_ID}: running")
-        assert pod_resp == {"status": "running"}
+        assert pod_resp == {TEST_MOCK_ANALYSIS_ID: "running"}
         assert status_code == status.HTTP_201_CREATED
 
         # Problem
