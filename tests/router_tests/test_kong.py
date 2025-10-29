@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
-from kong_admin_client import ApiException, ListKeyAuthsForConsumer200Response, Route
+from kong_admin_client import ApiException, ListKeyAuthsForConsumer200Response, Route, Service
 from starlette import status
 
 from hub_adapter.conf import Settings
@@ -22,46 +22,69 @@ from tests.constants import (
     DS_TYPE,
     KONG_ANALYSIS_SUCCESS_RESP,
     KONG_GET_ROUTE_RESPONSE,
+    TEST_JWT,
+    TEST_KONG_SERVICE_RESPONSE,
     TEST_MOCK_ANALYSIS_ID,
     TEST_MOCK_PROJECT_ID,
 )
+from tests.pseudo_auth import BearerAuth
 
 test_svc_name = test_route_name = f"{TEST_MOCK_PROJECT_ID}-{DS_TYPE}"
 
+TEST_SVC_NAME = f"{TEST_MOCK_PROJECT_ID}-{DS_TYPE}-{DS_TYPE}"
 
-class TestKongEndpoints:
-    """Kong EP tests. Dependent on having a running instance of Kong and admin URL defined in ENV."""
 
-    def test_list_data_stores(self, test_client, setup_kong, test_token):
-        """Test the list_data_stores method."""
-        r = test_client.get("/kong/datastore", auth=test_token)
-        assert r.status_code == status.HTTP_200_OK
+class TestKong:
+    """Kong EP tests."""
 
-        json_data = r.json()
+    @patch("hub_adapter.routers.kong.kong_admin_client.ServicesApi.list_service")
+    def test_list_data_stores(self, mock_svc, authorized_test_client):
+        """Test the list_data_stores (GET /datastore) and list_specific_data_store methods
+        (GET /datastore/{project_id}."""
+        # TODO add testing for "detailed" parameter
+        mock_svc.return_value = TEST_KONG_SERVICE_RESPONSE
+        # test_client.dependency_overrides[verify_idp_token] = {"user_id": "test_user", "email": "test@example.com"}
+        all_services_resp = authorized_test_client.get("/kong/datastore", auth=BearerAuth(TEST_JWT))
+        assert all_services_resp.status_code == status.HTTP_200_OK
+
+        json_data = all_services_resp.json()
         data = json_data["data"]
 
-        assert len(data)  # should not be none
         assert isinstance(data, list)
-        assert len(data) > 0  # minimum 1
+        assert len(data) == 1
 
-        data_store_names = [ds["name"] for ds in data]
-        assert test_svc_name in data_store_names
+        assert data[0]["name"] == TEST_SVC_NAME
 
-    def test_list_data_stores_by_project(self, test_client, setup_kong, test_token):
-        """Test the list_data_stores_by_project method."""
-        r = test_client.get(f"/kong/datastore/{TEST_MOCK_PROJECT_ID}", auth=test_token)
-        assert r.status_code == status.HTTP_200_OK
+        single_service_resp = authorized_test_client.get(f"/kong/datastore/{TEST_SVC_NAME}", auth=BearerAuth(TEST_JWT))
+        assert single_service_resp.status_code == status.HTTP_200_OK
 
-        json_data = r.json()
-        data = json_data["data"]
+        json_data = single_service_resp.json()
+        one_store = json_data["data"]
 
-        assert len(data) == 1  # should only be one named this
+        assert isinstance(one_store, list)
+        assert len(one_store) == 1
 
-        data_store = data[0]
+        assert one_store[0]["name"] == TEST_SVC_NAME
 
-        assert data_store["protocol"] == "http"
-        assert data_store["name"] == test_svc_name
-        assert data_store["port"] == 80
+    @patch("hub_adapter.routers.kong.logger")
+    @patch("hub_adapter.routers.kong.delete_route")
+    @patch("hub_adapter.routers.kong.kong_admin_client.ServicesApi.get_service")
+    @patch("hub_adapter.routers.kong.kong_admin_client.ServicesApi.delete_service")
+    def test_delete_data_store(
+        self, mock_svc_delete, mock_svc_get, mock_route_delete, mock_logger, authorized_test_client
+    ):
+        """Test the delete_data_store method."""
+        # Mock values
+        mock_svc_delete.return_value = None
+        mock_svc_get.return_value = Service(id=TEST_SVC_NAME)  # Needed for the subsequent `delete_service` method
+
+        # No routes found
+        mock_route_delete.side_effect = HTTPException(status.HTTP_404_NOT_FOUND)
+
+        authorized_test_client.delete(f"/kong/datastore/{TEST_SVC_NAME}", auth=BearerAuth(TEST_JWT))
+        assert mock_logger.info.call_count == 2
+        mock_logger.info.assert_any_call(f"No routes for service {TEST_SVC_NAME} found")
+        mock_logger.info.assert_any_call(f"Data store {TEST_SVC_NAME} deleted")
 
     def test_create_delete_data_store(self, test_client, setup_kong, test_token):
         """Test the create_data_store and delete_data_store methods."""

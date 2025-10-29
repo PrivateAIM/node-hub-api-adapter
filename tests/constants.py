@@ -318,3 +318,72 @@ TEST_OIDC_SVC_RESPONSE = {
 }
 
 TEST_JWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30"
+
+TEST_KONG_CREATE_SERVICE_REQUEST = {
+    "datastore": {
+        "name": TEST_MOCK_PROJECT_ID,
+        "protocol": "http",
+        "host": "test.server",
+        "port": 80,
+        "path": f"/{DS_TYPE}",
+    },
+    "ds_type": DS_TYPE,
+}
+
+TEST_KONG_CREATE_ROUTE_REQUEST = {
+    "data_store_id": f"{TEST_MOCK_PROJECT_ID}-{DS_TYPE}",
+    "project_id": TEST_MOCK_PROJECT_ID,
+    "methods": ["GET", "POST", "PUT", "DELETE"],
+    "ds_type": DS_TYPE,
+    "protocols": ["http"],
+}
+
+TEST_KONG_SERVICE_RESPONSE = {
+    "data": [
+        {
+            "ca_certificates": None,
+            "client_certificate": None,
+            "connect_timeout": 6000,
+            "created_at": 1761291469,
+            "enabled": True,
+            "host": "node-datastore-blaze",
+            "id": "82df4591-63cd-45fa-b17a-522e4049d353",
+            "name": f"{TEST_MOCK_PROJECT_ID}-{DS_TYPE}-{DS_TYPE}",
+            "path": f"/{DS_TYPE}",
+            "port": 80,
+            "protocol": "http",
+            "read_timeout": 6000,
+            "retries": 5,
+            "tags": [f"{TEST_MOCK_PROJECT_ID}-{DS_TYPE}", f"{TEST_MOCK_PROJECT_ID}-{DS_TYPE}-{DS_TYPE}"],
+            "tls_verify": None,
+            "tls_verify_depth": None,
+            "updated_at": 1761291469,
+            "url": None,
+            "write_timeout": 6000,
+            "routes": [],
+        }
+    ],
+    "offset": None,
+}
+
+FAKE_USER = {
+    "acr": "1",
+    "allowed-origins": ["/*"],
+    "aud": "account",
+    "azp": "hub-adapter-test",
+    "email": "foo@gmail.com",
+    "email_verified": True,
+    "exp": 1761749936,
+    "family_name": "Test",
+    "given_name": "Adapter",
+    "iat": 1761742736,
+    "iss": f"{TEST_URL}",
+    "name": "Adapter Test",
+    "preferred_username": "testuser",
+    "realm_access": {"roles": ["offline_access", "default-roles-flame", "uma_authorization"]},
+    "resource_access": {"account": {"roles": ["manage-account", "manage-account-links", "view-profile"]}},
+    "scope": "openid email profile",
+    "sid": "7135cb16-fbcd-4c5d-8c1f-0f6b5764c718",
+    "sub": "e4fe638c-c94e-4094-8c2f-793ff69def0b",
+    "typ": "Bearer",
+}
