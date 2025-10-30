@@ -1,9 +1,7 @@
 """Test FastAPI app instance."""
 
-import os
 from pathlib import Path
 
-import httpx
 import pytest
 from dotenv import load_dotenv
 from fastapi.testclient import TestClient
@@ -15,7 +13,6 @@ from tests.constants import (
     TEST_MOCK_ROBOT_USER,
     TEST_URL,
 )
-from tests.pseudo_auth import BearerAuth
 
 
 @pytest.fixture(scope="session")
@@ -69,16 +66,3 @@ def test_settings() -> Settings:
             HTTPS_PROXY="http://squid.proxy:3128",
             NODE_SVC_OIDC_URL=TEST_URL,
         )
-
-
-@pytest.fixture(scope="package")
-def test_token(test_client) -> BearerAuth:
-    """Get a new access token from the IDP."""
-    test_user, test_pwd = os.getenv("IDP_USER"), os.getenv("IDP_PWD")
-    assert test_user
-    assert test_pwd
-
-    resp = test_client.post("/token", data={"username": test_user, "password": test_pwd})
-    assert resp.status_code == httpx.codes.OK
-    token = resp.json()["access_token"]
-    return BearerAuth(token=token)

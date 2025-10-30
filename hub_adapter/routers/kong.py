@@ -373,7 +373,7 @@ async def create_datastore_and_project_with_link(
     )
     # Test connection
     try:
-        await test_connection(hub_adapter_settings=hub_adapter_settings, project_id=str(project_id), ds_type=ds_type)
+        await probe_connection(hub_adapter_settings=hub_adapter_settings, project_id=str(project_id), ds_type=ds_type)
 
     except HTTPException as error:  # if connection fails, delete service and route, then raise error
         logger.error("Failed to validate connection to datastore, deleting service and route")
@@ -570,7 +570,7 @@ async def delete_analysis(
 
 @kong_router.get("/project/{project_id}/{ds_type}/health", status_code=status.HTTP_200_OK)
 @catch_kong_errors
-async def test_connection(
+async def probe_connection(
     hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
     project_id: Annotated[str | uuid.UUID, Path(description="UUID or unique name of the project.")],
     ds_type: Annotated[DataStoreType, Path(description='Either "fhir" or "s3"')],

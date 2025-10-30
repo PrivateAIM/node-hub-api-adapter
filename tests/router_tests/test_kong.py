@@ -18,7 +18,6 @@ from kong_admin_client import (
 )
 from starlette import status
 
-from hub_adapter.conf import Settings
 from hub_adapter.errors import (
     BucketError,
     FhirEndpointError,
@@ -28,7 +27,7 @@ from hub_adapter.errors import (
     KongServiceError,
 )
 from hub_adapter.models.kong import DataStoreType
-from hub_adapter.routers.kong import probe_data_service, test_connection
+from hub_adapter.routers.kong import probe_connection, probe_data_service
 from tests.constants import (
     DS_TYPE,
     KONG_ANALYSIS_SUCCESS_RESP,
@@ -158,7 +157,7 @@ class TestKong:
 
     @patch("hub_adapter.routers.kong.create_route_to_datastore")
     @patch("hub_adapter.routers.kong.kong_admin_client.ServicesApi.create_service")
-    @patch("hub_adapter.routers.kong.test_connection")
+    @patch("hub_adapter.routers.kong.probe_connection")
     @patch("hub_adapter.routers.kong.delete_data_store")
     def test_create_datastore_and_project_with_link(
         self, mock_delete, mock_conn, mock_create_svc, mock_route, authorized_test_client
@@ -301,13 +300,17 @@ class TestConnection:
     """Tests for methods related to probing the connection via Kong."""
 
     @pytest.mark.asyncio
-    async def test_test_connection_missing_proxy_url(self):
+    async def test_test_connection_missing_proxy_url(self, test_settings):
         """Unit test for test_connection in which the proxy URL is not set."""
-        settings = Settings(KONG_PROXY_SERVICE_URL="")
+        from dataclasses import replace
+
+        removed_kong_url_settings = replace(test_settings, KONG_PROXY_SERVICE_URL="")
 
         with pytest.raises(HTTPException) as err:
-            await test_connection(
-                hub_adapter_settings=settings, project_id=TEST_MOCK_PROJECT_ID, ds_type=DataStoreType.FHIR
+            await probe_connection(
+                hub_adapter_settings=removed_kong_url_settings,
+                project_id=TEST_MOCK_PROJECT_ID,
+                ds_type=DataStoreType.FHIR,
             )
 
         assert err.value.detail["service"] == "Kong"
@@ -341,7 +344,7 @@ class TestConnection:
             data=[KONG_ANALYSIS_SUCCESS_RESP["keyauth"]]
         )
         mock_probe_data_service.return_value = status.HTTP_200_OK
-        success_resp = await test_connection(
+        success_resp = await probe_connection(
             hub_adapter_settings=test_settings, project_id=TEST_MOCK_PROJECT_ID, ds_type=DataStoreType.FHIR
         )
         mock_logger.warning.assert_called_with(f"No health consumer found for {TEST_MOCK_PROJECT_ID}, creating one now")
@@ -350,7 +353,7 @@ class TestConnection:
         # Failed health retrieval
         mock_list_key_auths_for_consumer.return_value = {}
         with pytest.raises(KongConsumerApiKeyError) as err:
-            await test_connection(
+            await probe_connection(
                 hub_adapter_settings=test_settings, project_id=TEST_MOCK_PROJECT_ID, ds_type=DataStoreType.FHIR
             )
 
