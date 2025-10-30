@@ -1,4 +1,4 @@
-FROM python:3.11-alpine AS builder
+FROM python:3.12-alpine AS builder
 LABEL maintainer="bruce.schultz@uk-koeln.de"
 
 # Have poetry create .venv/ folder in WORKDIR
@@ -8,13 +8,13 @@ ENV POETRY_NO_INTERACTION=1 \
 WORKDIR /app
 
 RUN apk add gcc musl-dev libffi-dev
-RUN pip install poetry==1.8.4
+RUN pip install poetry==2.2.1
 
 COPY ./poetry.lock ./pyproject.toml ./
 
 RUN poetry install --no-root --without dev
 
-FROM python:3.11-alpine
+FROM python:3.12-alpine
 
 RUN adduser -u 10000 -D hubadapter
 
