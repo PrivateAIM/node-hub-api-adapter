@@ -1,129 +1,143 @@
-"""Test the Hub endpoints."""
-from starlette import status
+"""Test the Hub eps."""
+
+from flame_hub._core_client import Analysis, AnalysisBucket, AnalysisNode, Node, Project, ProjectNode, RegistryProject
+
+from hub_adapter.models.hub import AnalysisImageUrl, DetailedAnalysis, NodeTypeResponse
+from hub_adapter.routers.hub import format_query_params, hub_router
+
+EXPECTED_HUB_ROUTE_CONFIG = {
+    "list_all_projects": {"path": "/projects", "methods": {"GET"}, "status_code": 200, "response_model": list[Project]},
+    "list_specific_project": {
+        "path": "/projects/{project_id}",
+        "methods": {"GET"},
+        "status_code": 200,
+        "response_model": Project,
+    },
+    "list_project_proposals": {
+        "path": "/project-nodes",
+        "methods": {"GET"},
+        "status_code": 200,
+        "response_model": list[ProjectNode],
+    },
+    "list_project_proposal": {
+        "path": "/project-nodes/{project_node_id}",
+        "methods": {"GET"},
+        "status_code": 200,
+        "response_model": ProjectNode,
+    },
+    "accept_reject_project_proposal": {
+        "path": "/project-nodes/{project_node_id}",
+        "methods": {"POST"},
+        "status_code": 200,
+        "response_model": ProjectNode,
+    },
+    "list_analysis_nodes": {
+        "path": "/analysis-nodes",
+        "methods": {"GET"},
+        "status_code": 200,
+        "response_model": list[AnalysisNode],
+    },
+    "list_specific_analysis_node": {
+        "path": "/analysis-nodes/{analysis_node_id}",
+        "methods": {"GET"},
+        "status_code": 200,
+        "response_model": AnalysisNode,
+    },
+    "accept_reject_analysis_node": {
+        "path": "/analysis-nodes/{analysis_node_id}",
+        "methods": {"POST"},
+        "status_code": 200,
+        "response_model": AnalysisNode,
+    },
+    "list_all_analyses": {
+        "path": "/analyses",
+        "methods": {"GET"},
+        "status_code": 200,
+        "response_model": list[Analysis],
+    },
+    "list_specific_analysis": {
+        "path": "/analyses/{analysis_id}",
+        "methods": {"GET"},
+        "status_code": 200,
+        "response_model": Analysis,
+    },
+    "list_all_nodes": {"path": "/nodes", "methods": {"GET"}, "status_code": 200, "response_model": list[Node]},
+    "list_specific_node": {"path": "/nodes/{node_id}", "methods": {"GET"}, "status_code": 200, "response_model": Node},
+    "get_node_type": {"path": "/node-type", "methods": {"GET"}, "status_code": 200, "response_model": NodeTypeResponse},
+    "update_specific_analysis": {
+        "path": "/analyses/{analysis_id}",
+        "methods": {"POST"},
+        "status_code": 200,
+        "response_model": DetailedAnalysis,
+    },
+    "get_registry_metadata_for_project": {
+        "path": "/registry-projects/{registry_project_id}",
+        "methods": {"GET"},
+        "status_code": 200,
+        "response_model": RegistryProject,
+    },
+    "get_analysis_image_url": {
+        "path": "/analysis/image",
+        "methods": {"POST"},
+        "status_code": None,
+        "response_model": AnalysisImageUrl,
+    },
+    "list_all_analysis_buckets": {
+        "path": "/analysis-buckets",
+        "methods": {"GET"},
+        "status_code": 200,
+        "response_model": None,
+    },
+    "list_specific_analysis_buckets": {
+        "path": "/analysis-buckets/{analysis_bucket_id}",
+        "methods": {"GET"},
+        "status_code": 200,
+        "response_model": AnalysisBucket,
+    },
+    "list_all_analysis_bucket_files": {
+        "path": "/analysis-bucket-files",
+        "methods": {"GET"},
+        "status_code": 200,
+        "response_model": None,
+    },
+    "list_specific_analysis_bucket_file": {
+        "path": "/analysis-bucket-files/{analysis_bucket_file_id}",
+        "methods": {"GET"},
+        "status_code": 200,
+        "response_model": None,
+    },
+}
 
 
 class TestHub:
-    """Hub EP tests. Dependent on having HUB_ROBOT_USER and HUB_ROBOT_SECRET in ENV variables."""
+    """Hub endpoint configuration tests."""
 
-    @staticmethod
-    def list_all(test_client, test_token, ep: str, valid_include: str):
-        """Wrapper for checking list_all methods."""
-        r = test_client.get(ep, auth=test_token)
-        assert r.status_code == status.HTTP_200_OK
+    def test_route_configs(self):
+        """Test end point configurations for the Hub gateway routes."""
+        observed = {}
+        for route in hub_router.routes:
+            observed[route.name] = {
+                "path": route.path,
+                "methods": route.methods,
+                "status_code": route.status_code,
+                "response_model": route.response_model,
+            }
+        assert observed == EXPECTED_HUB_ROUTE_CONFIG
 
-        data = r.json()
-        assert len(data)  # {"data" : []}
-
-        assert isinstance(data["data"], list)
-
-        # Try include
-        r_include = test_client.get(ep, auth=test_token, params={"include": valid_include})
-        assert r_include.status_code == status.HTTP_200_OK
-
-        # Try wrong include string
-        r_include_fail = test_client.get(ep, auth=test_token, params={"include": "foo"})
-        assert r_include_fail.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
-
-    @staticmethod
-    def list_specific(test_client, test_token, ep: str):
-        """Wrapper for checking list_specific methods."""
-        r = test_client.get(ep, auth=test_token)
-        assert r.status_code == status.HTTP_200_OK
-
-        data = r.json()
-        assert data["data"]
-        sample_object = data["data"][0]
-        sample_object_id = sample_object["id"]
-
-        # Try specific project
-        r_specific = test_client.get(f"{ep}/{sample_object_id}", auth=test_token)
-        assert r_specific.status_code == status.HTTP_200_OK
-        specific_data = r_specific.json()
-
-        assert specific_data  # shouldn't be empty
-        assert isinstance(specific_data, dict)
-
-    @staticmethod
-    def accept_reject(test_client, test_token, ep: str):
-        """Test the accept_reject methods."""
-        opposite_approval = {
-            "approved": "rejected",
-            "rejected": "approved",
+    def test_format_query_params(self):
+        """Test endpoint formatting query params."""
+        test_params = {"page": '{"limit": 2, "offset": 3}', "sort": "-id", "fields": "id,ninja"}
+        expected_formatted_params = {
+            "page": {"limit": 2, "offset": 3},
+            "fields": ["id", "ninja"],
+            "sort": {"by": "id", "order": "descending"},
         }
-        r = test_client.get(ep, auth=test_token)
-        assert r.status_code == status.HTTP_200_OK
+        assert format_query_params(test_params) == expected_formatted_params
 
-        data = r.json()
-        assert len(data)  # {"data" : []}
-
-        assert isinstance(data["data"], list)
-        sample_object = data["data"][0]
-        sample_object_id = sample_object["id"]
-        sample_object_approval = sample_object["approval_status"]
-
-        r_change = test_client.post(
-            f"{ep}/{sample_object_id}",
-            auth=test_token,
-            params={"approval_status": opposite_approval[sample_object_approval]},
-        )
-        assert r_change.status_code == status.HTTP_202_ACCEPTED
-        r_change_data = r_change.json()
-        assert r_change_data
-        assert isinstance(r_change_data, dict)
-        assert r_change_data["approval_status"] == opposite_approval[sample_object_approval]
-
-        # change it back
-        r_revert = test_client.post(
-            f"{ep}/{sample_object_id}",
-            auth=test_token,
-            params={"approval_status": sample_object_approval},
-        )
-        assert r_revert.status_code == status.HTTP_202_ACCEPTED
-        r_reverted = r_revert.json()
-        assert r_reverted
-        assert isinstance(r_reverted, dict)
-        assert r_reverted["approval_status"] == sample_object_approval
-
-    def test_list_all_projects(self, test_client, test_token):
-        """Test the list_all_projects method."""
-        self.list_all(test_client, test_token, ep="/projects", valid_include="master_image")
-
-    def test_list_specific_project(self, test_client, test_token):
-        """Test the list_specific_project method."""
-        self.list_specific(test_client, test_token, ep="/projects")
-
-    def test_list_projects_and_nodes(self, test_client, test_token):
-        """Test the list_projects_and_nodes method."""
-        r = test_client.get("/project-nodes", auth=test_token)
-        assert r.status_code == status.HTTP_200_OK
-
-        project_data = r.json()
-        assert len(project_data)  # {"data" : []}
-
-        assert isinstance(project_data["data"], list)
-        sample_node_id = project_data["data"][0]["node_id"]
-
-        # Test filter by node ID
-        r_node_filter = test_client.get("/project-nodes", auth=test_token, params={"filter_node_id": sample_node_id})
-        assert r_node_filter.status_code == status.HTTP_200_OK
-        node_filtered = r_node_filter.json()
-        assert node_filtered["data"]
-
-        for project in node_filtered["data"]:
-            assert project["node_id"] == sample_node_id
-
-    def test_accept_reject_project_node(self, test_client, test_token):
-        """Test the accept_reject_project_node method."""
-        self.accept_reject(test_client, test_token, ep="/project-nodes")
-
-    def test_list_analyses_of_nodes(self, test_client, test_token):
-        """Test the list_analyses_of_nodes method."""
-        self.list_all(test_client, test_token, ep="/analysis-nodes", valid_include="node")
-
-    def test_list_specific_analysis(self, test_client, test_token):
-        """Test the list_specific_analysis method."""
-        self.list_specific(test_client, test_token, ep="/analysis-nodes")
-
-    def test_accept_reject_analysis_node(self, test_client, test_token):
-        """Test the accept_reject_analysis_node method."""
-        self.accept_reject(test_client, test_token, ep="/analysis-nodes")
+        # Missing page
+        test_2 = {"sort": "+ninja", "fields": "foo,ninja"}
+        expected_formatted_params_2 = {
+            "fields": ["foo", "ninja"],
+            "sort": {"by": "ninja", "order": "ascending"},
+        }
+        assert format_query_params(test_2) == expected_formatted_params_2
