@@ -12,7 +12,7 @@ class OIDCConfiguration(BaseModel):
     jwks_uri: str
     userinfo_endpoint: str
 
-    class Config:
+    class ConfigDict:
         extra = "ignore"  # Ignore extra OIDC config fields
 
 
