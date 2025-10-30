@@ -16,6 +16,7 @@ from kong_admin_client import (
     CreatePluginForConsumerRequest,
     CreateRouteRequest,
     CreateServiceRequest,
+    ListService200Response,
     Service,
 )
 from starlette import status
@@ -84,6 +85,23 @@ def parse_project_info(services, client) -> dict:
     return {"data": service_dicts}
 
 
+def get_data_stores(
+    hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
+    project_id: uuid.UUID | str | None = None,
+    detailed: bool = False,
+) -> ListService200Response | dict:
+    """Get either all or a single data store (service)."""
+    configuration = kong_admin_client.Configuration(host=hub_adapter_settings.KONG_ADMIN_SERVICE_URL)
+    with kong_admin_client.ApiClient(configuration) as api_client:
+        service_api_instance = kong_admin_client.ServicesApi(api_client)
+        services = service_api_instance.list_service(tags=project_id)
+
+        if detailed:
+            services = parse_project_info(services, api_client)
+
+        return services
+
+
 @kong_router.get("/datastore", response_model=ListServices, status_code=status.HTTP_200_OK)
 @catch_kong_errors
 async def list_data_stores(
@@ -91,15 +109,7 @@ async def list_data_stores(
     detailed: Annotated[bool, Query(description="Whether to include detailed information on projects")] = False,
 ):
     """List all available data stores (referred to as services by kong)."""
-    configuration = kong_admin_client.Configuration(host=hub_adapter_settings.KONG_ADMIN_SERVICE_URL)
-    with kong_admin_client.ApiClient(configuration) as api_client:
-        service_api_instance = kong_admin_client.ServicesApi(api_client)
-        services = service_api_instance.list_service()
-
-        if detailed:
-            services = parse_project_info(services, api_client)
-
-        return services
+    return get_data_stores(hub_adapter_settings, project_id=None, detailed=detailed)
 
 
 @kong_router.get(
@@ -110,23 +120,11 @@ async def list_data_stores(
 @catch_kong_errors
 async def list_specific_data_store(
     hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
-    project_id: Annotated[str | None, Path(description="UUID of the associated project.")],
+    project_id: Annotated[uuid.UUID | str, Path(description="UUID of the associated project.")],
     detailed: Annotated[bool, Query(description="Whether to include detailed information on projects")] = False,
 ):
-    """List all available data stores (referred to as services by kong).
-
-    Will be composed of the Project UUID and the datastore type (fhir/s3) i.e. {project_id}-{ds_type}. This is found
-    via the tags.
-    """
-    configuration = kong_admin_client.Configuration(host=hub_adapter_settings.KONG_ADMIN_SERVICE_URL)
-    with kong_admin_client.ApiClient(configuration) as api_client:
-        service_api_instance = kong_admin_client.ServicesApi(api_client)
-        services = service_api_instance.list_service(tags=project_id)
-
-        if detailed:
-            services = parse_project_info(services, api_client)
-
-        return services
+    """Retrieve a specific data store using the project UUID"""
+    return get_data_stores(hub_adapter_settings, project_id=project_id, detailed=detailed)
 
 
 @kong_router.delete("/datastore/{data_store_name}", status_code=status.HTTP_200_OK)
@@ -196,24 +194,12 @@ async def create_service(
         return api_response
 
 
-@kong_router.get(
-    "/project",
-    response_model=ListRoutes,
-    status_code=status.HTTP_200_OK,
-)
-@catch_kong_errors
-async def list_projects(
+def get_projects(
     hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
-    project_id: Annotated[uuid.UUID | str | None, Query(description="UUID of project.")] = None,
-    detailed: Annotated[
-        bool,
-        Query(description="Whether to include detailed information on data stores"),
-    ] = False,
-):
-    """List all projects (referred to as routes by kong) available, can be filtered by project_id.
-
-    Set "detailed" to True to include detailed information on the linked data stores.
-    """
+    project_id: uuid.UUID | str | None = None,
+    detailed: bool = False,
+) -> ListRoutes | dict:
+    """Get either all or a single data store (service)."""
     configuration = kong_admin_client.Configuration(host=hub_adapter_settings.KONG_ADMIN_SERVICE_URL)
     project = str(project_id) if project_id else None
 
@@ -241,6 +227,47 @@ async def list_projects(
             api_response = {"data": annotated_routes}
 
         return api_response
+
+
+@kong_router.get(
+    "/project",
+    response_model=ListRoutes,
+    status_code=status.HTTP_200_OK,
+)
+@catch_kong_errors
+async def list_projects(
+    hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
+    detailed: Annotated[
+        bool,
+        Query(description="Whether to include detailed information on the connected kong service"),
+    ] = False,
+):
+    """List all projects (referred to as routes by kong) available, can be filtered by project_id.
+
+    Set "detailed" to True to include detailed information on the linked kong service.
+    """
+    return get_projects(hub_adapter_settings, project_id=None, detailed=detailed)
+
+
+@kong_router.get(
+    "/project/{project_id}",
+    response_model=ListRoutes,
+    status_code=status.HTTP_200_OK,
+)
+@catch_kong_errors
+async def list_specific_project(
+    hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
+    project_id: Annotated[uuid.UUID | str, Path(description="UUID of the associated project.")],
+    detailed: Annotated[
+        bool,
+        Query(description="Whether to include detailed information on the connected kong service"),
+    ] = False,
+):
+    """List a specific projects (referred to as routes by kong) using the project UUID.
+
+    Set "detailed" to True to include detailed information on the linked kong service.
+    """
+    return get_projects(hub_adapter_settings, project_id=project_id, detailed=detailed)
 
 
 @kong_router.post(
@@ -321,6 +348,7 @@ async def create_route_to_datastore(
 @kong_router.post(
     "/initialize",
     response_model=LinkDataStoreProject,
+    status_code=status.HTTP_201_CREATED,
 )
 @catch_kong_errors
 async def create_datastore_and_project_with_link(
@@ -365,7 +393,13 @@ async def create_datastore_and_project_with_link(
 @catch_kong_errors
 async def delete_route(
     hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
-    project_route_id: Annotated[str, Path(description="Unique identifier of the project to be deleted")],
+    project_route_id: Annotated[
+        str,
+        Path(
+            description="Unique identifier of the route to be deleted, "
+            "must include datastore type hyphenated at the end"
+        ),
+    ],
 ) -> DeleteProject:
     """Disconnect a project (route) from all data stores (services) and delete associated analyses (consumers)."""
     configuration = kong_admin_client.Configuration(host=hub_adapter_settings.KONG_ADMIN_SERVICE_URL)
@@ -390,18 +424,12 @@ async def delete_route(
         return DeleteProject(removed=route, status=status.HTTP_200_OK)
 
 
-@kong_router.get(
-    "/analysis",
-    response_model=ListConsumers,
-    status_code=status.HTTP_200_OK,
-)
-@catch_kong_errors
-async def get_analyses(
+def get_analyses(
     hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
-    analysis_id: Annotated[uuid.UUID | str | None, Query(description="UUID of the analysis.")] = None,
-    tag: Annotated[str | None, Query(description="Tag to filter by e.g. project ID")] = None,
-):
-    """List all analyses (referred to as consumers by kong) available, can be filtered by analysis_id."""
+    analysis_id: uuid.UUID | str | None = None,
+    tag: str | None = None,
+) -> ListConsumers | dict:
+    """Get either all or a single analysis (consumer)."""
     configuration = kong_admin_client.Configuration(host=hub_adapter_settings.KONG_ADMIN_SERVICE_URL)
     username = f"{analysis_id}-{FLAME}"
 
@@ -417,6 +445,35 @@ async def get_analyses(
         return api_response
 
 
+@kong_router.get(
+    "/analysis",
+    response_model=ListConsumers,
+    status_code=status.HTTP_200_OK,
+)
+@catch_kong_errors
+async def list_analyses(
+    hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
+    tag: Annotated[str | None, Query(description="Filter consumers by project using the project UUID")] = None,
+):
+    """List all analyses (referred to as consumers by kong) available. Can be filtered by project UUID using tag."""
+    return get_analyses(hub_adapter_settings, analysis_id=None, tag=tag)
+
+
+@kong_router.get(
+    "/analysis/{analysis_id}",
+    response_model=ListConsumers,
+    status_code=status.HTTP_200_OK,
+)
+@catch_kong_errors
+async def list_specific_analysis(
+    hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
+    analysis_id: Annotated[uuid.UUID | str | None, Path(description="UUID of the analysis.")],
+    tag: Annotated[str | None, Query(description="Filter consumers by project using the project UUID")] = None,
+):
+    """List all analyses (referred to as consumers by kong) available."""
+    return get_analyses(hub_adapter_settings, analysis_id=analysis_id, tag=tag)
+
+
 @kong_router.post(
     "/analysis",
     response_model=LinkProjectAnalysis,
@@ -429,7 +486,7 @@ async def create_and_connect_analysis_to_project(
     analysis_id: Annotated[str | uuid.UUID, Body(description="UUID or name of the analysis")],
 ):
     """Create a new analysis and link it to a project."""
-    proj_resp = await list_projects(hub_adapter_settings=hub_adapter_settings, project_id=project_id, detailed=False)
+    proj_resp = get_projects(hub_adapter_settings=hub_adapter_settings, project_id=project_id, detailed=False)
 
     # Tags are used to annotate routes (projects) with datastore type and original project ID
     route_tags = set()
@@ -490,6 +547,25 @@ async def create_and_connect_analysis_to_project(
         response["keyauth"] = api_response
 
     return response
+
+
+@kong_router.delete("/analysis/{analysis_id}", status_code=status.HTTP_200_OK)
+@catch_kong_errors
+async def delete_analysis(
+    hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
+    analysis_id: Annotated[str, Path(description="UUID or unique name of the analysis.")],
+):
+    """Delete the listed analysis."""
+    configuration = kong_admin_client.Configuration(host=hub_adapter_settings.KONG_ADMIN_SERVICE_URL)
+    username = f"{analysis_id}-{FLAME}"
+
+    with kong_admin_client.ApiClient(configuration) as api_client:
+        consumer_api = kong_admin_client.ConsumersApi(api_client)
+
+        consumer_api.delete_consumer(consumer_username_or_id=username)
+
+        logger.info(f"Analysis {analysis_id} deleted")
+        return status.HTTP_200_OK
 
 
 @kong_router.get("/project/{project_id}/{ds_type}/health", status_code=status.HTTP_200_OK)
@@ -597,22 +673,3 @@ def probe_data_service(url: str, apikey: str, is_fhir: bool, attempt: int = 1, m
 
     logger.info(f"Successfully able to reach data service after {attempt} attempt(s)")
     return status.HTTP_200_OK
-
-
-@kong_router.delete("/analysis/{analysis_id}", status_code=status.HTTP_200_OK)
-@catch_kong_errors
-async def delete_analysis(
-    hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
-    analysis_id: Annotated[str, Path(description="UUID or unique name of the analysis.")],
-):
-    """Delete the listed analysis."""
-    configuration = kong_admin_client.Configuration(host=hub_adapter_settings.KONG_ADMIN_SERVICE_URL)
-    username = f"{analysis_id}-{FLAME}"
-
-    with kong_admin_client.ApiClient(configuration) as api_client:
-        consumer_api = kong_admin_client.ConsumersApi(api_client)
-
-        consumer_api.delete_consumer(consumer_username_or_id=username)
-
-        logger.info(f"Analysis {analysis_id} deleted")
-        return status.HTTP_200_OK
