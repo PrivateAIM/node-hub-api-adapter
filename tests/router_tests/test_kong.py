@@ -4,7 +4,18 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
-from kong_admin_client import ApiException, ListKeyAuthsForConsumer200Response, Route, Service
+from kong_admin_client import (
+    ACL,
+    ApiException,
+    Consumer,
+    KeyAuth,
+    ListConsumer200Response,
+    ListKeyAuthsForConsumer200Response,
+    ListRoute200Response,
+    ListService200Response,
+    Route,
+    Service,
+)
 from starlette import status
 
 from hub_adapter.conf import Settings
@@ -17,12 +28,18 @@ from hub_adapter.errors import (
     KongServiceError,
 )
 from hub_adapter.models.kong import DataStoreType
-from hub_adapter.routers.kong import FLAME, probe_data_service, test_connection
+from hub_adapter.routers.kong import probe_data_service, test_connection
 from tests.constants import (
     DS_TYPE,
     KONG_ANALYSIS_SUCCESS_RESP,
     KONG_GET_ROUTE_RESPONSE,
     TEST_JWT,
+    TEST_KONG_CONSUMER_DATA,
+    TEST_KONG_CREATE_SERVICE_REQUEST,
+    TEST_KONG_ROUTE_DATA,
+    TEST_KONG_ROUTE_RESPONSE,
+    TEST_KONG_SERVICE_DATA,
+    TEST_KONG_SERVICE_ID,
     TEST_KONG_SERVICE_RESPONSE,
     TEST_MOCK_ANALYSIS_ID,
     TEST_MOCK_PROJECT_ID,
@@ -31,16 +48,15 @@ from tests.pseudo_auth import BearerAuth
 
 test_svc_name = test_route_name = f"{TEST_MOCK_PROJECT_ID}-{DS_TYPE}"
 
-TEST_SVC_NAME = f"{TEST_MOCK_PROJECT_ID}-{DS_TYPE}-{DS_TYPE}"
+TEST_SVC_NAME = f"{TEST_MOCK_PROJECT_ID}-{DS_TYPE}"
 
 
 class TestKong:
     """Kong EP tests."""
 
     @patch("hub_adapter.routers.kong.kong_admin_client.ServicesApi.list_service")
-    def test_list_data_stores(self, mock_svc, authorized_test_client):
-        """Test the list_data_stores (GET /datastore) and list_specific_data_store methods
-        (GET /datastore/{project_id}."""
+    def test_get_data_stores(self, mock_svc, authorized_test_client):
+        """Test the service retrieval (GET /datastore/{project_id}) methods."""
         # TODO add testing for "detailed" parameter
         mock_svc.return_value = TEST_KONG_SERVICE_RESPONSE
         # test_client.dependency_overrides[verify_idp_token] = {"user_id": "test_user", "email": "test@example.com"}
@@ -86,75 +102,199 @@ class TestKong:
         mock_logger.info.assert_any_call(f"No routes for service {TEST_SVC_NAME} found")
         mock_logger.info.assert_any_call(f"Data store {TEST_SVC_NAME} deleted")
 
-    def test_create_delete_data_store(self, test_client, setup_kong, test_token):
-        """Test the create_data_store and delete_data_store methods."""
-        test_create_name = "theWWW"
-        new_ds = {
-            "datastore": {
-                "name": test_create_name,
-                "port": 443,
-                "protocol": "http",
-                "host": "earth",
-                "path": "/cloud",
-            },
-            "ds_type": DS_TYPE,
+    @patch("hub_adapter.routers.kong.kong_admin_client.ServicesApi.create_service")
+    def test_create_service(self, mock_create_service, authorized_test_client):
+        """Test the create_service methods."""
+        # Mock values
+        mock_create_service.return_value = TEST_KONG_SERVICE_DATA
+
+        create_resp = authorized_test_client.post(
+            "/kong/datastore", json=TEST_KONG_CREATE_SERVICE_REQUEST, auth=BearerAuth(TEST_JWT)
+        )
+
+        assert create_resp.status_code == status.HTTP_201_CREATED
+        assert create_resp.json() == TEST_KONG_SERVICE_DATA
+
+    @patch("hub_adapter.routers.kong.kong_admin_client.RoutesApi.list_route")
+    @patch("hub_adapter.routers.kong.kong_admin_client.ServicesApi.list_service")
+    def test_get_projects(self, mock_svc, mock_route, authorized_test_client):
+        """Test the route retrieval (GET /project/{project_id}) methods."""
+        mock_svc.return_value = ListService200Response(data=[Service(**TEST_KONG_SERVICE_DATA)])
+        mock_route.return_value = ListRoute200Response(data=[TEST_KONG_ROUTE_DATA])
+
+        all_routes_resp = authorized_test_client.get("/kong/project", auth=BearerAuth(TEST_JWT))
+        assert all_routes_resp.status_code == status.HTTP_200_OK
+
+        sparse_resp = all_routes_resp.json()
+        assert sparse_resp == {"data": [TEST_KONG_ROUTE_DATA], "offset": None}
+        assert isinstance(sparse_resp["data"][0]["service"], dict)  # Only RouteService when detailed=False
+
+        # Include service data with detailed=True and get specific
+        expected_detailed_resp = TEST_KONG_ROUTE_DATA.copy()
+        expected_detailed_resp.update({"service": TEST_KONG_SERVICE_DATA})
+
+        detailed_route_resp = authorized_test_client.get(
+            f"/kong/project/{TEST_MOCK_PROJECT_ID}", params={"detailed": True}, auth=BearerAuth(TEST_JWT)
+        )
+        assert detailed_route_resp.status_code == status.HTTP_200_OK
+        assert detailed_route_resp.json() == {"data": [expected_detailed_resp], "offset": None}
+
+    @patch("hub_adapter.routers.kong.kong_admin_client.RoutesApi.create_route_for_service")
+    @patch("hub_adapter.routers.kong.kong_admin_client.PluginsApi.create_plugin_for_route")
+    def test_create_route_to_datastore(self, mock_plugin, mock_route, authorized_test_client):
+        """Test the create_route_to_datastore (POST /project) method."""
+        mock_route.return_value = Route(**TEST_KONG_ROUTE_DATA)
+        mock_plugin.side_effect = [KeyAuth(), ACL()]
+
+        body_data = {
+            "data_store_id": TEST_MOCK_PROJECT_ID,
+            "project_id": TEST_MOCK_PROJECT_ID,
         }
-        r = test_client.post("/kong/datastore", auth=test_token, json=new_ds)
-        assert r.status_code == status.HTTP_201_CREATED
+        create_route_resp = authorized_test_client.post("/kong/project", json=body_data, auth=BearerAuth(TEST_JWT))
 
-        new_service = r.json()
-        new_datastore_info = new_ds["datastore"]
-        for param in ("port", "protocol", "host", "path"):  # Name will be different
-            assert new_service[param] == new_datastore_info[param]
+        assert mock_plugin.call_count == 2  # One for KeyAuth and one for ACL
+        assert create_route_resp.status_code == status.HTTP_201_CREATED
+        assert create_route_resp.json() == TEST_KONG_ROUTE_RESPONSE
 
-        d = test_client.delete(f"/kong/datastore/{test_create_name}-{DS_TYPE}", auth=test_token)
-        assert d.status_code == status.HTTP_200_OK
+    @patch("hub_adapter.routers.kong.create_route_to_datastore")
+    @patch("hub_adapter.routers.kong.kong_admin_client.ServicesApi.create_service")
+    @patch("hub_adapter.routers.kong.test_connection")
+    @patch("hub_adapter.routers.kong.delete_data_store")
+    def test_create_datastore_and_project_with_link(
+        self, mock_delete, mock_conn, mock_create_svc, mock_route, authorized_test_client
+    ):
+        """Test create_datastore_and_project_with_link (POST /initialize), specifically the error handling."""
+        mock_route.return_value = TEST_KONG_ROUTE_RESPONSE
+        mock_create_svc.return_value = Service(**TEST_KONG_SERVICE_DATA)
+        mock_conn.return_value = None  # Not needed
+        mock_delete.return_value = None  # Not needed
 
-    def test_connect_disconnect_project_to_datastore(self, test_client, setup_kong, test_token):
-        """Test the connect_project_to_datastore and disconnect_project methods."""
-        test_project_name = "Manhattan"
-        test_project_route_name = f"{test_project_name}-{DS_TYPE}"
-        proj_specs = {
-            "data_store_id": test_svc_name,
-            "project_id": test_project_name,
-            "methods": ["GET", "POST", "PUT", "DELETE"],
-            "protocols": ["http"],
-            "ds_type": DS_TYPE,
-        }
-        r = test_client.post("/kong/project", auth=test_token, json=proj_specs)
-        assert r.status_code == status.HTTP_201_CREATED
-        link_data = r.json()
+        body_data = TEST_KONG_CREATE_SERVICE_REQUEST  # Has "datastore" and "ds_type"
+        body_data["project_id"] = TEST_MOCK_PROJECT_ID
 
-        expected_keys = {"route", "keyauth", "acl"}
-        found_keys = [key in expected_keys for key in link_data]
-        assert all(found_keys)
-        assert link_data["route"]["name"] == test_project_route_name
+        initialize_resp = authorized_test_client.post("/kong/initialize", json=body_data, auth=BearerAuth(TEST_JWT))
 
-        d = test_client.delete(f"/kong/project/{test_project_route_name}", auth=test_token)
-        assert d.status_code == status.HTTP_200_OK
+        assert initialize_resp.status_code == status.HTTP_201_CREATED
+        assert initialize_resp.json() == TEST_KONG_ROUTE_RESPONSE
 
-        removed_route = d.json()["removed"]
-        assert removed_route["name"] == test_project_route_name
+        # Connection fails
+        mock_conn.side_effect = HTTPException(status_code=status.HTTP_408_REQUEST_TIMEOUT)
+        error_resp = authorized_test_client.post("/kong/initialize", json=body_data, auth=BearerAuth(TEST_JWT))
+        assert error_resp.status_code == status.HTTP_408_REQUEST_TIMEOUT
 
-    def test_connect_delete_analysis_to_project(self, test_client, setup_kong, test_token):
-        """Test the connect_analysis_to_project method."""
-        analysis_request = {
+    @patch("hub_adapter.routers.kong.logger")
+    @patch("hub_adapter.routers.kong.kong_admin_client.RoutesApi.delete_route")
+    @patch("hub_adapter.routers.kong.kong_admin_client.RoutesApi.get_route")
+    @patch("hub_adapter.routers.kong.kong_admin_client.ConsumersApi.list_consumer")
+    @patch("hub_adapter.routers.kong.kong_admin_client.ConsumersApi.delete_consumer")
+    def test_delete_route(
+        self,
+        mock_delete_consumer,
+        mock_consumer,
+        mock_get_route,
+        mock_delete_route,
+        mock_logger,
+        authorized_test_client,
+    ):
+        """Test delete_route (DELETE //project/{project_route_id})."""
+        mock_delete_route.return_value = None  # Not needed
+        mock_consumer.return_value = ListConsumer200Response(data=[Consumer(**TEST_KONG_CONSUMER_DATA)])
+        mock_get_route.return_value = Route(**TEST_KONG_ROUTE_DATA)
+        mock_delete_consumer.return_value = None  # Not needed
+
+        expected_resp = {"removed": TEST_KONG_ROUTE_DATA, "status": status.HTTP_200_OK}
+
+        delete_resp = authorized_test_client.delete(f"/kong/project/{TEST_SVC_NAME}", auth=BearerAuth(TEST_JWT))
+        assert delete_resp.status_code == status.HTTP_200_OK
+        assert delete_resp.json() == expected_resp
+        assert mock_logger.info.call_count == 1
+        mock_logger.info.assert_called_with(
+            f"Project {TEST_KONG_ROUTE_DATA['id']} disconnected from data store {TEST_KONG_SERVICE_ID}"
+        )
+
+    @patch("hub_adapter.routers.kong.kong_admin_client.ConsumersApi.list_consumer")
+    @patch("hub_adapter.routers.kong.kong_admin_client.ConsumersApi.get_consumer")
+    def test_get_analyses(
+        self,
+        mock_get_consumer,
+        mock_list_consumer,
+        authorized_test_client,
+    ):
+        """Test consumer retrieval (GET /analysis/{analysis_id}) methods."""
+        mock_get_consumer.return_value = Consumer(**TEST_KONG_CONSUMER_DATA["consumer"])  # Not needed
+        mock_list_consumer.return_value = ListConsumer200Response(
+            data=[Consumer(**TEST_KONG_CONSUMER_DATA["consumer"])]
+        )
+
+        all_consumers_resp = authorized_test_client.get("/kong/analysis", auth=BearerAuth(TEST_JWT))
+        assert all_consumers_resp.status_code == status.HTTP_200_OK
+        assert all_consumers_resp.json() == {"data": [TEST_KONG_CONSUMER_DATA["consumer"]], "offset": None}
+
+        one_analysis_resp = authorized_test_client.get(
+            f"/kong/analysis/{TEST_MOCK_ANALYSIS_ID}", auth=BearerAuth(TEST_JWT)
+        )
+        assert one_analysis_resp.status_code == status.HTTP_200_OK
+        assert one_analysis_resp.json() == {"data": [TEST_KONG_CONSUMER_DATA["consumer"]], "offset": None}
+
+    @patch("hub_adapter.routers.kong.logger")
+    @patch("hub_adapter.routers.kong.kong_admin_client.KeyAuthsApi.create_key_auth_for_consumer")
+    @patch("hub_adapter.routers.kong.kong_admin_client.ACLsApi.create_acl_for_consumer")
+    @patch("hub_adapter.routers.kong.kong_admin_client.ConsumersApi.create_consumer")
+    @patch("hub_adapter.routers.kong.get_projects")
+    def test_create_and_connect_analysis_to_project(
+        self,
+        mock_projects,
+        mock_create_consumer,
+        mock_acl,
+        mock_keyauth,
+        mock_logger,
+        authorized_test_client,
+    ):
+        """Test the create_and_connect_analysis_to_project (POST /analysis) method."""
+        mock_projects.return_value = ListRoute200Response(data=[TEST_KONG_ROUTE_DATA])
+        mock_create_consumer.return_value = Consumer(**TEST_KONG_CONSUMER_DATA["consumer"])
+        mock_acl.return_value = ACL()
+        mock_keyauth.return_value = KeyAuth()
+
+        body_data = {
             "project_id": TEST_MOCK_PROJECT_ID,
             "analysis_id": TEST_MOCK_ANALYSIS_ID,
         }
-        r = test_client.post("/kong/analysis", auth=test_token, json=analysis_request)
-        assert r.status_code == status.HTTP_201_CREATED
 
-        link_data = r.json()
+        working_consumer_resp = authorized_test_client.post("/kong/analysis", json=body_data, auth=BearerAuth(TEST_JWT))
+        assert working_consumer_resp.status_code == status.HTTP_201_CREATED
+        assert working_consumer_resp.json() == TEST_KONG_CONSUMER_DATA
+        assert mock_logger.info.call_count == 3
 
-        expected_keys = {"consumer", "keyauth", "acl"}
-        found_keys = [key in expected_keys for key in link_data]
-        assert all(found_keys)
-        assert link_data["consumer"]["username"] == f"{TEST_MOCK_ANALYSIS_ID}-{FLAME}"
-        assert link_data["consumer"]["tags"] == [TEST_MOCK_PROJECT_ID, TEST_MOCK_ANALYSIS_ID]
+        # Missing route for given project ID
+        mock_projects.return_value = ListRoute200Response(data=[])
+        broken_consumer_resp = authorized_test_client.post("/kong/analysis", json=body_data, auth=BearerAuth(TEST_JWT))
+        assert broken_consumer_resp.status_code == status.HTTP_404_NOT_FOUND
+        assert broken_consumer_resp.json() == {
+            "detail": {
+                "message": "Associated project not mapped to a data store",
+                "service": "Kong",
+                "status_code": 404,
+            }
+        }
 
-        d = test_client.delete(f"/kong/analysis/{TEST_MOCK_ANALYSIS_ID}", auth=test_token)
-        assert d.status_code == status.HTTP_200_OK
+    @patch("hub_adapter.routers.kong.logger")
+    @patch("hub_adapter.routers.kong.kong_admin_client.ConsumersApi.delete_consumer")
+    def test_delete_analysis(
+        self,
+        mock_delete,
+        mock_logger,
+        authorized_test_client,
+    ):
+        """Test the delete_analysis (DELETE /analysis/{analysis_id}) method."""
+        mock_delete.return_value = None
+
+        delete_resp = authorized_test_client.delete(
+            f"/kong/analysis/{TEST_MOCK_ANALYSIS_ID}", auth=BearerAuth(TEST_JWT)
+        )
+        assert delete_resp.status_code == status.HTTP_200_OK
+        assert mock_logger.info.call_count == 1
+        mock_logger.info.assert_called_with(f"Analysis {TEST_MOCK_ANALYSIS_ID} deleted")
 
 
 class TestConnection:

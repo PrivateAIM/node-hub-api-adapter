@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime, timezone
 
 from flame_hub._core_client import Node
+from kong_admin_client import ACL, KeyAuth
 
 from hub_adapter.models.conf import OIDCConfiguration
 
@@ -330,6 +331,34 @@ TEST_KONG_CREATE_SERVICE_REQUEST = {
     "ds_type": DS_TYPE,
 }
 
+TEST_KONG_SERVICE_ID = "c2bfa0be-e8ff-4c82-be50-734432dd4579"  # fake uuid
+TEST_KONG_SERVICE_DATA = {
+    "ca_certificates": None,
+    "client_certificate": None,
+    "connect_timeout": 6000,
+    "created_at": 1761803230,
+    "enabled": True,
+    "host": "node-datastore-blaze",
+    "id": TEST_KONG_SERVICE_ID,
+    "name": f"{TEST_MOCK_PROJECT_ID}-{DS_TYPE}",
+    "path": f"/{DS_TYPE}",
+    "port": 80,
+    "protocol": "http",
+    "read_timeout": 6000,
+    "retries": 5,
+    "tags": [f"{TEST_MOCK_PROJECT_ID}-{DS_TYPE}", f"{TEST_MOCK_PROJECT_ID}"],
+    "tls_verify": None,
+    "tls_verify_depth": None,
+    "updated_at": 1761803230,
+    "url": None,
+    "write_timeout": 6000,
+}
+
+TEST_KONG_SERVICE_RESPONSE = {
+    "data": [TEST_KONG_SERVICE_DATA],
+    "offset": None,
+}
+
 TEST_KONG_CREATE_ROUTE_REQUEST = {
     "data_store_id": f"{TEST_MOCK_PROJECT_ID}-{DS_TYPE}",
     "project_id": TEST_MOCK_PROJECT_ID,
@@ -338,33 +367,48 @@ TEST_KONG_CREATE_ROUTE_REQUEST = {
     "protocols": ["http"],
 }
 
-TEST_KONG_SERVICE_RESPONSE = {
-    "data": [
-        {
-            "ca_certificates": None,
-            "client_certificate": None,
-            "connect_timeout": 6000,
-            "created_at": 1761291469,
-            "enabled": True,
-            "host": "node-datastore-blaze",
-            "id": "82df4591-63cd-45fa-b17a-522e4049d353",
-            "name": f"{TEST_MOCK_PROJECT_ID}-{DS_TYPE}-{DS_TYPE}",
-            "path": f"/{DS_TYPE}",
-            "port": 80,
-            "protocol": "http",
-            "read_timeout": 6000,
-            "retries": 5,
-            "tags": [f"{TEST_MOCK_PROJECT_ID}-{DS_TYPE}", f"{TEST_MOCK_PROJECT_ID}-{DS_TYPE}-{DS_TYPE}"],
-            "tls_verify": None,
-            "tls_verify_depth": None,
-            "updated_at": 1761291469,
-            "url": None,
-            "write_timeout": 6000,
-            "routes": [],
-        }
-    ],
-    "offset": None,
+TEST_KONG_ROUTE_DATA = {
+    "created_at": 0,
+    "destinations": [{"default": "string"}],
+    "headers": {},
+    "hosts": ["string"],
+    "https_redirect_status_code": 426,
+    "id": TEST_MOCK_PROJECT_ID,
+    "methods": ["string"],
+    "name": f"{TEST_MOCK_PROJECT_ID}-{DS_TYPE}",
+    "path_handling": "v0",
+    "paths": [f"/{DS_TYPE}"],
+    "preserve_host": False,
+    "protocols": ["GET"],
+    "regex_priority": 0,
+    "request_buffering": True,
+    "response_buffering": True,
+    "service": {"id": TEST_KONG_SERVICE_ID},
+    "snis": ["string"],
+    "sources": [{"default": "string"}],
+    "strip_path": True,
+    "tags": [f"{TEST_MOCK_PROJECT_ID}-{DS_TYPE}", f"{TEST_MOCK_PROJECT_ID}"],
+    "updated_at": 0,
 }
+
+TEST_KONG_ROUTE_RESPONSE = {
+    "route": TEST_KONG_ROUTE_DATA,
+    "keyauth": KeyAuth().__dict__,
+    "acl": ACL().__dict__,
+}
+
+TEST_KONG_CONSUMER_DATA = {
+    "consumer": {
+        "created_at": 0,
+        "custom_id": f"{TEST_MOCK_ANALYSIS_ID}-flame",
+        "id": "string",
+        "username": f"{TEST_MOCK_ANALYSIS_ID}-flame",
+        "tags": [TEST_MOCK_PROJECT_ID, TEST_MOCK_ANALYSIS_ID],
+    },
+    "keyauth": KeyAuth().__dict__,
+    "acl": ACL().__dict__,
+}
+
 
 FAKE_USER = {
     "acr": "1",
