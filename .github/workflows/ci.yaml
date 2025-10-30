@@ -12,7 +12,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  install:
+  install-and-test:
+    name: "Install package and run unit tests"
     strategy:
       fail-fast: false
       matrix:
