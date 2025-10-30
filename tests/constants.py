@@ -1,12 +1,56 @@
 """String constants for tests."""
 
+import uuid
 from datetime import datetime, timezone
 
+from flame_hub._core_client import Node
+from kong_admin_client import ACL, KeyAuth
+
+from hub_adapter.models.conf import OIDCConfiguration
+
 DS_TYPE = "fhir"
+NODE_TYPE = "default"
+
+TEST_URL = "https://api.example.com"
+TEST_OIDC = OIDCConfiguration(
+    issuer=TEST_URL,
+    authorization_endpoint=TEST_URL,
+    token_endpoint=TEST_URL,
+    jwks_uri=TEST_URL,
+    userinfo_endpoint=TEST_URL,
+)
+TEST_SVC_URL = "https://service.example"
+TEST_SVC_OIDC = OIDCConfiguration(
+    issuer=TEST_SVC_URL,
+    authorization_endpoint=TEST_SVC_URL,
+    token_endpoint=TEST_SVC_URL,
+    jwks_uri=TEST_SVC_URL,
+    userinfo_endpoint=TEST_SVC_URL,
+)
+
 
 TEST_MOCK_ANALYSIS_ID = "1c9cb547-4afc-4398-bcb6-954bc61a1bb1"
 TEST_MOCK_PROJECT_ID = "9cbefefe-2420-4b8e-8ac1-f48148a9fd40"
 TEST_MOCK_NODE_ID = "9c521144-364d-4cdc-8ec4-cb62a537f10c"
+
+TEST_MOCK_ROBOT_USER = "096434d8-1e26-4594-9883-64ca1d55e129"
+
+TEST_MOCK_NODE = Node(
+    id=uuid.UUID(TEST_MOCK_NODE_ID),
+    public_key="fakeKey",
+    online=True,
+    registry=None,
+    registry_project_id=uuid.UUID(TEST_MOCK_PROJECT_ID),
+    robot_id=uuid.UUID(TEST_MOCK_ROBOT_USER),
+    created_at=datetime.now(timezone.utc),
+    updated_at=datetime.now(timezone.utc),
+    external_name=None,
+    hidden=False,
+    name=TEST_MOCK_NODE_ID,
+    realm_id=None,
+    registry_id=None,
+    type=NODE_TYPE,
+)
 
 ANALYSIS_NODES_RESP = [
     {
@@ -37,7 +81,6 @@ ANALYSIS_NODES_RESP = [
             "master_image_id": None,
             "registry_id": None,
             "run_status": None,
-            "name": None,
         },
     },
     {  # Ready to start
@@ -243,4 +286,148 @@ KONG_ANALYSIS_SUCCESS_RESP = {
         "group": TEST_MOCK_PROJECT_ID,
         "tags": [TEST_MOCK_PROJECT_ID],
     },
+}
+
+TEST_JWKS_RESPONSE = {
+    "keys": [
+        {
+            "key_ops": ["verify"],
+            "ext": "true",
+            "kty": "RSA",
+            "n": "0KXvS0gNKz9GO1S-R3FwPCP45IbGr3xYpkNa-_QcvT1bWykB_pCHGRNHAXvAvDrkFqwEYrNJVq20RD_pafxXy12axj_oSg1XJprUmsGEgmU9JEo1PIWyo49uJHiiolMaNwsSZS-v0L0RDWlXtTh5YNgN0kt2awjd4oz8836CH2c94qXSbtfmcBkh2AY4EzZfEwbWfJPS6FcWUr9hM_pBXB69anb35mp-UN_ndYP_nnFbieA1W3IFB3DK6siNZEZTiZxiBP1-VR3Qpzahr_qWxVv6KfWQ5ixMfu5mQpGFjjy_jzckxtr-f3zO0MIKCe_cdTj77KsIaeGtrVdWP_UN-Q",
+            "e": "AQAB",
+            "alg": "RS256",
+            "kid": "3d08b96f-ceb8-43e2-912b-10df205ae4d4",
+        }
+    ]
+}
+
+TEST_OIDC_RESPONSE = {
+    "authorization_endpoint": TEST_URL,
+    "issuer": TEST_URL,
+    "jwks_uri": TEST_URL,
+    "token_endpoint": TEST_URL,
+    "userinfo_endpoint": TEST_URL,
+}
+
+TEST_OIDC_SVC_RESPONSE = {
+    "authorization_endpoint": TEST_SVC_URL,
+    "issuer": TEST_SVC_URL,
+    "jwks_uri": TEST_SVC_URL,
+    "token_endpoint": TEST_SVC_URL,
+    "userinfo_endpoint": TEST_SVC_URL,
+}
+
+TEST_JWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30"
+
+TEST_KONG_CREATE_SERVICE_REQUEST = {
+    "datastore": {
+        "name": TEST_MOCK_PROJECT_ID,
+        "protocol": "http",
+        "host": "test.server",
+        "port": 80,
+        "path": f"/{DS_TYPE}",
+    },
+    "ds_type": DS_TYPE,
+}
+
+TEST_KONG_SERVICE_ID = "c2bfa0be-e8ff-4c82-be50-734432dd4579"  # fake uuid
+TEST_KONG_SERVICE_DATA = {
+    "ca_certificates": None,
+    "client_certificate": None,
+    "connect_timeout": 6000,
+    "created_at": 1761803230,
+    "enabled": True,
+    "host": "node-datastore-blaze",
+    "id": TEST_KONG_SERVICE_ID,
+    "name": f"{TEST_MOCK_PROJECT_ID}-{DS_TYPE}",
+    "path": f"/{DS_TYPE}",
+    "port": 80,
+    "protocol": "http",
+    "read_timeout": 6000,
+    "retries": 5,
+    "tags": [f"{TEST_MOCK_PROJECT_ID}-{DS_TYPE}", f"{TEST_MOCK_PROJECT_ID}"],
+    "tls_verify": None,
+    "tls_verify_depth": None,
+    "updated_at": 1761803230,
+    "url": None,
+    "write_timeout": 6000,
+}
+
+TEST_KONG_SERVICE_RESPONSE = {
+    "data": [TEST_KONG_SERVICE_DATA],
+    "offset": None,
+}
+
+TEST_KONG_CREATE_ROUTE_REQUEST = {
+    "data_store_id": f"{TEST_MOCK_PROJECT_ID}-{DS_TYPE}",
+    "project_id": TEST_MOCK_PROJECT_ID,
+    "methods": ["GET", "POST", "PUT", "DELETE"],
+    "ds_type": DS_TYPE,
+    "protocols": ["http"],
+}
+
+TEST_KONG_ROUTE_DATA = {
+    "created_at": 0,
+    "destinations": [{"default": "string"}],
+    "headers": {},
+    "hosts": ["string"],
+    "https_redirect_status_code": 426,
+    "id": TEST_MOCK_PROJECT_ID,
+    "methods": ["string"],
+    "name": f"{TEST_MOCK_PROJECT_ID}-{DS_TYPE}",
+    "path_handling": "v0",
+    "paths": [f"/{DS_TYPE}"],
+    "preserve_host": False,
+    "protocols": ["GET"],
+    "regex_priority": 0,
+    "request_buffering": True,
+    "response_buffering": True,
+    "service": {"id": TEST_KONG_SERVICE_ID},
+    "snis": ["string"],
+    "sources": [{"default": "string"}],
+    "strip_path": True,
+    "tags": [f"{TEST_MOCK_PROJECT_ID}-{DS_TYPE}", f"{TEST_MOCK_PROJECT_ID}"],
+    "updated_at": 0,
+}
+
+TEST_KONG_ROUTE_RESPONSE = {
+    "route": TEST_KONG_ROUTE_DATA,
+    "keyauth": KeyAuth().__dict__,
+    "acl": ACL().__dict__,
+}
+
+TEST_KONG_CONSUMER_DATA = {
+    "consumer": {
+        "created_at": 0,
+        "custom_id": f"{TEST_MOCK_ANALYSIS_ID}-flame",
+        "id": "string",
+        "username": f"{TEST_MOCK_ANALYSIS_ID}-flame",
+        "tags": [TEST_MOCK_PROJECT_ID, TEST_MOCK_ANALYSIS_ID],
+    },
+    "keyauth": KeyAuth().__dict__,
+    "acl": ACL().__dict__,
+}
+
+
+FAKE_USER = {
+    "acr": "1",
+    "allowed-origins": ["/*"],
+    "aud": "account",
+    "azp": "hub-adapter-test",
+    "email": "foo@gmail.com",
+    "email_verified": True,
+    "exp": 1761749936,
+    "family_name": "Test",
+    "given_name": "Adapter",
+    "iat": 1761742736,
+    "iss": f"{TEST_URL}",
+    "name": "Adapter Test",
+    "preferred_username": "testuser",
+    "realm_access": {"roles": ["offline_access", "default-roles-flame", "uma_authorization"]},
+    "resource_access": {"account": {"roles": ["manage-account", "manage-account-links", "view-profile"]}},
+    "scope": "openid email profile",
+    "sid": "7135cb16-fbcd-4c5d-8c1f-0f6b5764c718",
+    "sub": "e4fe638c-c94e-4094-8c2f-793ff69def0b",
+    "typ": "Bearer",
 }
