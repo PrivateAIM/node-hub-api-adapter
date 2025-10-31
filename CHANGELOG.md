@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.3.0...v0.3.1) (2025-10-31)
+
+
+### Features
+
+* **results:** add results endpoint for local file deletion ([fa8a87b](https://github.com/PrivateAIM/node-hub-api-adapter/commit/fa8a87b9d5fec1ec2378368df801d60d24f800d2))
+
 ## [0.3.0](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.2.14...v0.3.0) (2025-10-22)
 
 
