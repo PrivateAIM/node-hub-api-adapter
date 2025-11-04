@@ -42,7 +42,8 @@ def fetch_openid_config(
 
         except httpx.HTTPStatusError as e:
             err_msg = (
-                f"HTTP error occurred while trying to contact the IDP: {provided_url}, is this the correct issuer URL?"
+                f"HTTP error occurred while trying to contact the IDP: {provided_url}, is this the correct issuer URL? "
+                f"If behind a proxy, check if '.cluster.local' is in your noProxy values."
             )
             logger.error(err_msg + f" - {e}")
             raise HTTPException(
