@@ -275,7 +275,7 @@ class GoGoAnalysis:
         """Collect the available data stores and create a set of project UUIDs with a valid data store."""
         kong_routes = None
         try:
-            kong_routes = await list_projects(hub_adapter_settings=self.settings, project_id=None, detailed=False)
+            kong_routes = await list_projects(hub_adapter_settings=self.settings, detailed=False)
 
         except HTTPException as e:
             logger.error(f"Route retrieval failed, unable to contact Kong: {e}")
