@@ -3,7 +3,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Path, Security
+from fastapi import APIRouter, Query, Security
 from starlette import status
 from starlette.requests import Request
 from starlette.responses import Response
@@ -21,12 +21,12 @@ results_router = APIRouter(
 
 @route(
     request_method=results_router.delete,
-    path="/local/{project_id}",
+    path="/local",
     status_code=status.HTTP_200_OK,
     service_url=get_settings().RESULTS_SERVICE_URL,
 )
 async def delete_local_results(
-    project_id: Annotated[uuid.UUID | str, Path(description="UUID of the associated project.")],
+    project_id: Annotated[uuid.UUID | str, Query(description="UUID of the associated project.")],
     request: Request,
     response: Response,
 ):
