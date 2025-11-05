@@ -29,6 +29,7 @@ po_router = APIRouter(
     dependencies=[Security(verify_idp_token), Security(jwtbearer), Depends(add_internal_token_if_missing)],
     tags=["PodOrc"],
     responses={404: {"description": "Not found"}},
+    prefix="/po",
 )
 
 logger = logging.getLogger(__name__)
@@ -62,7 +63,7 @@ async def create_analysis(
 
 @route(
     request_method=po_router.get,
-    path="/po/logs",
+    path="/logs",
     status_code=status.HTTP_200_OK,
     service_url=get_settings().PODORC_SERVICE_URL,
     response_model=LogResponse,
@@ -77,7 +78,7 @@ async def get_all_analysis_logs(
 
 @route(
     request_method=po_router.get,
-    path="/po/logs/{analysis_id}",
+    path="/logs/{analysis_id}",
     status_code=status.HTTP_200_OK,
     service_url=get_settings().PODORC_SERVICE_URL,
     response_model=LogResponse,
@@ -93,7 +94,7 @@ async def get_analysis_logs(
 
 @route(
     request_method=po_router.get,
-    path="/po/history",
+    path="/history",
     status_code=status.HTTP_200_OK,
     service_url=get_settings().PODORC_SERVICE_URL,
     response_model=LogResponse,
@@ -108,7 +109,7 @@ async def get_all_analysis_log_history(
 
 @route(
     request_method=po_router.get,
-    path="/po/history/{analysis_id}",
+    path="/history/{analysis_id}",
     status_code=status.HTTP_200_OK,
     service_url=get_settings().PODORC_SERVICE_URL,
     response_model=LogResponse,
@@ -124,7 +125,7 @@ async def get_analysis_log_history(
 
 @route(
     request_method=po_router.get,
-    path="/po/status",
+    path="/status",
     status_code=status.HTTP_200_OK,
     response_model=StatusResponse,
     service_url=get_settings().PODORC_SERVICE_URL,
@@ -139,7 +140,7 @@ async def get_all_analysis_status(
 
 @route(
     request_method=po_router.get,
-    path="/po/status/{analysis_id}",
+    path="/status/{analysis_id}",
     status_code=status.HTTP_200_OK,
     response_model=StatusResponse,
     service_url=get_settings().PODORC_SERVICE_URL,
@@ -156,7 +157,7 @@ async def get_analysis_status(
 
 @route(
     request_method=po_router.get,
-    path="/po/pods",
+    path="/pods",
     status_code=status.HTTP_200_OK,
     response_model=PodResponse,
     service_url=get_settings().PODORC_SERVICE_URL,
@@ -171,7 +172,7 @@ async def get_all_analysis_pods(
 
 @route(
     request_method=po_router.get,
-    path="/po/pods/{analysis_id}",
+    path="/pods/{analysis_id}",
     status_code=status.HTTP_200_OK,
     response_model=PodResponse,
     service_url=get_settings().PODORC_SERVICE_URL,
@@ -187,7 +188,7 @@ async def get_analysis_pods(
 
 @route(
     request_method=po_router.put,
-    path="/po/stop",
+    path="/stop",
     status_code=status.HTTP_200_OK,
     response_model=StatusResponse,
     service_url=get_settings().PODORC_SERVICE_URL,
@@ -202,7 +203,7 @@ async def stop_all_analyses(
 
 @route(
     request_method=po_router.put,
-    path="/po/stop/{analysis_id}",
+    path="/stop/{analysis_id}",
     status_code=status.HTTP_200_OK,
     response_model=StatusResponse,
     service_url=get_settings().PODORC_SERVICE_URL,
@@ -218,7 +219,7 @@ async def stop_analysis(
 
 @route(
     request_method=po_router.delete,
-    path="/po/delete",
+    path="/delete",
     status_code=status.HTTP_200_OK,
     response_model=StatusResponse,
     service_url=get_settings().PODORC_SERVICE_URL,
@@ -233,7 +234,7 @@ async def delete_all_analyses(
 
 @route(
     request_method=po_router.delete,
-    path="/po/delete/{analysis_id}",
+    path="/delete/{analysis_id}",
     status_code=status.HTTP_200_OK,
     response_model=StatusResponse,
     service_url=get_settings().PODORC_SERVICE_URL,
@@ -249,7 +250,7 @@ async def delete_analysis(
 
 @route(
     request_method=po_router.delete,
-    path="/po/cleanup/{cleanup_type}",
+    path="/cleanup/{cleanup_type}",
     status_code=status.HTTP_200_OK,
     response_model=CleanupPodResponse,
     service_url=get_settings().PODORC_SERVICE_URL,
