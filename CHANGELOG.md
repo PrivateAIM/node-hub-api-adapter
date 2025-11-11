@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.3.1](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.3.0...v0.3.1) (2025-11-11)
+
+
+### Features
+
+* **po:** parse new status response ([a5cb06c](https://github.com/PrivateAIM/node-hub-api-adapter/commit/a5cb06c88e7dcb78eaf9498ac43008c3cb223747))
+* **results:** add results endpoint for local file deletion ([fa8a87b](https://github.com/PrivateAIM/node-hub-api-adapter/commit/fa8a87b9d5fec1ec2378368df801d60d24f800d2))
+
+
+### Bug Fixes
+
+* **po:** catch multiple OK status codes during pod start ([18eb410](https://github.com/PrivateAIM/node-hub-api-adapter/commit/18eb410cabd7c61a31dfd9c8abe1e3f693510177))
+* remove obsolete param from list_projects ([93bb994](https://github.com/PrivateAIM/node-hub-api-adapter/commit/93bb994935b6e338b193085a630061fa0b85d75c))
+* **results:** change Path to Query for project_id ([ff5c8d9](https://github.com/PrivateAIM/node-hub-api-adapter/commit/ff5c8d934ee2965d8a3cdec2a023b49f0ebf91bc))
+
+
+### Reverts
+
+* **po:** add zombies option back to PO cleanup ([7f21aed](https://github.com/PrivateAIM/node-hub-api-adapter/commit/7f21aed9d1288e7453bba9af2d126c8fe215c95c))
+
+
+### Documentation
+
+* **error:** improve error messages for proxy-related issues ([2566012](https://github.com/PrivateAIM/node-hub-api-adapter/commit/2566012636bbca1242ffd4493e0ff739616bb587))
+* **error:** improve error messages for proxy-related issues ([44f5693](https://github.com/PrivateAIM/node-hub-api-adapter/commit/44f56931135f70ad2d3bb4e66ba8a0da4f1a7217))
+
 ## [0.3.0](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.2.14...v0.3.0) (2025-10-22)
 
 
