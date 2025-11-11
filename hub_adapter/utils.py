@@ -21,10 +21,10 @@ async def serialize_query_content(key, value) -> dict:
 
 
 async def unzip_query_params(
-    additional_params: dict[str, any],
+    additional_params: dict,
     necessary_params: list[str] | None = None,
-    req_params=None,
-) -> dict[str, any] | None:
+    req_params: dict | None = None,
+) -> dict:
     """Prepare query parameters to be added to URL of downstream microservice."""
     response_query_params = {}
 
@@ -47,7 +47,7 @@ async def unzip_query_params(
 
 
 async def unzip_body_object(
-    additional_params: dict[str, any],
+    additional_params: dict,
     specified_params: list[str] | None = None,
 ) -> dict | None:
     """Gather body data and package for forwarding."""
@@ -64,7 +64,7 @@ async def unzip_body_object(
 
 
 async def unzip_form_params(
-    additional_params: dict[str, any],
+    additional_params: dict,
     specified_params: list[str] | None = None,
     request_form: FormData | None = None,
 ) -> dict | None:
@@ -86,7 +86,7 @@ async def unzip_form_params(
 
 
 async def unzip_file_params(
-    additional_params: dict[str, any],
+    additional_params: dict,
     specified_params: list[str] | None = None,
 ) -> dict | None:
     """Gather binary or text data and package for forwarding."""
@@ -94,7 +94,8 @@ async def unzip_file_params(
         files = {}
         for key in specified_params:
             file: UploadFile = additional_params.get(key)
-            files[key] = file.file.read()
+            if file:
+                files[key] = file.file.read()
 
         return files
     return None

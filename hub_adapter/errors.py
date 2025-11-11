@@ -40,6 +40,7 @@ class KongConnectError(HTTPException):
 class KongConflictError(HTTPException):
     pass
 
+
 class BucketError(KongError):
     def __init__(self):
         super().__init__(
@@ -136,6 +137,19 @@ def catch_hub_errors(f):
                     "message": err,
                     "service": svc,
                     "status_code": status.HTTP_408_REQUEST_TIMEOUT,
+                },
+                headers={"WWW-Authenticate": "Bearer"},
+            ) from e
+
+        except httpx.ConnectError as e:
+            err = "ConnectError - CoreClient is unable to get token from Hub"
+            logger.error(err)
+            raise HubConnectError(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "message": err,
+                    "service": "CoreClient",
+                    "status_code": status.HTTP_404_NOT_FOUND,
                 },
                 headers={"WWW-Authenticate": "Bearer"},
             ) from e

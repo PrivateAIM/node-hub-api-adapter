@@ -55,7 +55,7 @@ async def get_hub_public_key(hub_adapter_settings: Annotated[Settings, Depends(g
 
 async def verify_idp_token(
     hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
-    token: HTTPAuthorizationCredentials = Security(jwtbearer),
+    token: HTTPAuthorizationCredentials | None = Security(jwtbearer),
 ) -> dict:
     """Decode the auth token using keycloak's public key."""
     svc = "Auth"
