@@ -70,7 +70,14 @@ class AnalysisStatus(BaseModel):
     progress: int | None = None
 
 
-class StatusResponse(RootModel[dict[uuid.UUID, AnalysisStatus]]):
+# TODO Use this one once progress has been added to PO endpoints
+# class StatusResponse(RootModel[dict[uuid.UUID, AnalysisStatus]]):
+#     """Response with dynamic UUID keys and dynamic analysis keys"""
+#
+#     pass
+
+
+class StatusResponse(RootModel[dict[uuid.UUID, PodStatus]]):
     """Response with dynamic UUID keys and dynamic analysis keys"""
 
     pass
