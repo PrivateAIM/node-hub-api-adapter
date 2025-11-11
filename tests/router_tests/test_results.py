@@ -2,7 +2,7 @@ from hub_adapter.routers.results import results_router
 
 EXPECTED_RESULTS_ROUTE_CONFIG = {
     "delete_local_results": {
-        "path": "/local/{project_id}",
+        "path": "/local",
         "methods": {"DELETE"},
         "status_code": 200,
         "response_model": None,

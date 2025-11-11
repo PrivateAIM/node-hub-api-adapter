@@ -83,7 +83,8 @@ async def initialize_analysis(
         node_id=node_id, node_type=node_type, **analysis_params.model_dump()
     )
 
-    if start_status_code == status.HTTP_201_CREATED:
+    # PO sometimes changes returned status code
+    if start_status_code in (status.HTTP_201_CREATED, status.HTTP_200_OK):
         return start_resp
 
     elif start_resp:

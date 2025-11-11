@@ -54,8 +54,8 @@ class TestMeta:
         assert gen_resp == valid_resp
         assert StatusResponse.model_validate(gen_resp)
 
-        # Returned status code not 201
-        mock_start_resp.return_value = (valid_resp, status.HTTP_200_OK)
+        # Returned status code not 201 or 200
+        mock_start_resp.return_value = (valid_resp, status.HTTP_202_ACCEPTED)
         with pytest.raises(HTTPException) as wrong_status_code_error:
             await initialize_analysis(analysis_params=fake_analysis_form, core_client=cc)
             assert wrong_status_code_error.value.status_code == status.HTTP_200_OK

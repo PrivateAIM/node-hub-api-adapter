@@ -3,7 +3,7 @@
 import uuid
 from enum import Enum
 
-from pydantic import BaseModel, RootModel, field_validator
+from pydantic import BaseModel, RootModel
 
 
 class CleanUpType(str, Enum):
@@ -15,6 +15,7 @@ class CleanUpType(str, Enum):
     mb = "mb"
     rs = "rs"
     keycloak = "keycloak"
+    zombies = "zombies"
 
 
 class CreateAnalysis(BaseModel):
@@ -63,16 +64,17 @@ class PodStatus(str, Enum):
 
 
 class AnalysisStatus(BaseModel):
-    """Inner structure of StatusResponse"""
+    """Status report for an analysis from the PodOrchestrator"""
 
-    model_config = {"extra": "allow"}
+    status: PodStatus
+    progress: int | None = None
 
-    @field_validator("*")
-    @classmethod
-    def validate_status(cls, v):
-        if v not in [status.value for status in PodStatus]:
-            raise ValueError(f"Status must be one of {[s.value for s in PodStatus]}, got: {v}")
-        return v
+
+# TODO Use this one once progress has been added to PO endpoints
+# class StatusResponse(RootModel[dict[uuid.UUID, AnalysisStatus]]):
+#     """Response with dynamic UUID keys and dynamic analysis keys"""
+#
+#     pass
 
 
 class StatusResponse(RootModel[dict[uuid.UUID, PodStatus]]):
