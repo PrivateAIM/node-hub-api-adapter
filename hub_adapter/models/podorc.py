@@ -15,6 +15,7 @@ class CleanUpType(str, Enum):
     mb = "mb"
     rs = "rs"
     keycloak = "keycloak"
+    zombies = "zombies"
 
 
 class CreateAnalysis(BaseModel):
