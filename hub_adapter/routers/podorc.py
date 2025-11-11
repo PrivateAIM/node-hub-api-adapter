@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 
 @route(
     request_method=po_router.post,
-    path="/po",
+    path="",
     status_code=status.HTTP_200_OK,
     service_url=get_settings().PODORC_SERVICE_URL,
     response_model=StatusResponse,
