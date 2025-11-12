@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.3.1...v0.3.2) (2025-11-12)
+
+
+### Bug Fixes
+
+* **results:** add query params to delete ep ([45f1252](https://github.com/PrivateAIM/node-hub-api-adapter/commit/45f1252a5df984d3668af2374c11b3ede78e20b9))
+
 ## [0.3.1](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.3.0...v0.3.1) (2025-11-11)
 
 
