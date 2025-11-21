@@ -4,6 +4,7 @@ import functools
 import logging
 
 import httpx
+import pydantic
 from fastapi import HTTPException
 from flame_hub import HubAPIError
 from kong_admin_client import ApiException
@@ -22,6 +23,10 @@ class HubTimeoutError(HTTPException):
 
 
 class HubConnectError(HTTPException):
+    pass
+
+
+class HubTypeError(HTTPException):
     pass
 
 
@@ -150,6 +155,19 @@ def catch_hub_errors(f):
                     "message": err,
                     "service": "CoreClient",
                     "status_code": status.HTTP_404_NOT_FOUND,
+                },
+                headers={"WWW-Authenticate": "Bearer"},
+            ) from e
+
+        except pydantic.ValidationError as e:
+            logger.error(f"Pydantic type error: {e.errors()}")
+
+            raise HubTypeError(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail={
+                    "message": "An error occurred while validating the data",
+                    "service": "CoreClient",
+                    "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
                 },
                 headers={"WWW-Authenticate": "Bearer"},
             ) from e
