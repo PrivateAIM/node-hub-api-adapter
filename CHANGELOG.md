@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.3](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.3.2...v0.3.3) (2025-11-21)
+
+
+### Bug Fixes
+
+* **hub:** add pydantic type error catch ([7abed9c](https://github.com/PrivateAIM/node-hub-api-adapter/commit/7abed9ce599a182ade70ef7424eb9e70c131e421))
+
 ## [0.3.2](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.3.1...v0.3.2) (2025-11-12)
 
 
