@@ -320,14 +320,14 @@ files = [
 
 [[package]]
 name = "flame-hub-client"
-version = "0.2.8"
+version = "0.2.7"
 description = "HTTP client for interacting with FLAME Hub services."
 optional = false
 python-versions = "<4,>=3.10"
 groups = ["main"]
 files = [
-    {file = "flame_hub_client-0.2.8-py3-none-any.whl", hash = "sha256:b86524a39f6433d49c4e6aedb8e76cfee37438b0842482692d7cf9c7800834a7"},
-    {file = "flame_hub_client-0.2.8.tar.gz", hash = "sha256:7fa519a9395c862d23fa8c764ba76352a9ea129ad09a631f9011d0ffdcbb9f62"},
+    {file = "flame_hub_client-0.2.7-py3-none-any.whl", hash = "sha256:04a7b423b8f3927398fa63b87c019dd9e4ff53ca1a56b3000d93d662cf23ba7c"},
+    {file = "flame_hub_client-0.2.7.tar.gz", hash = "sha256:11dde9f70ad79d29e2cf6813e78e7bed819257114b8a51f9a1f4f93d55ab341e"},
 ]
 
 [package.dependencies]
@@ -1093,4 +1093,4 @@ test = ["covdefaults (>=2.3)", "coverage (>=7.2.7)", "coverage-enable-subprocess
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "b5f9fc024a78c242ef531922885ab6bb4fa07cd9c4e4b9b184bc1af0d3b14d7f"
+content-hash = "4a0d7a95cd22c9b741690e0ad4173b370331af925b8e3952cd57d84e1dd6ccea"

@@ -11,7 +11,7 @@ packages = [{ include = "hub_adapter" }]
 python = "^3.12"
 uvicorn = "^0.38.0"
 fastapi = "^0.120.1"
-flame-hub-client = "^0.2.7"
+flame-hub-client = "0.2.7"
 click = "^8.1.7"
 python-multipart = "^0.0.20"
 httpx = "^0.28.0"
