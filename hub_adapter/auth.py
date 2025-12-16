@@ -195,3 +195,41 @@ async def add_internal_token_if_missing(request: Request) -> Request:
             request.scope.update(headers=request.headers.raw)
 
     return request
+
+
+# RBAC dependencies
+async def require_steward_role(
+    verified_token: Annotated[dict, Depends(verify_idp_token)],
+    hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
+) -> dict:
+    """Dependency to check if the user has the ADMIN_ROLE or STEWARD_ROLE."""
+    steward_role = hub_adapter_settings.STEWARD_ROLE
+    admin_role = hub_adapter_settings.ADMIN_ROLE
+    if steward_role:
+        # Check for admin or steward role in the token
+        resource_access = verified_token.get("resource_access", {})
+
+        # Try to find admin role in any client's roles
+        has_allowed_role = False
+        for client_roles in resource_access.values():
+            roles = client_roles.get("roles", [])
+            if admin_role in roles or steward_role in roles:
+                has_allowed_role = True
+                break
+
+        # Also check realm_access if not found in resource_access
+        # if not has_allowed_role:
+        #     realm_roles = verified_token.get("realm_access", {}).get("roles", [])
+        #     has_admin_role = "admin" in realm_roles
+
+        if not has_allowed_role:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "message": "Insufficient permissions. Admin or steward role required.",
+                    "service": "Auth",
+                    "status_code": status.HTTP_403_FORBIDDEN,
+                },
+            )
+
+    return verified_token

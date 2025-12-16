@@ -21,7 +21,7 @@ from kong_admin_client import (
 )
 from starlette import status
 
-from hub_adapter.auth import jwtbearer, verify_idp_token
+from hub_adapter.auth import jwtbearer, require_steward_role, verify_idp_token
 from hub_adapter.conf import Settings
 from hub_adapter.dependencies import get_settings
 from hub_adapter.errors import (
@@ -106,6 +106,7 @@ def get_data_stores(
 @catch_kong_errors
 async def list_data_stores(
     hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
+    verified_token: Annotated[dict, Depends(require_steward_role)],
     detailed: Annotated[bool, Query(description="Whether to include detailed information on projects")] = False,
 ):
     """List all available data stores (referred to as services by kong)."""
