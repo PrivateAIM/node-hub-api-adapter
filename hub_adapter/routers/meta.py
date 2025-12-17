@@ -11,8 +11,8 @@ from pydantic import BaseModel
 from starlette import status
 
 from hub_adapter.auth import (
-    add_internal_token_if_missing,
-    get_internal_token,
+    _add_internal_token_if_missing,
+    _get_internal_token,
     jwtbearer,
     require_researcher_role,
     verify_idp_token,
@@ -29,7 +29,7 @@ meta_router = APIRouter(
     dependencies=[
         Security(verify_idp_token),
         Security(jwtbearer),
-        Depends(add_internal_token_if_missing),
+        Depends(_add_internal_token_if_missing),
         Depends(require_researcher_role),
     ],
     tags=["Meta"],
@@ -128,7 +128,7 @@ async def terminate_analysis(
     await delete_analysis(analysis_id=analysis_id, hub_adapter_settings=hub_adapter_settings)
 
     configs_match, oidc_config = check_oidc_configs_match()
-    headers = await get_internal_token(oidc_config, hub_adapter_settings)
+    headers = await _get_internal_token(oidc_config, hub_adapter_settings)
 
     microsvc_path = f"{get_settings().PODORC_SERVICE_URL}/po/delete/{analysis_id}"
 

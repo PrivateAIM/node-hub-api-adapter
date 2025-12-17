@@ -10,7 +10,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from hub_adapter.auth import (
-    add_internal_token_if_missing,
+    _add_internal_token_if_missing,
     jwtbearer,
     require_researcher_role,
     verify_idp_token,
@@ -30,7 +30,7 @@ po_router = APIRouter(
     dependencies=[
         Security(verify_idp_token),
         Security(jwtbearer),
-        Depends(add_internal_token_if_missing),
+        Depends(_add_internal_token_if_missing),
         Depends(require_researcher_role),
     ],
     tags=["PodOrc"],
