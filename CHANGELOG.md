@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.4](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.3.3...v0.3.4) (2025-12-17)
+
+
+### Features
+
+* **auth:** add claim name variable so parsing is idp agnostic ([567e8ec](https://github.com/PrivateAIM/node-hub-api-adapter/commit/567e8ecd583766b738dba888ff1ed10ac1344874))
+* **auth:** create steward role dependency ([645ec80](https://github.com/PrivateAIM/node-hub-api-adapter/commit/645ec8085502c7dc5ba7fbb8a728591019e344af))
+* **auth:** integrate RBAC into relevant endpoints ([f3045db](https://github.com/PrivateAIM/node-hub-api-adapter/commit/f3045db07de0271c4109b06d2b2d2f42b68cd7aa))
+
+
+### Documentation
+
+* update docs with new env var and detailed RBAC and autostart sections ([17c6652](https://github.com/PrivateAIM/node-hub-api-adapter/commit/17c6652ab958b21e773634bef22b36eb24f50fee))
+
 ## [0.3.3](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.3.2...v0.3.3) (2025-11-21)
 
 
