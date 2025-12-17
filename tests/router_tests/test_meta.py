@@ -96,7 +96,7 @@ class TestMeta:
     @pytest.mark.asyncio
     @patch("hub_adapter.routers.meta.logger")
     @patch("hub_adapter.routers.meta.make_request")
-    @patch("hub_adapter.routers.meta.get_internal_token")
+    @patch("hub_adapter.routers.meta._get_internal_token")
     @patch("hub_adapter.routers.meta.check_oidc_configs_match")
     @patch("hub_adapter.routers.meta.delete_analysis")
     async def test_terminate_analysis(

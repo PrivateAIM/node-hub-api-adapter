@@ -12,9 +12,9 @@ from starlette.datastructures import MutableHeaders
 from starlette.requests import Request
 
 from hub_adapter.auth import (
-    add_internal_token_if_missing,
+    _add_internal_token_if_missing,
+    _get_internal_token,
     get_hub_public_key,
-    get_internal_token,
     require_researcher_role,
     require_steward_role,
     verify_idp_token,
@@ -102,9 +102,9 @@ class TestAuth:
             "refresh_expires_in": 1800,
         }
         httpx_mock.add_response(url=TEST_OIDC.token_endpoint, json=fake_token_resp, status_code=200)
-        assert await get_internal_token(TEST_OIDC, test_settings) == {"Authorization": f"Bearer {TEST_JWT}"}
+        assert await _get_internal_token(TEST_OIDC, test_settings) == {"Authorization": f"Bearer {TEST_JWT}"}
 
-    @patch("hub_adapter.auth.get_internal_token")
+    @patch("hub_adapter.auth._get_internal_token")
     @patch("hub_adapter.auth.check_oidc_configs_match")
     @pytest.mark.asyncio
     async def test_add_internal_token_if_missing(self, mock_config_check, mock_internal_token):
@@ -121,20 +121,23 @@ class TestAuth:
 
         # Add nothing
         mock_config_check.return_value = (True, TEST_OIDC)
-        unmodified_resp = await add_internal_token_if_missing(fake_request)
+        unmodified_resp = await _add_internal_token_if_missing(fake_request)
         assert isinstance(unmodified_resp, Request)
         assert not unmodified_resp.headers
 
         # Add header
         mock_config_check.return_value = (False, TEST_OIDC)
         mock_internal_token.return_value = fake_token_header
-        modified_resp = await add_internal_token_if_missing(fake_request)
+        modified_resp = await _add_internal_token_if_missing(fake_request)
         assert isinstance(modified_resp, Request)
         assert modified_resp.headers == MutableHeaders(fake_token_header)
 
+    @patch("hub_adapter.auth.logger")
     @pytest.mark.asyncio
-    async def test_check_rbac_rules(self):
+    async def test_check_rbac_rules(self, mock_logger):
         """Test the add_internal_token_if_missing method."""
+        correct_role_claim_name = "resource_access.node-ui.roles"
+
         mock_settings = Settings()
         assert mock_settings.STEWARD_ROLE is None
         assert mock_settings.RESEARCHER_ROLE is None
@@ -145,6 +148,7 @@ class TestAuth:
 
         # Set role names and check
         mock_settings_with_correct_roles = Settings(
+            ROLE_CLAIM_NAME=correct_role_claim_name,
             ADMIN_ROLE=ADMIN_ROLE,
             STEWARD_ROLE=STEWARD_ROLE,
             RESEARCHER_ROLE=RESEARCHER_ROLE,
@@ -157,6 +161,7 @@ class TestAuth:
 
         # Mismatch role names and expect fail
         mock_settings_with_mismatched_roles = Settings(
+            ROLE_CLAIM_NAME=correct_role_claim_name,
             STEWARD_ROLE="foo",
             RESEARCHER_ROLE="bar",
         )
@@ -177,4 +182,22 @@ class TestAuth:
             assert (
                 researcher_error.value.detail["message"]
                 == f"Insufficient permissions, admin or {RESEARCHER_ROLE} role not found in token."
+            )
+
+        # Wrong claim name
+        wrong_claim_name = "foo"
+        mock_settings_with_wrong_claim_name = Settings(
+            ROLE_CLAIM_NAME=wrong_claim_name,
+            STEWARD_ROLE=STEWARD_ROLE,
+        )
+        assert mock_settings_with_wrong_claim_name.STEWARD_ROLE == STEWARD_ROLE
+
+        with pytest.raises(HTTPException) as steward_error:
+            await require_steward_role(TEST_STEWARD_DECRYPTED_JWT, mock_settings_with_wrong_claim_name)
+            assert mock_logger.warning.call_count == 1
+            mock_logger.warning.assert_any_call(f"No roles found in token using {wrong_claim_name}")
+            assert steward_error.value.status_code == status.HTTP_403_FORBIDDEN
+            assert (
+                steward_error.value.detail["message"]
+                == f"Insufficient permissions, admin or {STEWARD_ROLE} role not found in token."
             )
