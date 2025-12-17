@@ -11,8 +11,27 @@ from starlette import status
 from starlette.datastructures import MutableHeaders
 from starlette.requests import Request
 
-from hub_adapter.auth import add_internal_token_if_missing, get_hub_public_key, get_internal_token, verify_idp_token
-from tests.constants import TEST_JWKS_RESPONSE, TEST_JWT, TEST_OIDC
+from hub_adapter.auth import (
+    add_internal_token_if_missing,
+    get_hub_public_key,
+    get_internal_token,
+    require_researcher_role,
+    require_steward_role,
+    verify_idp_token,
+)
+from hub_adapter.conf import Settings
+from tests.constants import (
+    ADMIN_ROLE,
+    RESEARCHER_ROLE,
+    STEWARD_ROLE,
+    TEST_JWKS_RESPONSE,
+    TEST_JWT,
+    TEST_MOCK_ROBOT_USER,
+    TEST_OIDC,
+    TEST_RESEARCHER_DECRYPTED_JWT,
+    TEST_STEWARD_DECRYPTED_JWT,
+    TEST_URL,
+)
 
 
 class TestAuth:
@@ -112,3 +131,50 @@ class TestAuth:
         modified_resp = await add_internal_token_if_missing(fake_request)
         assert isinstance(modified_resp, Request)
         assert modified_resp.headers == MutableHeaders(fake_token_header)
+
+    @pytest.mark.asyncio
+    async def test_check_rbac_rules(self):
+        """Test the add_internal_token_if_missing method."""
+        mock_settings = Settings()
+        assert mock_settings.STEWARD_ROLE is None
+        assert mock_settings.RESEARCHER_ROLE is None
+
+        # No steward or researcher role set - auto pass
+        await require_steward_role(TEST_STEWARD_DECRYPTED_JWT, mock_settings)
+        await require_researcher_role(TEST_RESEARCHER_DECRYPTED_JWT, mock_settings)
+
+        # Set role names and check
+        mock_settings_with_correct_roles = Settings(
+            ADMIN_ROLE=ADMIN_ROLE,
+            STEWARD_ROLE=STEWARD_ROLE,
+            RESEARCHER_ROLE=RESEARCHER_ROLE,
+        )
+        assert mock_settings_with_correct_roles.STEWARD_ROLE == STEWARD_ROLE
+        assert mock_settings_with_correct_roles.RESEARCHER_ROLE == RESEARCHER_ROLE
+
+        await require_steward_role(TEST_STEWARD_DECRYPTED_JWT, mock_settings_with_correct_roles)
+        await require_researcher_role(TEST_RESEARCHER_DECRYPTED_JWT, mock_settings_with_correct_roles)
+
+        # Mismatch role names and expect fail
+        mock_settings_with_mismatched_roles = Settings(
+            STEWARD_ROLE="foo",
+            RESEARCHER_ROLE="bar",
+        )
+        assert mock_settings_with_mismatched_roles.STEWARD_ROLE == "foo"
+        assert mock_settings_with_mismatched_roles.RESEARCHER_ROLE == "bar"
+
+        with pytest.raises(HTTPException) as steward_error:
+            await require_steward_role(TEST_STEWARD_DECRYPTED_JWT, mock_settings_with_mismatched_roles)
+            assert steward_error.value.status_code == status.HTTP_403_FORBIDDEN
+            assert (
+                steward_error.value.detail["message"]
+                == f"Insufficient permissions, admin or {STEWARD_ROLE} role not found in token."
+            )
+
+        with pytest.raises(HTTPException) as researcher_error:
+            await require_researcher_role(TEST_RESEARCHER_DECRYPTED_JWT, mock_settings_with_mismatched_roles)
+            assert researcher_error.value.status_code == status.HTTP_403_FORBIDDEN
+            assert (
+                researcher_error.value.detail["message"]
+                == f"Insufficient permissions, admin or {RESEARCHER_ROLE} role not found in token."
+            )
