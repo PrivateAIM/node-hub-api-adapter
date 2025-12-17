@@ -320,6 +320,15 @@ TEST_OIDC_SVC_RESPONSE = {
 
 TEST_JWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30"
 
+# RBAC
+ADMIN_ROLE = "admin"
+STEWARD_ROLE = "steward"
+RESEARCHER_ROLE = "researcher"
+
+TEST_ADMIN_DECRYPTED_JWT = {"resource_access": {"node-ui": {"roles": [ADMIN_ROLE]}}}
+TEST_STEWARD_DECRYPTED_JWT = {"resource_access": {"node-ui": {"roles": [STEWARD_ROLE]}}}
+TEST_RESEARCHER_DECRYPTED_JWT = {"resource_access": {"node-ui": {"roles": [RESEARCHER_ROLE]}}}
+
 TEST_KONG_CREATE_SERVICE_REQUEST = {
     "datastore": {
         "name": TEST_MOCK_PROJECT_ID,

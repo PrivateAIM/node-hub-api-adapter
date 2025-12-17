@@ -159,7 +159,7 @@ async def verify_idp_token(
         ) from Exception
 
 
-async def get_internal_token(
+async def _get_internal_token(
     oidc_config, hub_adapter_settings: Annotated[Settings, Depends(get_settings)]
 ) -> dict | None:
     """If the Hub Adapter is set up tp use an external IDP, it needs to retrieve a JWT from the internal keycloak
@@ -180,13 +180,13 @@ async def get_internal_token(
     return {"Authorization": f"Bearer {token.access_token}"}
 
 
-async def add_internal_token_if_missing(request: Request) -> Request:
+async def _add_internal_token_if_missing(request: Request) -> Request:
     """Adds a JWT from the internal IDP is not present in the request."""
     configs_match, oidc_config = check_oidc_configs_match()
 
     if not configs_match:
         logger.debug("External IDP different from internal, retrieving JWT from internal keycloak")
-        internal_token = await get_internal_token(oidc_config)
+        internal_token = await _get_internal_token(oidc_config)
         if internal_token:
             updated_headers = MutableHeaders(request.headers)
             updated_headers.update(internal_token)
@@ -195,3 +195,61 @@ async def add_internal_token_if_missing(request: Request) -> Request:
             request.scope.update(headers=request.headers.raw)
 
     return request
+
+
+# RBAC dependencies
+def _require_role(
+    additional_allowed_role: str | None,
+    verified_token: Annotated[dict, Depends(verify_idp_token)],
+    hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
+) -> dict:
+    """Dependency to check if token contains allowed role, otherwise raise 403 error."""
+    role_claim_name = hub_adapter_settings.ROLE_CLAIM_NAME
+    admin_role = hub_adapter_settings.ADMIN_ROLE
+    if additional_allowed_role and role_claim_name:
+        logger.debug(f"Role claim name and specified role '{role_claim_name}' found. Verifying role in token.")
+        role_claim_keys = role_claim_name.split(".")
+
+        has_allowed_role = False
+        parsed_claim = verified_token  # Initialize with token data to begin recursive parsing
+        for key in role_claim_keys:
+            parsed_claim = parsed_claim.get(key, {})
+
+        if not parsed_claim:
+            logger.warning(f"No roles found in token using {role_claim_name}")
+
+        if isinstance(parsed_claim, str):
+            parsed_claim = [parsed_claim]
+
+        if admin_role in parsed_claim or additional_allowed_role in parsed_claim:
+            has_allowed_role = True
+
+        if not has_allowed_role:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "message": f"Insufficient permissions, admin or {additional_allowed_role} role not found in token.",
+                    "service": "Auth",
+                    "status_code": status.HTTP_403_FORBIDDEN,
+                },
+            )
+
+    return verified_token
+
+
+async def require_steward_role(
+    verified_token: Annotated[dict, Depends(verify_idp_token)],
+    hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
+) -> dict:
+    """Dependency to check if the user has the ADMIN_ROLE or STEWARD_ROLE."""
+    steward_role = hub_adapter_settings.STEWARD_ROLE
+    return _require_role(steward_role, verified_token, hub_adapter_settings)
+
+
+async def require_researcher_role(
+    verified_token: Annotated[dict, Depends(verify_idp_token)],
+    hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
+) -> dict:
+    """Dependency to check if the user has the ADMIN_ROLE or RESEARCHER_ROLE."""
+    researcher_role = hub_adapter_settings.RESEARCHER_ROLE
+    return _require_role(researcher_role, verified_token, hub_adapter_settings)

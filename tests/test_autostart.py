@@ -141,7 +141,7 @@ class TestAutostart:
 
     @patch("hub_adapter.autostart.logger")
     @patch("hub_adapter.autostart.check_oidc_configs_match")
-    @patch("hub_adapter.autostart.get_internal_token")
+    @patch("hub_adapter.autostart._get_internal_token")
     @pytest.mark.asyncio
     async def test_fetch_token_header(self, mock_fetch_token, mock_config_check, mock_logger):
         """Test checking whether the pod is running."""

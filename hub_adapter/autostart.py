@@ -10,7 +10,7 @@ from flame_hub import HubAPIError
 from httpx import ConnectError, HTTPStatusError, ReadTimeout, RemoteProtocolError
 from starlette import status
 
-from hub_adapter.auth import get_internal_token
+from hub_adapter.auth import _get_internal_token
 from hub_adapter.core import make_request
 from hub_adapter.dependencies import (
     compile_analysis_pod_data,
@@ -183,7 +183,7 @@ class GoGoAnalysis:
         """Append OIDC token to headers."""
         try:
             _, oidc_config = check_oidc_configs_match()
-            token = await get_internal_token(oidc_config, self.settings)
+            token = await _get_internal_token(oidc_config, self.settings)
             return token
 
         except (HTTPException, HTTPStatusError) as e:
