@@ -41,6 +41,7 @@ class Settings:
     HUB_ROBOT_SECRET: str = os.getenv("HUB_ROBOT_SECRET")
 
     # RBAC
+    ROLE_CLAIM_NAME: str = os.getenv("ROLE_CLAIM_NAME")
     ADMIN_ROLE: str = os.getenv("ADMIN_ROLE", "admin")
     STEWARD_ROLE: str = os.getenv("STEWARD_ROLE")
     RESEARCHER_ROLE: str = os.getenv("RESEARCHER_ROLE")
