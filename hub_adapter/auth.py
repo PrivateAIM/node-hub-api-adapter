@@ -198,22 +198,20 @@ async def add_internal_token_if_missing(request: Request) -> Request:
 
 
 # RBAC dependencies
-async def require_steward_role(
+def require_role(
+    additional_allowed_role: str | None,
     verified_token: Annotated[dict, Depends(verify_idp_token)],
     hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
 ) -> dict:
-    """Dependency to check if the user has the ADMIN_ROLE or STEWARD_ROLE."""
-    steward_role = hub_adapter_settings.STEWARD_ROLE
+    """Dependency to check if token contains allowed role, otherwise raise 403 error."""
     admin_role = hub_adapter_settings.ADMIN_ROLE
-    if steward_role:
-        # Check for admin or steward role in the token
+    if additional_allowed_role:
         resource_access = verified_token.get("resource_access", {})
 
-        # Try to find admin role in any client's roles
         has_allowed_role = False
         for client_roles in resource_access.values():
             roles = client_roles.get("roles", [])
-            if admin_role in roles or steward_role in roles:
+            if admin_role in roles or additional_allowed_role in roles:
                 has_allowed_role = True
                 break
 
@@ -226,10 +224,28 @@ async def require_steward_role(
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail={
-                    "message": "Insufficient permissions. Admin or steward role required.",
+                    "message": f"Insufficient permissions, admin or {additional_allowed_role} role not found in token.",
                     "service": "Auth",
                     "status_code": status.HTTP_403_FORBIDDEN,
                 },
             )
 
     return verified_token
+
+
+async def require_steward_role(
+    verified_token: Annotated[dict, Depends(verify_idp_token)],
+    hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
+) -> dict:
+    """Dependency to check if the user has the ADMIN_ROLE or STEWARD_ROLE."""
+    steward_role = hub_adapter_settings.STEWARD_ROLE
+    return require_role(steward_role, verified_token, hub_adapter_settings)
+
+
+async def require_researcher_role(
+    verified_token: Annotated[dict, Depends(verify_idp_token)],
+    hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
+) -> dict:
+    """Dependency to check if the user has the ADMIN_ROLE or RESEARCHER_ROLE."""
+    researcher_role = hub_adapter_settings.RESEARCHER_ROLE
+    return require_role(researcher_role, verified_token, hub_adapter_settings)

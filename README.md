@@ -45,6 +45,9 @@ HTTPS_PROXY=""  # Forward proxy address for HTTPS requests
 AUTOSTART=false  # Whether the API should also operate in "autostart" mode where it'll start analyses automatically
 AUTOSTART_INTERVAL=60  # How often (in seconds) the server should check for new analyses
 EXTRA_CA_CERTS=""  # Path to a concatenated file containing all of the additional SSL certificates needed for communication
+ADMIN_ROLE="admin"  # Role name for users who have full access and control as defined in the IDP
+STEWARD_ROLE="steward"  # Role name for users who can only modify data stores as defined in the IDP
+RESEARCHER_ROLE="researcher"  # Role name for users who can only modify analyses as defined in the IDP
 ```
 
 | EnvVar                 | Description                                                                                                       |           Default           | Required |
@@ -68,3 +71,6 @@ EXTRA_CA_CERTS=""  # Path to a concatenated file containing all of the additiona
 | AUTOSTART              | Whether the API should also operate in "autostart" mode where it'll start analyses automatically                  |            false            |          |
 | AUTOSTART_INTERVAL     | How often (in seconds) the server should check for new analyses                                                   |             60              |          |
 | EXTRA_CA_CERTS         | Path to a concatenated file containing all of the additional SSL certificates needed for communication            |                             |          |
+| ADMIN_ROLE             | Role name for users who have full access and control as defined in the IDP                                        |            admin            |          |
+| STEWARD_ROLE           | Role name for users who can only modify data stores as defined in the IDP                                         |                             |          |
+| RESEARCHER_ROLE        | Role name for users who can only modify analyses as defined in the IDP                                            |                             |          |

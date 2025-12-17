@@ -102,11 +102,14 @@ def get_data_stores(
         return services
 
 
-@kong_router.get("/datastore", response_model=ListServices, status_code=status.HTTP_200_OK)
+@kong_router.get(
+    "/datastore",
+    response_model=ListServices,
+    status_code=status.HTTP_200_OK,
+)
 @catch_kong_errors
 async def list_data_stores(
     hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
-    verified_token: Annotated[dict, Depends(require_steward_role)],
     detailed: Annotated[bool, Query(description="Whether to include detailed information on projects")] = False,
 ):
     """List all available data stores (referred to as services by kong)."""
@@ -128,7 +131,11 @@ async def list_specific_data_store(
     return get_data_stores(hub_adapter_settings, project_id=project_id, detailed=detailed)
 
 
-@kong_router.delete("/datastore/{data_store_name}", status_code=status.HTTP_200_OK)
+@kong_router.delete(
+    "/datastore/{data_store_name}",
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(require_steward_role)],
+)
 @catch_kong_errors
 async def delete_data_store(
     hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
@@ -161,6 +168,7 @@ async def delete_data_store(
     "/datastore",
     response_model=Service,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_steward_role)],
 )
 @catch_kong_errors
 async def create_service(
@@ -275,6 +283,7 @@ async def list_specific_project(
     "/project",
     response_model=LinkDataStoreProject,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_steward_role)],
 )
 @catch_kong_errors
 async def create_route_to_datastore(
@@ -350,6 +359,7 @@ async def create_route_to_datastore(
     "/initialize",
     response_model=LinkDataStoreProject,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_steward_role)],
 )
 @catch_kong_errors
 async def create_datastore_and_project_with_link(
@@ -389,6 +399,7 @@ async def create_datastore_and_project_with_link(
 @kong_router.delete(
     "/project/{project_route_id}",
     status_code=status.HTTP_200_OK,
+    dependencies=[Depends(require_steward_role)],
     # response_model=DeleteProject,
 )
 @catch_kong_errors
@@ -479,6 +490,7 @@ async def list_specific_analysis(
     "/analysis",
     response_model=LinkProjectAnalysis,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_steward_role)],
 )
 @catch_kong_errors
 async def create_and_connect_analysis_to_project(
@@ -550,7 +562,11 @@ async def create_and_connect_analysis_to_project(
     return response
 
 
-@kong_router.delete("/analysis/{analysis_id}", status_code=status.HTTP_200_OK)
+@kong_router.delete(
+    "/analysis/{analysis_id}",
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(require_steward_role)],
+)
 @catch_kong_errors
 async def delete_analysis(
     hub_adapter_settings: Annotated[Settings, Depends(get_settings)],

@@ -14,6 +14,7 @@ from hub_adapter.auth import (
     add_internal_token_if_missing,
     get_internal_token,
     jwtbearer,
+    require_researcher_role,
     verify_idp_token,
 )
 from hub_adapter.autostart import GoGoAnalysis
@@ -25,7 +26,12 @@ from hub_adapter.oidc import check_oidc_configs_match
 from hub_adapter.routers.kong import delete_analysis
 
 meta_router = APIRouter(
-    dependencies=[Security(verify_idp_token), Security(jwtbearer), Depends(add_internal_token_if_missing)],
+    dependencies=[
+        Security(verify_idp_token),
+        Security(jwtbearer),
+        Depends(add_internal_token_if_missing),
+        Depends(require_researcher_role),
+    ],
     tags=["Meta"],
     responses={404: {"description": "Not found"}},
 )
