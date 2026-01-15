@@ -2,9 +2,11 @@
 
 import os
 
+import jwt
 from fastapi import UploadFile
 from fastapi.routing import serialize_response
 from starlette.datastructures import FormData
+from starlette.requests import Request
 
 
 def create_request_data(form: dict | None, body: dict | None) -> dict | None:
@@ -103,3 +105,30 @@ async def unzip_file_params(
 
 def remove_file(path: str) -> None:
     os.unlink(path)
+
+
+def _extract_user_from_token(request: Request) -> dict | None:
+    """Extract user information from JWT token in request headers."""
+    auth_header = request.headers.get("Authorization")
+
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return None
+
+    token = auth_header.replace("Bearer ", "")
+
+    try:
+        decoded_token = jwt.decode(token, options={"verify_signature": False})
+
+        # Extract common user identifiers from JWT
+        user_info = {
+            "id": decoded_token.get("sub"),  # Subject (user ID)
+            "username": decoded_token.get("preferred_username") or decoded_token.get("username"),
+            "email": decoded_token.get("email"),
+            "client_id": decoded_token.get("azp") or decoded_token.get("client_id"),  # For service accounts
+        }
+
+        # Remove None values
+        return {k: v for k, v in user_info.items() if v is not None}
+
+    except (jwt.DecodeError, jwt.InvalidTokenError):
+        return None

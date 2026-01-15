@@ -10,13 +10,11 @@ from typing import Annotated
 
 import flame_hub
 import httpx
-import peewee as pw
 import truststore
-from fastapi import Body, Depends, HTTPException, Request
+from fastapi import Body, Depends, HTTPException
 from flame_hub import HubAPIError
 from flame_hub._auth_flows import RobotAuth
 from flame_hub._core_client import Node
-from node_event_logging import EventLog, bind_to
 from starlette import status
 
 from hub_adapter import node_id_pickle_path
@@ -292,44 +290,3 @@ def compile_analysis_pod_data(
         "registry_password": registry_sec,
     }
     return compiled_response
-
-
-# Event logging dependencies
-
-
-def get_event_db(
-    settings: Annotated[Settings, Depends(get_settings)],
-):
-    """Binds event database to enable logging."""
-    postgres = pw.PostgresqlDatabase(
-        database=settings.POSTGRES_EVENT_DB,
-        user=settings.POSTGRES_EVENT_USER,
-        password=settings.POSTGRES_EVENT_PASSWORD,
-        host=settings.POSTGRES_EVENT_HOST,
-        port=settings.POSTGRES_EVENT_PORT,
-    )
-    with bind_to(postgres):
-        yield
-
-
-def get_event_logger(
-    db: Annotated[pw.PostgresqlDatabase, Depends(get_event_db)],
-    request: Request,
-):
-    """Provides an event logger with request context."""
-    return EventLogger(request)
-
-
-class EventLogger:
-    """Helper class for logging events with context."""
-
-    def __init__(self, request: Request):
-        self.request = request
-
-    def log(self, event: str, **kwargs):
-        """Log an event with automatic request metadata."""
-        EventLog.create(
-            event_name=event,
-            service_name="hub_adapter",
-            metadata={"path": self.request.url.path, "method": self.request.method, **kwargs},
-        )

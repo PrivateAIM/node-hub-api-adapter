@@ -26,7 +26,6 @@ from hub_adapter.oidc import (
 
 logger = logging.getLogger(__name__)
 
-
 jwtbearer = HTTPBearer(
     scheme_name="JWT",
     description="Pass a valid JWT here for authentication. Can be obtained from /token endpoint.",
@@ -159,9 +158,7 @@ async def verify_idp_token(
         ) from Exception
 
 
-async def _get_internal_token(
-    oidc_config, settings: Annotated[Settings, Depends(get_settings)]
-) -> dict | None:
+async def _get_internal_token(oidc_config, settings: Annotated[Settings, Depends(get_settings)]) -> dict | None:
     """If the Hub Adapter is set up tp use an external IDP, it needs to retrieve a JWT from the internal keycloak
     to make requests to the PO."""
 
