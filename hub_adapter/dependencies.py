@@ -90,7 +90,8 @@ def get_core_client(
     ssl_ctx: Annotated[ssl.SSLContext, Depends(get_ssl_context)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> flame_hub.CoreClient:
-    return flame_hub.CoreClient(client=httpx.Client(base_url=settings.HUB_SERVICE_URL, auth=hub_robot, verify=ssl_ctx))
+    httpx_client = httpx.Client(base_url=settings.HUB_SERVICE_URL, auth=hub_robot, verify=ssl_ctx)
+    return flame_hub.CoreClient(client=httpx_client)
 
 
 @catch_hub_errors

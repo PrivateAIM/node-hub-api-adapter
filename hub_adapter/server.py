@@ -8,12 +8,13 @@ from contextlib import asynccontextmanager
 import peewee as pw
 import uvicorn
 from fastapi import FastAPI
-from node_event_logging import EventLog, EventModelMap, bind_to
+from node_event_logging import EventModelMap
 from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 
 from hub_adapter.autostart import GoGoAnalysis
 from hub_adapter.dependencies import get_settings
+from hub_adapter.events import setup_event_logging, teardown_event_logging, get_event_logger
 from hub_adapter.models.events import RequestEventLog
 from hub_adapter.routers.auth import auth_router
 from hub_adapter.routers.health import health_router
@@ -22,12 +23,9 @@ from hub_adapter.routers.kong import kong_router
 from hub_adapter.routers.meta import meta_router
 from hub_adapter.routers.podorc import po_router
 from hub_adapter.routers.results import results_router
-from hub_adapter.utils import _extract_user_from_token
 
 logger = logging.getLogger(__name__)
 
-event_db = None
-event_logging_enabled = False
 
 # API metadata
 tags_metadata = [
@@ -45,8 +43,6 @@ tags_metadata = [
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global event_db, event_logging_enabled
-
     settings = get_settings()
 
     EventModelMap.mapping = {
@@ -61,41 +57,22 @@ async def lifespan(app: FastAPI):
     }
 
     try:
-        # Validate required settings explicitly
-        required = {
-            "database": settings.POSTGRES_EVENT_DB,
-            "user": settings.POSTGRES_EVENT_USER,
-            "password": settings.POSTGRES_EVENT_PASSWORD,
-            "hostname": settings.POSTGRES_EVENT_HOST,
-            "port": settings.POSTGRES_EVENT_PORT,
-        }
-        if not all(required.values()):
-            raise ValueError(f"Postgres database settings are incomplete: {required}")
-
-        event_db = pw.PostgresqlDatabase(
+        setup_event_logging(
             database=settings.POSTGRES_EVENT_DB,
             user=settings.POSTGRES_EVENT_USER,
             password=settings.POSTGRES_EVENT_PASSWORD,
             host=settings.POSTGRES_EVENT_HOST,
             port=settings.POSTGRES_EVENT_PORT,
+            enabled=True,
         )
 
-        # Force an actual connection test at startup
-        event_db.connect(reuse_if_open=True)
-        event_logging_enabled = True
-        logger.info("Event logging enabled")
-
     except (pw.PeeweeException, ValueError) as db_err:
-        event_db = None
-        event_logging_enabled = False
-        logger.warning(db_err)
+        logger.warning(str(db_err).strip())  # Strip needed to remove newline from peewee error
         logger.warning("Event logging disabled due to database configuration or connection error")
 
     yield
 
-    # Safely close the connection
-    if event_db and not event_db.is_closed():
-        event_db.close()
+    teardown_event_logging()
 
 
 app = FastAPI(
@@ -129,40 +106,13 @@ async def event_logging_middleware(request: Request, call_next):
     """Middleware to log the events."""
     response = await call_next(request)
 
-    if not event_logging_enabled:
-        return response
-
     try:
-        with bind_to(event_db):
-            user_info = _extract_user_from_token(request=request)
+        middleware_logger = get_event_logger()
+        middleware_logger.log_incoming_request(request, response)
 
-            event_name = "ui_request"
-            function_name = None
-            service = None
-
-            route = request.scope.get("route")
-            if route:
-                function_name = route.name
-                service = route.tags[0].lower() if route.tags else None
-                event_name = f"{service}_request"
-
-            EventLog.create(
-                event_name=event_name,
-                service_name="hub_adapter",
-                body=str(request.url),
-                attributes={
-                    "method": request.method,
-                    "path": request.url.path,
-                    "client": request.client,
-                    "user": user_info,
-                    "function_name": function_name,
-                    "service": service,
-                },
-            )
-
-    except (pw.PeeweeException, ValueError) as db_err:
-        logger.error(db_err)
-        logger.exception("Failed to log event; continuing without event logging")
+    except AttributeError:
+        # Event logging not initialized, skip
+        pass
 
     return response
 

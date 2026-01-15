@@ -17,6 +17,7 @@ from starlette.requests import Request
 
 from hub_adapter.conf import Settings
 from hub_adapter.dependencies import get_settings, get_ssl_context
+from hub_adapter.events import log_httpx_request
 from hub_adapter.models.conf import Token
 from hub_adapter.oidc import (
     check_oidc_configs_match,
@@ -46,6 +47,7 @@ class ProxiedPyJWKClient(PyJWKClient):
             return response.json()
 
 
+@log_httpx_request(service="auth")
 async def get_hub_public_key(settings: Annotated[Settings, Depends(get_settings)]) -> dict:
     """Get the central hub service public key."""
     hub_jwks_ep = settings.HUB_AUTH_SERVICE_URL.rstrip("/") + "/jwks"

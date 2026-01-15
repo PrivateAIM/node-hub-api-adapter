@@ -21,3 +21,4 @@ class RequestEventLog(AttributesModel):
     user: UserInfo | None = None
     function_name: str | None = None
     service: str | None = None
+    status_code: int | None = None
