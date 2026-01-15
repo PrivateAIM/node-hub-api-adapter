@@ -54,3 +54,8 @@ select = [
     # isort
     "I",
 ]
+fixable = ["ALL"]
+
+[tool.ruff.format]
+line-ending = "auto"
+quote-style = "double"
