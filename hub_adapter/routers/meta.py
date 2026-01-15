@@ -119,16 +119,16 @@ async def initialize_analysis(
 )
 async def terminate_analysis(
     analysis_id: Annotated[str | uuid.UUID, Path(description="Analysis UUID that should be terminated")],
-    hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ):
     """Perform the required checks to stop an analysis and delete it and its components.
 
     This method will first delete the kong consumer and then send the delete command to the PO.
     """
-    await delete_analysis(analysis_id=analysis_id, hub_adapter_settings=hub_adapter_settings)
+    await delete_analysis(analysis_id=analysis_id, settings=settings)
 
     configs_match, oidc_config = check_oidc_configs_match()
-    headers = await _get_internal_token(oidc_config, hub_adapter_settings)
+    headers = await _get_internal_token(oidc_config, settings)
 
     microsvc_path = f"{get_settings().PODORC_SERVICE_URL}/po/delete/{analysis_id}"
 

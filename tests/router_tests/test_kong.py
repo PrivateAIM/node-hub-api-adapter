@@ -308,7 +308,7 @@ class TestConnection:
 
         with pytest.raises(HTTPException) as err:
             await probe_connection(
-                hub_adapter_settings=removed_kong_url_settings,
+                settings=removed_kong_url_settings,
                 project_id=TEST_MOCK_PROJECT_ID,
                 ds_type=DataStoreType.FHIR,
             )
@@ -345,7 +345,7 @@ class TestConnection:
         )
         mock_probe_data_service.return_value = status.HTTP_200_OK
         success_resp = await probe_connection(
-            hub_adapter_settings=test_settings, project_id=TEST_MOCK_PROJECT_ID, ds_type=DataStoreType.FHIR
+            settings=test_settings, project_id=TEST_MOCK_PROJECT_ID, ds_type=DataStoreType.FHIR
         )
         mock_logger.warning.assert_called_with(f"No health consumer found for {TEST_MOCK_PROJECT_ID}, creating one now")
         assert success_resp == status.HTTP_200_OK
@@ -354,7 +354,7 @@ class TestConnection:
         mock_list_key_auths_for_consumer.return_value = {}
         with pytest.raises(KongConsumerApiKeyError) as err:
             await probe_connection(
-                hub_adapter_settings=test_settings, project_id=TEST_MOCK_PROJECT_ID, ds_type=DataStoreType.FHIR
+                settings=test_settings, project_id=TEST_MOCK_PROJECT_ID, ds_type=DataStoreType.FHIR
             )
 
         assert err.value.status_code == status.HTTP_404_NOT_FOUND

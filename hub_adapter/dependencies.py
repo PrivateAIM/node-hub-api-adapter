@@ -34,9 +34,9 @@ def get_settings():
 
 
 @lru_cache
-def get_ssl_context(hub_adapter_settings: Annotated[Settings, Depends(get_settings)]) -> ssl.SSLContext:
+def get_ssl_context(settings: Annotated[Settings, Depends(get_settings)]) -> ssl.SSLContext:
     """Check if there are additional certificates present and if so, load them."""
-    cert_path = hub_adapter_settings.EXTRA_CA_CERTS
+    cert_path = settings.EXTRA_CA_CERTS
     ctx = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
     if cert_path and Path(cert_path).exists():
         ctx.load_verify_locations(cafile=cert_path)
@@ -45,12 +45,12 @@ def get_ssl_context(hub_adapter_settings: Annotated[Settings, Depends(get_settin
 
 def get_flame_hub_auth_flow(
     ssl_ctx: Annotated[ssl.SSLContext, Depends(get_ssl_context)],
-    hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> RobotAuth:
     """Automated method for getting a robot token from the central Hub service."""
     robot_id, robot_secret = (
-        hub_adapter_settings.HUB_ROBOT_USER,
-        hub_adapter_settings.HUB_ROBOT_SECRET,
+        settings.HUB_ROBOT_USER,
+        settings.HUB_ROBOT_SECRET,
     )
 
     if not robot_id or not robot_secret:
@@ -77,7 +77,7 @@ def get_flame_hub_auth_flow(
         robot_id=robot_id,
         robot_secret=robot_secret,
         client=httpx.Client(
-            base_url=hub_adapter_settings.HUB_AUTH_SERVICE_URL,
+            base_url=settings.HUB_AUTH_SERVICE_URL,
             verify=ssl_ctx,
         ),
     )
@@ -90,17 +90,15 @@ def get_core_client(
         Depends(get_flame_hub_auth_flow),
     ],
     ssl_ctx: Annotated[ssl.SSLContext, Depends(get_ssl_context)],
-    hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> flame_hub.CoreClient:
-    return flame_hub.CoreClient(
-        client=httpx.Client(base_url=hub_adapter_settings.HUB_SERVICE_URL, auth=hub_robot, verify=ssl_ctx)
-    )
+    return flame_hub.CoreClient(client=httpx.Client(base_url=settings.HUB_SERVICE_URL, auth=hub_robot, verify=ssl_ctx))
 
 
 @catch_hub_errors
 async def get_node_id(
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
-    hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
+    settings: Annotated[Settings, Depends(get_settings)],
     force_refresh: bool = False,
 ) -> str | None:
     """Uses the robot ID to obtain the associated node ID, sets it in the env vars, and returns it.
@@ -109,7 +107,7 @@ async def get_node_id(
 
     If None is returned, no filtering will be applied, which is useful for debugging.
     """
-    robot_id = hub_adapter_settings.HUB_ROBOT_USER
+    robot_id = settings.HUB_ROBOT_USER
 
     node_cache = {}
 
@@ -153,13 +151,13 @@ async def get_node_id(
 
 @catch_hub_errors
 async def get_node_type_cache(
-    hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
+    settings: Annotated[Settings, Depends(get_settings)],
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     global _node_type_cache
 
     if _node_type_cache is None:
-        node_id = await get_node_id(core_client=core_client, hub_adapter_settings=hub_adapter_settings)
+        node_id = await get_node_id(core_client=core_client, settings=settings)
 
         try:
             node_resp = core_client.get_node(node_id=node_id)
@@ -300,15 +298,15 @@ def compile_analysis_pod_data(
 
 
 def get_event_db(
-    hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ):
     """Binds event database to enable logging."""
     postgres = pw.PostgresqlDatabase(
-        database=hub_adapter_settings.POSTGRES_EVENT_DB,
-        user=hub_adapter_settings.POSTGRES_EVENT_USER,
-        password=hub_adapter_settings.POSTGRES_EVENT_PASSWORD,
-        host=hub_adapter_settings.POSTGRES_EVENT_HOST,
-        port=hub_adapter_settings.POSTGRES_EVENT_PORT,
+        database=settings.POSTGRES_EVENT_DB,
+        user=settings.POSTGRES_EVENT_USER,
+        password=settings.POSTGRES_EVENT_PASSWORD,
+        host=settings.POSTGRES_EVENT_HOST,
+        port=settings.POSTGRES_EVENT_PORT,
     )
     with bind_to(postgres):
         yield

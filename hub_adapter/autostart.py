@@ -120,8 +120,8 @@ class GoGoAnalysis:
 
     async def describe_node(self) -> tuple[str, str] | None:
         """Get node information from cache, and if not present, get from Hub and set cache."""
-        node_id = await get_node_id(core_client=self.core_client, hub_adapter_settings=self.settings)
-        node_type_cache = await get_node_type_cache(hub_adapter_settings=self.settings, core_client=self.core_client)
+        node_id = await get_node_id(core_client=self.core_client, settings=self.settings)
+        node_type_cache = await get_node_type_cache(settings=self.settings, core_client=self.core_client)
         node_type = node_type_cache["type"]
 
         return node_id, node_type
@@ -133,7 +133,7 @@ class GoGoAnalysis:
         logger.info(f"Attempt {attempt} at starting analysis {analysis_id}")
         try:
             kong_resp = await create_and_connect_analysis_to_project(
-                hub_adapter_settings=self.settings, project_id=project_id, analysis_id=analysis_id
+                settings=self.settings, project_id=project_id, analysis_id=analysis_id
             )
             return kong_resp, status.HTTP_201_CREATED
 
@@ -150,7 +150,7 @@ class GoGoAnalysis:
 
             elif not pod_exists:  # Status obtained and if not running, delete kong consumer
                 logger.info(f"No pod found for {analysis_id}, will delete kong consumer and retry")
-                await delete_analysis(hub_adapter_settings=self.settings, analysis_id=analysis_id)
+                await delete_analysis(settings=self.settings, analysis_id=analysis_id)
 
                 if attempt < max_attempts:
                     return await self.register_analysis(analysis_id, project_id, attempt + 1, max_attempts)
@@ -275,7 +275,7 @@ class GoGoAnalysis:
         """Collect the available data stores and create a set of project UUIDs with a valid data store."""
         kong_routes = None
         try:
-            kong_routes = await list_projects(hub_adapter_settings=self.settings, detailed=False)
+            kong_routes = await list_projects(settings=self.settings, detailed=False)
 
         except HTTPException as e:
             logger.error(f"Route retrieval failed, unable to contact Kong: {e}")
