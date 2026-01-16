@@ -25,6 +25,7 @@ results_router = APIRouter(
     status_code=status.HTTP_200_OK,
     service_url=get_settings().RESULTS_SERVICE_URL,
     query_params=["project_id"],
+    name="storage.local.delete",
 )
 async def delete_local_results(
     project_id: Annotated[uuid.UUID | str, Query(description="UUID of the associated project.")],

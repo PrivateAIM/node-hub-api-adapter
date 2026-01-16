@@ -12,6 +12,9 @@ from fastapi import Request
 from node_event_logging import EventLog, bind_to
 from psycopg2 import DatabaseError
 
+from hub_adapter.constants import gateway_service_events
+from hub_adapter.utils import annotate_event_name
+
 logger = logging.getLogger(__name__)
 
 
@@ -47,6 +50,34 @@ class EventLogger:
         except (jwt.DecodeError, jwt.InvalidTokenError):
             return None
 
+    def log_fastapi_request(self, request: Request, status_code: int | None = None):
+        """Log incoming FastAPI requests from external clients using the middleware."""
+        user_info = self._extract_user_from_token(request=request)
+
+        event_name = "unknown"
+        service = None
+
+        route = request.scope.get("route")
+        if route:
+            if route.name not in gateway_service_events:
+                raise ValueError(f"Unknown event name: {route.name}")
+            event_name = annotate_event_name(route.name, status_code)
+            service = route.tags[0].lower() if route.tags else None
+
+        self.log_event(
+            event_name=event_name,
+            service_name="hub_adapter",
+            body=str(request.url),
+            attributes={
+                "method": request.method,
+                "path": request.url.path,
+                "client": request.client,
+                "user": user_info,
+                "service": service,
+                "status_code": status_code,
+            },
+        )
+
     def log_event(
         self,
         event_name: str,
@@ -68,66 +99,11 @@ class EventLogger:
                 )
 
         except (pw.PeeweeException, ValueError, DatabaseError) as db_err:
-            logger.error(db_err)
+            logger.warning(str(db_err).strip())  # Strip needed to remove newline from peewee error
             logger.warning("Failed to log event; continuing without event logging")
 
-    def log_incoming_request(self, request: Request, response):
-        """Log incoming FastAPI requests from external clients."""
-        user_info = self._extract_user_from_token(request=request)
-
-        event_name = "ui_request"
-        function_name = None
-        service = None
-
-        route = request.scope.get("route")
-        if route:
-            function_name = route.name
-            service = route.tags[0].lower() if route.tags else None
-            event_name = f"{service}_request"
-
-        self.log_event(
-            event_name=event_name,
-            service_name="hub_adapter",
-            body=str(request.url),
-            attributes={
-                "method": request.method,
-                "path": request.url.path,
-                "client": request.client,
-                "user": user_info,
-                "function_name": function_name,
-                "service": service,
-                "status_code": response.status_code if hasattr(response, "status_code") else None,
-            },
-        )
-
-    def log_httpx_request(
-        self,
-        method: str,
-        url: str,
-        status_code: int | None = None,
-        context: str | None = None,
-        service: str | None = None,
-    ):
-        """Log outgoing httpx requests made to internal services."""
-        event_name = f"httpx_{method.lower()}"
-        if service:
-            event_name = f"{service}_httpx_{method.lower()}"
-
-        self.log_event(
-            event_name=event_name,
-            service_name="hub_adapter",
-            body=url,
-            attributes={
-                "http_method": method,
-                "url": url,
-                "status_code": status_code,
-                "context": context,
-                "service": service,
-            },
-        )
-
-    def httpx_logging_decorator(self, service: str | None = None):
-        """Decorator for logging internal httpx requests.
+    def httpx_event_decorator(self, event_name: str):
+        """Decorator for logging requests and responses.
 
         Safe to use even if event logging isn't initialized - will simply not log.
         """
@@ -137,37 +113,36 @@ class EventLogger:
             if not self.enabled or not self.event_db:
                 return func
 
-            @wraps(func)
-            def sync_wrapper(*args, **kwargs):
-                result = func(*args, **kwargs)
+            def get_user_and_log(result):
+                user_info = self._extract_user_from_token(request=result.request)
 
                 # Try to extract httpx response info
                 if isinstance(result, httpx.Response):
-                    self.log_httpx_request(
-                        method=result.request.method,
-                        url=str(result.request.url),
-                        status_code=result.status_code,
-                        context=func.__name__,
-                        service=service,
+                    self.log_event(
+                        event_name=event_name,
+                        service_name="hub_adapter",
+                        body=str(result.request.url),
+                        attributes={
+                            "method": result.request.method,
+                            "url": result.status_code,
+                            "client": "foo",  # TODO get client details
+                            "user": user_info,
+                            "service": "anything",  # TODO get service
+                            "status_code": result.status_code,
+                        },
                     )
 
                 return result
+
+            @wraps(func)
+            def sync_wrapper(*args, **kwargs):
+                result = func(*args, **kwargs)
+                return get_user_and_log(result)
 
             @wraps(func)
             async def async_wrapper(*args, **kwargs):
                 result = await func(*args, **kwargs)
-
-                # Try to extract httpx response info
-                if isinstance(result, httpx.Response):
-                    self.log_httpx_request(
-                        method=result.request.method,
-                        url=str(result.request.url),
-                        status_code=result.status_code,
-                        context=func.__name__,
-                        service=service,
-                    )
-
-                return result
+                return get_user_and_log(result)
 
             # Return appropriate wrapper based on function type since both sync/async are used
             if asyncio.iscoroutinefunction(func):
@@ -177,22 +152,22 @@ class EventLogger:
 
         return decorator
 
-    def create_httpx_client(self, service: str | None = None) -> httpx.Client:
-        """Create a httpx client with automatic logging via event hooks."""
-
-        def log_request(request: httpx.Request):
-            self.log_httpx_request(
-                method=request.method,
-                url=str(request.url),
-                context="httpx_client_request",
-                service=service,
-            )
-
-        return httpx.Client(
-            event_hooks={
-                "request": [log_request],
-            }
-        )
+    # def create_httpx_client(self, service: str | None = None) -> httpx.Client:
+    #     """Create a httpx client with automatic logging via event hooks."""
+    #
+    #     def log_request(request: httpx.Request):
+    #         self.log_request(
+    #             method=request.method,
+    #             url=str(request.url),
+    #             context="httpx_client_request",
+    #             service=service,
+    #         )
+    #
+    #     return httpx.Client(
+    #         event_hooks={
+    #             "request": [log_request],
+    #         }
+    #     )
 
 
 event_db: pw.Database | None = None
@@ -266,13 +241,14 @@ def get_event_logger() -> EventLogger | None:
     return event_logger
 
 
-def log_httpx_request(service: str | None = None):
+def log_httpx_event(event: str, func: Callable):
     """Decorator, if event logging isn't initialized, the decorator does nothing."""
 
-    def decorator(func: Callable) -> Callable:
-        httpx_logger = get_event_logger()
-        if httpx_logger is None:
+    @wraps(func)
+    def decorator() -> Callable:
+        active_event_logger = get_event_logger()
+        if active_event_logger is None or not active_event_logger.enabled:
             return func  # Return original function if logging not initialized
-        return httpx_logger.httpx_logging_decorator(service=service)(func)
+        return active_event_logger.httpx_event_decorator(event_name=event)(func)
 
     return decorator

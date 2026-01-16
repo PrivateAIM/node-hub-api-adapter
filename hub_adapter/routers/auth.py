@@ -24,6 +24,7 @@ auth_router = APIRouter(
     summary="Get a token from the IDP",
     status_code=status.HTTP_200_OK,
     response_model=Token,
+    name="auth.token.get",
 )
 def get_token(
     settings: Annotated[Settings, Depends(get_settings)],

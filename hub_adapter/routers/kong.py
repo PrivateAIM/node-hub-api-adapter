@@ -106,6 +106,7 @@ def get_data_stores(
     "/datastore",
     response_model=ListServices,
     status_code=status.HTTP_200_OK,
+    name="kong.datastore.get",
 )
 @catch_kong_errors
 async def list_data_stores(
@@ -120,6 +121,7 @@ async def list_data_stores(
     "/datastore/{project_id}",
     response_model=ListServices,
     status_code=status.HTTP_200_OK,
+    name="kong.datastore.get",
 )
 @catch_kong_errors
 async def list_specific_data_store(
@@ -135,6 +137,7 @@ async def list_specific_data_store(
     "/datastore/{data_store_name}",
     status_code=status.HTTP_200_OK,
     dependencies=[Depends(require_steward_role)],
+    name="kong.datastore.delete",
 )
 @catch_kong_errors
 async def delete_data_store(
@@ -169,6 +172,7 @@ async def delete_data_store(
     response_model=Service,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(require_steward_role)],
+    name="kong.datastore.create",
 )
 @catch_kong_errors
 async def create_service(
@@ -242,6 +246,7 @@ def get_projects(
     "/project",
     response_model=ListRoutes,
     status_code=status.HTTP_200_OK,
+    name="kong.project.get",
 )
 @catch_kong_errors
 async def list_projects(
@@ -262,6 +267,7 @@ async def list_projects(
     "/project/{project_id}",
     response_model=ListRoutes,
     status_code=status.HTTP_200_OK,
+    name="kong.project.get",
 )
 @catch_kong_errors
 async def list_specific_project(
@@ -284,6 +290,7 @@ async def list_specific_project(
     response_model=LinkDataStoreProject,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(require_steward_role)],
+    name="kong.project.create",
 )
 @catch_kong_errors
 async def create_route_to_datastore(
@@ -360,6 +367,7 @@ async def create_route_to_datastore(
     response_model=LinkDataStoreProject,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(require_steward_role)],
+    name="kong.initialize",
 )
 @catch_kong_errors
 async def create_datastore_and_project_with_link(
@@ -388,9 +396,7 @@ async def create_datastore_and_project_with_link(
 
     except HTTPException as error:  # if connection fails, delete service and route, then raise error
         logger.error("Failed to validate connection to datastore, deleting service and route")
-        await delete_data_store(
-            settings=settings, data_store_name=f"{project_id}-{ds_type.value}"
-        )
+        await delete_data_store(settings=settings, data_store_name=f"{project_id}-{ds_type.value}")
         raise error
 
     return proj_response
@@ -401,6 +407,7 @@ async def create_datastore_and_project_with_link(
     status_code=status.HTTP_200_OK,
     dependencies=[Depends(require_steward_role)],
     # response_model=DeleteProject,
+    name="kong.project.delete",
 )
 @catch_kong_errors
 async def delete_route(
@@ -461,6 +468,7 @@ def get_analyses(
     "/analysis",
     response_model=ListConsumers,
     status_code=status.HTTP_200_OK,
+    name="kong.analysis.get",
 )
 @catch_kong_errors
 async def list_analyses(
@@ -475,6 +483,7 @@ async def list_analyses(
     "/analysis/{analysis_id}",
     response_model=ListConsumers,
     status_code=status.HTTP_200_OK,
+    name="kong.analysis.get",
 )
 @catch_kong_errors
 async def list_specific_analysis(
@@ -491,6 +500,7 @@ async def list_specific_analysis(
     response_model=LinkProjectAnalysis,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(require_steward_role)],
+    name="kong.analysis.create",
 )
 @catch_kong_errors
 async def create_and_connect_analysis_to_project(
@@ -566,6 +576,7 @@ async def create_and_connect_analysis_to_project(
     "/analysis/{analysis_id}",
     status_code=status.HTTP_200_OK,
     dependencies=[Depends(require_steward_role)],
+    name="kong.analysis.delete",
 )
 @catch_kong_errors
 async def delete_analysis(
@@ -585,7 +596,11 @@ async def delete_analysis(
         return status.HTTP_200_OK
 
 
-@kong_router.get("/project/{project_id}/{ds_type}/health", status_code=status.HTTP_200_OK)
+@kong_router.get(
+    "/project/{project_id}/{ds_type}/health",
+    status_code=status.HTTP_200_OK,
+    name="kong.probe",
+)
 @catch_kong_errors
 async def probe_connection(
     settings: Annotated[Settings, Depends(get_settings)],
@@ -645,13 +660,13 @@ async def probe_connection(
         if is_fhir:
             url = f"{url}/metadata"
 
-        return probe_data_service(url=url, apikey=apikey, is_fhir=is_fhir)
+        return _probe_data_service(url=url, apikey=apikey, is_fhir=is_fhir)
 
     else:
         raise KongConsumerApiKeyError
 
 
-def probe_data_service(url: str, apikey: str, is_fhir: bool, attempt: int = 1, max_attempts: int = 4) -> int:
+def _probe_data_service(url: str, apikey: str, is_fhir: bool, attempt: int = 1, max_attempts: int = 4) -> int:
     """Use httpx to probe the data service."""
     svc_resp = httpx.get(
         url,
@@ -662,7 +677,7 @@ def probe_data_service(url: str, apikey: str, is_fhir: bool, attempt: int = 1, m
         # Sometimes it takes a bit for kong to finish creating a route/service
         if svc_resp.status_code == status.HTTP_404_NOT_FOUND and attempt <= max_attempts:
             time.sleep(attempt)  # Wait a little longer each attempt
-            return probe_data_service(url=url, apikey=apikey, is_fhir=is_fhir, attempt=attempt + 1)
+            return _probe_data_service(url=url, apikey=apikey, is_fhir=is_fhir, attempt=attempt + 1)
 
         logger.error(f"Unable to connect to data service after {attempt - 1} attempt(s)")
         if svc_resp.status_code == status.HTTP_403_FORBIDDEN and not is_fhir:

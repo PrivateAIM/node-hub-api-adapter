@@ -26,7 +26,7 @@ from hub_adapter.dependencies import (
 from hub_adapter.errors import KongConflictError, KongConnectError
 from hub_adapter.oidc import check_oidc_configs_match
 from hub_adapter.routers.hub import (
-    format_query_params,
+    _format_query_params,
     list_analysis_nodes,
 )
 from hub_adapter.routers.kong import (
@@ -66,7 +66,7 @@ class GoGoAnalysis:
             logger.error(f"Unable to connect to the Hub: {e}")
             return None
 
-        formatted_query_params = format_query_params({"sort": "-updated_at", "include": "analysis"})
+        formatted_query_params = _format_query_params({"sort": "-updated_at", "include": "analysis"})
 
         try:
             analyses = await list_analysis_nodes(

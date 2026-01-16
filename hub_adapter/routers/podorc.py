@@ -57,6 +57,7 @@ logger = logging.getLogger(__name__)
         "image_url",
         "kong_token",
     ],
+    name="podorc.pods.create",
 )
 async def create_analysis(
     request: Request,
@@ -73,6 +74,7 @@ async def create_analysis(
     status_code=status.HTTP_200_OK,
     service_url=get_settings().PODORC_SERVICE_URL,
     response_model=LogResponse,
+    name="podorc.logs.get",
 )
 async def get_all_analysis_logs(
     request: Request,
@@ -88,6 +90,7 @@ async def get_all_analysis_logs(
     status_code=status.HTTP_200_OK,
     service_url=get_settings().PODORC_SERVICE_URL,
     response_model=LogResponse,
+    name="podorc.logs.get",
 )
 async def get_analysis_logs(
     request: Request,
@@ -104,6 +107,7 @@ async def get_analysis_logs(
     status_code=status.HTTP_200_OK,
     service_url=get_settings().PODORC_SERVICE_URL,
     response_model=LogResponse,
+    name="podorc.history.get",
 )
 async def get_all_analysis_log_history(
     request: Request,
@@ -119,6 +123,7 @@ async def get_all_analysis_log_history(
     status_code=status.HTTP_200_OK,
     service_url=get_settings().PODORC_SERVICE_URL,
     response_model=LogResponse,
+    name="podorc.history.get",
 )
 async def get_analysis_log_history(
     request: Request,
@@ -135,6 +140,7 @@ async def get_analysis_log_history(
     status_code=status.HTTP_200_OK,
     response_model=StatusResponse,
     service_url=get_settings().PODORC_SERVICE_URL,
+    name="podorc.status.get",
 )
 async def get_all_analysis_status(
     request: Request,
@@ -150,6 +156,7 @@ async def get_all_analysis_status(
     status_code=status.HTTP_200_OK,
     response_model=StatusResponse,
     service_url=get_settings().PODORC_SERVICE_URL,
+    name="podorc.status.get",
 )
 async def get_analysis_status(
     request: Request,
@@ -167,6 +174,7 @@ async def get_analysis_status(
     status_code=status.HTTP_200_OK,
     response_model=PodResponse,
     service_url=get_settings().PODORC_SERVICE_URL,
+    name="podorc.pods.get",
 )
 async def get_all_analysis_pods(
     request: Request,
@@ -182,6 +190,7 @@ async def get_all_analysis_pods(
     status_code=status.HTTP_200_OK,
     response_model=PodResponse,
     service_url=get_settings().PODORC_SERVICE_URL,
+    name="podorc.pods.get",
 )
 async def get_analysis_pods(
     request: Request,
@@ -198,6 +207,7 @@ async def get_analysis_pods(
     status_code=status.HTTP_200_OK,
     response_model=StatusResponse,
     service_url=get_settings().PODORC_SERVICE_URL,
+    name="podorc.pods.stop",
 )
 async def stop_all_analyses(
     request: Request,
@@ -213,6 +223,7 @@ async def stop_all_analyses(
     status_code=status.HTTP_200_OK,
     response_model=StatusResponse,
     service_url=get_settings().PODORC_SERVICE_URL,
+    name="podorc.pods.stop",
 )
 async def stop_analysis(
     request: Request,
@@ -229,6 +240,7 @@ async def stop_analysis(
     status_code=status.HTTP_200_OK,
     response_model=StatusResponse,
     service_url=get_settings().PODORC_SERVICE_URL,
+    name="podorc.pods.delete",
 )
 async def delete_all_analyses(
     request: Request,
@@ -244,6 +256,7 @@ async def delete_all_analyses(
     status_code=status.HTTP_200_OK,
     response_model=StatusResponse,
     service_url=get_settings().PODORC_SERVICE_URL,
+    name="podorc.pods.delete",
 )
 async def delete_analysis(
     request: Request,
@@ -260,6 +273,7 @@ async def delete_analysis(
     status_code=status.HTTP_200_OK,
     response_model=CleanupPodResponse,
     service_url=get_settings().PODORC_SERVICE_URL,
+    name="podorc.cleanup",
 )
 async def cleanup_node(
     request: Request,

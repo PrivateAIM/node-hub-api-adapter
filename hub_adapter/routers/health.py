@@ -25,8 +25,9 @@ logger = logging.getLogger(__name__)
     response_description="Return HTTP Status Code 200 (OK)",
     status_code=status.HTTP_200_OK,
     response_model=HealthCheck,
+    name="health.status.get",
 )
-def get_health() -> HealthCheck:
+async def get_health() -> HealthCheck:
     """
     ## Perform a Health Check
     Endpoint to perform a healthcheck on. This endpoint can primarily be used Docker
@@ -45,6 +46,7 @@ def get_health() -> HealthCheck:
     response_description="Return HTTP Status code for downstream services",
     status_code=status.HTTP_200_OK,
     response_model=DownstreamHealthCheck,
+    name="health.status.services.get",
 )
 def get_health_downstream_services(settings: Annotated[Settings, Depends(get_settings)]):
     """Return the health of the downstream microservices."""

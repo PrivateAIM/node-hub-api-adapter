@@ -12,13 +12,12 @@ class UserInfo(BaseModel):
     client_id: str | None = None
 
 
-class RequestEventLog(AttributesModel):
+class GatewayEventLog(AttributesModel):
     """General event log class for requests."""
 
     method: str
     path: str
     client: Address
     user: UserInfo | None = None
-    function_name: str | None = None
     service: str | None = None
     status_code: int | None = None

@@ -132,3 +132,9 @@ def _extract_user_from_token(request: Request) -> dict | None:
 
     except (jwt.DecodeError, jwt.InvalidTokenError):
         return None
+
+
+def annotate_event_name(event_name: str, status_code: int) -> str:
+    """Append suffix to event name indicating if request was a "success" or "failure"."""
+    suffix = ".failure" if status_code >= 400 else ".success"
+    return f"{event_name}{suffix}"

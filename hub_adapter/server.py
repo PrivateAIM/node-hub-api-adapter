@@ -13,9 +13,9 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 
 from hub_adapter.autostart import GoGoAnalysis
+from hub_adapter.constants import gateway_event_mapping
 from hub_adapter.dependencies import get_settings
 from hub_adapter.events import setup_event_logging, teardown_event_logging, get_event_logger
-from hub_adapter.models.events import RequestEventLog
 from hub_adapter.routers.auth import auth_router
 from hub_adapter.routers.health import health_router
 from hub_adapter.routers.hub import hub_router
@@ -45,16 +45,7 @@ tags_metadata = [
 async def lifespan(app: FastAPI):
     settings = get_settings()
 
-    EventModelMap.mapping = {
-        "ui_request": RequestEventLog,
-        "kong_request": RequestEventLog,
-        "hub_request": RequestEventLog,
-        "podorc_request": RequestEventLog,
-        "results_request": RequestEventLog,
-        "meta_request": RequestEventLog,
-        "auth_request": RequestEventLog,
-        "health_request": RequestEventLog,
-    }
+    EventModelMap.mapping = gateway_event_mapping
 
     try:
         setup_event_logging(
@@ -108,7 +99,7 @@ async def event_logging_middleware(request: Request, call_next):
 
     try:
         middleware_logger = get_event_logger()
-        middleware_logger.log_incoming_request(request, response)
+        middleware_logger.log_fastapi_request(request, response.status_code)
 
     except AttributeError:
         # Event logging not initialized, skip
