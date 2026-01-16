@@ -11,6 +11,7 @@ from httpx import ConnectError, HTTPStatusError, ReadTimeout, RemoteProtocolErro
 from starlette import status
 
 from hub_adapter.auth import _get_internal_token
+from hub_adapter.constants import SERVICE_NAME
 from hub_adapter.core import make_request
 from hub_adapter.dependencies import (
     compile_analysis_pod_data,
@@ -24,6 +25,7 @@ from hub_adapter.dependencies import (
     get_ssl_context,
 )
 from hub_adapter.errors import KongConflictError, KongConnectError
+from hub_adapter.events import get_event_logger, EventLogger
 from hub_adapter.oidc import check_oidc_configs_match
 from hub_adapter.routers.hub import (
     _format_query_params,
@@ -34,6 +36,7 @@ from hub_adapter.routers.kong import (
     delete_analysis,
     list_projects,
 )
+from hub_adapter.utils import annotate_event_name
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +45,7 @@ class GoGoAnalysis:
     def __init__(self):
         self.settings = None
         self.core_client = None
+        self.event_logger: EventLogger | None = get_event_logger()
 
         self.gather_deps()  # populates self.settings and self.core_client
 
@@ -54,6 +58,16 @@ class GoGoAnalysis:
 
         self.settings = settings
         self.core_client = core_client
+
+    def log_analysis(self, event: str, analysis_id: uuid.UUID | str, metadata: dict):
+        """Log analysis info as an event."""
+        if self.event_logger:
+            self.event_logger.log_event(
+                event_name=event,
+                service_name=SERVICE_NAME,
+                body=str(analysis_id),
+                attributes=metadata,
+            )
 
     async def auto_start_analyses(self) -> set | None:
         """Gather and iterate over analyses from hub and start them if they pass checks."""
@@ -85,6 +99,15 @@ class GoGoAnalysis:
             analysis_id, project_id, node_id, _, _ = analysis
             start_resp, status_code = await self.register_and_start_analysis(
                 analysis_id, project_id, node_id, node_type
+            )
+
+            self.log_analysis(
+                annotate_event_name("autostart.analysis.create", status_code),
+                analysis_id=analysis_id,
+                metadata={
+                    "project_id": project_id,
+                    "status_code": status_code,
+                },
             )
 
             if start_resp is None:

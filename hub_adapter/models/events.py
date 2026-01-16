@@ -21,3 +21,10 @@ class GatewayEventLog(AttributesModel):
     user: UserInfo | None = None
     service: str | None = None
     status_code: int | None = None
+
+
+class AutostartEventLog(AttributesModel):
+    """Event log entry class for analyses started automatically."""
+
+    status_code: int
+    project_id: str

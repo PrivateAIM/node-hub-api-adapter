@@ -5,6 +5,8 @@ from hub_adapter.models.events import GatewayEventLog
 CONTENT_TYPE = "Content-Type"
 CONTENT_LENGTH = "Content-Length"
 
+SERVICE_NAME = "hub_adapter"  # Name of this service
+
 # Hub Keywords
 ID = "id"
 HOST = "host"
@@ -18,7 +20,9 @@ REGISTRY_PROJECT = "registry_project"
 REGISTRY_PROJECT_ID = "registry_project_id"
 
 # Event model mappings
-gateway_service_events = (
+event_mapping = {}
+
+events = (
     "auth.token.get",
     "hub.project.get",
     "hub.project.node.get",
@@ -57,7 +61,7 @@ gateway_service_events = (
     "health.status.get",
     "health.status.services.get",
     "storage.local.delete",
+    "autostart.analysis.create",
 )
-gateway_event_mapping = {}
-for event_name in gateway_service_events:
-    gateway_event_mapping.update({f"{event_name}.success": GatewayEventLog, f"{event_name}.failure": GatewayEventLog})
+for event_name in events:
+    event_mapping.update({f"{event_name}.success": GatewayEventLog, f"{event_name}.failure": GatewayEventLog})

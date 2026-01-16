@@ -1,18 +1,14 @@
 """Event logging utilities for FastAPI middleware and httpx decorators."""
 
-import asyncio
 import logging
-from collections.abc import Callable
-from functools import wraps
 
-import httpx
 import jwt
 import peewee as pw
 from fastapi import Request
 from node_event_logging import EventLog, bind_to
 from psycopg2 import DatabaseError
 
-from hub_adapter.constants import gateway_service_events
+from hub_adapter.constants import events, SERVICE_NAME
 from hub_adapter.utils import annotate_event_name
 
 logger = logging.getLogger(__name__)
@@ -59,14 +55,14 @@ class EventLogger:
 
         route = request.scope.get("route")
         if route:
-            if route.name not in gateway_service_events:
+            if route.name not in events:
                 raise ValueError(f"Unknown event name: {route.name}")
             event_name = annotate_event_name(route.name, status_code)
             service = route.tags[0].lower() if route.tags else None
 
         self.log_event(
             event_name=event_name,
-            service_name="hub_adapter",
+            service_name=SERVICE_NAME,
             body=str(request.url),
             attributes={
                 "method": request.method,
@@ -81,7 +77,7 @@ class EventLogger:
     def log_event(
         self,
         event_name: str,
-        service_name: str = "hub_adapter",
+        service_name: str = SERVICE_NAME,
         body: str | None = None,
         attributes: dict | None = None,
     ):
@@ -101,73 +97,6 @@ class EventLogger:
         except (pw.PeeweeException, ValueError, DatabaseError) as db_err:
             logger.warning(str(db_err).strip())  # Strip needed to remove newline from peewee error
             logger.warning("Failed to log event; continuing without event logging")
-
-    def httpx_event_decorator(self, event_name: str):
-        """Decorator for logging requests and responses.
-
-        Safe to use even if event logging isn't initialized - will simply not log.
-        """
-
-        def decorator(func: Callable) -> Callable:
-            # If logging not enabled or no event_db, return original function
-            if not self.enabled or not self.event_db:
-                return func
-
-            def get_user_and_log(result):
-                user_info = self._extract_user_from_token(request=result.request)
-
-                # Try to extract httpx response info
-                if isinstance(result, httpx.Response):
-                    self.log_event(
-                        event_name=event_name,
-                        service_name="hub_adapter",
-                        body=str(result.request.url),
-                        attributes={
-                            "method": result.request.method,
-                            "url": result.status_code,
-                            "client": "foo",  # TODO get client details
-                            "user": user_info,
-                            "service": "anything",  # TODO get service
-                            "status_code": result.status_code,
-                        },
-                    )
-
-                return result
-
-            @wraps(func)
-            def sync_wrapper(*args, **kwargs):
-                result = func(*args, **kwargs)
-                return get_user_and_log(result)
-
-            @wraps(func)
-            async def async_wrapper(*args, **kwargs):
-                result = await func(*args, **kwargs)
-                return get_user_and_log(result)
-
-            # Return appropriate wrapper based on function type since both sync/async are used
-            if asyncio.iscoroutinefunction(func):
-                return async_wrapper
-
-            return sync_wrapper
-
-        return decorator
-
-    # def create_httpx_client(self, service: str | None = None) -> httpx.Client:
-    #     """Create a httpx client with automatic logging via event hooks."""
-    #
-    #     def log_request(request: httpx.Request):
-    #         self.log_request(
-    #             method=request.method,
-    #             url=str(request.url),
-    #             context="httpx_client_request",
-    #             service=service,
-    #         )
-    #
-    #     return httpx.Client(
-    #         event_hooks={
-    #             "request": [log_request],
-    #         }
-    #     )
 
 
 event_db: pw.Database | None = None
@@ -239,16 +168,3 @@ def get_event_logger() -> EventLogger | None:
         EventLogger instance if initialized, None otherwise
     """
     return event_logger
-
-
-def log_httpx_event(event: str, func: Callable):
-    """Decorator, if event logging isn't initialized, the decorator does nothing."""
-
-    @wraps(func)
-    def decorator() -> Callable:
-        active_event_logger = get_event_logger()
-        if active_event_logger is None or not active_event_logger.enabled:
-            return func  # Return original function if logging not initialized
-        return active_event_logger.httpx_event_decorator(event_name=event)(func)
-
-    return decorator
