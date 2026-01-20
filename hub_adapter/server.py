@@ -3,14 +3,21 @@
 import asyncio
 import logging
 import os
+from contextlib import asynccontextmanager
 
+import peewee as pw
 import uvicorn
 from fastapi import FastAPI
+from node_event_logging import EventModelMap
 from starlette.middleware.cors import CORSMiddleware
+from starlette.requests import Request
 
 from hub_adapter.autostart import GoGoAnalysis
+from hub_adapter.constants import event_mapping
 from hub_adapter.dependencies import get_settings
+from hub_adapter.event_logging import get_event_logger, setup_event_logging, teardown_event_logging
 from hub_adapter.routers.auth import auth_router
+from hub_adapter.routers.events import event_router
 from hub_adapter.routers.health import health_router
 from hub_adapter.routers.hub import hub_router
 from hub_adapter.routers.kong import kong_router
@@ -20,9 +27,11 @@ from hub_adapter.routers.results import results_router
 
 logger = logging.getLogger(__name__)
 
+
 # API metadata
 tags_metadata = [
     {"name": "Auth", "description": "Endpoints for authorization specific tasks."},
+    {"name": "Events", "description": "Gateway endpoints for retrieving logged events."},
     {"name": "Meta", "description": "Custom Hub Adapter endpoints which combine endpoints from other APIs."},
     {
         "name": "Health",
@@ -33,13 +42,37 @@ tags_metadata = [
     {"name": "PodOrc", "description": "Gateway endpoints for the Pod Orchestration service."},
 ]
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    settings = get_settings()
+
+    EventModelMap.mapping = event_mapping
+
+    try:
+        setup_event_logging(
+            database=settings.POSTGRES_EVENT_DB,
+            user=settings.POSTGRES_EVENT_USER,
+            password=settings.POSTGRES_EVENT_PASSWORD,
+            host=settings.POSTGRES_EVENT_HOST,
+            port=settings.POSTGRES_EVENT_PORT,
+            enabled=True,
+        )
+
+    except (pw.PeeweeException, ValueError) as db_err:
+        logger.warning(str(db_err).strip())  # Strip needed to remove newline from peewee error
+        logger.warning("Event logging disabled due to database configuration or connection error")
+
+    yield
+
+    teardown_event_logging()
+
+
 app = FastAPI(
     openapi_tags=tags_metadata,
     title="FLAME API",
     description="FLAME project API for interacting with various microservices within the node for the UI.",
     swagger_ui_init_oauth={
-        # "usePkceWithAuthorizationCodeGrant": True,
-        # Auth fill client ID for the docs with the below value
         "clientId": get_settings().API_CLIENT_ID,  # default client-id is Keycloak
     },
     license_info={
@@ -48,6 +81,7 @@ app = FastAPI(
         "identifier": "Apache-2.0",
     },
     root_path=get_settings().API_ROOT_PATH,
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -59,6 +93,23 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
+
+@app.middleware("http")
+async def event_logging_middleware(request: Request, call_next):
+    """Middleware to log the events."""
+    response = await call_next(request)
+
+    try:
+        middleware_logger = get_event_logger()
+        middleware_logger.log_fastapi_request(request, response.status_code)
+
+    except AttributeError:
+        # Event logging not initialized, skip
+        pass
+
+    return response
+
+
 routers = (
     po_router,
     meta_router,
@@ -67,6 +118,7 @@ routers = (
     kong_router,
     health_router,
     auth_router,
+    event_router,
 )
 
 for router in routers:

@@ -11,6 +11,7 @@ from httpx import ConnectError, HTTPStatusError, ReadTimeout, RemoteProtocolErro
 from starlette import status
 
 from hub_adapter.auth import _get_internal_token
+from hub_adapter.constants import SERVICE_NAME
 from hub_adapter.core import make_request
 from hub_adapter.dependencies import (
     compile_analysis_pod_data,
@@ -24,9 +25,10 @@ from hub_adapter.dependencies import (
     get_ssl_context,
 )
 from hub_adapter.errors import KongConflictError, KongConnectError
+from hub_adapter.event_logging import EventLogger, get_event_logger
 from hub_adapter.oidc import check_oidc_configs_match
 from hub_adapter.routers.hub import (
-    format_query_params,
+    _format_query_params,
     list_analysis_nodes,
 )
 from hub_adapter.routers.kong import (
@@ -34,6 +36,7 @@ from hub_adapter.routers.kong import (
     delete_analysis,
     list_projects,
 )
+from hub_adapter.utils import annotate_event_name
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +45,7 @@ class GoGoAnalysis:
     def __init__(self):
         self.settings = None
         self.core_client = None
+        self.event_logger: EventLogger | None = get_event_logger()
 
         self.gather_deps()  # populates self.settings and self.core_client
 
@@ -55,6 +59,16 @@ class GoGoAnalysis:
         self.settings = settings
         self.core_client = core_client
 
+    def log_analysis(self, event: str, analysis_id: uuid.UUID | str, metadata: dict):
+        """Log analysis info as an event."""
+        if self.event_logger:
+            self.event_logger.log_event(
+                event_name=event,
+                service_name=SERVICE_NAME,
+                body=str(analysis_id),
+                attributes=metadata,
+            )
+
     async def auto_start_analyses(self) -> set | None:
         """Gather and iterate over analyses from hub and start them if they pass checks."""
         analyses_started = set()
@@ -66,7 +80,7 @@ class GoGoAnalysis:
             logger.error(f"Unable to connect to the Hub: {e}")
             return None
 
-        formatted_query_params = format_query_params({"sort": "-updated_at", "include": "analysis"})
+        formatted_query_params = _format_query_params({"sort": "-updated_at", "include": "analysis"})
 
         try:
             analyses = await list_analysis_nodes(
@@ -85,6 +99,15 @@ class GoGoAnalysis:
             analysis_id, project_id, node_id, _, _ = analysis
             start_resp, status_code = await self.register_and_start_analysis(
                 analysis_id, project_id, node_id, node_type
+            )
+
+            self.log_analysis(
+                annotate_event_name("autostart.analysis.create", status_code),
+                analysis_id=analysis_id,
+                metadata={
+                    "project_id": project_id,
+                    "status_code": status_code,
+                },
             )
 
             if start_resp is None:
@@ -120,8 +143,8 @@ class GoGoAnalysis:
 
     async def describe_node(self) -> tuple[str, str] | None:
         """Get node information from cache, and if not present, get from Hub and set cache."""
-        node_id = await get_node_id(core_client=self.core_client, hub_adapter_settings=self.settings)
-        node_type_cache = await get_node_type_cache(hub_adapter_settings=self.settings, core_client=self.core_client)
+        node_id = await get_node_id(core_client=self.core_client, settings=self.settings)
+        node_type_cache = await get_node_type_cache(settings=self.settings, core_client=self.core_client)
         node_type = node_type_cache["type"]
 
         return node_id, node_type
@@ -133,7 +156,7 @@ class GoGoAnalysis:
         logger.info(f"Attempt {attempt} at starting analysis {analysis_id}")
         try:
             kong_resp = await create_and_connect_analysis_to_project(
-                hub_adapter_settings=self.settings, project_id=project_id, analysis_id=analysis_id
+                settings=self.settings, project_id=project_id, analysis_id=analysis_id
             )
             return kong_resp, status.HTTP_201_CREATED
 
@@ -150,7 +173,7 @@ class GoGoAnalysis:
 
             elif not pod_exists:  # Status obtained and if not running, delete kong consumer
                 logger.info(f"No pod found for {analysis_id}, will delete kong consumer and retry")
-                await delete_analysis(hub_adapter_settings=self.settings, analysis_id=analysis_id)
+                await delete_analysis(settings=self.settings, analysis_id=analysis_id)
 
                 if attempt < max_attempts:
                     return await self.register_analysis(analysis_id, project_id, attempt + 1, max_attempts)
@@ -275,7 +298,7 @@ class GoGoAnalysis:
         """Collect the available data stores and create a set of project UUIDs with a valid data store."""
         kong_routes = None
         try:
-            kong_routes = await list_projects(hub_adapter_settings=self.settings, detailed=False)
+            kong_routes = await list_projects(settings=self.settings, detailed=False)
 
         except HTTPException as e:
             logger.error(f"Route retrieval failed, unable to contact Kong: {e}")

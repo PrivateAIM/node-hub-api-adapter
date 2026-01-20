@@ -26,8 +26,11 @@ from hub_adapter.errors import (
     KongGatewayError,
     KongServiceError,
 )
-from hub_adapter.models.kong import DataStoreType
-from hub_adapter.routers.kong import probe_connection, probe_data_service
+from hub_adapter.models.kong import (
+    DataStoreType,
+)
+from hub_adapter.routers.kong import kong_router, probe_connection, probe_data_service
+from tests.conftest import check_routes
 from tests.constants import (
     DS_TYPE,
     KONG_ANALYSIS_SUCCESS_RESP,
@@ -44,6 +47,7 @@ from tests.constants import (
     TEST_MOCK_PROJECT_ID,
 )
 from tests.pseudo_auth import BearerAuth
+from tests.router_tests.routes import EXPECTED_KONG_ROUTE_CONFIG
 
 test_svc_name = test_route_name = f"{TEST_MOCK_PROJECT_ID}-{DS_TYPE}"
 
@@ -52,6 +56,10 @@ TEST_SVC_NAME = f"{TEST_MOCK_PROJECT_ID}-{DS_TYPE}"
 
 class TestKong:
     """Kong EP tests."""
+
+    def test_route_configs(self, test_client, mock_event_logger):
+        """Test end point configurations for the PodOrc gateway routes."""
+        check_routes(kong_router, EXPECTED_KONG_ROUTE_CONFIG, test_client, mock_event_logger)
 
     @patch("hub_adapter.routers.kong.kong_admin_client.ServicesApi.list_service")
     def test_get_data_stores(self, mock_svc, authorized_test_client):
@@ -308,7 +316,7 @@ class TestConnection:
 
         with pytest.raises(HTTPException) as err:
             await probe_connection(
-                hub_adapter_settings=removed_kong_url_settings,
+                settings=removed_kong_url_settings,
                 project_id=TEST_MOCK_PROJECT_ID,
                 ds_type=DataStoreType.FHIR,
             )
@@ -345,7 +353,7 @@ class TestConnection:
         )
         mock_probe_data_service.return_value = status.HTTP_200_OK
         success_resp = await probe_connection(
-            hub_adapter_settings=test_settings, project_id=TEST_MOCK_PROJECT_ID, ds_type=DataStoreType.FHIR
+            settings=test_settings, project_id=TEST_MOCK_PROJECT_ID, ds_type=DataStoreType.FHIR
         )
         mock_logger.warning.assert_called_with(f"No health consumer found for {TEST_MOCK_PROJECT_ID}, creating one now")
         assert success_resp == status.HTTP_200_OK
@@ -353,9 +361,7 @@ class TestConnection:
         # Failed health retrieval
         mock_list_key_auths_for_consumer.return_value = {}
         with pytest.raises(KongConsumerApiKeyError) as err:
-            await probe_connection(
-                hub_adapter_settings=test_settings, project_id=TEST_MOCK_PROJECT_ID, ds_type=DataStoreType.FHIR
-            )
+            await probe_connection(settings=test_settings, project_id=TEST_MOCK_PROJECT_ID, ds_type=DataStoreType.FHIR)
 
         assert err.value.status_code == status.HTTP_404_NOT_FOUND
 

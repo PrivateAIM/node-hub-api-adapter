@@ -9,11 +9,19 @@ from starlette import status
 
 from hub_adapter.dependencies import get_core_client, get_flame_hub_auth_flow, get_ssl_context
 from hub_adapter.models.podorc import StatusResponse
-from hub_adapter.routers.meta import InitializeAnalysis, initialize_analysis, terminate_analysis
+from hub_adapter.routers.meta import InitializeAnalysis, initialize_analysis, meta_router, terminate_analysis
+from tests.conftest import check_routes
 from tests.constants import TEST_MOCK_ANALYSIS_ID, TEST_MOCK_NODE_ID, TEST_MOCK_PROJECT_ID
+from tests.router_tests.routes import EXPECTED_META_ROUTE_CONFIG
 
 
 class TestMeta:
+    """Collection of unit tests for testing the meta router module."""
+
+    def test_route_configs(self, test_client, mock_event_logger):
+        """Test end point configurations for the Hub gateway routes."""
+        check_routes(meta_router, EXPECTED_META_ROUTE_CONFIG, test_client, mock_event_logger)
+
     @pytest.mark.asyncio
     @patch("hub_adapter.routers.meta.GoGoAnalysis.register_and_start_analysis")
     @patch("hub_adapter.routers.meta.GoGoAnalysis.parse_analyses")

@@ -45,3 +45,10 @@ class Settings:
     ADMIN_ROLE: str = os.getenv("ADMIN_ROLE", "admin")
     STEWARD_ROLE: str = os.getenv("STEWARD_ROLE")
     RESEARCHER_ROLE: str = os.getenv("RESEARCHER_ROLE")
+
+    # Event logging
+    POSTGRES_EVENT_USER: str = os.getenv("POSTGRES_EVENT_USER")
+    POSTGRES_EVENT_PASSWORD: str = os.getenv("POSTGRES_EVENT_PASSWORD")
+    POSTGRES_EVENT_DB: str = os.getenv("POSTGRES_EVENT_DB")
+    POSTGRES_EVENT_HOST: str = os.getenv("POSTGRES_EVENT_HOST", "localhost")
+    POSTGRES_EVENT_PORT: str = os.getenv("POSTGRES_EVENT_PORT", "5432")
