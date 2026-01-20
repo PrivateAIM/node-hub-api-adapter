@@ -8,7 +8,7 @@ from fastapi import Request
 from node_event_logging import EventLog, bind_to
 from psycopg2 import DatabaseError
 
-from hub_adapter.constants import event_names, SERVICE_NAME
+from hub_adapter.constants import SERVICE_NAME, event_names
 from hub_adapter.utils import annotate_event_name
 
 logger = logging.getLogger(__name__)

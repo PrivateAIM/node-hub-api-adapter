@@ -15,7 +15,7 @@ from starlette.requests import Request
 from hub_adapter.autostart import GoGoAnalysis
 from hub_adapter.constants import event_mapping
 from hub_adapter.dependencies import get_settings
-from hub_adapter.events import setup_event_logging, teardown_event_logging, get_event_logger
+from hub_adapter.event_logging import get_event_logger, setup_event_logging, teardown_event_logging
 from hub_adapter.routers.auth import auth_router
 from hub_adapter.routers.health import health_router
 from hub_adapter.routers.hub import hub_router
