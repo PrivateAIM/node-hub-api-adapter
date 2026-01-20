@@ -8,7 +8,7 @@ from fastapi import Request
 from node_event_logging import EventLog, bind_to
 from psycopg2 import DatabaseError
 
-from hub_adapter.constants import events, SERVICE_NAME
+from hub_adapter.constants import event_names, SERVICE_NAME
 from hub_adapter.utils import annotate_event_name
 
 logger = logging.getLogger(__name__)
@@ -55,7 +55,7 @@ class EventLogger:
 
         route = request.scope.get("route")
         if route:
-            if route.name not in events:
+            if route.name not in event_names:
                 raise ValueError(f"Unknown event name: {route.name}")
             event_name = annotate_event_name(route.name, status_code)
             service = route.tags[0].lower() if route.tags else None

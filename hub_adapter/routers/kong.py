@@ -660,13 +660,13 @@ async def probe_connection(
         if is_fhir:
             url = f"{url}/metadata"
 
-        return _probe_data_service(url=url, apikey=apikey, is_fhir=is_fhir)
+        return probe_data_service(url=url, apikey=apikey, is_fhir=is_fhir)
 
     else:
         raise KongConsumerApiKeyError
 
 
-def _probe_data_service(url: str, apikey: str, is_fhir: bool, attempt: int = 1, max_attempts: int = 4) -> int:
+def probe_data_service(url: str, apikey: str, is_fhir: bool, attempt: int = 1, max_attempts: int = 4) -> int:
     """Use httpx to probe the data service."""
     svc_resp = httpx.get(
         url,
@@ -677,7 +677,7 @@ def _probe_data_service(url: str, apikey: str, is_fhir: bool, attempt: int = 1, 
         # Sometimes it takes a bit for kong to finish creating a route/service
         if svc_resp.status_code == status.HTTP_404_NOT_FOUND and attempt <= max_attempts:
             time.sleep(attempt)  # Wait a little longer each attempt
-            return _probe_data_service(url=url, apikey=apikey, is_fhir=is_fhir, attempt=attempt + 1)
+            return probe_data_service(url=url, apikey=apikey, is_fhir=is_fhir, attempt=attempt + 1)
 
         logger.error(f"Unable to connect to data service after {attempt - 1} attempt(s)")
         if svc_resp.status_code == status.HTTP_403_FORBIDDEN and not is_fhir:

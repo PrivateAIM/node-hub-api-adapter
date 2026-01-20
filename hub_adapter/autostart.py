@@ -25,7 +25,7 @@ from hub_adapter.dependencies import (
     get_ssl_context,
 )
 from hub_adapter.errors import KongConflictError, KongConnectError
-from hub_adapter.events import get_event_logger, EventLogger
+from hub_adapter.events import EventLogger, get_event_logger
 from hub_adapter.oidc import check_oidc_configs_match
 from hub_adapter.routers.hub import (
     _format_query_params,

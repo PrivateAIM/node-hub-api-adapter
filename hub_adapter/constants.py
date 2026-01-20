@@ -22,11 +22,11 @@ REGISTRY_PROJECT_ID = "registry_project_id"
 # Event model mappings
 event_mapping = {}
 
-events = (
+event_names = (
     "auth.token.get",
     "hub.project.get",
     "hub.project.node.get",
-    "hub.project.node.create",
+    "hub.project.node.update",
     "hub.analysis.get",
     "hub.analysis.update",
     "hub.analysis.node.get",
@@ -63,5 +63,5 @@ events = (
     "storage.local.delete",
     "autostart.analysis.create",
 )
-for event_name in events:
+for event_name in event_names:
     event_mapping.update({f"{event_name}.success": GatewayEventLog, f"{event_name}.failure": GatewayEventLog})

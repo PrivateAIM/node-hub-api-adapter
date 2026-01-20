@@ -149,7 +149,7 @@ async def list_project_proposal(
     summary="Update a specific project proposal",
     status_code=status.HTTP_200_OK,
     response_model=ProjectNode,
-    name="hub.project.node.create",
+    name="hub.project.node.update",
 )
 @catch_hub_errors
 async def accept_reject_project_proposal(
