@@ -1,0 +1,63 @@
+"""EPs for retrieving logged events."""
+
+import datetime
+from typing import Annotated
+
+from fastapi import APIRouter, Query, Security
+from node_event_logging import EventLog, bind_to
+from starlette import status
+
+from hub_adapter.auth import verify_idp_token, jwtbearer
+from hub_adapter.event_logging import get_event_logger
+from hub_adapter.models.events import EventLogResponse
+
+event_router = APIRouter(
+    dependencies=[
+        Security(verify_idp_token),
+        Security(jwtbearer),
+    ],
+    tags=["Events"],
+    responses={404: {"description": "Not found"}},
+)
+
+
+@event_router.get(
+    "/events",
+    response_model=list[EventLogResponse],
+    status_code=status.HTTP_200_OK,
+    name="events.get",
+)
+async def get_events(
+    limit: Annotated[int | None, Query(description="Maximum number of events to return")] = 50,
+    offset: Annotated[int | None, Query(description="Number of events to offset by")] = None,
+    service_name: Annotated[str | None, Query(description="Filter events by service name")] = None,
+    event_name: Annotated[str | None, Query(description="Filter events by event name")] = None,
+    username: Annotated[str | None, Query(description="Filter events by username")] = None,
+    start_date: Annotated[
+        datetime.datetime | None, Query(description="Filter events by start date using ISO8601 format")
+    ] = None,
+    end_date: Annotated[
+        datetime.datetime | None, Query(description="Filter events by end date using ISO8601 format")
+    ] = None,
+):
+    """Retrieve a selection of logged events."""
+    event_logger = get_event_logger()
+    with bind_to(event_logger.event_db):
+        events = EventLog.select().order_by(EventLog.timestamp.desc()).limit(limit).offset(offset)
+
+        if username:
+            events = events.where(EventLog.attributes["user"]["username"] == username)
+
+        if start_date:
+            events = events.where(EventLog.timestamp >= start_date)
+
+        if end_date:
+            events = events.where(EventLog.timestamp <= end_date)
+
+        if service_name:
+            events = events.where(EventLog.service_name == service_name)
+
+        if event_name:
+            events = events.where(EventLog.event_name == event_name)
+
+    return [event for event in events.dicts()]

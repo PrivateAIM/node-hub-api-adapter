@@ -20,7 +20,7 @@ REGISTRY_PROJECT = "registry_project"
 REGISTRY_PROJECT_ID = "registry_project_id"
 
 # Event model mappings
-event_mapping = {}
+event_mapping = {"unknown": GatewayEventLog, "api.ui.access": GatewayEventLog}
 
 event_names = (
     "auth.token.get",
@@ -62,6 +62,7 @@ event_names = (
     "health.status.services.get",
     "storage.local.delete",
     "autostart.analysis.create",
+    "events.get",
 )
 for event_name in event_names:
     event_mapping.update({f"{event_name}.success": GatewayEventLog, f"{event_name}.failure": GatewayEventLog})

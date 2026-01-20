@@ -17,6 +17,7 @@ from hub_adapter.constants import event_mapping
 from hub_adapter.dependencies import get_settings
 from hub_adapter.event_logging import get_event_logger, setup_event_logging, teardown_event_logging
 from hub_adapter.routers.auth import auth_router
+from hub_adapter.routers.events import event_router
 from hub_adapter.routers.health import health_router
 from hub_adapter.routers.hub import hub_router
 from hub_adapter.routers.kong import kong_router
@@ -30,6 +31,7 @@ logger = logging.getLogger(__name__)
 # API metadata
 tags_metadata = [
     {"name": "Auth", "description": "Endpoints for authorization specific tasks."},
+    {"name": "Events", "description": "Gateway endpoints for retrieving logged events."},
     {"name": "Meta", "description": "Custom Hub Adapter endpoints which combine endpoints from other APIs."},
     {
         "name": "Health",
@@ -116,6 +118,7 @@ routers = (
     kong_router,
     health_router,
     auth_router,
+    event_router,
 )
 
 for router in routers:

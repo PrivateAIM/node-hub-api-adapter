@@ -1,8 +1,22 @@
+import datetime
+
 from node_event_logging import AttributesModel
 from pydantic import BaseModel
 from starlette.datastructures import Address
 
 
+class EventLogResponse(BaseModel):
+    """Event log response model."""
+
+    id: int
+    event_name: str
+    service_name: str
+    timestamp: datetime.datetime
+    body: str
+    attributes: dict
+
+
+# For logging events
 class UserInfo(BaseModel):
     """User info model."""
 

@@ -54,11 +54,16 @@ class EventLogger:
         service = None
 
         route = request.scope.get("route")
+        path = request.scope.get("path")
         if route:
             if route.name not in event_names:
                 raise ValueError(f"Unknown event name: {route.name}")
             event_name = annotate_event_name(route.name, status_code)
             service = route.tags[0].lower() if route.tags else None
+
+        elif path in ("/docs", "/redoc", "/openapi.json"):
+            event_name = "api.ui.access"
+            service = "hub_adapter"
 
         self.log_event(
             event_name=event_name,
@@ -66,7 +71,7 @@ class EventLogger:
             body=str(request.url),
             attributes={
                 "method": request.method,
-                "path": request.url.path,
+                "path": path,
                 "client": request.client,
                 "user": user_info,
                 "service": service,
