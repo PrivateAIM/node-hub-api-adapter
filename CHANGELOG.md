@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.5](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.3.4...v0.3.5) (2026-01-20)
+
+
+### Features
+
+* **events:** add event logging to autostart analyses ([bed1852](https://github.com/PrivateAIM/node-hub-api-adapter/commit/bed1852e382a3ffae8eb1b3b7d5f0bdb1b2f839f))
+* **events:** add event retrieval endpoint ([dd86975](https://github.com/PrivateAIM/node-hub-api-adapter/commit/dd86975248df509d1235d1047c1cc77d29ea3e13))
+* **events:** add middleware for logging events ([c04f86b](https://github.com/PrivateAIM/node-hub-api-adapter/commit/c04f86b9da4f0400a8c76e0907f422110e2fb68b))
+* **events:** combine event methods into class for middleware and decorator usage ([20f96bb](https://github.com/PrivateAIM/node-hub-api-adapter/commit/20f96bb28a5e2eb02aad45ccf46da6a41ae16d6e))
+
 ## [0.3.4](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.3.3...v0.3.4) (2025-12-17)
 
 
