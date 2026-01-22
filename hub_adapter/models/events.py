@@ -31,6 +31,7 @@ class GatewayEventLog(AttributesModel):
 
     method: str
     path: str
+    url: str
     client: Address
     user: UserInfo | None = None
     service: str | None = None
@@ -42,3 +43,4 @@ class AutostartEventLog(AttributesModel):
 
     status_code: int
     project_id: str
+    analysis_id: str

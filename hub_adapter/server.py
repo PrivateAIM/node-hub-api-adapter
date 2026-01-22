@@ -13,9 +13,10 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 
 from hub_adapter.autostart import GoGoAnalysis
-from hub_adapter.constants import event_mapping
+from hub_adapter.constants import ANNOTATED_EVENTS
 from hub_adapter.dependencies import get_settings
 from hub_adapter.event_logging import get_event_logger, setup_event_logging, teardown_event_logging
+from hub_adapter.models.events import GatewayEventLog
 from hub_adapter.routers.auth import auth_router
 from hub_adapter.routers.events import event_router
 from hub_adapter.routers.health import health_router
@@ -47,7 +48,7 @@ tags_metadata = [
 async def lifespan(app: FastAPI):
     settings = get_settings()
 
-    EventModelMap.mapping = event_mapping
+    EventModelMap.mapping = {event_name: GatewayEventLog for event_name in ANNOTATED_EVENTS.keys()}
 
     try:
         setup_event_logging(

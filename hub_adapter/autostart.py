@@ -11,7 +11,7 @@ from httpx import ConnectError, HTTPStatusError, ReadTimeout, RemoteProtocolErro
 from starlette import status
 
 from hub_adapter.auth import _get_internal_token
-from hub_adapter.constants import SERVICE_NAME
+from hub_adapter.constants import SERVICE_NAME, ANNOTATED_EVENTS
 from hub_adapter.core import make_request
 from hub_adapter.dependencies import (
     compile_analysis_pod_data,
@@ -59,13 +59,13 @@ class GoGoAnalysis:
         self.settings = settings
         self.core_client = core_client
 
-    def log_analysis(self, event: str, analysis_id: uuid.UUID | str, metadata: dict):
+    def log_analysis(self, event: str, metadata: dict):
         """Log analysis info as an event."""
         if self.event_logger:
             self.event_logger.log_event(
                 event_name=event,
                 service_name=SERVICE_NAME,
-                body=str(analysis_id),
+                body=ANNOTATED_EVENTS.get(event),
                 attributes=metadata,
             )
 
@@ -103,10 +103,10 @@ class GoGoAnalysis:
 
             self.log_analysis(
                 annotate_event_name("autostart.analysis.create", status_code),
-                analysis_id=analysis_id,
                 metadata={
                     "project_id": project_id,
                     "status_code": status_code,
+                    "analysis_id": analysis_id,
                 },
             )
 

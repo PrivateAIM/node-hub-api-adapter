@@ -8,7 +8,7 @@ from fastapi import Request
 from node_event_logging import EventLog, bind_to
 from psycopg2 import DatabaseError
 
-from hub_adapter.constants import SERVICE_NAME, event_names
+from hub_adapter.constants import SERVICE_NAME, ANNOTATED_EVENTS
 from hub_adapter.utils import annotate_event_name
 
 logger = logging.getLogger(__name__)
@@ -52,14 +52,16 @@ class EventLogger:
 
         event_name = "unknown"
         service = None
+        body = None
 
         route = request.scope.get("route")
         path = request.scope.get("path")
         if route:
-            if route.name not in event_names:
-                raise ValueError(f"Unknown event name: {route.name}")
             event_name = annotate_event_name(route.name, status_code)
+            if event_name not in ANNOTATED_EVENTS:
+                raise ValueError(f"Unknown event name: {event_name}")
             service = route.tags[0].lower() if route.tags else None
+            body = ANNOTATED_EVENTS.get(event_name)
 
         elif path in ("/docs", "/redoc", "/openapi.json"):
             event_name = "api.ui.access"
@@ -68,11 +70,12 @@ class EventLogger:
         self.log_event(
             event_name=event_name,
             service_name=SERVICE_NAME,
-            body=str(request.url),
+            body=body or str(request.url),
             attributes={
                 "method": request.method,
                 "path": path,
                 "client": request.client,
+                "url": str(request.url),
                 "user": user_info,
                 "service": service,
                 "status_code": status_code,
