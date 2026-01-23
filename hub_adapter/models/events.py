@@ -1,8 +1,29 @@
 import datetime
+from enum import Enum
 
 from node_event_logging import AttributesModel
 from pydantic import BaseModel
 from starlette.datastructures import Address
+
+
+class EventTag(str, Enum):
+    """Event tag model."""
+
+    # Services
+    HUB = "Hub"
+    HUB_ADAPTER = "Hub Adapter"
+    PO = "Pod Orchestrator"
+    STORAGE = "Storage"
+    KONG = "Kong"
+    AUTH = "Authentication"
+    AUTOSTART = "Autostart"
+
+    USER_AUTH = "User Authenticated"
+
+    # Log levels
+    INFO = "Info"
+    WARNING = "Warning"
+    ERROR = "Error"
 
 
 class EventLogResponse(BaseModel):
@@ -36,6 +57,7 @@ class GatewayEventLog(AttributesModel):
     user: UserInfo | None = None
     service: str | None = None
     status_code: int | None = None
+    tags: list[EventTag] | None = None
 
 
 class AutostartEventLog(AttributesModel):
@@ -44,3 +66,4 @@ class AutostartEventLog(AttributesModel):
     status_code: int
     project_id: str
     analysis_id: str
+    tags: list[EventTag] | None = None

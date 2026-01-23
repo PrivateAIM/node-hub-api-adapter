@@ -8,6 +8,8 @@ from fastapi.routing import serialize_response
 from starlette.datastructures import FormData
 from starlette.requests import Request
 
+from hub_adapter.models.events import EventTag
+
 
 def create_request_data(form: dict | None, body: dict | None) -> dict | None:
     """Package data into JSON or form depending on what is present."""
@@ -134,7 +136,24 @@ def _extract_user_from_token(request: Request) -> dict | None:
         return None
 
 
-def annotate_event_name(event_name: str, status_code: int) -> str:
-    """Append suffix to event name indicating if request was a "success" or "failure"."""
+def annotate_event(event_name: str, status_code: int, tags: list[EventTag] | None = None) -> tuple:
+    """Append suffix to event name indicating if request was a "success" or "failure" and add tag."""
+    if status_code in (401, 403):
+        log_tag = EventTag.WARNING
+
+    elif status_code >= 400:
+        log_tag = EventTag.ERROR
+
+    else:
+        log_tag = EventTag.INFO
+
+    if tags:
+        tags.append(log_tag)
+
+    else:
+        tags = [log_tag]
+
     suffix = ".failure" if status_code >= 400 else ".success"
-    return f"{event_name}{suffix}"
+    annotated_event_name = f"{event_name}{suffix}"
+
+    return annotated_event_name, tags
