@@ -9,7 +9,7 @@ from node_event_logging import EventLog, bind_to
 from psycopg2 import DatabaseError
 
 from hub_adapter.constants import SERVICE_NAME, ANNOTATED_EVENTS
-from hub_adapter.utils import annotate_event_name
+from hub_adapter.utils import annotate_event
 
 logger = logging.getLogger(__name__)
 
@@ -52,20 +52,24 @@ class EventLogger:
 
         event_name = "unknown"
         service = None
-        body = None
+        tags = []
 
         route = request.scope.get("route")
         path = request.scope.get("path")
-        if route:
-            event_name = annotate_event_name(route.name, status_code)
+
+        if path in ("/docs", "/redoc", "/openapi.json"):
+            event_name = "api.ui.access"
+            service = "hub_adapter"
+
+        elif route:
+            event_name, tags = annotate_event(route.name, status_code)
             if event_name not in ANNOTATED_EVENTS:
                 raise ValueError(f"Unknown event name: {event_name}")
             service = route.tags[0].lower() if route.tags else None
-            body = ANNOTATED_EVENTS.get(event_name)
 
-        elif path in ("/docs", "/redoc", "/openapi.json"):
-            event_name = "api.ui.access"
-            service = "hub_adapter"
+        event_data = ANNOTATED_EVENTS.get(event_name)
+        body = event_data.get(event_name)
+        tags = event_data.get("tags") + tags if event_data.get("tags") else tags
 
         self.log_event(
             event_name=event_name,
@@ -79,6 +83,7 @@ class EventLogger:
                 "user": user_info,
                 "service": service,
                 "status_code": status_code,
+                "tags": tags,
             },
         )
 

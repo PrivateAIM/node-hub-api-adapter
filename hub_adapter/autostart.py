@@ -26,6 +26,7 @@ from hub_adapter.dependencies import (
 )
 from hub_adapter.errors import KongConflictError, KongConnectError
 from hub_adapter.event_logging import EventLogger, get_event_logger
+from hub_adapter.models.events import EventTag
 from hub_adapter.oidc import check_oidc_configs_match
 from hub_adapter.routers.hub import (
     _format_query_params,
@@ -36,7 +37,7 @@ from hub_adapter.routers.kong import (
     delete_analysis,
     list_projects,
 )
-from hub_adapter.utils import annotate_event_name
+from hub_adapter.utils import annotate_event
 
 logger = logging.getLogger(__name__)
 
@@ -59,13 +60,24 @@ class GoGoAnalysis:
         self.settings = settings
         self.core_client = core_client
 
-    def log_analysis(self, event: str, metadata: dict):
+    def log_analysis(self, metadata: dict, body: str | None = None, status_code: int | None = None) -> None:
         """Log analysis info as an event."""
+        if status_code:  # Overwrite if provided
+            metadata["status_code"] = status_code
+
+        annotated_event_name, tags = annotate_event(
+            "autostart.analysis.create", status_code=metadata["status_code"], tags=[EventTag.AUTOSTART]
+        )
+
+        event_data = ANNOTATED_EVENTS.get(annotated_event_name)
+
+        # Use list(set()) to prune redundant tags and list is needed to make JSON serializable
+        metadata["tags"] = list(set(event_data["tags"] + tags)) if tags else event_data["tags"]
         if self.event_logger:
             self.event_logger.log_event(
-                event_name=event,
+                event_name=annotated_event_name,
                 service_name=SERVICE_NAME,
-                body=ANNOTATED_EVENTS.get(event),
+                body=body or event_data.get("body"),  # User given body takes priority
                 attributes=metadata,
             )
 
@@ -102,7 +114,6 @@ class GoGoAnalysis:
             )
 
             self.log_analysis(
-                annotate_event_name("autostart.analysis.create", status_code),
                 metadata={
                     "project_id": project_id,
                     "status_code": status_code,
@@ -154,6 +165,11 @@ class GoGoAnalysis:
     ) -> tuple[dict | None, int] | None:
         """Register an analysis with kong."""
         logger.info(f"Attempt {attempt} at starting analysis {analysis_id}")
+        event_metadata = {
+            "project_id": project_id,
+            "analysis_id": analysis_id,
+            "tags": [EventTag.KONG],
+        }
         try:
             kong_resp = await create_and_connect_analysis_to_project(
                 settings=self.settings, project_id=project_id, analysis_id=analysis_id
@@ -161,7 +177,10 @@ class GoGoAnalysis:
             return kong_resp, status.HTTP_201_CREATED
 
         except KongConnectError as e:
-            logger.error(f"{e.detail['message']}, failed to start analysis {analysis_id}")
+            msg = f"{e.detail['message']}, failed to start analysis {analysis_id}"
+            logger.error(msg)
+            self.log_analysis(event_metadata, body=msg, status_code=e.status_code)
+
             return None, e.status_code
 
         except KongConflictError as e:
@@ -179,7 +198,9 @@ class GoGoAnalysis:
                     return await self.register_analysis(analysis_id, project_id, attempt + 1, max_attempts)
 
                 else:
-                    logger.error(f"Failed to start analysis {analysis_id} after {max_attempts} attempts")
+                    msg = f"Failed to start analysis {analysis_id} after {max_attempts} attempts"
+                    logger.error(msg)
+                    self.log_analysis(event_metadata, body=msg, status_code=e.status_code)
                     return None, e.status_code
 
             else:
@@ -187,7 +208,9 @@ class GoGoAnalysis:
                 return None, e.status_code
 
         except HTTPException as e:
-            logger.error(f"Failed to start analysis {analysis_id}, {e}")
+            msg = f"Failed to start analysis {analysis_id}, {e}"
+            logger.error(msg)
+            self.log_analysis(event_metadata, body=msg, status_code=e.status_code)
             return None, e.status_code
 
         return None, status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -218,10 +241,18 @@ class GoGoAnalysis:
 
         node_metadata = get_node_metadata_for_url(analysis_props["node_id"], core_client=self.core_client)
         analysis_info = get_registry_metadata_for_url(node_metadata, core_client=self.core_client)
+
         analysis_id = analysis_props["analysis_id"]
+        project_id = analysis_props["project_id"]
+        event_metadata = {
+            "project_id": project_id,
+            "analysis_id": analysis_id,
+            "tags": [EventTag.PO],
+        }
+
         props = compile_analysis_pod_data(
             analysis_id=analysis_id,
-            project_id=analysis_props["project_id"],
+            project_id=project_id,
             compiled_info=analysis_info,
             kong_token=kong_token,
         )
@@ -241,20 +272,26 @@ class GoGoAnalysis:
                 return resp_data, status_code
 
             except HTTPException as e:
-                logger.error(f"Unable to start analysis {analysis_id} due to the following error: {e}")
+                msg = f"Unable to start analysis {analysis_id} due to the following error: {e}"
+                logger.error(msg)
+                self.log_analysis(event_metadata, body=msg, status_code=e.status_code)
                 return e.detail, e.status_code
 
             except HTTPStatusError as e:
-                logger.error(f"Unable to start analysis {analysis_id} due to the following error: {e.response.text}")
+                msg = f"Unable to start analysis {analysis_id} due to the following error: {e.response.text}"
                 resp = {
                     "message": f"PodOrc encountered the following error: {e.response.text}",
                     "service": "PO",
                     "status_code": e.response.status_code,
                 }
+                logger.error(msg)
+                self.log_analysis(event_metadata, body=msg, status_code=e.response.status_code)
                 return resp, e.response.status_code
 
             except (ConnectError, RemoteProtocolError) as e:
-                logger.error(f"Pod Orchestrator unreachable - {e}")
+                msg = f"Pod Orchestrator unreachable - {e}"
+                logger.error(msg)
+                self.log_analysis(event_metadata, body=msg, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
                 return None, status.HTTP_500_INTERNAL_SERVER_ERROR
 
             except ReadTimeout:
@@ -262,14 +299,21 @@ class GoGoAnalysis:
                     f"Analysis {analysis_props['analysis_id']} taking longer than usual to start, waiting 60 seconds"
                 )
                 time.sleep(60)
+                msg = "PodOrc failed to respond in time likely due to an image pull taking too long"
                 resp = {
-                    "message": "PodOrc failed to respond in time likely due to an image pull taking too long",
+                    "message": msg,
                     "service": "PO",
                     "status_code": status.HTTP_408_REQUEST_TIMEOUT,
                 }
+                self.log_analysis(event_metadata, body=msg, status_code=status.HTTP_408_REQUEST_TIMEOUT)
                 return resp, status.HTTP_408_REQUEST_TIMEOUT
 
         else:  # No token available or PO unreachable
+            self.log_analysis(
+                event_metadata,
+                body="PO failed to start the analysis due to a missing token or is unreachable",
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
             return None, status.HTTP_404_NOT_FOUND
 
     async def fetch_analysis_status(self, analysis_id: uuid.UUID | str) -> dict | None:
