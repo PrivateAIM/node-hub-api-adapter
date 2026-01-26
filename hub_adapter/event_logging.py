@@ -46,13 +46,13 @@ class EventLogger:
         except (jwt.DecodeError, jwt.InvalidTokenError):
             return None
 
-    def log_fastapi_request(self, request: Request, status_code: int | None = None):
+    def log_fastapi_request(self, request: Request, status_code: int | None = None, log_health_checks: bool = False):
         """Log incoming FastAPI requests from external clients using the middleware."""
         user_info = self._extract_user_from_token(request=request)
 
         event_name = "unknown"
         service = None
-        tags = []
+        event_tags = []
 
         route = request.scope.get("route")
         path = request.scope.get("path")
@@ -62,6 +62,10 @@ class EventLogger:
             service = "hub_adapter"
 
         elif route:
+            # Health checks will flood the database
+            if not log_health_checks and route.name == "health.status.get":
+                return
+
             event_name, tags = annotate_event(route.name, status_code)
             if event_name not in ANNOTATED_EVENTS:
                 raise ValueError(f"Unknown event name: {event_name}")
@@ -69,7 +73,7 @@ class EventLogger:
 
         event_data = ANNOTATED_EVENTS.get(event_name)
         body = event_data.get(event_name)
-        tags = event_data.get("tags") + tags if event_data.get("tags") else tags
+        event_tags = event_data.get("tags") + event_tags if event_data.get("tags") else event_tags
 
         self.log_event(
             event_name=event_name,
@@ -83,7 +87,7 @@ class EventLogger:
                 "user": user_info,
                 "service": service,
                 "status_code": status_code,
-                "tags": tags,
+                "tags": event_tags,
             },
         )
 

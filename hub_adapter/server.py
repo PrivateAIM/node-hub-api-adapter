@@ -49,6 +49,7 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
 
     EventModelMap.mapping = {event_name: GatewayEventLog for event_name in ANNOTATED_EVENTS.keys()}
+    enable_event_logging: bool = os.getenv("LOG_EVENTS", "False").lower() in ("true", "1", "yes")
 
     try:
         setup_event_logging(
@@ -57,7 +58,7 @@ async def lifespan(app: FastAPI):
             password=settings.POSTGRES_EVENT_PASSWORD,
             host=settings.POSTGRES_EVENT_HOST,
             port=settings.POSTGRES_EVENT_PORT,
-            enabled=True,
+            enabled=enable_event_logging,
         )
 
     except (pw.PeeweeException, ValueError) as db_err:
