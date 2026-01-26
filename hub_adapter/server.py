@@ -49,7 +49,7 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
 
     EventModelMap.mapping = {event_name: GatewayEventLog for event_name in ANNOTATED_EVENTS.keys()}
-    enable_event_logging: bool = os.getenv("LOG_EVENTS", "False").lower() in ("true", "1", "yes")
+    enable_event_logging: bool = os.getenv("LOG_EVENTS", "true").lower() in ("true", "1", "yes")
 
     try:
         setup_event_logging(
@@ -103,7 +103,7 @@ async def event_logging_middleware(request: Request, call_next):
 
     try:
         middleware_logger = get_event_logger()
-        middleware_logger.log_fastapi_request(request, response.status_code)
+        middleware_logger.log_fastapi_request(request, response.status_code, log_health_checks=False)
 
     except AttributeError:
         # Event logging not initialized, skip

@@ -18,7 +18,7 @@ class EventTag(str, Enum):
     AUTH = "Authentication"
     AUTOSTART = "Autostart"
 
-    USER_AUTH = "User Authenticated"
+    USER_AUTH = "User Authentication Required"
 
     # Log levels
     INFO = "Info"
