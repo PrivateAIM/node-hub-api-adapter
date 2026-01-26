@@ -72,7 +72,7 @@ class EventLogger:
             service = route.tags[0].lower() if route.tags else None
 
         event_data = ANNOTATED_EVENTS.get(event_name)
-        body = event_data.get(event_name)
+        body = event_data.get("body")
         event_tags = event_data.get("tags") + event_tags if event_data.get("tags") else event_tags
 
         self.log_event(
