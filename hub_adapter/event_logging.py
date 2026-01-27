@@ -51,6 +51,10 @@ class EventLogger:
         """Log incoming FastAPI requests from external clients using the middleware."""
         user_info = self._extract_user_from_token(request=request)
 
+        if request.method not in ("GET", "POST", "PUT", "PATCH", "DELETE"):
+            # OPTIONS is sometimes used for CORS checks, this is to sanitize what is logged
+            return
+
         event_name = "unknown"
         service = None
         event_tags = []
