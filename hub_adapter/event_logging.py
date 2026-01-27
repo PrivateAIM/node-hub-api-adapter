@@ -9,9 +9,12 @@ from node_event_logging import EventLog, bind_to
 from psycopg2 import DatabaseError
 
 from hub_adapter.constants import SERVICE_NAME, ANNOTATED_EVENTS
+from hub_adapter.dependencies import get_settings
 from hub_adapter.utils import annotate_event
 
 logger = logging.getLogger(__name__)
+
+event_logger: EventLogger | None = None
 
 
 class EventLogger:
@@ -116,51 +119,35 @@ class EventLogger:
             logger.warning("Failed to log event; continuing without event logging")
 
 
-event_db: pw.Database | None = None
-event_logger: EventLogger | None = None
+def setup_event_logging():
+    """Initialize the event logging system."""
+    global event_logger
 
+    settings = get_settings()
+    logging_enabled = settings.LOG_EVENTS
 
-def setup_event_logging(
-    database: str,
-    user: str,
-    password: str,
-    host: str = "localhost",
-    port: int = 5432,
-    enabled: bool = True,
-):
-    """Initialize the event logging system.
+    logger.debug(f"Event logging set to: {'enabled' if logging_enabled else 'disabled'}")
 
-    Call this once during application startup (in lifespan or startup event).
+    if logging_enabled:
+        logger.info(f"Event logging enabled, connecting to database at {settings.POSTGRES_EVENT_HOST}")
+        required = {
+            "database": settings.POSTGRES_EVENT_DB,
+            "user": settings.POSTGRES_EVENT_USER,
+            "password": settings.POSTGRES_EVENT_PASSWORD,
+            "host": settings.POSTGRES_EVENT_HOST,
+            "port": settings.POSTGRES_EVENT_PORT,
+        }
 
-    Args:
-        database: PostgreSQL database name
-        user: Database user
-        password: Database password
-        host: Database host
-        port: Database port
-        enabled: Whether event logging is enabled
-    """
-    global event_db, event_logger
+        if not all(required.values()):
+            raise ValueError(f"Unable to connect to database due to incomplete configuration settings: {required}")
 
-    required = {
-        "database": database,
-        "user": user,
-        "password": password,
-        "host": host,
-        "port": port,
-    }
-    if not all(required.values()):
-        raise ValueError(f"Unable to connect to database due to incomplete configuration settings: {required}")
+        event_db = pw.PostgresqlDatabase(**required)
 
-    event_db = pw.PostgresqlDatabase(**required)
+        # Test connection
+        with bind_to(event_db):
+            event_db.connect(reuse_if_open=True)
 
-    # Test connection
-    with bind_to(event_db):
-        event_db.connect(reuse_if_open=True)
-
-    event_logger = EventLogger(event_db, enabled=enabled)
-
-    logger.info(f"Event logging set to: {'enabled' if enabled else 'disabled'}")
+        event_logger = EventLogger(event_db, enabled=logging_enabled)
 
 
 def teardown_event_logging():
@@ -168,20 +155,28 @@ def teardown_event_logging():
 
     Call this during application shutdown (in lifespan cleanup).
     """
-    global event_db, event_logger
+    global event_logger
 
-    if event_db and not event_db.is_closed():
-        event_db.close()
+    if event_logger and event_logger.event_db and not event_logger.event_db.is_closed():
+        event_logger.event_db.close()
         logger.info("Event logging database closed")
 
-    event_db = None
+    event_logger.event_db = None
     event_logger = None
 
 
 def get_event_logger() -> EventLogger | None:
-    """Get the global event logger instance.
+    """Get the global event logger instance. Attempts to reinitialize the event logging system if None.
 
     Returns:
         EventLogger instance if initialized, None otherwise
     """
+    if not event_logger or not event_logger.event_db:
+        try:
+            setup_event_logging()
+
+        except (pw.PeeweeException, ValueError) as db_err:
+            logger.warning(str(db_err).strip())
+            logger.warning("Event logging disabled due to database configuration or connection error")
+
     return event_logger

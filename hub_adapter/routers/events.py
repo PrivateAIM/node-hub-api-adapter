@@ -3,11 +3,13 @@
 import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Query, Security
+from fastapi import APIRouter, Query, Security, HTTPException, Depends
 from node_event_logging import EventLog, bind_to
 from starlette import status
 
 from hub_adapter.auth import verify_idp_token, jwtbearer
+from hub_adapter.conf import Settings
+from hub_adapter.dependencies import get_settings
 from hub_adapter.event_logging import get_event_logger
 from hub_adapter.models.events import EventLogResponse
 
@@ -28,6 +30,7 @@ event_router = APIRouter(
     name="events.get",
 )
 async def get_events(
+    settings: Annotated[Settings, Depends(get_settings)],
     limit: Annotated[int | None, Query(description="Maximum number of events to return")] = 50,
     offset: Annotated[int | None, Query(description="Number of events to offset by")] = None,
     service_name: Annotated[str | None, Query(description="Filter events by service name")] = None,
@@ -42,6 +45,18 @@ async def get_events(
 ):
     """Retrieve a selection of logged events."""
     event_logger = get_event_logger()
+    if not event_logger or not event_logger.event_db:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "message": f"Failed to connect to postgres database "
+                f"at {settings.POSTGRES_EVENT_HOST}, unable to retrieve events",
+                "service": "Hub Adapter",
+                "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
+            },
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     with bind_to(event_logger.event_db):
         events = EventLog.select().order_by(EventLog.timestamp.desc()).limit(limit).offset(offset)
 

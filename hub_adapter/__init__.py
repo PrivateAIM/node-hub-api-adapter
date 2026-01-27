@@ -57,7 +57,7 @@ logging_config = {
     },
     "loggers": {
         "flame_hub": {
-            "handlers": ["console_handler", "file_handler"],
+            "handlers": ["file_handler", "console_handler"],
             "level": "INFO",
         },
     },

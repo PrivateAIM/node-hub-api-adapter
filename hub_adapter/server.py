@@ -5,7 +5,6 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
-import peewee as pw
 import uvicorn
 from fastapi import FastAPI
 from node_event_logging import EventModelMap
@@ -15,7 +14,7 @@ from starlette.requests import Request
 from hub_adapter.autostart import GoGoAnalysis
 from hub_adapter.constants import ANNOTATED_EVENTS
 from hub_adapter.dependencies import get_settings
-from hub_adapter.event_logging import get_event_logger, setup_event_logging, teardown_event_logging
+from hub_adapter.event_logging import get_event_logger, teardown_event_logging
 from hub_adapter.models.events import GatewayEventLog
 from hub_adapter.routers.auth import auth_router
 from hub_adapter.routers.events import event_router
@@ -46,24 +45,9 @@ tags_metadata = [
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    settings = get_settings()
-
     EventModelMap.mapping = {event_name: GatewayEventLog for event_name in ANNOTATED_EVENTS.keys()}
-    enable_event_logging: bool = os.getenv("LOG_EVENTS", "true").lower() in ("true", "1", "yes")
 
-    try:
-        setup_event_logging(
-            database=settings.POSTGRES_EVENT_DB,
-            user=settings.POSTGRES_EVENT_USER,
-            password=settings.POSTGRES_EVENT_PASSWORD,
-            host=settings.POSTGRES_EVENT_HOST,
-            port=settings.POSTGRES_EVENT_PORT,
-            enabled=enable_event_logging,
-        )
-
-    except (pw.PeeweeException, ValueError) as db_err:
-        logger.warning(str(db_err).strip())  # Strip needed to remove newline from peewee error
-        logger.warning("Event logging disabled due to database configuration or connection error")
+    get_event_logger()  # Attempts to setup connections
 
     yield
 
