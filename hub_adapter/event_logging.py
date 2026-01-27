@@ -14,8 +14,6 @@ from hub_adapter.utils import annotate_event
 
 logger = logging.getLogger(__name__)
 
-event_logger: EventLogger | None = None
-
 
 class EventLogger:
     """Event logging utility."""
@@ -117,6 +115,9 @@ class EventLogger:
         except (pw.PeeweeException, ValueError, DatabaseError) as db_err:
             logger.warning(str(db_err).strip())  # Strip needed to remove newline from peewee error
             logger.warning("Failed to log event; continuing without event logging")
+
+
+event_logger: EventLogger | None = None
 
 
 def setup_event_logging():
