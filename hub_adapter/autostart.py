@@ -11,7 +11,7 @@ from httpx import ConnectError, HTTPStatusError, ReadTimeout, RemoteProtocolErro
 from starlette import status
 
 from hub_adapter.auth import _get_internal_token
-from hub_adapter.constants import SERVICE_NAME, ANNOTATED_EVENTS
+from hub_adapter.constants import ANNOTATED_EVENTS, SERVICE_NAME
 from hub_adapter.core import make_request
 from hub_adapter.dependencies import (
     compile_analysis_pod_data,

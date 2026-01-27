@@ -136,7 +136,7 @@ def _extract_user_from_token(request: Request) -> dict | None:
         return None
 
 
-def annotate_event(event_name: str, status_code: int, tags: list[EventTag] | None = None) -> tuple:
+def annotate_event(event_name: str, status_code: int, tags: list[EventTag] | None = None) -> tuple[str, list]:
     """Append suffix to event name indicating if request was a "success" or "failure" and add tag."""
     if status_code in (401, 403):
         log_tag = EventTag.WARNING
