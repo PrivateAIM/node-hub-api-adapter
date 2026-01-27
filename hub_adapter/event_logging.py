@@ -81,6 +81,10 @@ class EventLogger:
         body = event_data.get("body")
         event_tags = event_data.get("tags") + event_tags if event_data.get("tags") else event_tags
 
+        # Swap username for "user"
+        if body and user_info and user_info.get("username"):
+            body = body.replace("A user", user_info.get("username"))
+
         self.log_event(
             event_name=event_name,
             service_name=SERVICE_NAME,
