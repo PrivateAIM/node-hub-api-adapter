@@ -3,11 +3,11 @@
 import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Query, Security, HTTPException, Depends
+from fastapi import APIRouter, Depends, HTTPException, Query, Security
 from node_event_logging import EventLog, bind_to
 from starlette import status
 
-from hub_adapter.auth import verify_idp_token, jwtbearer
+from hub_adapter.auth import jwtbearer, verify_idp_token
 from hub_adapter.conf import Settings
 from hub_adapter.dependencies import get_settings
 from hub_adapter.event_logging import get_event_logger
@@ -25,14 +25,14 @@ event_router = APIRouter(
 
 @event_router.get(
     "/events",
-    response_model=list[EventLogResponse],
+    response_model=EventLogResponse,
     status_code=status.HTTP_200_OK,
     name="events.get",
 )
 async def get_events(
     settings: Annotated[Settings, Depends(get_settings)],
     limit: Annotated[int | None, Query(description="Maximum number of events to return")] = 50,
-    offset: Annotated[int | None, Query(description="Number of events to offset by")] = None,
+    offset: Annotated[int | None, Query(description="Number of events to offset by")] = 0,
     service_name: Annotated[str | None, Query(description="Filter events by service name")] = None,
     event_name: Annotated[str | None, Query(description="Filter events by event name")] = None,
     username: Annotated[str | None, Query(description="Filter events by username")] = None,
@@ -59,6 +59,14 @@ async def get_events(
 
     with bind_to(event_logger.event_db):
         events = EventLog.select().order_by(EventLog.timestamp.desc()).limit(limit).offset(offset)
+        total = EventLog.select().count()
+
+        metadata = {
+            "count": len(events),
+            "limit": limit,
+            "offset": offset,
+            "total": total,
+        }
 
         if username:
             events = events.where(EventLog.attributes["user"]["username"] == username)
@@ -75,4 +83,4 @@ async def get_events(
         if event_name:
             events = events.where(EventLog.event_name == event_name)
 
-    return [event for event in events.dicts()]
+    return {"data": [event for event in events.dicts()], "meta": metadata}

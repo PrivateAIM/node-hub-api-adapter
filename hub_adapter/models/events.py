@@ -26,7 +26,7 @@ class EventTag(str, Enum):
     ERROR = "Error"
 
 
-class EventLogResponse(BaseModel):
+class EventLog(BaseModel):
     """Event log response model."""
 
     id: int
@@ -35,6 +35,22 @@ class EventLogResponse(BaseModel):
     timestamp: datetime.datetime
     body: str
     attributes: dict
+
+
+class Meta(BaseModel):
+    """Event log metadata model."""
+
+    count: int
+    total: int
+    limit: int
+    offset: int
+
+
+class EventLogResponse(BaseModel):
+    """Event log response model."""
+
+    data: list[EventLog]
+    meta: Meta
 
 
 # For logging events
