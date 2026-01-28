@@ -30,18 +30,18 @@ event_router = APIRouter(
     name="events.get",
 )
 async def get_events(
-    settings: Annotated[Settings, Depends(get_settings)],
-    limit: Annotated[int | None, Query(description="Maximum number of events to return")] = 50,
-    offset: Annotated[int | None, Query(description="Number of events to offset by")] = 0,
-    service_name: Annotated[str | None, Query(description="Filter events by service name")] = None,
-    event_name: Annotated[str | None, Query(description="Filter events by event name")] = None,
-    username: Annotated[str | None, Query(description="Filter events by username")] = None,
-    start_date: Annotated[
-        datetime.datetime | None, Query(description="Filter events by start date using ISO8601 format")
-    ] = None,
-    end_date: Annotated[
-        datetime.datetime | None, Query(description="Filter events by end date using ISO8601 format")
-    ] = None,
+        settings: Annotated[Settings, Depends(get_settings)],
+        limit: Annotated[int | None, Query(description="Maximum number of events to return")] = 50,
+        offset: Annotated[int | None, Query(description="Number of events to offset by")] = 0,
+        service_names: Annotated[str | None, Query(description="Filter events by service name")] = None,
+        event_name: Annotated[str | None, Query(description="Filter events by event name")] = None,
+        username: Annotated[str | None, Query(description="Filter events by username")] = None,
+        start_date: Annotated[
+            datetime.datetime | None, Query(description="Filter events by start date using ISO8601 format")
+        ] = None,
+        end_date: Annotated[
+            datetime.datetime | None, Query(description="Filter events by end date using ISO8601 format")
+        ] = None,
 ):
     """Retrieve a selection of logged events."""
     event_logger = get_event_logger()
@@ -50,7 +50,7 @@ async def get_events(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail={
                 "message": f"Failed to connect to postgres database "
-                f"at {settings.POSTGRES_EVENT_HOST}, unable to retrieve events",
+                           f"at {settings.POSTGRES_EVENT_HOST}, unable to retrieve events",
                 "service": "Hub Adapter",
                 "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
             },
@@ -77,8 +77,8 @@ async def get_events(
         if end_date:
             events = events.where(EventLog.timestamp <= end_date)
 
-        if service_name:
-            events = events.where(EventLog.service_name == service_name)
+        if service_names:
+            events = events.where(EventLog.service_name << service_names)
 
         if event_name:
             events = events.where(EventLog.event_name == event_name)

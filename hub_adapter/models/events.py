@@ -1,10 +1,8 @@
 import datetime
-import json
 from enum import Enum
-from typing import Any
 
 from node_event_logging import AttributesModel
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel
 from starlette.datastructures import Address
 
 
