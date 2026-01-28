@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 # API metadata
 tags_metadata = [
     {"name": "Auth", "description": "Endpoints for authorization specific tasks."},
-    {"name": "Events", "description": "Gateway endpoints for retrieving logged events."},
+    {"name": "Events", "description": "Gateway endpoints for interacting with logged events."},
     {"name": "Meta", "description": "Custom Hub Adapter endpoints which combine endpoints from other APIs."},
     {
         "name": "Health",
@@ -45,7 +45,7 @@ tags_metadata = [
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    EventModelMap.mapping = {event_name: GatewayEventLog for event_name in ANNOTATED_EVENTS.keys()}
+    EventModelMap.mapping = {event_name: GatewayEventLog for event_name in ANNOTATED_EVENTS}
 
     get_event_logger()  # Attempts to setup connections
 

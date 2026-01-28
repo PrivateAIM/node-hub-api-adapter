@@ -3,15 +3,16 @@
 import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Security
-from node_event_logging import EventLog, bind_to
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Security
+from node_event_logging import AttributesModel, EventLog, bind_to
 from starlette import status
+from starlette.requests import Request
 
 from hub_adapter.auth import jwtbearer, verify_idp_token
 from hub_adapter.conf import Settings
 from hub_adapter.dependencies import get_settings
 from hub_adapter.event_logging import get_event_logger
-from hub_adapter.models.events import EventLogResponse
+from hub_adapter.models.events import EventLogResponse, EventRequest
 
 event_router = APIRouter(
     dependencies=[
@@ -84,3 +85,23 @@ async def get_events(
             events = events.where(EventLog.event_name == event_name)
 
     return {"data": [event for event in events.dicts()], "meta": metadata}
+
+
+@event_router.post(
+    "/events/signin",
+    status_code=status.HTTP_201_CREATED,
+    name="auth.user.signin",
+)
+async def log_user_signin():
+    """Create a log event that a user signed in. Username is extracted from the JWT required to call this endpoint."""
+    return status.HTTP_201_CREATED
+
+
+@event_router.post(
+    "/events/signout",
+    status_code=status.HTTP_201_CREATED,
+    name="auth.user.signout",
+)
+async def log_user_signout():
+    """Create a log event that a user signed out. Username is extracted from the JWT required to call this endpoint."""
+    return status.HTTP_201_CREATED

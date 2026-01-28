@@ -26,6 +26,14 @@ AGNOSTIC_EVENTS = {
         "body": "A user attempted to sign in to the IDP and acquire a JWT",
         "tags": [EventTag.AUTH],
     },
+    "auth.user.signin": {
+        "body": "A user signed in to the Node UI",
+        "tags": [EventTag.AUTH],
+    },
+    "auth.user.signout": {
+        "body": "A user manually signed out of the Node UI",
+        "tags": [EventTag.AUTH],
+    },
     "hub.project.get": {
         "body": "A user requested a list of projects from the Hub",
         "tags": [EventTag.HUB],

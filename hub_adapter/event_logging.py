@@ -4,9 +4,10 @@ import logging
 
 import jwt
 import peewee as pw
-from fastapi import Request
+from fastapi import HTTPException, Request
 from node_event_logging import EventLog, bind_to
 from psycopg2 import DatabaseError
+from starlette import status
 
 from hub_adapter.constants import ANNOTATED_EVENTS, SERVICE_NAME
 from hub_adapter.dependencies import get_settings
@@ -107,23 +108,24 @@ class EventLogger:
         service_name: str = SERVICE_NAME,
         body: str | None = None,
         attributes: dict | None = None,
-    ):
+    ) -> bool:
         """Core logging method used by middleware and decorator components."""
-        if not self.enabled or not self.event_db:
-            return
+        if self.enabled and self.event_db:
+            try:
+                with bind_to(self.event_db):
+                    EventLog.create(
+                        event_name=event_name,
+                        service_name=service_name,
+                        body=body,
+                        attributes=attributes or {},
+                    )
+                return True
 
-        try:
-            with bind_to(self.event_db):
-                EventLog.create(
-                    event_name=event_name,
-                    service_name=service_name,
-                    body=body,
-                    attributes=attributes or {},
-                )
+            except (pw.PeeweeException, ValueError, DatabaseError) as db_err:
+                logger.warning(str(db_err).strip())  # Strip needed to remove newline from peewee error
+                logger.warning("Failed to log event")
 
-        except (pw.PeeweeException, ValueError, DatabaseError) as db_err:
-            logger.warning(str(db_err).strip())  # Strip needed to remove newline from peewee error
-            logger.warning("Failed to log event; continuing without event logging")
+        return False
 
 
 event_logger: EventLogger | None = None
