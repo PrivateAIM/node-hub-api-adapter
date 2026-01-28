@@ -84,29 +84,3 @@ class AutostartEventLog(AttributesModel):
     project_id: str
     analysis_id: str
     tags: list[EventTag] | None = None
-
-
-class UserSignInOutEventLog(AttributesModel):
-    user: UserInfo | None = None
-    client: Address
-
-
-class EventRequest(BaseModel):
-    """Event request model."""
-
-    event_name: str = Field(..., description="Name of the event, should be a period '.' separated string")
-    service_name: str = Field(..., description="Name of the service making this request")
-    body: str | None = Field(None, description="Human-readable description of the event")
-    attributes: UserSignInOutEventLog | None = Field(None, description="JSON-serializable metadata of the event")
-
-    @field_validator("attributes")
-    @classmethod
-    def validate_json_serializable(cls, attributes):
-        if attributes is not None:
-            try:
-                json.dumps(attributes)
-
-            except (TypeError, ValueError) as e:
-                raise ValueError(f"Attributes must be JSON serializable: {str(e)}") from e
-
-        return attributes

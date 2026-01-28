@@ -3,16 +3,15 @@
 import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, Security
-from node_event_logging import AttributesModel, EventLog, bind_to
+from fastapi import APIRouter, Depends, HTTPException, Query, Security
+from node_event_logging import EventLog, bind_to
 from starlette import status
-from starlette.requests import Request
 
 from hub_adapter.auth import jwtbearer, verify_idp_token
 from hub_adapter.conf import Settings
 from hub_adapter.dependencies import get_settings
 from hub_adapter.event_logging import get_event_logger
-from hub_adapter.models.events import EventLogResponse, EventRequest
+from hub_adapter.models.events import EventLogResponse
 
 event_router = APIRouter(
     dependencies=[

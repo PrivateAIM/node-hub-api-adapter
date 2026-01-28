@@ -4,10 +4,9 @@ import logging
 
 import jwt
 import peewee as pw
-from fastapi import HTTPException, Request
+from fastapi import Request
 from node_event_logging import EventLog, bind_to
 from psycopg2 import DatabaseError
-from starlette import status
 
 from hub_adapter.constants import ANNOTATED_EVENTS, SERVICE_NAME
 from hub_adapter.dependencies import get_settings
@@ -173,7 +172,6 @@ def teardown_event_logging():
         event_logger.event_db.close()
         logger.info("Event logging database closed")
 
-    event_logger.event_db = None
     event_logger = None
 
 
