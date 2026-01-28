@@ -11,6 +11,7 @@ from node_event_logging import EventModelMap
 from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 
+from hub_adapter import logging_config
 from hub_adapter.autostart import GoGoAnalysis
 from hub_adapter.constants import ANNOTATED_EVENTS
 from hub_adapter.dependencies import get_settings
@@ -113,7 +114,7 @@ for router in routers:
 
 async def run_server(host: str, port: int, reload: bool):
     """Start the hub adapter API server."""
-    config = uvicorn.Config(app, host=host, port=port, reload=reload)
+    config = uvicorn.Config(app, host=host, port=port, reload=reload, log_config=logging_config)
     server = uvicorn.Server(config)
     await server.serve()
 
