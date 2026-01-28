@@ -20,8 +20,22 @@ EXPECTED_EVENT_ROUTE_CONFIG = (
         "name": "events.get",
         "path": "/events",
         "methods": {"GET"},
-        "response_model": list[EventLogResponse],
+        "response_model": EventLogResponse,
         "status_code": 200,
+    },
+    {
+        "name": "auth.user.signin",
+        "path": "/events/signin",
+        "methods": {"POST"},
+        "response_model": None,
+        "status_code": 201,
+    },
+    {
+        "name": "auth.user.signout",
+        "path": "/events/signout",
+        "methods": {"POST"},
+        "response_model": None,
+        "status_code": 201,
     },
 )
 

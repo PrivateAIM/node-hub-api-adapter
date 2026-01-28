@@ -41,6 +41,7 @@ from hub_adapter.models.kong import (
     ListConsumers,
     ListRoutes,
     ListServices,
+    MinioConfig,
     ProtocolCode,
     ServiceRequest,
 )
@@ -185,6 +186,7 @@ async def create_service(
         ),
     ],
     ds_type: Annotated[DataStoreType, Body(description="Data store type. Either 's3' or 'fhir'")],
+    minio_config: Annotated[MinioConfig | None, Body(description="Minio configuration")] = None,
 ) -> Service:
     """Create a datastore (referred to as services by kong) by providing necessary metadata."""
     configuration = kong_admin_client.Configuration(host=settings.KONG_ADMIN_SERVICE_URL)
@@ -203,8 +205,20 @@ async def create_service(
             tls_verify=datastore.tls_verify,
             tags=[datastore.name, datastore_name],
         )
-        api_response = api_instance.create_service(create_service_request)
-        return api_response
+        service_create_response = api_instance.create_service(create_service_request)
+
+        plugin_api = kong_admin_client.PluginsApi(api_client)
+        if minio_config:
+            create_minio_gateway_request = CreatePluginForConsumerRequest(  # Also works for services
+                name="minio-gateway",
+                instance_name=f"{datastore_name}-minio-gateway",
+                config=minio_config.model_dump(),
+                enabled=True,
+                protocols=[datastore.protocol],
+            )
+            plugin_api.create_plugin_for_service(service_create_response.id, create_minio_gateway_request)
+
+        return service_create_response
 
 
 def get_projects(
@@ -332,6 +346,7 @@ async def create_route_to_datastore(
             tags=[str(project_id), ds_type],
         )
 
+        # Keyauth for authentication
         create_keyauth_request = CreatePluginForConsumerRequest(
             name="key-auth",
             instance_name=f"{project}-{ds_type}-keyauth",

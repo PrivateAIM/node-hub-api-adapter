@@ -12,7 +12,7 @@ from starlette.requests import Request
 import hub_adapter.server as server
 from hub_adapter.auth import verify_idp_token
 from hub_adapter.conf import Settings
-from hub_adapter.constants import event_names
+from hub_adapter.constants import AGNOSTIC_EVENTS
 from tests.constants import (
     FAKE_USER,
     TEST_MOCK_ROBOT_USER,
@@ -109,6 +109,6 @@ def check_routes(router: APIRouter, expected_routes: tuple, test_client, mock_ev
             "status_code": route.status_code,
             "response_model": route.response_model,
         }
-        assert route.name in event_names
+        assert route.name in AGNOSTIC_EVENTS
         assert observed_route in expected_routes
         middleware_event_test(route.path, test_client, mock_event_logger)  # check if event middleware called
