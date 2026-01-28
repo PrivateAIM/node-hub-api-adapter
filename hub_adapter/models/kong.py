@@ -86,6 +86,17 @@ class ServiceRequest(CreateServiceRequest):
     }
 
 
+class MinioConfig(BaseModel):
+    """Credentials for accessing a private S3 bucket hosted on MinIO."""
+
+    minio_access_key: str
+    minio_secret_key: str
+    minio_region: str = "us-east-1"
+    bucket_name: str | None = None
+    timeout: int = 100000
+    strip_path_pattern: str | None = None
+
+
 class LinkDataStoreProject(BaseModel):
     route: Route
     keyauth: KeyAuth
