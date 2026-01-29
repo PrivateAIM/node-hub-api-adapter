@@ -15,7 +15,7 @@ from kong_admin_client import (
     RouteService,
     Service,
 )
-from pydantic import BaseModel
+from pydantic import BaseModel, SecretStr
 
 
 class DataStoreType(str, Enum):
@@ -89,8 +89,8 @@ class ServiceRequest(CreateServiceRequest):
 class MinioConfig(BaseModel):
     """Credentials for accessing a private S3 bucket hosted on MinIO."""
 
-    minio_access_key: str
-    minio_secret_key: str
+    minio_access_key: SecretStr
+    minio_secret_key: SecretStr
     minio_region: str = "us-east-1"
     bucket_name: str | None = None
     timeout: int = 100000
