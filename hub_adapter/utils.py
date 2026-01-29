@@ -25,9 +25,9 @@ async def serialize_query_content(key, value) -> dict:
 
 
 async def unzip_query_params(
-    additional_params: dict,
-    necessary_params: list[str] | None = None,
-    req_params: dict | None = None,
+        additional_params: dict,
+        necessary_params: list[str] | None = None,
+        req_params: dict | None = None,
 ) -> dict:
     """Prepare query parameters to be added to URL of downstream microservice."""
     response_query_params = {}
@@ -51,8 +51,8 @@ async def unzip_query_params(
 
 
 async def unzip_body_object(
-    additional_params: dict,
-    specified_params: list[str] | None = None,
+        additional_params: dict,
+        specified_params: list[str] | None = None,
 ) -> dict | None:
     """Gather body data and package for forwarding."""
     if specified_params:
@@ -68,9 +68,9 @@ async def unzip_body_object(
 
 
 async def unzip_form_params(
-    additional_params: dict,
-    specified_params: list[str] | None = None,
-    request_form: FormData | None = None,
+        additional_params: dict,
+        specified_params: list[str] | None = None,
+        request_form: FormData | None = None,
 ) -> dict | None:
     """Gather form data and package for forwarding."""
     if specified_params or request_form:
@@ -90,8 +90,8 @@ async def unzip_form_params(
 
 
 async def unzip_file_params(
-    additional_params: dict,
-    specified_params: list[str] | None = None,
+        additional_params: dict,
+        specified_params: list[str] | None = None,
 ) -> dict | None:
     """Gather binary or text data and package for forwarding."""
     if specified_params:
@@ -136,7 +136,7 @@ def _extract_user_from_token(request: Request) -> dict | None:
         return None
 
 
-def annotate_event(event_name: str, status_code: int, tags: list[EventTag] | None = None) -> tuple[str, list]:
+def annotate_event(event_name: str, status_code: int, tags: list[EventTag] | None = None) -> tuple[str, list[EventTag]]:
     """Append suffix to event name indicating if request was a "success" or "failure" and add tag."""
     if status_code in (401, 403):
         log_tag = EventTag.WARNING

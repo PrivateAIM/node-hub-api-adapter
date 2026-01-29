@@ -71,16 +71,16 @@ class EventLogger:
             if not log_health_checks and route.name == "health.status.get":
                 return
 
-            event_name, tags = annotate_event(route.name, status_code)
+            event_name, tags = annotate_event(route.name, status_code or 200)
             if event_name not in ANNOTATED_EVENTS:
                 logger.warning(f"Unknown event name: {event_name}")
                 tags = []
             service = route.tags[0].lower() if route.tags else None
             event_tags += tags
 
-        event_data = ANNOTATED_EVENTS.get(event_name)
+        event_data = ANNOTATED_EVENTS.get(event_name, {})
         body = event_data.get("body")
-        event_tags = event_data.get("tags") + event_tags if event_data.get("tags") else event_tags
+        event_tags = event_data.get("tags", []) + event_tags
 
         # Swap username for "user"
         if body and user_info and user_info.get("username"):

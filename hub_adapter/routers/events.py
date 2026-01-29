@@ -33,7 +33,7 @@ async def get_events(
         settings: Annotated[Settings, Depends(get_settings)],
         limit: Annotated[int | None, Query(description="Maximum number of events to return")] = 100,
         offset: Annotated[int | None, Query(description="Number of events to offset by")] = 0,
-        service_tag: Annotated[str | None, Query(description="Filter events by service name")] = None,
+        service_tag: Annotated[str | None, Query(description="Filter events by service tag")] = None,
         event_name: Annotated[str | None, Query(description="Filter events by event name")] = None,
         username: Annotated[str | None, Query(description="Filter events by username")] = None,
         start_date: Annotated[
@@ -60,13 +60,6 @@ async def get_events(
         events = EventLog.select().order_by(EventLog.timestamp.desc()).limit(limit).offset(offset)
         total = EventLog.select().count()
 
-        metadata = {
-            "count": len(events),
-            "limit": limit,
-            "offset": offset,
-            "total": total,
-        }
-
         if username:
             events = events.where(EventLog.attributes["user"]["username"] == username)
 
@@ -82,6 +75,13 @@ async def get_events(
         if event_name:
             events = events.where(EventLog.event_name == event_name)
 
+        metadata = {
+            "count": len(events),
+            "limit": limit,
+            "offset": offset,
+            "total": total,
+        }
+
     return {"data": [event for event in events.dicts()], "meta": metadata}
 
 
@@ -89,6 +89,7 @@ async def get_events(
     "/events/signin",
     status_code=status.HTTP_201_CREATED,
     name="auth.user.signin",
+    response_model=None,
 )
 async def log_user_signin():
     """Create a log event that a user signed in. Username is extracted from the JWT required to call this endpoint."""
@@ -99,6 +100,7 @@ async def log_user_signin():
     "/events/signout",
     status_code=status.HTTP_201_CREATED,
     name="auth.user.signout",
+    response_model=None,
 )
 async def log_user_signout():
     """Create a log event that a user signed out. Username is extracted from the JWT required to call this endpoint."""
