@@ -31,7 +31,7 @@ event_router = APIRouter(
 )
 async def get_events(
         settings: Annotated[Settings, Depends(get_settings)],
-        limit: Annotated[int | None, Query(description="Maximum number of events to return")] = 50,
+        limit: Annotated[int | None, Query(description="Maximum number of events to return")] = 100,
         offset: Annotated[int | None, Query(description="Number of events to offset by")] = 0,
         service_name: Annotated[str | None, Query(description="Filter events by service name")] = None,
         event_name: Annotated[str | None, Query(description="Filter events by event name")] = None,
