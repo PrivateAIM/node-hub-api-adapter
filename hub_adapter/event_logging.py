@@ -73,7 +73,8 @@ class EventLogger:
 
             event_name, tags = annotate_event(route.name, status_code)
             if event_name not in ANNOTATED_EVENTS:
-                raise ValueError(f"Unknown event name: {event_name}")
+                logger.warning(f"Unknown event name: {event_name}")
+                tags = []
             service = route.tags[0].lower() if route.tags else None
             event_tags += tags
 
@@ -102,11 +103,11 @@ class EventLogger:
         )
 
     def log_event(
-        self,
-        event_name: str,
-        service_name: str = SERVICE_NAME,
-        body: str | None = None,
-        attributes: dict | None = None,
+            self,
+            event_name: str,
+            service_name: str = SERVICE_NAME,
+            body: str | None = None,
+            attributes: dict | None = None,
     ) -> bool:
         """Core logging method used by middleware and decorator components."""
         if self.enabled and self.event_db:
@@ -120,7 +121,7 @@ class EventLogger:
                     )
                 return True
 
-            except (pw.PeeweeException, ValueError, DatabaseError) as db_err:
+            except (pw.PeeweeException, DatabaseError) as db_err:
                 logger.warning(str(db_err).strip())  # Strip needed to remove newline from peewee error
                 logger.warning("Failed to log event")
 
@@ -150,7 +151,8 @@ def setup_event_logging():
         }
 
         if not all(required.values()):
-            raise ValueError(f"Unable to connect to database due to incomplete configuration settings: {required}")
+            redacted = {**required, "password": "***"}
+            raise ValueError(f"Unable to connect to database due to incomplete configuration settings: {redacted}")
 
         event_db = pw.PostgresqlDatabase(**required)
 

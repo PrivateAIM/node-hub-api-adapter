@@ -33,7 +33,7 @@ async def get_events(
         settings: Annotated[Settings, Depends(get_settings)],
         limit: Annotated[int | None, Query(description="Maximum number of events to return")] = 50,
         offset: Annotated[int | None, Query(description="Number of events to offset by")] = 0,
-        service_names: Annotated[str | None, Query(description="Filter events by service name")] = None,
+        service_name: Annotated[str | None, Query(description="Filter events by service name")] = None,
         event_name: Annotated[str | None, Query(description="Filter events by event name")] = None,
         username: Annotated[str | None, Query(description="Filter events by username")] = None,
         start_date: Annotated[
@@ -54,7 +54,6 @@ async def get_events(
                 "service": "Hub Adapter",
                 "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
             },
-            headers={"WWW-Authenticate": "Bearer"},
         )
 
     with bind_to(event_logger.event_db):
@@ -77,8 +76,8 @@ async def get_events(
         if end_date:
             events = events.where(EventLog.timestamp <= end_date)
 
-        if service_names:
-            events = events.where(EventLog.service_name << service_names)
+        if service_name:
+            events = events.where(EventLog.attributes.tags << service_name)
 
         if event_name:
             events = events.where(EventLog.event_name == event_name)
