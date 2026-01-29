@@ -5,17 +5,18 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
-import peewee as pw
 import uvicorn
 from fastapi import FastAPI
 from node_event_logging import EventModelMap
 from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 
+from hub_adapter import logging_config
 from hub_adapter.autostart import GoGoAnalysis
-from hub_adapter.constants import event_mapping
+from hub_adapter.constants import ANNOTATED_EVENTS
 from hub_adapter.dependencies import get_settings
-from hub_adapter.event_logging import get_event_logger, setup_event_logging, teardown_event_logging
+from hub_adapter.event_logging import get_event_logger, teardown_event_logging
+from hub_adapter.models.events import GatewayEventLog
 from hub_adapter.routers.auth import auth_router
 from hub_adapter.routers.events import event_router
 from hub_adapter.routers.health import health_router
@@ -31,7 +32,7 @@ logger = logging.getLogger(__name__)
 # API metadata
 tags_metadata = [
     {"name": "Auth", "description": "Endpoints for authorization specific tasks."},
-    {"name": "Events", "description": "Gateway endpoints for retrieving logged events."},
+    {"name": "Events", "description": "Gateway endpoints for interacting with logged events."},
     {"name": "Meta", "description": "Custom Hub Adapter endpoints which combine endpoints from other APIs."},
     {
         "name": "Health",
@@ -45,23 +46,9 @@ tags_metadata = [
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    settings = get_settings()
+    EventModelMap.mapping = {event_name: GatewayEventLog for event_name in ANNOTATED_EVENTS}
 
-    EventModelMap.mapping = event_mapping
-
-    try:
-        setup_event_logging(
-            database=settings.POSTGRES_EVENT_DB,
-            user=settings.POSTGRES_EVENT_USER,
-            password=settings.POSTGRES_EVENT_PASSWORD,
-            host=settings.POSTGRES_EVENT_HOST,
-            port=settings.POSTGRES_EVENT_PORT,
-            enabled=True,
-        )
-
-    except (pw.PeeweeException, ValueError) as db_err:
-        logger.warning(str(db_err).strip())  # Strip needed to remove newline from peewee error
-        logger.warning("Event logging disabled due to database configuration or connection error")
+    get_event_logger()  # Attempts to setup connections
 
     yield
 
@@ -101,7 +88,7 @@ async def event_logging_middleware(request: Request, call_next):
 
     try:
         middleware_logger = get_event_logger()
-        middleware_logger.log_fastapi_request(request, response.status_code)
+        middleware_logger.log_fastapi_request(request, response.status_code, log_health_checks=False)
 
     except AttributeError:
         # Event logging not initialized, skip
@@ -127,7 +114,7 @@ for router in routers:
 
 async def run_server(host: str, port: int, reload: bool):
     """Start the hub adapter API server."""
-    config = uvicorn.Config(app, host=host, port=port, reload=reload)
+    config = uvicorn.Config(app, host=host, port=port, reload=reload, log_config=logging_config)
     server = uvicorn.Server(config)
     await server.serve()
 
