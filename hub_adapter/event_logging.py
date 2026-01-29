@@ -62,7 +62,7 @@ class EventLogger:
         route = request.scope.get("route")
         path = request.scope.get("path")
 
-        if path.split("/")[-1] in ("docs", "redoc", "openapi.json"):
+        if path and path.split("/")[-1] in ("docs", "redoc", "openapi.json"):
             event_name = "api.ui.access"
             service = "hub_adapter"
 
