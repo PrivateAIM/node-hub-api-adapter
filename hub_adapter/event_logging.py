@@ -1,5 +1,5 @@
 """Event logging utilities for FastAPI middleware and httpx decorators."""
-
+import datetime
 import logging
 
 import jwt
@@ -116,6 +116,7 @@ class EventLogger:
                     EventLog.create(
                         event_name=event_name,
                         service_name=service_name,
+                        timestamp=datetime.datetime.now(datetime.UTC),
                         body=body,
                         attributes=attributes or {},
                     )
