@@ -67,8 +67,11 @@ class EventLogger:
             service = "hub_adapter"
 
         elif route:
-            # Health checks will flood the database
+            # Health & status checks will flood the database
             if not log_health_checks and route.name == "health.status.get":
+                return
+
+            if route.name == "podorc.status.get":
                 return
 
             event_name, tags = annotate_event(route.name, status_code or 200)
