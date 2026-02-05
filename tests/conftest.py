@@ -12,7 +12,7 @@ from starlette.requests import Request
 import hub_adapter.server as server
 from hub_adapter.auth import verify_idp_token
 from hub_adapter.conf import Settings
-from hub_adapter.constants import AGNOSTIC_EVENTS
+from hub_adapter.models.events import AGNOSTIC_EVENTS
 from tests.constants import (
     FAKE_USER,
     TEST_MOCK_ROBOT_USER,
