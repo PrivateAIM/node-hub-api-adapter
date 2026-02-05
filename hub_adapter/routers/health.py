@@ -63,7 +63,13 @@ def get_health_downstream_services(settings: Annotated[Settings, Depends(get_set
             resp = httpx.get(ep).json()
 
         except ConnectError as e:
+            logger.error(f"Error connecting to {service} service: {e}")
             resp = str(e)
+
+        if service == "kong":  # Returns its own response : {"database": {"reachable": true}, ...}
+            if isinstance(resp, dict) and "database" in resp:
+                kong_status: bool = resp.get("database").get("reachable")
+                resp = {"status": "ok" if kong_status else "fail"}
 
         health_checks[service] = resp
 
