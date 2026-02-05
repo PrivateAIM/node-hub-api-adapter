@@ -13,10 +13,9 @@ from starlette.requests import Request
 
 from hub_adapter import logging_config
 from hub_adapter.autostart import GoGoAnalysis
-from hub_adapter.constants import ANNOTATED_EVENTS
 from hub_adapter.dependencies import get_settings
 from hub_adapter.event_logging import get_event_logger, teardown_event_logging
-from hub_adapter.models.events import GatewayEventLog
+from hub_adapter.models.events import ANNOTATED_EVENTS
 from hub_adapter.routers.auth import auth_router
 from hub_adapter.routers.events import event_router
 from hub_adapter.routers.health import health_router
@@ -46,7 +45,7 @@ tags_metadata = [
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    EventModelMap.mapping = {event_name: GatewayEventLog for event_name in ANNOTATED_EVENTS}
+    EventModelMap.mapping = {event_name: event_data.get("model") for event_name, event_data in ANNOTATED_EVENTS.items()}
 
     get_event_logger()  # Attempts to setup connections
 

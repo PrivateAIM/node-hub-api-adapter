@@ -1,4 +1,5 @@
 """Event logging utilities for FastAPI middleware and httpx decorators."""
+
 import datetime
 import logging
 
@@ -8,8 +9,9 @@ from fastapi import Request
 from node_event_logging import EventLog, bind_to
 from psycopg2 import DatabaseError
 
-from hub_adapter.constants import ANNOTATED_EVENTS, SERVICE_NAME
+from hub_adapter.constants import SERVICE_NAME
 from hub_adapter.dependencies import get_settings
+from hub_adapter.models.events import ANNOTATED_EVENTS
 from hub_adapter.utils import annotate_event
 
 logger = logging.getLogger(__name__)
@@ -106,11 +108,11 @@ class EventLogger:
         )
 
     def log_event(
-            self,
-            event_name: str,
-            service_name: str = SERVICE_NAME,
-            body: str | None = None,
-            attributes: dict | None = None,
+        self,
+        event_name: str,
+        service_name: str = SERVICE_NAME,
+        body: str | None = None,
+        attributes: dict | None = None,
     ) -> bool:
         """Core logging method used by middleware and decorator components."""
         if self.enabled and self.event_db:

@@ -402,7 +402,6 @@ async def create_datastore_and_project_with_link(
         settings: Annotated[Settings, Depends(get_settings)],
         datastore: Annotated[Service, Depends(create_service)],
         project_id: Annotated[str | uuid.UUID, Body(description="UUID of the project")],
-        methods: Annotated[list[HttpMethodCode], Body(description="List of acceptable HTTP methods")] = ["GET"],
         protocols: Annotated[
             list[ProtocolCode],
             Body(description="List of acceptable transfer protocols. A combo of 'http', 'grpc', 'grpcs', 'tls', 'tcp'"),
@@ -415,7 +414,6 @@ async def create_datastore_and_project_with_link(
         settings=settings,
         project_id=project_id,
         data_store_id=datastore.id,
-        methods=methods,
         protocols=protocols,
         ds_type=ds_type,
     )
