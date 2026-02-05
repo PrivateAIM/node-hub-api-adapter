@@ -11,7 +11,7 @@ from httpx import ConnectError, HTTPStatusError, ReadTimeout, RemoteProtocolErro
 from starlette import status
 
 from hub_adapter.auth import _get_internal_token
-from hub_adapter.constants import ANNOTATED_EVENTS, SERVICE_NAME
+from hub_adapter.constants import SERVICE_NAME
 from hub_adapter.core import make_request
 from hub_adapter.dependencies import (
     compile_analysis_pod_data,
@@ -26,7 +26,7 @@ from hub_adapter.dependencies import (
 )
 from hub_adapter.errors import KongConflictError, KongConnectError
 from hub_adapter.event_logging import EventLogger, get_event_logger
-from hub_adapter.models.events import EventTag
+from hub_adapter.models.events import EventTag, ANNOTATED_EVENTS
 from hub_adapter.oidc import check_oidc_configs_match
 from hub_adapter.routers.hub import (
     _format_query_params,

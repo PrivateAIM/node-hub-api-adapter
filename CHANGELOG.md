@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.1](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.4.0...v0.4.1) (2026-02-05)
+
+
+### Bug Fixes
+
+* **events:** autostart event uses correct event model ([b20f75a](https://github.com/PrivateAIM/node-hub-api-adapter/commit/b20f75ab203f5baf47f4e438de993566fcc00e12))
+* **kong:** parse SecretStr in kong ([54eb31c](https://github.com/PrivateAIM/node-hub-api-adapter/commit/54eb31caf8cfefb3f0dbd1151bc011167faac615))
+
+
+### Performance Improvements
+
+* **kong:** dont log pod status fetch ([f1ddf78](https://github.com/PrivateAIM/node-hub-api-adapter/commit/f1ddf784a63c03cb9ef7aa6b7ea96ce2eea13d54))
+
 ## [0.4.0](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.3.5...v0.4.0) (2026-01-29)
 
 
