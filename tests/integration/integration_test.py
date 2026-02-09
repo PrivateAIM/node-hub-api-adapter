@@ -23,7 +23,7 @@ from hub_adapter.oidc import get_svc_oidc_config
 class IntegrationTestSettings:
     """Settings for integration tests."""
 
-    api_base_url: str = os.getenv("API_BASE_URL", "http://127.0.0.1:8081")
+    api_base_url: str = os.getenv("API_BASE_URL", "http://127.0.0.1:5000")
     project_id: str = os.getenv("PROJECT_ID")
     analysis_id: str = os.getenv("ANALYSIS_ID")
     analysis_startup_timeout: int = int(os.getenv("ANALYSIS_STARTUP_TIMEOUT", "30"))
