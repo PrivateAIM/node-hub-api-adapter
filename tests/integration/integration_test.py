@@ -24,8 +24,8 @@ class IntegrationTestSettings:
     """Settings for integration tests."""
 
     api_base_url: str = os.getenv("API_BASE_URL", "http://127.0.0.1:8081")
-    project_id: str = os.getenv("PROJECT_ID", "1a56cec7-1268-4cba-af27-0b113993277a")
-    analysis_id: str = os.getenv("ANALYSIS_ID", "11fa74ff-f9a5-4328-97f2-090a873085a5")
+    project_id: str = os.getenv("PROJECT_ID")
+    analysis_id: str = os.getenv("ANALYSIS_ID")
     analysis_startup_timeout: int = int(os.getenv("ANALYSIS_STARTUP_TIMEOUT", "30"))
     request_timeout: int = int(os.getenv("REQUEST_TIMEOUT", "60"))
 
