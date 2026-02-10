@@ -2,9 +2,10 @@ import asyncio
 import logging
 import os
 from dataclasses import dataclass
-from http.client import HTTPException
 
 import httpx
+from fastapi import HTTPException
+from starlette import status
 
 from hub_adapter.auth import _get_internal_token
 from hub_adapter.conf import Settings
@@ -56,6 +57,27 @@ class IntegrationTestRunner:
         """Clean up resources on exit."""
         if self.http_client:
             await self.http_client.aclose()
+
+    async def test_health_endpoints(self):
+        """Call the health endpoints for each of the services to see if they are running."""
+        url = f"{self.integration_settings.api_base_url}/health/services"
+        resp = await self.http_client.get(url)
+        health_checks = resp.json()
+
+        for service, status_resp in health_checks.items():
+            if status_resp["status"] != "ok":
+                err_msg = f"{service} health endpoint returned status {status_resp['status']}"
+                logger.error(err_msg)
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail={
+                        "message": f"{service} health endpoint returned status {status_resp['status']}",
+                        "service": "Health",
+                        "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
+                    },
+                )
+
+        logger.info("✓ Downstream services report healthy statuses")
 
     async def get_auth_token(self) -> dict:
         """Get a JWT using client credentials from the bundled Keycloak instance."""
@@ -149,6 +171,7 @@ class IntegrationTestRunner:
             resp.raise_for_status()
             self._resources_created["analysis"] = False
             logger.info("✓ Analysis resources cleaned up")
+
         except Exception as e:
             logger.error(f"Failed to clean up analysis: {e}")
 
@@ -177,6 +200,7 @@ class IntegrationTestRunner:
             logger.info("✓ Keycloak authentication verified")
 
             # Run tests in sequence
+            await self.test_health_endpoints()
             await self.test_hub_connectivity()
             await self.test_create_datastore()
             await self.test_start_analysis()
