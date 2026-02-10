@@ -21,7 +21,7 @@ storage_router = APIRouter(
 
 @route(
     request_method=storage_router.delete,
-    path="/local",
+    path="/local/",
     status_code=status.HTTP_200_OK,
     service_url=get_settings().STORAGE_SERVICE_URL,
     query_params=["project_id"],
