@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.2](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.4.1...v0.4.2) (2026-02-10)
+
+
+### Bug Fixes
+
+* **storage:** add trailing / to storage ep ([1253bcc](https://github.com/PrivateAIM/node-hub-api-adapter/commit/1253bcc728dce29d455dc80b6ca3653fccbd944f))
+
 ## [0.4.1](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.4.0...v0.4.1) (2026-02-05)
 
 
