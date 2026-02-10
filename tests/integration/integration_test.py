@@ -48,6 +48,9 @@ class IntegrationTestRunner:
             "analysis": False,
         }
 
+        if self.integration_settings.analysis_id is None or self.integration_settings.project_id is None:
+            raise ValueError("Either PROJECT_ID or ANALYSIS_ID is not set!")
+
     async def __aenter__(self):
         """Initialize async resources."""
         self.http_client = httpx.AsyncClient(timeout=self.integration_settings.request_timeout)
@@ -112,7 +115,6 @@ class IntegrationTestRunner:
                 "protocol": "http",
                 "read_timeout": 6000,
                 "retries": 5,
-                "tags": [],
                 "write_timeout": 6000,
             },
             "ds_type": "fhir",
@@ -135,6 +137,7 @@ class IntegrationTestRunner:
         url = f"{self.integration_settings.api_base_url}/analysis/initialize"
         resp = await self.http_client.post(url, data=payload, headers=self.token)
         resp.raise_for_status()
+        assert resp.json().get(self.integration_settings.analysis_id) == "started"
         self._resources_created["analysis"] = True
         logger.info("✓ Analysis started successfully")
 
@@ -157,6 +160,7 @@ class IntegrationTestRunner:
         url = f"{self.integration_settings.api_base_url}/po/stop/{self.integration_settings.analysis_id}"
         resp = await self.http_client.put(url, headers=self.token)
         resp.raise_for_status()
+        assert resp.json().get(self.integration_settings.analysis_id) is not None  # could be "stopped" or "failed"
         logger.info("✓ Analysis stopped successfully")
 
     async def cleanup_analysis(self):
@@ -207,9 +211,9 @@ class IntegrationTestRunner:
             await self.test_fetch_logs()
             await self.test_stop_analysis()
 
-            logger.info("\n" + "=" * 50)
+            logger.info("=" * 45)
             logger.info("All integration tests passed successfully! ✓")
-            logger.info("=" * 50)
+            logger.info("=" * 45)
 
         except httpx.HTTPStatusError as e:
             logger.error(f"HTTP error during test: {e.response.status_code} - {e.response.text}")
