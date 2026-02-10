@@ -1,10 +1,8 @@
 import asyncio
 import logging
 import os
-from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from http.client import HTTPException
-from typing import Optional
 
 import httpx
 
