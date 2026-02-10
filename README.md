@@ -3,7 +3,7 @@
 ## Description
 
 Service that proxies certain resources from the Hub Core API (projects, analysis, nodes) and queries other node
-services (Results, Pod Orchestration, Kong) for the Node UI. Needs to check for authorization, e.g. analysis should only
+services (Storage, Pod Orchestration, Kong) for the Node UI. Needs to check for authorization, e.g. analysis should only
 be allowed to see other nodes participating in the current analysis.
 
 ## Testing
@@ -29,7 +29,7 @@ further down:
 IDP_URL="https://my.user.keycloak.com/realms/flame"  # URL to the IDP used for user authentication. If the IDP is Keycloak, be sure to include the realm
 API_ROOT_PATH=""  # Subpath to serve the API on    
 PODORC_SERVICE_URL="http://localhost:18080"  # URL to Pod Orchestration service
-RESULTS_SERVICE_URL="http://localhost:8000"  # URL to the Results service
+STORAGE_SERVICE_URL="http://localhost:8000"  # URL to the Storage service
 KONG_ADMIN_SERVICE_URL="http://localhost:8000"  # URL to the Kong admin service
 KONG_PROXY_SERVICE_URL="http://localhost:8000"  # URL to the Kong proxy service
 HUB_AUTH_SERVICE_URL="https://auth.privateaim.dev"  # URL for auth EPs for the Hub
@@ -56,7 +56,7 @@ RESEARCHER_ROLE="researcher"  # Role name for users who can only modify analyses
 | IDP_URL                 | URL to the IDP used for user authentication. If the IDP is Keycloak, be sure to include the realm                 |                             |    x     |
 | API_ROOT_PATH           | Subpath to serve the API on                                                                                       |                             |          |
 | PODORC_SERVICE_URL      | URL to the pod orchestrator service                                                                               |                             |    x     |
-| RESULTS_SERVICE_URL     | URL to the Results service                                                                                        |                             |    x     |
+| STORAGE_SERVICE_URL     | URL to the Storage service                                                                                        |                             |    x     |
 | KONG_ADMIN_SERVICE_URL  | URL to the Kong admin service                                                                                     |                             |    x     |
 | KONG_PROXY_SERVICE_URL  | URL to the Kong proxy service                                                                                     |                             |    x     |
 | HUB_SERVICE_URL         | URL to the core Hub service                                                                                       | https://core.privateaim.dev |    x     |

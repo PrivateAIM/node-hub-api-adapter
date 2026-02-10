@@ -52,7 +52,7 @@ def get_health_downstream_services(settings: Annotated[Settings, Depends(get_set
     """Return the health of the downstream microservices."""
     health_eps = {
         "po": settings.PODORC_SERVICE_URL.rstrip("/") + "/po/healthz",
-        "results": settings.RESULTS_SERVICE_URL.rstrip("/") + "/healthz",
+        "storage": settings.STORAGE_SERVICE_URL.rstrip("/") + "/healthz",
         # "hub": settings.HUB_SERVICE_URL,
         "kong": settings.KONG_ADMIN_SERVICE_URL.rstrip("/") + "/status",
     }
