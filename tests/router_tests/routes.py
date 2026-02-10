@@ -56,7 +56,7 @@ EXPECTED_META_ROUTE_CONFIG = (
     },
 )
 
-EXPECTED_RESULTS_ROUTE_CONFIG = (
+EXPECTED_STORAGE_ROUTE_CONFIG = (
     {
         "path": "/local",
         "name": "storage.local.delete",

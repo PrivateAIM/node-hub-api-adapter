@@ -3,7 +3,7 @@
 ## Description
 
 Service that proxies certain resources from the Hub Core API (projects, analysis, nodes) and queries other node
-services (Results, Pod Orchestration, Kong) for the Node UI. Needs to check for authorization, e.g. analysis should only
+services (Storage, Pod Orchestration, Kong) for the Node UI. Needs to check for authorization, e.g. analysis should only
 be allowed to see other nodes participating in the current analysis.
 
 ## Testing
