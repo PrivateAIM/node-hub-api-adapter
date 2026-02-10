@@ -23,7 +23,7 @@ from hub_adapter.routers.hub import hub_router
 from hub_adapter.routers.kong import kong_router
 from hub_adapter.routers.meta import meta_router
 from hub_adapter.routers.podorc import po_router
-from hub_adapter.routers.results import results_router
+from hub_adapter.routers.storage import results_router
 
 logger = logging.getLogger(__name__)
 

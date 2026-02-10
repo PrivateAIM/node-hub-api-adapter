@@ -25,7 +25,7 @@ class Settings:
     OVERRIDE_JWKS: str = os.getenv("OVERRIDE_JWKS")
 
     # Service URLs
-    RESULTS_SERVICE_URL: str = os.getenv("RESULTS_SERVICE_URL", "http://localhost:8000")
+    STORAGE_SERVICE_URL: str = os.getenv("STORAGE_SERVICE_URL", "http://localhost:8000")
     KONG_ADMIN_SERVICE_URL: str = os.getenv("KONG_ADMIN_SERVICE_URL", "http://localhost:8000")
     KONG_PROXY_SERVICE_URL: str = os.getenv("KONG_PROXY_SERVICE_URL")
     PODORC_SERVICE_URL: str = os.getenv("PODORC_SERVICE_URL", "http://localhost:18080")

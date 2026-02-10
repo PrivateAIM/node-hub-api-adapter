@@ -64,7 +64,7 @@ def test_settings() -> Settings:
             IDP_URL=TEST_URL,
             API_ROOT_PATH="",
             PODORC_SERVICE_URL="http://localhost:8000",
-            RESULTS_SERVICE_URL="http://localhost:8005",
+            STORAGE_SERVICE_URL="http://localhost:8005",
             KONG_ADMIN_SERVICE_URL="http://localhost:8001",
             KONG_PROXY_SERVICE_URL="http://localhost:8002",
             HUB_AUTH_SERVICE_URL="https://auth.privateaim.dev",

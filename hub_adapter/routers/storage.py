@@ -23,7 +23,7 @@ results_router = APIRouter(
     request_method=results_router.delete,
     path="/local",
     status_code=status.HTTP_200_OK,
-    service_url=get_settings().RESULTS_SERVICE_URL,
+    service_url=get_settings().STORAGE_SERVICE_URL,
     query_params=["project_id"],
     name="storage.local.delete",
 )

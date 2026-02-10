@@ -1,4 +1,4 @@
-from hub_adapter.routers.results import results_router
+from hub_adapter.routers.storage import results_router
 from tests.conftest import check_routes
 from tests.router_tests.routes import EXPECTED_RESULTS_ROUTE_CONFIG
 
