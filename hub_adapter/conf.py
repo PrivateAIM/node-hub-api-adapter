@@ -37,5 +37,5 @@ class Settings:
     # Hub
     HUB_AUTH_SERVICE_URL: str = os.getenv("HUB_AUTH_SERVICE_URL", "https://auth.privateaim.dev")
     HUB_SERVICE_URL: str = os.getenv("HUB_SERVICE_URL", "https://core.privateaim.dev")
-    HUB_ROBOT_USER: str = os.getenv("HUB_ROBOT_USER")
-    HUB_ROBOT_SECRET: str = os.getenv("HUB_ROBOT_SECRET")
+    HUB_NODE_CLIENT_ID: str = os.getenv("HUB_NODE_CLIENT_ID")
+    HUB_NODE_CLIENT_SECRET: str = os.getenv("HUB_NODE_CLIENT_SECRET")

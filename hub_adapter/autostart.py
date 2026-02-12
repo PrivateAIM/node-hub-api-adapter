@@ -49,8 +49,8 @@ class GoGoAnalysis:
         """Gather all the dependencies needed to run the autostart mode."""
         settings = get_settings()
         ssl_ctx = get_ssl_context(settings)
-        hub_robot = get_flame_hub_auth_flow(ssl_ctx, settings)
-        core_client = get_core_client(hub_robot, ssl_ctx, settings)
+        hub_auth = get_flame_hub_auth_flow(ssl_ctx, settings)
+        core_client = get_core_client(hub_auth, ssl_ctx, settings)
 
         self.settings = settings
         self.core_client = core_client
@@ -297,12 +297,12 @@ class GoGoAnalysis:
         """Iterate through analyses and check whether they are approved, built, and have a run status."""
         ready_analyses = set()
         for entry in analyses:
-            analysis_id, project_id, node_id, build_status, run_status, approved, created_at = (
+            analysis_id, project_id, node_id, build_status, execution_status, approved, created_at = (
                 str(entry.analysis_id),
                 str(entry.analysis.project_id),
                 str(entry.node_id),
                 entry.analysis.build_status,
-                entry.run_status,
+                entry.execution_status,
                 entry.approval_status,
                 entry.created_at,  # Already parsed as datetime object from python hub client
             )
@@ -312,7 +312,7 @@ class GoGoAnalysis:
             if enforce_time_and_status_check and is_valid:
                 # Need timezone.utc to make it offset-aware otherwise will not work with created_at datetime obj
                 is_recent = (datetime.now(timezone.utc) - created_at) < timedelta(hours=24)
-                is_valid = is_valid and is_recent and not run_status
+                is_valid = is_valid and is_recent and not execution_status
 
             if is_default_node and is_valid:  # If aggregator, then skip this since kong route is not needed
                 is_valid = is_valid and project_id in valid_projects
@@ -323,7 +323,7 @@ class GoGoAnalysis:
                     )
 
             if is_valid:
-                valid_entry = (analysis_id, project_id, node_id, build_status, run_status)
+                valid_entry = (analysis_id, project_id, node_id, build_status, execution_status)
                 ready_analyses.add(valid_entry)
 
         logger.info(f"Found {len(ready_analyses)} valid analyses ready to start")

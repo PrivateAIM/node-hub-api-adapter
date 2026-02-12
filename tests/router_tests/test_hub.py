@@ -1,6 +1,6 @@
 """Test the Hub eps."""
 
-from flame_hub._core_client import Analysis, AnalysisBucket, AnalysisNode, Node, Project, ProjectNode, RegistryProject
+from flame_hub.models import Analysis, AnalysisBucket, AnalysisNode, Node, Project, ProjectNode, RegistryProject
 
 from hub_adapter.models.hub import AnalysisImageUrl, DetailedAnalysis, NodeTypeResponse
 from hub_adapter.routers.hub import format_query_params, hub_router

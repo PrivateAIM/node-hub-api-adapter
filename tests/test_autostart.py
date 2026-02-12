@@ -5,7 +5,7 @@ from unittest.mock import patch
 import pytest
 from fastapi import HTTPException
 from flame_hub import HubAPIError
-from flame_hub._core_client import AnalysisNode
+from flame_hub.models import AnalysisNode
 from httpx import ConnectError, HTTPStatusError, Request, Response
 from kong_admin_client import ListRoute200Response
 from starlette import status
@@ -266,13 +266,13 @@ class TestAutostart:
 
         assert len(ready_analyses) == 1
         assert isinstance(ready_analyses, set)
-        analysis_id, project_id, node_id, build_status, run_status = list(ready_analyses).pop()
+        analysis_id, project_id, node_id, build_status, execution_status = list(ready_analyses).pop()
 
         assert analysis_id == TEST_MOCK_ANALYSIS_ID
         assert project_id == TEST_MOCK_PROJECT_ID
         assert node_id == TEST_MOCK_NODE_ID
         assert build_status == "finished"
-        assert run_status is None
+        assert execution_status is None
 
     @patch("hub_adapter.autostart.logger")
     @patch("hub_adapter.autostart.GoGoAnalysis.describe_node")

@@ -34,8 +34,8 @@ class TestMeta:
         """Test the basic steps of initializing an analysis."""
         # Setup core_client
         ctx = get_ssl_context(test_settings)
-        robot = get_flame_hub_auth_flow(ctx, test_settings)
-        cc = get_core_client(robot, ctx, test_settings)
+        auth = get_flame_hub_auth_flow(ctx, test_settings)
+        cc = get_core_client(auth, ctx, test_settings)
 
         # Set mock values
         mock_deps.return_value = None

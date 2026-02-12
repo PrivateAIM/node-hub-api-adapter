@@ -13,8 +13,8 @@ import httpx
 import truststore
 from fastapi import Body, Depends, HTTPException
 from flame_hub import HubAPIError
-from flame_hub._auth_flows import RobotAuth
-from flame_hub._core_client import Node
+from flame_hub._auth_flows import ClientAuth
+from flame_hub.models import Node
 from starlette import status
 
 from hub_adapter import node_id_pickle_path
@@ -44,22 +44,22 @@ def get_ssl_context(hub_adapter_settings: Annotated[Settings, Depends(get_settin
 def get_flame_hub_auth_flow(
     ssl_ctx: Annotated[ssl.SSLContext, Depends(get_ssl_context)],
     hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
-) -> RobotAuth:
-    """Automated method for getting a robot token from the central Hub service."""
-    robot_id, robot_secret = (
-        hub_adapter_settings.HUB_ROBOT_USER,
-        hub_adapter_settings.HUB_ROBOT_SECRET,
+) -> ClientAuth:
+    """Automated method for getting a token from the central Hub service."""
+    hub_node_client_id, hub_node_client_secret = (
+        hub_adapter_settings.HUB_NODE_CLIENT_ID,
+        hub_adapter_settings.HUB_NODE_CLIENT_SECRET,
     )
 
-    if not robot_id or not robot_secret:
-        logger.error("Missing robot ID or secret. Check env vars")
-        raise ValueError("Missing Hub robot credentials, check that the environment variables are set properly")
+    if not hub_node_client_id or not hub_node_client_secret:
+        logger.error("Missing node client ID or secret. Check env vars")
+        raise ValueError("Missing node client credentials, check that the environment variables are set properly")
 
     try:
-        uuid.UUID(robot_id)
+        uuid.UUID(hub_node_client_id)
 
     except ValueError:
-        err_msg = f"Invalid robot ID: {robot_id}"
+        err_msg = f"Invalid node client ID: {hub_node_client_id}"
         logger.error(err_msg)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -71,9 +71,9 @@ def get_flame_hub_auth_flow(
             headers={"WWW-Authenticate": "Bearer"},
         ) from ValueError
 
-    auth = RobotAuth(
-        robot_id=robot_id,
-        robot_secret=robot_secret,
+    auth = ClientAuth(
+        client_id=hub_node_client_id,
+        client_secret=hub_node_client_secret,
         client=httpx.Client(
             base_url=hub_adapter_settings.HUB_AUTH_SERVICE_URL,
             verify=ssl_ctx,
@@ -83,15 +83,15 @@ def get_flame_hub_auth_flow(
 
 
 def get_core_client(
-    hub_robot: Annotated[
-        RobotAuth,
+    hub_auth: Annotated[
+        ClientAuth,
         Depends(get_flame_hub_auth_flow),
     ],
     ssl_ctx: Annotated[ssl.SSLContext, Depends(get_ssl_context)],
     hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
 ) -> flame_hub.CoreClient:
     return flame_hub.CoreClient(
-        client=httpx.Client(base_url=hub_adapter_settings.HUB_SERVICE_URL, auth=hub_robot, verify=ssl_ctx)
+        client=httpx.Client(base_url=hub_adapter_settings.HUB_SERVICE_URL, auth=hub_auth, verify=ssl_ctx)
     )
 
 
@@ -101,13 +101,13 @@ async def get_node_id(
     hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
     force_refresh: bool = False,
 ) -> str | None:
-    """Uses the robot ID to obtain the associated node ID, sets it in the env vars, and returns it.
+    """Uses the Node client ID to obtain the associated node ID, sets it in the env vars, and returns it.
 
-    An empty string node_id indicates no node is associated with the provided robot username.
+    An empty string node_id indicates no node is associated with the provided node client username.
 
     If None is returned, no filtering will be applied, which is useful for debugging.
     """
-    robot_id = hub_adapter_settings.HUB_ROBOT_USER
+    node_client_id = hub_adapter_settings.HUB_NODE_CLIENT_ID
 
     node_cache = {}
 
@@ -118,13 +118,13 @@ async def get_node_id(
     # Returns None if key not in dict or '' if no Node ID was found
     # Need to default to an intentionally wrong nodeId if nothing found otherwise Hub will return all resources
 
-    node_id = node_cache.get(robot_id) or "nothingFound"
+    node_id = node_cache.get(node_client_id) or "nothingFound"
 
-    if robot_id not in node_cache:  # Node ID may be None since not every robot is associated with a node
-        logger.info("NODE_ID not set for ROBOT_USER, retrieving from Hub")
+    if node_client_id not in node_cache:  # Node ID may be None since not every node is associated with a node
+        logger.info("NODE_ID not set for HUB_NODE_CLIENT_ID, retrieving from Hub")
 
         try:
-            node_id_resp = core_client.find_nodes(filter={"robot_id": robot_id}, fields="id")
+            node_id_resp = core_client.find_nodes(filter={"client_id": node_client_id}, fields="id")
 
         except httpx.ConnectError as e:
             err = "Connection Error - Hub is currently unreachable"
@@ -141,7 +141,7 @@ async def get_node_id(
 
         if node_id_resp and len(node_id_resp) == 1:
             node_id = str(node_id_resp[0].id)  # convert UUID type to string
-            node_cache[robot_id] = node_id
+            node_cache[node_client_id] = node_id
 
             with open(node_id_pickle_path, "wb") as f:
                 pickle.dump(node_cache, f)
@@ -244,7 +244,7 @@ def get_registry_metadata_for_url(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={
-                "message": "Unable to retrieve robot name or secret from the registry",
+                "message": "Unable to retrieve node client ID or secret from the registry",
                 "service": "Hub",
                 "status_code": status.HTTP_404_NOT_FOUND,
             },

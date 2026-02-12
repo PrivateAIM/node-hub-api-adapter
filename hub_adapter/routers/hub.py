@@ -10,7 +10,6 @@ from flame_hub.models import (
     Analysis,
     AnalysisBucket,
     AnalysisNode,
-    AnalysisNodeApprovalStatus,
     Node,
     Project,
     ProjectNode,
@@ -204,7 +203,7 @@ async def list_specific_analysis_node(
 async def accept_reject_analysis_node(
     analysis_node_id: Annotated[uuid.UUID | str, Path(description="Analysis Node UUID (not analysis_id).")],
     approval_status: Annotated[
-        AnalysisNodeApprovalStatus,
+        ProjectNodeApprovalStatus,  # same as AnalysisNodeApprovalStatus
         Form(description="Set the approval status of project for the node. Either 'rejected' or 'approved'"),
     ],
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
