@@ -30,10 +30,6 @@ class HubConnectError(HTTPException):
     pass
 
 
-class HubTypeError(HTTPException):
-    pass
-
-
 class KongError(HTTPException):
     pass
 
