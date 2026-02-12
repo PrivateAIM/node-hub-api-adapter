@@ -2,9 +2,13 @@
 
 import os
 
+import jwt
 from fastapi import UploadFile
 from fastapi.routing import serialize_response
 from starlette.datastructures import FormData
+from starlette.requests import Request
+
+from hub_adapter.models.events import EventTag
 
 
 def create_request_data(form: dict | None, body: dict | None) -> dict | None:
@@ -21,9 +25,9 @@ async def serialize_query_content(key, value) -> dict:
 
 
 async def unzip_query_params(
-    additional_params: dict,
-    necessary_params: list[str] | None = None,
-    req_params: dict | None = None,
+        additional_params: dict,
+        necessary_params: list[str] | None = None,
+        req_params: dict | None = None,
 ) -> dict:
     """Prepare query parameters to be added to URL of downstream microservice."""
     response_query_params = {}
@@ -47,8 +51,8 @@ async def unzip_query_params(
 
 
 async def unzip_body_object(
-    additional_params: dict,
-    specified_params: list[str] | None = None,
+        additional_params: dict,
+        specified_params: list[str] | None = None,
 ) -> dict | None:
     """Gather body data and package for forwarding."""
     if specified_params:
@@ -64,9 +68,9 @@ async def unzip_body_object(
 
 
 async def unzip_form_params(
-    additional_params: dict,
-    specified_params: list[str] | None = None,
-    request_form: FormData | None = None,
+        additional_params: dict,
+        specified_params: list[str] | None = None,
+        request_form: FormData | None = None,
 ) -> dict | None:
     """Gather form data and package for forwarding."""
     if specified_params or request_form:
@@ -86,8 +90,8 @@ async def unzip_form_params(
 
 
 async def unzip_file_params(
-    additional_params: dict,
-    specified_params: list[str] | None = None,
+        additional_params: dict,
+        specified_params: list[str] | None = None,
 ) -> dict | None:
     """Gather binary or text data and package for forwarding."""
     if specified_params:
@@ -103,3 +107,53 @@ async def unzip_file_params(
 
 def remove_file(path: str) -> None:
     os.unlink(path)
+
+
+def _extract_user_from_token(request: Request) -> dict | None:
+    """Extract user information from JWT token in request headers."""
+    auth_header = request.headers.get("Authorization")
+
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return None
+
+    token = auth_header.replace("Bearer ", "")
+
+    try:
+        decoded_token = jwt.decode(token, options={"verify_signature": False})
+
+        # Extract common user identifiers from JWT
+        user_info = {
+            "id": decoded_token.get("sub"),  # Subject (user ID)
+            "username": decoded_token.get("preferred_username") or decoded_token.get("username"),
+            "email": decoded_token.get("email"),
+            "client_id": decoded_token.get("azp") or decoded_token.get("client_id"),  # For service accounts
+        }
+
+        # Remove None values
+        return {k: v for k, v in user_info.items() if v is not None}
+
+    except (jwt.DecodeError, jwt.InvalidTokenError):
+        return None
+
+
+def annotate_event(event_name: str, status_code: int, tags: list[EventTag] | None = None) -> tuple[str, list[EventTag]]:
+    """Append suffix to event name indicating if request was a "success" or "failure" and add tag."""
+    if status_code in (401, 403):
+        log_tag = EventTag.WARNING
+
+    elif status_code >= 400:
+        log_tag = EventTag.ERROR
+
+    else:
+        log_tag = EventTag.INFO
+
+    if tags:
+        tags.append(log_tag)
+
+    else:
+        tags = [log_tag]
+
+    suffix = ".failure" if status_code >= 400 else ".success"
+    annotated_event_name = f"{event_name}{suffix}"
+
+    return annotated_event_name, tags

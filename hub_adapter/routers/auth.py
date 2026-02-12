@@ -24,9 +24,10 @@ auth_router = APIRouter(
     summary="Get a token from the IDP",
     status_code=status.HTTP_200_OK,
     response_model=Token,
+    name="auth.token.get",
 )
 def get_token(
-    hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
+    settings: Annotated[Settings, Depends(get_settings)],
     username: Annotated[str, Form(description="Keycloak username")],
     password: Annotated[str, Form(description="Keycloak password")],
     ssl_ctx: Annotated[ssl.SSLContext, Depends(get_ssl_context)],
@@ -39,8 +40,8 @@ def get_token(
     payload = {
         "username": username,
         "password": password,
-        "client_id": hub_adapter_settings.API_CLIENT_ID,
-        "client_secret": hub_adapter_settings.API_CLIENT_SECRET,
+        "client_id": settings.API_CLIENT_ID,
+        "client_secret": settings.API_CLIENT_SECRET,
         "grant_type": "password",
         "scope": "openid",
     }

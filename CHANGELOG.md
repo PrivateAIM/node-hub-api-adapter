@@ -1,5 +1,97 @@
 # Changelog
 
+## [0.4.2](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.4.1...v0.4.2) (2026-02-10)
+
+
+### Bug Fixes
+
+* **storage:** add trailing / to storage ep ([1253bcc](https://github.com/PrivateAIM/node-hub-api-adapter/commit/1253bcc728dce29d455dc80b6ca3653fccbd944f))
+
+## [0.4.1](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.4.0...v0.4.1) (2026-02-05)
+
+
+### Bug Fixes
+
+* **events:** autostart event uses correct event model ([b20f75a](https://github.com/PrivateAIM/node-hub-api-adapter/commit/b20f75ab203f5baf47f4e438de993566fcc00e12))
+* **kong:** parse SecretStr in kong ([54eb31c](https://github.com/PrivateAIM/node-hub-api-adapter/commit/54eb31caf8cfefb3f0dbd1151bc011167faac615))
+
+
+### Performance Improvements
+
+* **kong:** dont log pod status fetch ([f1ddf78](https://github.com/PrivateAIM/node-hub-api-adapter/commit/f1ddf784a63c03cb9ef7aa6b7ea96ce2eea13d54))
+
+## [0.4.0](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.3.5...v0.4.0) (2026-01-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* event logging and endpoints
+
+### Features
+
+* event logging and endpoints ([db1d4d7](https://github.com/PrivateAIM/node-hub-api-adapter/commit/db1d4d7a31ce70d3e50f5be19094d276e6126d57))
+* **events:** add new endpoints to log user signing in and out ([95a6f11](https://github.com/PrivateAIM/node-hub-api-adapter/commit/95a6f1154c03328bb47ecc2289cbf470f727322d))
+* **events:** add username to event body if present ([d4ccf6b](https://github.com/PrivateAIM/node-hub-api-adapter/commit/d4ccf6b6f0891639b42df18be2707e8b308cb448))
+* **events:** create env var to toggle event logging ([2965555](https://github.com/PrivateAIM/node-hub-api-adapter/commit/2965555f5c3928abebc6536f32125c9277a78182))
+* **events:** event logging for autostart errors ([6410af9](https://github.com/PrivateAIM/node-hub-api-adapter/commit/6410af994ea533ee5ab5f3e8534ad077ab32198d))
+* **kong:** add option for private minio bucket config ([81ffe0a](https://github.com/PrivateAIM/node-hub-api-adapter/commit/81ffe0a48d85e807fca80c9d9e5c2b59c363d72c))
+
+
+### Bug Fixes
+
+* **events:** add log level to non-autostart responses ([ea777c4](https://github.com/PrivateAIM/node-hub-api-adapter/commit/ea777c4d10372e36cc51edd0167466485ea68a45))
+* **events:** all service name list check ([ccaca1d](https://github.com/PrivateAIM/node-hub-api-adapter/commit/ccaca1dc4419a2e8266405855c1a40ea0ef9b021))
+* **events:** apply AI suggested corrections ([fcc7fa3](https://github.com/PrivateAIM/node-hub-api-adapter/commit/fcc7fa3b35548a5e28ee360de507be97dcb36ca3))
+* **events:** ensure UTC used for event logging timestamps ([b23e34d](https://github.com/PrivateAIM/node-hub-api-adapter/commit/b23e34d3db9f4b5bde4167f556aff99128d392b6))
+* **events:** guard against None ([6cd8714](https://github.com/PrivateAIM/node-hub-api-adapter/commit/6cd871491ca5523b74290225ff577c1a0f897630))
+* **events:** proper body parsing ([04cda6e](https://github.com/PrivateAIM/node-hub-api-adapter/commit/04cda6e8a96ace4e8646fa072105109d00c8f86b))
+
+
+### Performance Improvements
+
+* **events:** set default limit to 100 events ([0e4d80e](https://github.com/PrivateAIM/node-hub-api-adapter/commit/0e4d80e2548a395a3ebe840bfd31aefa6c2d3b75))
+
+
+### Reverts
+
+* **events:** event logger object after class definition ([5a737b0](https://github.com/PrivateAIM/node-hub-api-adapter/commit/5a737b043cefdd19e292ea7d81ee199852ec1804))
+
+
+### Documentation
+
+* **events:** modify event logging body to be human readable ([55a9063](https://github.com/PrivateAIM/node-hub-api-adapter/commit/55a90635a44087ca0953f324ecf8c7f996eca878))
+
+## [0.3.5](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.3.4...v0.3.5) (2026-01-20)
+
+
+### Features
+
+* **events:** add event logging to autostart analyses ([bed1852](https://github.com/PrivateAIM/node-hub-api-adapter/commit/bed1852e382a3ffae8eb1b3b7d5f0bdb1b2f839f))
+* **events:** add event retrieval endpoint ([dd86975](https://github.com/PrivateAIM/node-hub-api-adapter/commit/dd86975248df509d1235d1047c1cc77d29ea3e13))
+* **events:** add middleware for logging events ([c04f86b](https://github.com/PrivateAIM/node-hub-api-adapter/commit/c04f86b9da4f0400a8c76e0907f422110e2fb68b))
+* **events:** combine event methods into class for middleware and decorator usage ([20f96bb](https://github.com/PrivateAIM/node-hub-api-adapter/commit/20f96bb28a5e2eb02aad45ccf46da6a41ae16d6e))
+
+## [0.3.4](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.3.3...v0.3.4) (2025-12-17)
+
+
+### Features
+
+* **auth:** add claim name variable so parsing is idp agnostic ([567e8ec](https://github.com/PrivateAIM/node-hub-api-adapter/commit/567e8ecd583766b738dba888ff1ed10ac1344874))
+* **auth:** create steward role dependency ([645ec80](https://github.com/PrivateAIM/node-hub-api-adapter/commit/645ec8085502c7dc5ba7fbb8a728591019e344af))
+* **auth:** integrate RBAC into relevant endpoints ([f3045db](https://github.com/PrivateAIM/node-hub-api-adapter/commit/f3045db07de0271c4109b06d2b2d2f42b68cd7aa))
+
+
+### Documentation
+
+* update docs with new env var and detailed RBAC and autostart sections ([17c6652](https://github.com/PrivateAIM/node-hub-api-adapter/commit/17c6652ab958b21e773634bef22b36eb24f50fee))
+
+## [0.3.3](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.3.2...v0.3.3) (2025-11-21)
+
+
+### Bug Fixes
+
+* **hub:** add pydantic type error catch ([7abed9c](https://github.com/PrivateAIM/node-hub-api-adapter/commit/7abed9ce599a182ade70ef7424eb9e70c131e421))
+
 ## [0.3.2](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.3.1...v0.3.2) (2025-11-12)
 
 

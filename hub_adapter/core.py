@@ -107,13 +107,14 @@ def route(
     request_method,
     path: str,
     service_url: str,
+    name: str | None = None,
     status_code: int | None = None,
     query_params: list[str] | None = None,
     form_params: list[str] | None = None,
     body_params: list[str] | None = None,
     file_params: list[str] | None = None,
     file_response: bool = False,
-    response_model: any = None,  # TODO: Make specific for pydantic models
+    response_model=None,
     tags: list[str] = None,
     dependencies: Sequence[params.Depends] | None = None,
     summary: str | None = None,
@@ -136,6 +137,8 @@ def route(
         HTTP status code.
     service_url : str
         Root endpoint of the microservice for the forwarded request.
+    name : str | None
+        Name of the process or method that will be used for event logging, ideally period separated
     query_params : list[str] | None
         Keys passed referencing query model parameters to be sent to downstream microservice
     form_params : list[str] | None
@@ -174,6 +177,7 @@ def route(
         path,
         status_code=status_code,
         response_model=response_model,
+        name=name,
         tags=tags,
         dependencies=dependencies,
         summary=summary,
@@ -223,7 +227,6 @@ def route(
             )
 
             request_files = await unzip_file_params(specified_params=file_params, additional_params=kwargs)
-
             request_data = create_request_data(form=request_form, body=request_body)  # Either JSON or Form
 
             microsvc_path = f"{service_url}{downstream_path.removeprefix(get_settings().API_ROOT_PATH)}"

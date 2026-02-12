@@ -22,6 +22,10 @@ class HubTimeoutError(HTTPException):
     pass
 
 
+class HubTypeError(HTTPException):
+    pass
+
+
 class HubConnectError(HTTPException):
     pass
 

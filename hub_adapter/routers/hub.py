@@ -40,13 +40,13 @@ hub_router = APIRouter(
 logger = logging.getLogger(__name__)
 
 
-def parse_query_params(request: Request) -> dict:
+def _parse_query_params(request: Request) -> dict:
     """Extract and format the query params for the hub client."""
     query_params = dict(request.query_params)
-    return format_query_params(query_params)
+    return _format_query_params(query_params)
 
 
-def format_query_params(query_params: dict) -> dict:
+def _format_query_params(query_params: dict) -> dict:
     """Format the query params for the hub client."""
     formatted_query_params = {}
 
@@ -79,10 +79,11 @@ def format_query_params(query_params: dict) -> dict:
     summary="List all of the projects",
     status_code=status.HTTP_200_OK,
     response_model=list[Project],
+    name="hub.project.get",
 )
 @catch_hub_errors
 async def list_all_projects(
-    query_params: Annotated[dict, Depends(parse_query_params)],
+    query_params: Annotated[dict, Depends(_parse_query_params)],
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     """List all projects."""
@@ -94,6 +95,7 @@ async def list_all_projects(
     summary="List a specific project",
     status_code=status.HTTP_200_OK,
     response_model=Project,
+    name="hub.project.get",
 )
 @catch_hub_errors
 async def list_specific_project(
@@ -109,11 +111,12 @@ async def list_specific_project(
     summary="List all of the project proposals",
     status_code=status.HTTP_200_OK,
     response_model=list[ProjectNode],
+    name="hub.project.node.get",
 )
 @catch_hub_errors
 async def list_project_proposals(
     node_id: Annotated[str, Depends(get_node_id)],
-    query_params: Annotated[dict, Depends(parse_query_params)],
+    query_params: Annotated[dict, Depends(_parse_query_params)],
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     """List project proposals."""
@@ -129,6 +132,7 @@ async def list_project_proposals(
     summary="List a specific project proposal",
     status_code=status.HTTP_200_OK,
     response_model=ProjectNode,
+    name="hub.project.node.get",
 )
 @catch_hub_errors
 async def list_project_proposal(
@@ -144,6 +148,7 @@ async def list_project_proposal(
     summary="Update a specific project proposal",
     status_code=status.HTTP_200_OK,
     response_model=ProjectNode,
+    name="hub.project.node.update",
 )
 @catch_hub_errors
 async def accept_reject_project_proposal(
@@ -163,11 +168,12 @@ async def accept_reject_project_proposal(
     summary="List all of the analysis proposals",
     status_code=status.HTTP_200_OK,
     response_model=list[AnalysisNode],
+    name="hub.analysis.node.get",
 )
 @catch_hub_errors
 async def list_analysis_nodes(
     node_id: Annotated[str, Depends(get_node_id)],
-    query_params: Annotated[dict, Depends(parse_query_params)],
+    query_params: Annotated[dict, Depends(_parse_query_params)],
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     """List all analysis nodes for give node."""
@@ -183,6 +189,7 @@ async def list_analysis_nodes(
     summary="List a specific analysis node",
     status_code=status.HTTP_200_OK,
     response_model=AnalysisNode,
+    name="hub.analysis.node.get",
 )
 @catch_hub_errors
 async def list_specific_analysis_node(
@@ -198,6 +205,7 @@ async def list_specific_analysis_node(
     summary="Update a specific analysis proposal",
     status_code=status.HTTP_200_OK,
     response_model=AnalysisNode,
+    name="hub.analysis.node.update",
 )
 @catch_hub_errors
 async def accept_reject_analysis_node(
@@ -217,10 +225,11 @@ async def accept_reject_analysis_node(
     summary="List all of the analysis proposals",
     status_code=status.HTTP_200_OK,
     response_model=list[Analysis],
+    name="hub.analysis.get",
 )
 @catch_hub_errors
 async def list_all_analyses(
-    query_params: Annotated[dict, Depends(parse_query_params)],
+    query_params: Annotated[dict, Depends(_parse_query_params)],
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     """List all registered analyses."""
@@ -232,6 +241,7 @@ async def list_all_analyses(
     summary="List a specific analysis",
     status_code=status.HTTP_200_OK,
     response_model=Analysis,
+    name="hub.analysis.get",
 )
 @catch_hub_errors
 async def list_specific_analysis(
@@ -247,10 +257,11 @@ async def list_specific_analysis(
     summary="List all of the nodes",
     status_code=status.HTTP_200_OK,
     response_model=list[Node],
+    name="hub.node.get",
 )
 @catch_hub_errors
 async def list_all_nodes(
-    query_params: Annotated[dict, Depends(parse_query_params)],
+    query_params: Annotated[dict, Depends(_parse_query_params)],
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     """List all nodes."""
@@ -262,6 +273,7 @@ async def list_all_nodes(
     summary="List a specific node",
     status_code=status.HTTP_200_OK,
     response_model=Node,
+    name="hub.node.get",
 )
 @catch_hub_errors
 async def list_specific_node(
@@ -277,6 +289,7 @@ async def list_specific_node(
     summary="Return what type of node this API is deployed on",
     status_code=status.HTTP_200_OK,
     response_model=NodeTypeResponse,
+    name="hub.node.type.get",
 )
 @catch_hub_errors
 async def get_node_type(node_type: Annotated[dict | None, Depends(get_node_type_cache)]):
@@ -289,6 +302,7 @@ async def get_node_type(node_type: Annotated[dict | None, Depends(get_node_type_
     summary="Update a specific analysis proposal",
     status_code=status.HTTP_200_OK,
     response_model=DetailedAnalysis,
+    name="hub.analysis.update",
 )
 @catch_hub_errors
 async def update_specific_analysis(
@@ -305,6 +319,7 @@ async def update_specific_analysis(
     summary="Get registry project",
     status_code=status.HTTP_200_OK,
     response_model=RegistryProject,
+    name="hub.registry.metadata.get",
 )
 @catch_hub_errors
 async def get_registry_metadata_for_project(
@@ -316,7 +331,11 @@ async def get_registry_metadata_for_project(
     return core_client.get_registry_project(registry_project_id=registry_project_id)
 
 
-@hub_router.post("/analysis/image", response_model=AnalysisImageUrl)
+@hub_router.post(
+    "/analysis/image",
+    response_model=AnalysisImageUrl,
+    name="hub.analysis.image.get",
+)
 @catch_hub_errors
 async def get_analysis_image_url(
     image_url_resp: Annotated[AnalysisImageUrl, Depends(compile_analysis_pod_data)],
@@ -330,10 +349,11 @@ async def get_analysis_image_url(
     summary="List a specific analysis bucket",
     status_code=status.HTTP_200_OK,
     # response_model=BucketList,
+    name="hub.analysis.bucket.get",
 )
 @catch_hub_errors
 async def list_all_analysis_buckets(
-    query_params: Annotated[dict, Depends(parse_query_params)],
+    query_params: Annotated[dict, Depends(_parse_query_params)],
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     """List all analysis buckets."""
@@ -345,6 +365,7 @@ async def list_all_analysis_buckets(
     summary="List a specific analysis bucket",
     status_code=status.HTTP_200_OK,
     response_model=AnalysisBucket,
+    name="hub.analysis.bucket.get",
 )
 @catch_hub_errors
 async def list_specific_analysis_buckets(
@@ -360,10 +381,11 @@ async def list_specific_analysis_buckets(
     summary="List partial analysis bucket files.",
     status_code=status.HTTP_200_OK,
     # response_model=PartialBucketFilesList,
+    name="hub.analysis.bucket.file.get",
 )
 @catch_hub_errors
 async def list_all_analysis_bucket_files(
-    query_params: Annotated[dict, Depends(parse_query_params)],
+    query_params: Annotated[dict, Depends(_parse_query_params)],
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     """List partial analysis bucket files."""
@@ -375,6 +397,7 @@ async def list_all_analysis_bucket_files(
     summary="List partial analysis bucket files.",
     status_code=status.HTTP_200_OK,
     # response_model=PartialAnalysisBucketFile,
+    name="hub.analysis.bucket.file.get",
 )
 @catch_hub_errors
 async def list_specific_analysis_bucket_file(

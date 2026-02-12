@@ -25,8 +25,9 @@ logger = logging.getLogger(__name__)
     response_description="Return HTTP Status Code 200 (OK)",
     status_code=status.HTTP_200_OK,
     response_model=HealthCheck,
+    name="health.status.get",
 )
-def get_health() -> HealthCheck:
+async def get_health() -> HealthCheck:
     """
     ## Perform a Health Check
     Endpoint to perform a healthcheck on. This endpoint can primarily be used Docker
@@ -45,14 +46,15 @@ def get_health() -> HealthCheck:
     response_description="Return HTTP Status code for downstream services",
     status_code=status.HTTP_200_OK,
     response_model=DownstreamHealthCheck,
+    name="health.status.services.get",
 )
-def get_health_downstream_services(hub_adapter_settings: Annotated[Settings, Depends(get_settings)]):
+def get_health_downstream_services(settings: Annotated[Settings, Depends(get_settings)]):
     """Return the health of the downstream microservices."""
     health_eps = {
-        "po": hub_adapter_settings.PODORC_SERVICE_URL.rstrip("/") + "/po/healthz",
-        "results": hub_adapter_settings.RESULTS_SERVICE_URL.rstrip("/") + "/healthz",
-        # "hub": hub_adapter_settings.HUB_SERVICE_URL,
-        "kong": hub_adapter_settings.KONG_ADMIN_SERVICE_URL.rstrip("/") + "/status",
+        "po": settings.PODORC_SERVICE_URL.rstrip("/") + "/po/healthz",
+        "storage": settings.STORAGE_SERVICE_URL.rstrip("/") + "/healthz",
+        # "hub": settings.HUB_SERVICE_URL,
+        "kong": settings.KONG_ADMIN_SERVICE_URL.rstrip("/") + "/status",
     }
 
     health_checks = {}
@@ -61,7 +63,13 @@ def get_health_downstream_services(hub_adapter_settings: Annotated[Settings, Dep
             resp = httpx.get(ep).json()
 
         except ConnectError as e:
+            logger.error(f"Error connecting to {service} service: {e}")
             resp = str(e)
+
+        if service == "kong":  # Returns its own response : {"database": {"reachable": true}, ...}
+            if isinstance(resp, dict) and "database" in resp:
+                kong_status: bool = resp.get("database").get("reachable")
+                resp = {"status": "ok" if kong_status else "fail"}
 
         health_checks[service] = resp
 

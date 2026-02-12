@@ -11,9 +11,10 @@ from pydantic import BaseModel
 from starlette import status
 
 from hub_adapter.auth import (
-    add_internal_token_if_missing,
-    get_internal_token,
+    _add_internal_token_if_missing,
+    _get_internal_token,
     jwtbearer,
+    require_researcher_role,
     verify_idp_token,
 )
 from hub_adapter.autostart import GoGoAnalysis
@@ -25,7 +26,12 @@ from hub_adapter.oidc import check_oidc_configs_match
 from hub_adapter.routers.kong import delete_analysis
 
 meta_router = APIRouter(
-    dependencies=[Security(verify_idp_token), Security(jwtbearer), Depends(add_internal_token_if_missing)],
+    dependencies=[
+        Security(verify_idp_token),
+        Security(jwtbearer),
+        Depends(_add_internal_token_if_missing),
+        Depends(require_researcher_role),
+    ],
     tags=["Meta"],
     responses={404: {"description": "Not found"}},
 )
@@ -42,6 +48,7 @@ class InitializeAnalysis(BaseModel):
     "/analysis/initialize",
     response_model=StatusResponse,
     status_code=status.HTTP_201_CREATED,
+    name="meta.initialize",
 )
 async def initialize_analysis(
     analysis_params: Annotated[InitializeAnalysis, Form(description="Required information to start analysis")],
@@ -110,19 +117,20 @@ async def initialize_analysis(
     "/analysis/terminate/{analysis_id}",
     response_model=StatusResponse,
     status_code=status.HTTP_200_OK,
+    name="meta.terminate",
 )
 async def terminate_analysis(
     analysis_id: Annotated[str | uuid.UUID, Path(description="Analysis UUID that should be terminated")],
-    hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ):
     """Perform the required checks to stop an analysis and delete it and its components.
 
     This method will first delete the kong consumer and then send the delete command to the PO.
     """
-    await delete_analysis(analysis_id=analysis_id, hub_adapter_settings=hub_adapter_settings)
+    await delete_analysis(analysis_id=analysis_id, settings=settings)
 
     configs_match, oidc_config = check_oidc_configs_match()
-    headers = await get_internal_token(oidc_config, hub_adapter_settings)
+    headers = await _get_internal_token(oidc_config, settings)
 
     microsvc_path = f"{get_settings().PODORC_SERVICE_URL}/po/delete/{analysis_id}"
 

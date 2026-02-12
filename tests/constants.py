@@ -221,6 +221,15 @@ TEST_OIDC_SVC_RESPONSE = {
 
 TEST_JWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30"
 
+# RBAC
+ADMIN_ROLE = "admin"
+STEWARD_ROLE = "steward"
+RESEARCHER_ROLE = "researcher"
+
+TEST_ADMIN_DECRYPTED_JWT = {"resource_access": {"node-ui": {"roles": [ADMIN_ROLE]}}}
+TEST_STEWARD_DECRYPTED_JWT = {"resource_access": {"node-ui": {"roles": [STEWARD_ROLE]}}}
+TEST_RESEARCHER_DECRYPTED_JWT = {"resource_access": {"node-ui": {"roles": [RESEARCHER_ROLE]}}}
+
 TEST_KONG_CREATE_SERVICE_REQUEST = {
     "datastore": {
         "name": TEST_MOCK_PROJECT_ID,
@@ -332,3 +341,111 @@ FAKE_USER = {
     "sub": "e4fe638c-c94e-4094-8c2f-793ff69def0b",
     "typ": "Bearer",
 }
+
+TEST_MOCK_EVENTS = [
+    {
+        "id": 75,
+        "event_name": "events.get.success",
+        "service_name": "hub_adapter",
+        "timestamp": "2026-01-20T11:28:55.712858",
+        "body": "http://localhost:8081/events?limit=50&start_date=2026-01-20T11%3A27%3A07",
+        "attributes": {
+            "path": "/events",
+            "user": None,
+            "client": ["127.0.0.1", 40144],
+            "method": "GET",
+            "service": "events",
+            "status_code": 200,
+        },
+    },
+    {
+        "id": 74,
+        "event_name": "events.get.success",
+        "service_name": "hub_adapter",
+        "timestamp": "2026-01-20T11:28:41.045536",
+        "body": "http://localhost:8081/events?limit=50&start_date=2026-01-20T05%3A53%3A00%2B05%3A00",
+        "attributes": {
+            "path": "/events",
+            "user": None,
+            "client": ["127.0.0.1", 51462],
+            "method": "GET",
+            "service": "events",
+            "status_code": 200,
+        },
+    },
+    {
+        "id": 73,
+        "event_name": "events.get.success",
+        "service_name": "hub_adapter",
+        "timestamp": "2026-01-20T11:27:11.612876",
+        "body": "http://localhost:8081/events?limit=50",
+        "attributes": {
+            "path": "/events",
+            "user": None,
+            "client": ["127.0.0.1", 55068],
+            "method": "GET",
+            "service": "events",
+            "status_code": 200,
+        },
+    },
+    {
+        "id": 72,
+        "event_name": "api.ui.access",
+        "service_name": "hub_adapter",
+        "timestamp": "2026-01-20T11:27:07.770171",
+        "body": "http://localhost:8081/openapi.json",
+        "attributes": {
+            "path": "/openapi.json",
+            "user": None,
+            "client": ["127.0.0.1", 55068],
+            "method": "GET",
+            "service": "hub_adapter",
+            "status_code": 200,
+        },
+    },
+    {
+        "id": 71,
+        "event_name": "api.ui.access",
+        "service_name": "hub_adapter",
+        "timestamp": "2026-01-20T11:27:07.617104",
+        "body": "http://localhost:8081/docs",
+        "attributes": {
+            "path": "/docs",
+            "user": None,
+            "client": ["127.0.0.1", 55068],
+            "method": "GET",
+            "service": "hub_adapter",
+            "status_code": 200,
+        },
+    },
+    {
+        "id": 70,
+        "event_name": "events.get.success",
+        "service_name": "hub_adapter",
+        "timestamp": "2026-01-20T11:22:51.485849",
+        "body": "http://localhost:8081/events?limit=50&filter_username=flameuser",
+        "attributes": {
+            "path": "/events",
+            "user": None,
+            "client": ["127.0.0.1", 57762],
+            "method": "GET",
+            "service": "events",
+            "status_code": 200,
+        },
+    },
+    {
+        "id": 69,
+        "event_name": "events.get.success",
+        "service_name": "hub_adapter",
+        "timestamp": "2026-01-20T11:22:43.836330",
+        "body": "http://localhost:8081/events?limit=50&filter_username=fart",
+        "attributes": {
+            "path": "/events",
+            "user": None,
+            "client": ["127.0.0.1", 58516],
+            "method": "GET",
+            "service": "events",
+            "status_code": 200,
+        },
+    },
+]

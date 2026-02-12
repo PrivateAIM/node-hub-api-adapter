@@ -23,6 +23,10 @@ from tests.constants import (
 )
 
 
+class FakeKeycloak:
+    key: str = "fakeKey"
+
+
 class TestAutostart:
     """Autostart unit tests."""
 
@@ -44,6 +48,33 @@ class TestAutostart:
         resp = await self.analyzer.register_analysis(TEST_MOCK_ANALYSIS_ID, TEST_MOCK_PROJECT_ID)
 
         assert resp == (KONG_ANALYSIS_SUCCESS_RESP, status.HTTP_201_CREATED)
+
+    @patch("hub_adapter.autostart.GoGoAnalysis.describe_node")
+    @patch("hub_adapter.autostart.list_analysis_nodes")
+    @patch("hub_adapter.autostart.GoGoAnalysis.get_valid_projects")
+    @patch("hub_adapter.autostart.GoGoAnalysis.register_analysis")
+    @patch("hub_adapter.autostart.GoGoAnalysis.send_start_request")
+    @pytest.mark.asyncio
+    async def test_event_logging(
+        self,
+        mock_start_pod,
+        mock_registration,
+        mock_projects,
+        mock_analysis_nodes,
+        mock_describe_node,
+        mock_event_logger,
+    ):
+        """Test logging autostarted analysis events."""
+        mock_describe_node.return_value = TEST_MOCK_NODE_ID, "default"
+        mock_analysis_nodes.return_value = [AnalysisNode(**analysis) for analysis in ANALYSIS_NODES_RESP]
+        mock_projects.return_value = {TEST_MOCK_PROJECT_ID}
+        mock_registration.return_value = {"keyauth": FakeKeycloak()}, status.HTTP_201_CREATED
+        mock_start_pod.return_value = {}, status.HTTP_201_CREATED
+
+        with patch("hub_adapter.autostart.get_event_logger", return_value=mock_event_logger):
+            analyzer = GoGoAnalysis()
+            await analyzer.auto_start_analyses()
+            mock_event_logger.log_event.assert_called()
 
     @pytest.mark.asyncio
     @patch("hub_adapter.autostart.logger")
@@ -141,7 +172,7 @@ class TestAutostart:
 
     @patch("hub_adapter.autostart.logger")
     @patch("hub_adapter.autostart.check_oidc_configs_match")
-    @patch("hub_adapter.autostart.get_internal_token")
+    @patch("hub_adapter.autostart._get_internal_token")
     @pytest.mark.asyncio
     async def test_fetch_token_header(self, mock_fetch_token, mock_config_check, mock_logger):
         """Test checking whether the pod is running."""
@@ -291,9 +322,6 @@ class TestAutostart:
         mock_logger,
     ):
         """Test automatically starting analysis pods."""
-
-        class FakeKeycloak:
-            key: str = "fakeKey"
 
         mock_describe_node.return_value = TEST_MOCK_NODE_ID, "default"
         mock_analysis_nodes.return_value = [AnalysisNode(**analysis) for analysis in ANALYSIS_NODES_RESP]

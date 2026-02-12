@@ -25,7 +25,7 @@ class Settings:
     OVERRIDE_JWKS: str = os.getenv("OVERRIDE_JWKS")
 
     # Service URLs
-    RESULTS_SERVICE_URL: str = os.getenv("RESULTS_SERVICE_URL", "http://localhost:8000")
+    STORAGE_SERVICE_URL: str = os.getenv("STORAGE_SERVICE_URL", "http://localhost:8000")
     KONG_ADMIN_SERVICE_URL: str = os.getenv("KONG_ADMIN_SERVICE_URL", "http://localhost:8000")
     KONG_PROXY_SERVICE_URL: str = os.getenv("KONG_PROXY_SERVICE_URL")
     PODORC_SERVICE_URL: str = os.getenv("PODORC_SERVICE_URL", "http://localhost:18080")
@@ -39,3 +39,17 @@ class Settings:
     HUB_SERVICE_URL: str = os.getenv("HUB_SERVICE_URL", "https://core.privateaim.dev")
     HUB_NODE_CLIENT_ID: str = os.getenv("HUB_NODE_CLIENT_ID")
     HUB_NODE_CLIENT_SECRET: str = os.getenv("HUB_NODE_CLIENT_SECRET")
+
+    # RBAC
+    ROLE_CLAIM_NAME: str = os.getenv("ROLE_CLAIM_NAME")
+    ADMIN_ROLE: str = os.getenv("ADMIN_ROLE", "admin")
+    STEWARD_ROLE: str = os.getenv("STEWARD_ROLE")
+    RESEARCHER_ROLE: str = os.getenv("RESEARCHER_ROLE")
+
+    # Event logging
+    LOG_EVENTS: bool = os.getenv("LOG_EVENTS", "true").lower() in ("true", "1", "yes")
+    POSTGRES_EVENT_USER: str = os.getenv("POSTGRES_EVENT_USER")
+    POSTGRES_EVENT_PASSWORD: str = os.getenv("POSTGRES_EVENT_PASSWORD")
+    POSTGRES_EVENT_DB: str = os.getenv("POSTGRES_EVENT_DB")
+    POSTGRES_EVENT_HOST: str = os.getenv("POSTGRES_EVENT_HOST", "localhost")
+    POSTGRES_EVENT_PORT: str = os.getenv("POSTGRES_EVENT_PORT", "5432")
