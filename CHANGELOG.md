@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.3](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.4.2...v0.4.3) (2026-02-12)
+
+
+### Bug Fixes
+
+* handle when service healthcheck fails ([c3faa07](https://github.com/PrivateAIM/node-hub-api-adapter/commit/c3faa07b3cb934d41806d4b6eb9250328d4fc5df))
+
 ## [0.4.2](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.4.1...v0.4.2) (2026-02-10)
 
 
