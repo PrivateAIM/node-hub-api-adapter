@@ -158,7 +158,7 @@ class TestAutostart:
     async def test_pod_running(self, mock_fetch_analysis_status):
         """Test checking whether the pod is running."""
         # Pod running
-        mock_fetch_analysis_status.return_value = {TEST_MOCK_ANALYSIS_ID: "running"}
+        mock_fetch_analysis_status.return_value = {TEST_MOCK_ANALYSIS_ID: "executing"}
         pod_running_resp = await self.analyzer.pod_running(TEST_MOCK_ANALYSIS_ID)
         assert pod_running_resp  # True
 
@@ -223,11 +223,11 @@ class TestAutostart:
         }
 
         # Working
-        mock_request.return_value = {TEST_MOCK_ANALYSIS_ID: "running"}, status.HTTP_201_CREATED
+        mock_request.return_value = {TEST_MOCK_ANALYSIS_ID: "executing"}, status.HTTP_201_CREATED
         pod_resp, status_code = await self.analyzer.send_start_request(sim_input, "fakeKongToken")
         assert mock_logger.info.call_count == 2
-        mock_logger.info.assert_called_with(f"Analysis start response for {TEST_MOCK_ANALYSIS_ID}: running")
-        assert pod_resp == {TEST_MOCK_ANALYSIS_ID: "running"}
+        mock_logger.info.assert_called_with(f"Analysis start response for {TEST_MOCK_ANALYSIS_ID}: executing")
+        assert pod_resp == {TEST_MOCK_ANALYSIS_ID: "executing"}
         assert status_code == status.HTTP_201_CREATED
 
         # Problem
@@ -249,9 +249,9 @@ class TestAutostart:
         mock_header.return_value = {"foo"}  # Just need something
 
         # Success
-        mock_request.return_value = {"status": "running"}, status.HTTP_200_OK
+        mock_request.return_value = {"status": "executing"}, status.HTTP_200_OK
         status_resp = await self.analyzer.fetch_analysis_status(TEST_MOCK_ANALYSIS_ID)
-        assert status_resp == {"status": "running"}
+        assert status_resp == {"status": "executing"}
 
         # Failures
         mock_request.side_effect = HTTPException(
@@ -302,7 +302,7 @@ class TestAutostart:
         assert analysis_id == TEST_MOCK_ANALYSIS_ID
         assert project_id == TEST_MOCK_PROJECT_ID
         assert node_id == TEST_MOCK_NODE_ID
-        assert build_status == "finished"
+        assert build_status == "executed"
         assert execution_status is None
 
     @patch("hub_adapter.autostart.logger")

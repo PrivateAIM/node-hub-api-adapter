@@ -51,36 +51,36 @@ STEWARD_ROLE="steward"  # Role name for users who can only modify data stores as
 RESEARCHER_ROLE="researcher"  # Role name for users who can only modify analyses as defined in the IDP
 ```
 
-| EnvVar                 | Description                                                                                                       |           Default           | Required |
-|------------------------|-------------------------------------------------------------------------------------------------------------------|:---------------------------:|:--------:|
-| IDP_URL                | URL to the IDP used for user authentication. If the IDP is Keycloak, be sure to include the realm                 |                             |    x     |
-| API_ROOT_PATH          | Subpath to serve the API on                                                                                       |                             |          |
-| PODORC_SERVICE_URL     | URL to the pod orchestrator service                                                                               |                             |    x     |
-| STORAGE_SERVICE_URL    | URL to the Storage service                                                                                        |                             |    x     |
-| KONG_ADMIN_SERVICE_URL | URL to the Kong admin service                                                                                     |                             |    x     |
-| KONG_PROXY_SERVICE_URL | URL to the Kong proxy service                                                                                     |                             |    x     |
-| HUB_SERVICE_URL        | URL to the core Hub service                                                                                       | https://core.privateaim.dev |    x     |
-| HUB_AUTH_SERVICE_URL   | URL to the auth Hub service                                                                                       | https://auth.privateaim.dev |    x     |
-| HUB_NODE_CLIENT_ID     | Client UUID for a registered node                                                                                  |                             |    x     |
-| HUB_NODE_CLIENT_SECRET | Client secret for a registered node                                                                                |                             |    x     |
-| API_CLIENT_ID          | IDP Client ID for this hub-adapter service, should be the same (internal) IDP used by the other node services     |         hub-adapter         |    x     |
-| API_CLIENT_SECRET      | IDP Client Secret for this hub-adapter service, should be the same (internal) IDP used by the other node services |                             |    x     |
-| NODE_SVC_OIDC_URL      | The (internal) IDP URL used by the other Node services when different from the IDP used for user authentication.  |                             |          |
-| OVERRIDE_JWKS          | JWKS URI to override the endpoints fetched from the IDP issuer (meant for local testing)                          |                             |          |
-| HTTP_PROXY             | Forward proxy address for HTTP requests                                                                           |                             |          |
-| HTTPS_PROXY            | Forward proxy address for HTTPS requests                                                                          |                             |          |
-| AUTOSTART              | Whether the API should also operate in "autostart" mode where it'll start analyses automatically                  |            false            |          |
-| AUTOSTART_INTERVAL     | How often (in seconds) the server should check for new analyses                                                   |             60              |          |
-| EXTRA_CA_CERTS         | Path to a concatenated file containing all of the additional SSL certificates needed for communication            |                             |          |
-| ROLE_CLAIM_NAME        | Period separated list of keys leading to the role value for a user e.g. "resource_access.node-ui.roles"           |                             |          |
-| ADMIN_ROLE             | Role name for users who have full access and control as defined in the IDP                                        |            admin            |          |
-| STEWARD_ROLE           | Role name for users who can only modify data stores as defined in the IDP                                         |                             |          |
-| RESEARCHER_ROLE        | Role name for users who can only modify analyses as defined in the IDP                                            |                             |          |
-| POSTGRES_EVENT_USER    | Username for connecting to the postgres database which logs events                                                |                             |          |
+| EnvVar                  | Description                                                                                                       |           Default           | Required |
+|-------------------------|-------------------------------------------------------------------------------------------------------------------|:---------------------------:|:--------:|
+| IDP_URL                 | URL to the IDP used for user authentication. If the IDP is Keycloak, be sure to include the realm                 |                             |    x     |
+| API_ROOT_PATH           | Subpath to serve the API on                                                                                       |                             |          |
+| PODORC_SERVICE_URL      | URL to the pod orchestrator service                                                                               |                             |    x     |
+| STORAGE_SERVICE_URL     | URL to the Storage service                                                                                        |                             |    x     |
+| KONG_ADMIN_SERVICE_URL  | URL to the Kong admin service                                                                                     |                             |    x     |
+| KONG_PROXY_SERVICE_URL  | URL to the Kong proxy service                                                                                     |                             |    x     |
+| HUB_SERVICE_URL         | URL to the core Hub service                                                                                       | https://core.privateaim.dev |    x     |
+| HUB_AUTH_SERVICE_URL    | URL to the auth Hub service                                                                                       | https://auth.privateaim.dev |    x     |
+| HUB_NODE_CLIENT_ID      | Client UUID for a registered node                                                                                 |                             |    x     |
+| HUB_NODE_CLIENT_SECRET  | Client secret for a registered node                                                                               |                             |    x     |
+| API_CLIENT_ID           | IDP Client ID for this hub-adapter service, should be the same (internal) IDP used by the other node services     |         hub-adapter         |    x     |
+| API_CLIENT_SECRET       | IDP Client Secret for this hub-adapter service, should be the same (internal) IDP used by the other node services |                             |    x     |
+| NODE_SVC_OIDC_URL       | The (internal) IDP URL used by the other Node services when different from the IDP used for user authentication.  |                             |          |
+| OVERRIDE_JWKS           | JWKS URI to override the endpoints fetched from the IDP issuer (meant for local testing)                          |                             |          |
+| HTTP_PROXY              | Forward proxy address for HTTP requests                                                                           |                             |          |
+| HTTPS_PROXY             | Forward proxy address for HTTPS requests                                                                          |                             |          |
+| AUTOSTART               | Whether the API should also operate in "autostart" mode where it'll start analyses automatically                  |            false            |          |
+| AUTOSTART_INTERVAL      | How often (in seconds) the server should check for new analyses                                                   |             60              |          |
+| EXTRA_CA_CERTS          | Path to a concatenated file containing all of the additional SSL certificates needed for communication            |                             |          |
+| ROLE_CLAIM_NAME         | Period separated list of keys leading to the role value for a user e.g. "resource_access.node-ui.roles"           |                             |          |
+| ADMIN_ROLE              | Role name for users who have full access and control as defined in the IDP                                        |            admin            |          |
+| STEWARD_ROLE            | Role name for users who can only modify data stores as defined in the IDP                                         |                             |          |
+| RESEARCHER_ROLE         | Role name for users who can only modify analyses as defined in the IDP                                            |                             |          |
+| POSTGRES_EVENT_USER     | Username for connecting to the postgres database which logs events                                                |                             |          |
 | POSTGRES_EVENT_PASSWORD | Password for connecting to the postgres database which logs events                                                |                             |          |
-| POSTGRES_EVENT_DB      | Name of the postgres database which logs events                                                                   |                             |          |
-| POSTGRES_EVENT_HOST    | Hostname of the postgres database which logs events                                                               |          localhost          |          |
-| POSTGRES_EVENT_PORT    | Port of the postgres database which logs events                                                                   |            5432             |          |
+| POSTGRES_EVENT_DB       | Name of the postgres database which logs events                                                                   |                             |          |
+| POSTGRES_EVENT_HOST     | Hostname of the postgres database which logs events                                                               |          localhost          |          |
+| POSTGRES_EVENT_PORT     | Port of the postgres database which logs events                                                                   |            5432             |          |
 
 ## RBAC
 
@@ -128,7 +128,7 @@ being ready to start, it must meet the following criteria:
 
 * It was created in the last 24 hours
 * Its `approval_status` as reported by the Hub is set to "approved"
-* The `build_status` is set to "finished"
+* The `build_status` is set to "executed"
 * If the node on which the hub adapter is deployed is a "default" node, then a data store is available for the analysis
 * The analysis was never previously started on the node
 

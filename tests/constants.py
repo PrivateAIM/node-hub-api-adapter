@@ -56,7 +56,7 @@ TEST_MOCK_NODE = Node(
 MOCK_ANALYSIS = {
     "name": None,
     "project_id": TEST_MOCK_PROJECT_ID,
-    "build_status": "finished",
+    "build_status": "executed",
     "created_at": 1756790836,
     "updated_at": 1756790836,
     "id": "ac776c7f-c39d-4484-9a37-fa7109017192",
@@ -104,10 +104,10 @@ MOCK_ANALYSIS_NODE = {
 
 ANALYSIS_NODES_RESP = [
     {
-        # Shouldn't start because finished
+        # Shouldn't start because executed
         **MOCK_ANALYSIS_NODE,
         "analysis": {**MOCK_ANALYSIS, "name": "autostart-test"},
-        "execution_status": "finished",
+        "execution_status": "executed",
     },
     {
         # Ready to start

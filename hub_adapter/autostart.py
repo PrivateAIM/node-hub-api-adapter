@@ -219,8 +219,8 @@ class GoGoAnalysis:
         """Check whether a pod with the given analysis_id is already running."""
         pod_status = await self.fetch_analysis_status(analysis_id=analysis_id)
         if pod_status is not None:
-            # null, 'finished', 'failed', and 'stopped' means no pod present
-            existing_pod_statuses = ("started", "starting", "running", "stopping")
+            # null, 'executed', 'failed', and 'stopped' means no pod present
+            existing_pod_statuses = ("started", "starting", "executing", "stopping")
             return bool(analysis_id in pod_status and pod_status[analysis_id] in existing_pod_statuses)
 
         return pod_status  # Error occurred and no status retrieved
@@ -374,7 +374,7 @@ class GoGoAnalysis:
                 entry.created_at,  # Already parsed as datetime object from python hub client
             )
 
-            is_valid = approved == "approved" and build_status == "finished"
+            is_valid = approved == "approved" and build_status == "executed"
 
             if enforce_time_and_status_check and is_valid:
                 # Need timezone.utc to make it offset-aware otherwise will not work with created_at datetime obj

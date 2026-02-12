@@ -51,7 +51,7 @@ class TestMeta:
         mock_hub_analyses.return_value = "foo"  # Just needs to be something
         mock_projects.return_value = None
         mock_parsed_analyses.return_value = [(TEST_MOCK_ANALYSIS_ID,)]
-        valid_resp = {TEST_MOCK_ANALYSIS_ID: "running"}
+        valid_resp = {TEST_MOCK_ANALYSIS_ID: "executing"}
         mock_start_resp.return_value = (valid_resp, status.HTTP_201_CREATED)
 
         # Input params
