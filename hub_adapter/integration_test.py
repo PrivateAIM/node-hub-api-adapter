@@ -1,3 +1,5 @@
+"""Script for running integration tests."""
+
 import asyncio
 import logging
 import os
@@ -68,13 +70,13 @@ class IntegrationTestRunner:
         health_checks = resp.json()
 
         for service, status_resp in health_checks.items():
-            if status_resp["status"] != "ok":
-                err_msg = f"{service} health endpoint returned status {status_resp['status']}"
+            if not isinstance(status_resp, dict) or status_resp["status"] != "ok":
+                err_msg = f"{service} health endpoint returned {status_resp}"
                 logger.error(err_msg)
                 raise HTTPException(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                     detail={
-                        "message": f"{service} health endpoint returned status {status_resp['status']}",
+                        "message": f"{service} health endpoint returned {status_resp}",
                         "service": "Health",
                         "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
                     },
