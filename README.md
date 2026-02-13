@@ -34,8 +34,8 @@ KONG_ADMIN_SERVICE_URL="http://localhost:8000"  # URL to the Kong admin service
 KONG_PROXY_SERVICE_URL="http://localhost:8000"  # URL to the Kong proxy service
 HUB_AUTH_SERVICE_URL="https://auth.privateaim.dev"  # URL for auth EPs for the Hub
 HUB_SERVICE_URL="https://core.privateaim.dev"  # URL for project/analysis EPs for the Hub
-HUB_ROBOT_USER=""  # Robot UUID for a registered node
-HUB_ROBOT_SECRET=""  # Robot secret for a registered node
+HUB_NODE_CLIENT_ID=""  # Client UUID for a registered node
+HUB_NODE_CLIENT_SECRET=""  # Client secret for a registered node 
 API_CLIENT_ID="hub-adapter"  # IDP Client ID for this hub-adapter service, this must be the client ID specified 
 API_CLIENT_SECRET=""  # IDP Client Secret for this hub-adapter service
 #NODE_SVC_OIDC_URL="https://data-center.node.com/keycloak/realms/flame"  # The internal IDP used by other Node microsvcs
@@ -61,8 +61,8 @@ RESEARCHER_ROLE="researcher"  # Role name for users who can only modify analyses
 | KONG_PROXY_SERVICE_URL  | URL to the Kong proxy service                                                                                     |                             |    x     |
 | HUB_SERVICE_URL         | URL to the core Hub service                                                                                       | https://core.privateaim.dev |    x     |
 | HUB_AUTH_SERVICE_URL    | URL to the auth Hub service                                                                                       | https://auth.privateaim.dev |    x     |
-| HUB_ROBOT_USER          | Robot UUID for a registered node                                                                                  |                             |    x     |
-| HUB_ROBOT_SECRET        | Robot secret for a registered node                                                                                |                             |    x     |
+| HUB_NODE_CLIENT_ID      | Client UUID for a registered node                                                                                 |                             |    x     |
+| HUB_NODE_CLIENT_SECRET  | Client secret for a registered node                                                                               |                             |    x     |
 | API_CLIENT_ID           | IDP Client ID for this hub-adapter service, should be the same (internal) IDP used by the other node services     |         hub-adapter         |    x     |
 | API_CLIENT_SECRET       | IDP Client Secret for this hub-adapter service, should be the same (internal) IDP used by the other node services |                             |    x     |
 | NODE_SVC_OIDC_URL       | The (internal) IDP URL used by the other Node services when different from the IDP used for user authentication.  |                             |          |
@@ -128,7 +128,7 @@ being ready to start, it must meet the following criteria:
 
 * It was created in the last 24 hours
 * Its `approval_status` as reported by the Hub is set to "approved"
-* The `build_status` is set to "finished"
+* The `build_status` is set to "executed"
 * If the node on which the hub adapter is deployed is a "default" node, then a data store is available for the analysis
 * The analysis was never previously started on the node
 

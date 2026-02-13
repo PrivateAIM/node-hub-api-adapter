@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "hub-adapter"
-version = "0.4.2"
+version = "0.3.2"
 description = "API gateway interface for the Node UI to interact with the other node services and the hub."
 authors = ["Bruce Schultz <bruce.schultz@uk-koeln.de>"]
 readme = "README.md"
@@ -11,7 +11,7 @@ packages = [{ include = "hub_adapter" }]
 python = "^3.12"
 uvicorn = "^0.38.0"
 fastapi = "^0.120.1"
-flame-hub-client = "0.2.7"
+flame-hub-client = "^0.2.12"
 click = "^8.1.7"
 python-multipart = "^0.0.22"
 httpx = "^0.28.0"
@@ -26,8 +26,8 @@ node-event-logging-database = { git = "https://github.com/PrivateAIM/node-event-
 pytest = "^8.4.1"
 pytest-asyncio = "^1.1.0"
 pytest-httpx = "^0.35.0"
+ruff = "^0.1.8"
 pre-commit = "^3.6.0"
-ruff = "^0.14.9"
 
 [build-system]
 requires = ["poetry-core"]
@@ -54,8 +54,3 @@ select = [
     # isort
     "I",
 ]
-fixable = ["ALL"]
-
-[tool.ruff.format]
-line-ending = "auto"
-quote-style = "double"
