@@ -9,16 +9,16 @@ packages = [{ include = "hub_adapter" }]
 
 [tool.poetry.dependencies]
 python = "^3.12"
-uvicorn = "^0.38.0"
-fastapi = "^0.120.1"
+uvicorn = "^0.41.0"
+fastapi = "^0.129.0"
 flame-hub-client = "^0.2.12"
-click = "^8.1.7"
+click = "^8.3.1"
 python-multipart = "^0.0.22"
-httpx = "^0.28.0"
+httpx = "^0.28.1"
 kong-admin-client = { git = "https://github.com/PrivateAIM/kong-admin-python-client.git" }
 python-dotenv = "^1.0.1"
-pyjwt = "^2.10.1"
-cryptography = "^46.0.3"
+pyjwt = "^2.11.0"
+cryptography = "^46.0.5"
 truststore = "^0.10.4"
 node-event-logging-database = { git = "https://github.com/PrivateAIM/node-event-logging-database" }
 
@@ -26,7 +26,7 @@ node-event-logging-database = { git = "https://github.com/PrivateAIM/node-event-
 pytest = "^8.4.1"
 pytest-asyncio = "^1.1.0"
 pytest-httpx = "^0.35.0"
-ruff = "^0.1.8"
+ruff = "^0.15.1"
 pre-commit = "^3.6.0"
 
 [build-system]
