@@ -355,7 +355,7 @@ class TestConnection:
         success_resp = await probe_connection(
             settings=test_settings, project_id=TEST_MOCK_PROJECT_ID, ds_type=DataStoreType.FHIR
         )
-        mock_logger.warning.assert_called_with(f"No health consumer found for {TEST_MOCK_PROJECT_ID}, creating one now")
+        mock_logger.info.assert_called_with(f"No health consumer found for {TEST_MOCK_PROJECT_ID}, creating one now")
         assert success_resp == status.HTTP_200_OK
 
         # Failed health retrieval
