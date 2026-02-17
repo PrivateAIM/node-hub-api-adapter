@@ -30,7 +30,8 @@ from hub_adapter.errors import (
     KongConsumerApiKeyError,
     KongGatewayError,
     KongServiceError,
-    catch_kong_errors, )
+    catch_kong_errors,
+)
 from hub_adapter.models.kong import (
     DataStoreType,
     DeleteProject,
@@ -86,9 +87,9 @@ def parse_project_info(services, client) -> dict:
 
 
 def get_data_stores(
-        settings: Annotated[Settings, Depends(get_settings)],
-        project_id: uuid.UUID | str | None = None,
-        detailed: bool = False,
+    settings: Annotated[Settings, Depends(get_settings)],
+    project_id: uuid.UUID | str | None = None,
+    detailed: bool = False,
 ) -> ListService200Response | dict:
     """Get either all or a single data store (service)."""
     configuration = kong_admin_client.Configuration(host=settings.KONG_ADMIN_SERVICE_URL)
@@ -110,8 +111,8 @@ def get_data_stores(
 )
 @catch_kong_errors
 async def list_data_stores(
-        settings: Annotated[Settings, Depends(get_settings)],
-        detailed: Annotated[bool, Query(description="Whether to include detailed information on projects")] = False,
+    settings: Annotated[Settings, Depends(get_settings)],
+    detailed: Annotated[bool, Query(description="Whether to include detailed information on projects")] = False,
 ):
     """List all available data stores (referred to as services by kong)."""
     return get_data_stores(settings, project_id=None, detailed=detailed)
@@ -125,9 +126,9 @@ async def list_data_stores(
 )
 @catch_kong_errors
 async def list_specific_data_store(
-        settings: Annotated[Settings, Depends(get_settings)],
-        project_id: Annotated[uuid.UUID | str, Path(description="UUID of the associated project.")],
-        detailed: Annotated[bool, Query(description="Whether to include detailed information on projects")] = False,
+    settings: Annotated[Settings, Depends(get_settings)],
+    project_id: Annotated[uuid.UUID | str, Path(description="UUID of the associated project.")],
+    detailed: Annotated[bool, Query(description="Whether to include detailed information on projects")] = False,
 ):
     """Retrieve a specific data store using the project UUID"""
     return get_data_stores(settings, project_id=project_id, detailed=detailed)
@@ -141,8 +142,8 @@ async def list_specific_data_store(
 )
 @catch_kong_errors
 async def delete_data_store(
-        settings: Annotated[Settings, Depends(get_settings)],
-        data_store_name: Annotated[str, Path(description="Unique name of the data store.")],
+    settings: Annotated[Settings, Depends(get_settings)],
+    data_store_name: Annotated[str, Path(description="Unique name of the data store.")],
 ):
     """Delete the listed data store (referred to as services by kong)."""
     configuration = kong_admin_client.Configuration(host=settings.KONG_ADMIN_SERVICE_URL)
@@ -176,16 +177,16 @@ async def delete_data_store(
 )
 @catch_kong_errors
 async def create_service(
-        settings: Annotated[Settings, Depends(get_settings)],
-        datastore: Annotated[
-            ServiceRequest,
-            Body(
-                description="Required information for creating a new data store.",
-                title="Data store metadata.",
-            ),
-        ],
-        ds_type: Annotated[DataStoreType, Body(description="Data store type. Either 's3' or 'fhir'")],
-        minio_config: Annotated[MinioConfig | None, Body(description="Minio configuration")] = None,
+    settings: Annotated[Settings, Depends(get_settings)],
+    datastore: Annotated[
+        ServiceRequest,
+        Body(
+            description="Required information for creating a new data store.",
+            title="Data store metadata.",
+        ),
+    ],
+    ds_type: Annotated[DataStoreType, Body(description="Data store type. Either 's3' or 'fhir'")],
+    minio_config: Annotated[MinioConfig | None, Body(description="Minio configuration")] = None,
 ) -> Service | None:
     """Create a datastore (referred to as services by kong) by providing necessary metadata."""
     configuration = kong_admin_client.Configuration(host=settings.KONG_ADMIN_SERVICE_URL)
@@ -235,9 +236,9 @@ async def create_service(
 
 
 def get_projects(
-        settings: Annotated[Settings, Depends(get_settings)],
-        project_id: uuid.UUID | str | None = None,
-        detailed: bool = False,
+    settings: Annotated[Settings, Depends(get_settings)],
+    project_id: uuid.UUID | str | None = None,
+    detailed: bool = False,
 ) -> ListRoutes | dict:
     """Get either all or a single data store (service)."""
     configuration = kong_admin_client.Configuration(host=settings.KONG_ADMIN_SERVICE_URL)
@@ -277,11 +278,11 @@ def get_projects(
 )
 @catch_kong_errors
 async def list_projects(
-        settings: Annotated[Settings, Depends(get_settings)],
-        detailed: Annotated[
-            bool,
-            Query(description="Whether to include detailed information on the connected kong service"),
-        ] = False,
+    settings: Annotated[Settings, Depends(get_settings)],
+    detailed: Annotated[
+        bool,
+        Query(description="Whether to include detailed information on the connected kong service"),
+    ] = False,
 ):
     """List all projects (referred to as routes by kong) available, can be filtered by project_id.
 
@@ -298,12 +299,12 @@ async def list_projects(
 )
 @catch_kong_errors
 async def list_specific_project(
-        settings: Annotated[Settings, Depends(get_settings)],
-        project_id: Annotated[uuid.UUID | str, Path(description="UUID of the associated project.")],
-        detailed: Annotated[
-            bool,
-            Query(description="Whether to include detailed information on the connected kong service"),
-        ] = False,
+    settings: Annotated[Settings, Depends(get_settings)],
+    project_id: Annotated[uuid.UUID | str, Path(description="UUID of the associated project.")],
+    detailed: Annotated[
+        bool,
+        Query(description="Whether to include detailed information on the connected kong service"),
+    ] = False,
 ):
     """List a specific projects (referred to as routes by kong) using the project UUID.
 
@@ -321,15 +322,15 @@ async def list_specific_project(
 )
 @catch_kong_errors
 async def create_route_to_datastore(
-        settings: Annotated[Settings, Depends(get_settings)],
-        data_store_id: Annotated[uuid.UUID | str, Body(description="UUID of the data store or 'service'")],
-        project_id: Annotated[uuid.UUID | str, Body(description="UUID of the project")],
-        methods: Annotated[list[HttpMethodCode], Body(description="List of acceptable HTTP methods")] = ["GET"],
-        protocols: Annotated[
-            list[ProtocolCode],
-            Body(description="List of acceptable transfer protocols. A combo of 'http', 'grpc', 'grpcs', 'tls', 'tcp'"),
-        ] = ["http"],
-        ds_type: Annotated[DataStoreType, Body(description="Data store type. Either 's3' or 'fhir'")] = "fhir",
+    settings: Annotated[Settings, Depends(get_settings)],
+    data_store_id: Annotated[uuid.UUID | str, Body(description="UUID of the data store or 'service'")],
+    project_id: Annotated[uuid.UUID | str, Body(description="UUID of the project")],
+    methods: Annotated[list[HttpMethodCode], Body(description="List of acceptable HTTP methods")] = ["GET"],
+    protocols: Annotated[
+        list[ProtocolCode],
+        Body(description="List of acceptable transfer protocols. A combo of 'http', 'grpc', 'grpcs', 'tls', 'tcp'"),
+    ] = ["http"],
+    ds_type: Annotated[DataStoreType, Body(description="Data store type. Either 's3' or 'fhir'")] = "fhir",
 ):
     """Connect a project to a data store (referred to as a route by kong)."""
     configuration = kong_admin_client.Configuration(host=settings.KONG_ADMIN_SERVICE_URL)
@@ -399,15 +400,14 @@ async def create_route_to_datastore(
 )
 @catch_kong_errors
 async def create_datastore_and_project_with_link(
-        settings: Annotated[Settings, Depends(get_settings)],
-        datastore: Annotated[Service, Depends(create_service)],
-        project_id: Annotated[str | uuid.UUID, Body(description="UUID of the project")],
-        protocols: Annotated[
-            list[ProtocolCode],
-            Body(description="List of acceptable transfer protocols. A combo of 'http', 'grpc', 'grpcs', 'tls', 'tcp'"),
-        ] = ["http"],
-        ds_type: Annotated[
-            DataStoreType, Body(description="Data store type. Either 's3' or 'fhir'")] = DataStoreType.FHIR,
+    settings: Annotated[Settings, Depends(get_settings)],
+    datastore: Annotated[Service, Depends(create_service)],
+    project_id: Annotated[str | uuid.UUID, Body(description="UUID of the project")],
+    protocols: Annotated[
+        list[ProtocolCode],
+        Body(description="List of acceptable transfer protocols. A combo of 'http', 'grpc', 'grpcs', 'tls', 'tcp'"),
+    ] = ["http"],
+    ds_type: Annotated[DataStoreType, Body(description="Data store type. Either 's3' or 'fhir'")] = DataStoreType.FHIR,
 ):
     """Creates a new datastore (service) and a new project (route), then links them together with a health consumer."""
     proj_response = await create_route_to_datastore(
@@ -438,14 +438,14 @@ async def create_datastore_and_project_with_link(
 )
 @catch_kong_errors
 async def delete_route(
-        settings: Annotated[Settings, Depends(get_settings)],
-        project_route_id: Annotated[
-            str,
-            Path(
-                description="Unique identifier of the route to be deleted, "
-                            "must include datastore type hyphenated at the end"
-            ),
-        ],
+    settings: Annotated[Settings, Depends(get_settings)],
+    project_route_id: Annotated[
+        str,
+        Path(
+            description="Unique identifier of the route to be deleted, "
+            "must include datastore type hyphenated at the end"
+        ),
+    ],
 ) -> DeleteProject:
     """Disconnect a project (route) from all data stores (services) and delete associated analyses (consumers)."""
     configuration = kong_admin_client.Configuration(host=settings.KONG_ADMIN_SERVICE_URL)
@@ -471,9 +471,9 @@ async def delete_route(
 
 
 def get_analyses(
-        settings: Annotated[Settings, Depends(get_settings)],
-        analysis_id: uuid.UUID | str | None = None,
-        tag: str | None = None,
+    settings: Annotated[Settings, Depends(get_settings)],
+    analysis_id: uuid.UUID | str | None = None,
+    tag: str | None = None,
 ) -> ListConsumers | dict:
     """Get either all or a single analysis (consumer)."""
     configuration = kong_admin_client.Configuration(host=settings.KONG_ADMIN_SERVICE_URL)
@@ -499,8 +499,8 @@ def get_analyses(
 )
 @catch_kong_errors
 async def list_analyses(
-        settings: Annotated[Settings, Depends(get_settings)],
-        tag: Annotated[str | None, Query(description="Filter consumers by project using the project UUID")] = None,
+    settings: Annotated[Settings, Depends(get_settings)],
+    tag: Annotated[str | None, Query(description="Filter consumers by project using the project UUID")] = None,
 ):
     """List all analyses (referred to as consumers by kong) available. Can be filtered by project UUID using tag."""
     return get_analyses(settings, analysis_id=None, tag=tag)
@@ -514,9 +514,9 @@ async def list_analyses(
 )
 @catch_kong_errors
 async def list_specific_analysis(
-        settings: Annotated[Settings, Depends(get_settings)],
-        analysis_id: Annotated[uuid.UUID | str | None, Path(description="UUID of the analysis.")],
-        tag: Annotated[str | None, Query(description="Filter consumers by project using the project UUID")] = None,
+    settings: Annotated[Settings, Depends(get_settings)],
+    analysis_id: Annotated[uuid.UUID | str | None, Path(description="UUID of the analysis.")],
+    tag: Annotated[str | None, Query(description="Filter consumers by project using the project UUID")] = None,
 ):
     """List all analyses (referred to as consumers by kong) available."""
     return get_analyses(settings, analysis_id=analysis_id, tag=tag)
@@ -531,9 +531,9 @@ async def list_specific_analysis(
 )
 @catch_kong_errors
 async def create_and_connect_analysis_to_project(
-        settings: Annotated[Settings, Depends(get_settings)],
-        project_id: Annotated[str | uuid.UUID, Body(description="UUID or name of the project")],
-        analysis_id: Annotated[str | uuid.UUID, Body(description="UUID or name of the analysis")],
+    settings: Annotated[Settings, Depends(get_settings)],
+    project_id: Annotated[str | uuid.UUID, Body(description="UUID or name of the project")],
+    analysis_id: Annotated[str | uuid.UUID, Body(description="UUID or name of the analysis")],
 ):
     """Create a new analysis and link it to a project."""
     proj_resp = get_projects(settings=settings, project_id=project_id, detailed=False)
@@ -607,8 +607,8 @@ async def create_and_connect_analysis_to_project(
 )
 @catch_kong_errors
 async def delete_analysis(
-        settings: Annotated[Settings, Depends(get_settings)],
-        analysis_id: Annotated[str, Path(description="UUID or unique name of the analysis.")],
+    settings: Annotated[Settings, Depends(get_settings)],
+    analysis_id: Annotated[str, Path(description="UUID or unique name of the analysis.")],
 ):
     """Delete the listed analysis."""
     configuration = kong_admin_client.Configuration(host=settings.KONG_ADMIN_SERVICE_URL)
@@ -630,9 +630,9 @@ async def delete_analysis(
 )
 @catch_kong_errors
 async def probe_connection(
-        settings: Annotated[Settings, Depends(get_settings)],
-        project_id: Annotated[str | uuid.UUID, Path(description="UUID or unique name of the project.")],
-        ds_type: Annotated[DataStoreType, Path(description='Either "fhir" or "s3"')],
+    settings: Annotated[Settings, Depends(get_settings)],
+    project_id: Annotated[str | uuid.UUID, Path(description="UUID or unique name of the project.")],
+    ds_type: Annotated[DataStoreType, Path(description='Either "fhir" or "s3"')],
 ):
     """Test whether Kong can read the requested data source.
 
