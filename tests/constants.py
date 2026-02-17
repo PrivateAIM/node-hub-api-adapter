@@ -348,7 +348,7 @@ TEST_MOCK_EVENTS = [
         "event_name": "events.get.success",
         "service_name": "hub_adapter",
         "timestamp": "2026-01-20T11:28:55.712858",
-        "body": "http://localhost:8081/events?limit=50&start_date=2026-01-20T11%3A27%3A07",
+        "body": "http://localhost:5000/events?limit=50&start_date=2026-01-20T11%3A27%3A07",
         "attributes": {
             "path": "/events",
             "user": None,
@@ -363,7 +363,7 @@ TEST_MOCK_EVENTS = [
         "event_name": "events.get.success",
         "service_name": "hub_adapter",
         "timestamp": "2026-01-20T11:28:41.045536",
-        "body": "http://localhost:8081/events?limit=50&start_date=2026-01-20T05%3A53%3A00%2B05%3A00",
+        "body": "http://localhost:5000/events?limit=50&start_date=2026-01-20T05%3A53%3A00%2B05%3A00",
         "attributes": {
             "path": "/events",
             "user": None,
@@ -378,7 +378,7 @@ TEST_MOCK_EVENTS = [
         "event_name": "events.get.success",
         "service_name": "hub_adapter",
         "timestamp": "2026-01-20T11:27:11.612876",
-        "body": "http://localhost:8081/events?limit=50",
+        "body": "http://localhost:5000/events?limit=50",
         "attributes": {
             "path": "/events",
             "user": None,
@@ -393,7 +393,7 @@ TEST_MOCK_EVENTS = [
         "event_name": "api.ui.access",
         "service_name": "hub_adapter",
         "timestamp": "2026-01-20T11:27:07.770171",
-        "body": "http://localhost:8081/openapi.json",
+        "body": "http://localhost:5000/openapi.json",
         "attributes": {
             "path": "/openapi.json",
             "user": None,
@@ -408,7 +408,7 @@ TEST_MOCK_EVENTS = [
         "event_name": "api.ui.access",
         "service_name": "hub_adapter",
         "timestamp": "2026-01-20T11:27:07.617104",
-        "body": "http://localhost:8081/docs",
+        "body": "http://localhost:5000/docs",
         "attributes": {
             "path": "/docs",
             "user": None,
@@ -423,7 +423,7 @@ TEST_MOCK_EVENTS = [
         "event_name": "events.get.success",
         "service_name": "hub_adapter",
         "timestamp": "2026-01-20T11:22:51.485849",
-        "body": "http://localhost:8081/events?limit=50&filter_username=flameuser",
+        "body": "http://localhost:5000/events?limit=50&filter_username=flameuser",
         "attributes": {
             "path": "/events",
             "user": None,
@@ -438,7 +438,7 @@ TEST_MOCK_EVENTS = [
         "event_name": "events.get.success",
         "service_name": "hub_adapter",
         "timestamp": "2026-01-20T11:22:43.836330",
-        "body": "http://localhost:8081/events?limit=50&filter_username=fart",
+        "body": "http://localhost:5000/events?limit=50&filter_username=fart",
         "attributes": {
             "path": "/events",
             "user": None,

@@ -12,8 +12,8 @@ This module assumes there is a running Keycloak instance available. One can be q
 realm and user using the [docker-compose file](./docker/docker-compose.yml) which will populate the keycloak instance
 using the [instance export file](docker/test-realm.json).
 
-Once started, the API can be found at http://127.0.0.1:8081 with a GUI for the API available
-at http://127.0.0.1:8081/docs. Here,
+Once started, the API can be found at http://127.0.0.1:5000 with a GUI for the API available
+at http://127.0.0.1:5000/docs. Here,
 users must authorize themselves with the deployed keycloak instance
 (from the [docker-compose file](./docker/docker-compose.yml)) to run protected endpoints:
 
