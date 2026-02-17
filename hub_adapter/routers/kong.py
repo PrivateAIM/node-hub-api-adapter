@@ -662,7 +662,7 @@ async def probe_connection(
             consumer_api.get_consumer(health_consumer_id)
 
         except ApiException:
-            logger.warning(f"No health consumer found for {project_id}, creating one now")
+            logger.info(f"No health consumer found for {project_id}, creating one now")
             await create_and_connect_analysis_to_project(
                 settings=settings,
                 project_id=str(project_id),
