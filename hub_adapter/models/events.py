@@ -18,6 +18,7 @@ class EventTag(str, Enum):
     KONG = "Kong"
     AUTH = "Authentication"
     AUTOSTART = "Autostart"
+    NODE = "Node"
 
     # Log levels
     INFO = "Info"
@@ -272,9 +273,19 @@ AGNOSTIC_EVENTS = {
         "tags": [EventTag.KONG, EventTag.PO],
         "model": GatewayEventLog,
     },
+    "node.settings.get": {
+        "body": "A user fetched the node's configurations settings",
+        "tags": [EventTag.HUB_ADAPTER, EventTag.NODE],
+        "model": GatewayEventLog,
+    },
+    "node.settings.update": {
+        "body": "A user updated the node's configurations settings",
+        "tags": [EventTag.HUB_ADAPTER, EventTag.NODE],
+        "model": GatewayEventLog,
+    },
     "health.status.get": {
         "body": "An API health check was requested from the Hub Adapter API",
-        "tags": [EventTag.HUB_ADAPTER],
+        "tags": [EventTag.HUB_ADAPTER, EventTag.NODE],
         "model": GatewayEventLog,
     },
     "health.status.services.get": {

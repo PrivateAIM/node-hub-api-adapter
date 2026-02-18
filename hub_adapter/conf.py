@@ -3,6 +3,8 @@
 import os
 from dataclasses import dataclass
 
+TRUE_VALUES = ("true", "1", "yes", "t")
+
 
 # Init settings
 @dataclass(frozen=True)
@@ -47,7 +49,7 @@ class Settings:
     RESEARCHER_ROLE: str = os.getenv("RESEARCHER_ROLE")
 
     # Event logging
-    LOG_EVENTS: bool = os.getenv("LOG_EVENTS", "true").lower() in ("true", "1", "yes")
+    LOG_EVENTS: bool = os.getenv("LOG_EVENTS", "true").lower() in TRUE_VALUES
     POSTGRES_EVENT_USER: str = os.getenv("POSTGRES_EVENT_USER")
     POSTGRES_EVENT_PASSWORD: str = os.getenv("POSTGRES_EVENT_PASSWORD")
     POSTGRES_EVENT_DB: str = os.getenv("POSTGRES_EVENT_DB")

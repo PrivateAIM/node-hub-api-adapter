@@ -9,6 +9,7 @@ from starlette.datastructures import FormData
 from starlette.requests import Request
 
 from hub_adapter.models.events import EventTag
+from hub_adapter.routers.node import load_persistent_settings
 
 
 def create_request_data(form: dict | None, body: dict | None) -> dict | None:
@@ -25,9 +26,9 @@ async def serialize_query_content(key, value) -> dict:
 
 
 async def unzip_query_params(
-        additional_params: dict,
-        necessary_params: list[str] | None = None,
-        req_params: dict | None = None,
+    additional_params: dict,
+    necessary_params: list[str] | None = None,
+    req_params: dict | None = None,
 ) -> dict:
     """Prepare query parameters to be added to URL of downstream microservice."""
     response_query_params = {}
@@ -51,8 +52,8 @@ async def unzip_query_params(
 
 
 async def unzip_body_object(
-        additional_params: dict,
-        specified_params: list[str] | None = None,
+    additional_params: dict,
+    specified_params: list[str] | None = None,
 ) -> dict | None:
     """Gather body data and package for forwarding."""
     if specified_params:
@@ -68,9 +69,9 @@ async def unzip_body_object(
 
 
 async def unzip_form_params(
-        additional_params: dict,
-        specified_params: list[str] | None = None,
-        request_form: FormData | None = None,
+    additional_params: dict,
+    specified_params: list[str] | None = None,
+    request_form: FormData | None = None,
 ) -> dict | None:
     """Gather form data and package for forwarding."""
     if specified_params or request_form:
@@ -90,8 +91,8 @@ async def unzip_form_params(
 
 
 async def unzip_file_params(
-        additional_params: dict,
-        specified_params: list[str] | None = None,
+    additional_params: dict,
+    specified_params: list[str] | None = None,
 ) -> dict | None:
     """Gather binary or text data and package for forwarding."""
     if specified_params:
@@ -157,3 +158,10 @@ def annotate_event(event_name: str, status_code: int, tags: list[EventTag] | Non
     annotated_event_name = f"{event_name}{suffix}"
 
     return annotated_event_name, tags
+
+
+def _check_data_required(node_type: str) -> bool:
+    """Check if data access is required for the current node. Aggregators do not require data nor if DATA_REQUIRED is
+    disabled in the settings."""
+    node_settings = load_persistent_settings()
+    return False if node_type == "aggregator" else node_settings.data_required
