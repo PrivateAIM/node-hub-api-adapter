@@ -3,6 +3,8 @@
 import os
 from dataclasses import dataclass
 
+TRUE_VALUES = ("true", "1", "yes", "t")
+
 
 # Init settings
 @dataclass(frozen=True)
@@ -15,6 +17,10 @@ class Settings:
     HTTPS_PROXY: str = os.getenv("HTTPS_PROXY", "")
 
     EXTRA_CA_CERTS: str = os.getenv("EXTRA_CA_CERTS")
+
+    # If DATA_REQUIRED is true, then a data store is required for starting an analysis
+    # Aggregator nodes ignore this setting
+    DATA_REQUIRED: bool = os.getenv("DATA_REQUIRED", "true").lower() in TRUE_VALUES
 
     # IDP Settings
     IDP_URL: str = os.getenv("IDP_URL", "http://localhost:8080")  # User
@@ -47,7 +53,7 @@ class Settings:
     RESEARCHER_ROLE: str = os.getenv("RESEARCHER_ROLE")
 
     # Event logging
-    LOG_EVENTS: bool = os.getenv("LOG_EVENTS", "true").lower() in ("true", "1", "yes")
+    LOG_EVENTS: bool = os.getenv("LOG_EVENTS", "true").lower() in TRUE_VALUES
     POSTGRES_EVENT_USER: str = os.getenv("POSTGRES_EVENT_USER")
     POSTGRES_EVENT_PASSWORD: str = os.getenv("POSTGRES_EVENT_PASSWORD")
     POSTGRES_EVENT_DB: str = os.getenv("POSTGRES_EVENT_DB")

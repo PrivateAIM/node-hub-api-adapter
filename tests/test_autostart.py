@@ -49,6 +49,7 @@ class TestAutostart:
 
         assert resp == (KONG_ANALYSIS_SUCCESS_RESP, status.HTTP_201_CREATED)
 
+    @patch("hub_adapter.utils._check_data_required")
     @patch("hub_adapter.autostart.GoGoAnalysis.describe_node")
     @patch("hub_adapter.autostart.list_analysis_nodes")
     @patch("hub_adapter.autostart.GoGoAnalysis.get_valid_projects")
@@ -73,6 +74,7 @@ class TestAutostart:
 
         with patch("hub_adapter.autostart.get_event_logger", return_value=mock_event_logger):
             analyzer = GoGoAnalysis()
+            analyzer.settings = Settings()
             await analyzer.auto_start_analyses()
             mock_event_logger.log_event.assert_called()
 

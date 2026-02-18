@@ -58,20 +58,20 @@ class TestMeta:
         fake_analysis_form = InitializeAnalysis(analysis_id=TEST_MOCK_ANALYSIS_ID, project_id=TEST_MOCK_PROJECT_ID)
 
         # Working
-        gen_resp = await initialize_analysis(analysis_params=fake_analysis_form, core_client=cc)
+        gen_resp = await initialize_analysis(analysis_params=fake_analysis_form, core_client=cc, settings=test_settings)
         assert gen_resp == valid_resp
         assert StatusResponse.model_validate(gen_resp)
 
         # Returned status code not 201 or 200
         mock_start_resp.return_value = (valid_resp, status.HTTP_202_ACCEPTED)
         with pytest.raises(HTTPException) as wrong_status_code_error:
-            await initialize_analysis(analysis_params=fake_analysis_form, core_client=cc)
+            await initialize_analysis(analysis_params=fake_analysis_form, core_client=cc, settings=test_settings)
             assert wrong_status_code_error.value.status_code == status.HTTP_200_OK
 
         # No response from register_and_start_analysis
         mock_start_resp.return_value = ({}, status.HTTP_404_NOT_FOUND)
         with pytest.raises(HTTPException) as missing_response_error:
-            await initialize_analysis(analysis_params=fake_analysis_form, core_client=cc)
+            await initialize_analysis(analysis_params=fake_analysis_form, core_client=cc, settings=test_settings)
             assert missing_response_error.value.status_code == status.HTTP_404_NOT_FOUND
             assert missing_response_error.value.detail == {
                 "message": "Failed to initialize analysis",
@@ -82,7 +82,7 @@ class TestMeta:
         # Analysis not ready to start i.e. not returned by parse_analyses
         mock_parsed_analyses.return_value = []
         with pytest.raises(HTTPException) as analysis_not_ready_error:
-            await initialize_analysis(analysis_params=fake_analysis_form, core_client=cc)
+            await initialize_analysis(analysis_params=fake_analysis_form, core_client=cc, settings=test_settings)
             assert analysis_not_ready_error.value.status_code == status.HTTP_404_NOT_FOUND
             assert analysis_not_ready_error.value.detail == {
                 "message": "Analysis not ready",
@@ -93,7 +93,7 @@ class TestMeta:
         # Analysis not found in Hub
         mock_hub_analyses.return_value = []
         with pytest.raises(HTTPException) as analysis_not_found_error:
-            await initialize_analysis(analysis_params=fake_analysis_form, core_client=cc)
+            await initialize_analysis(analysis_params=fake_analysis_form, core_client=cc, settings=test_settings)
             assert analysis_not_found_error.value.status_code == status.HTTP_404_NOT_FOUND
             assert analysis_not_found_error.value.detail == {
                 "message": f"Analysis {TEST_MOCK_ANALYSIS_ID} not found",

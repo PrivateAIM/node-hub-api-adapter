@@ -26,7 +26,7 @@ from hub_adapter.dependencies import (
 )
 from hub_adapter.errors import KongConflictError, KongConnectError
 from hub_adapter.event_logging import EventLogger, get_event_logger
-from hub_adapter.models.events import EventTag, ANNOTATED_EVENTS
+from hub_adapter.models.events import ANNOTATED_EVENTS, EventTag
 from hub_adapter.oidc import check_oidc_configs_match
 from hub_adapter.routers.hub import (
     _format_query_params,
@@ -37,7 +37,7 @@ from hub_adapter.routers.kong import (
     delete_analysis,
     list_projects,
 )
-from hub_adapter.utils import annotate_event
+from hub_adapter.utils import _check_data_required, annotate_event
 
 logger = logging.getLogger(__name__)
 
@@ -104,8 +104,8 @@ class GoGoAnalysis:
             return analyses_started
 
         valid_projects = await self.get_valid_projects()
-        is_default_node = node_type == "default"
-        ready_to_start_analyses = self.parse_analyses(analyses, valid_projects, is_default_node)
+        datastore_required = _check_data_required(node_type, self.settings.DATA_REQUIRED)
+        ready_to_start_analyses = self.parse_analyses(analyses, valid_projects, datastore_required)
 
         for analysis in ready_to_start_analyses:
             analysis_id, project_id, node_id, _, _ = analysis
@@ -133,14 +133,15 @@ class GoGoAnalysis:
         self, analysis_id: str, project_id: str, node_id: str, node_type: str
     ) -> tuple | None:
         """Return node information."""
-        if node_type == "default":
+        datastore_required = _check_data_required(node_type, self.settings.DATA_REQUIRED)
+        if datastore_required:
             kong_resp, status_code = await self.register_analysis(analysis_id, project_id)
             if status_code != status.HTTP_201_CREATED:
                 return kong_resp, status_code
 
             kong_token = kong_resp["keyauth"].key
 
-        else:  # Aggregator nodes don't need a kong store
+        else:  # Aggregator nodes don't need a kong store nor if the data requirement is disabled
             kong_token = "none_needed"
 
         props = {
@@ -359,7 +360,7 @@ class GoGoAnalysis:
 
     @staticmethod
     def parse_analyses(
-        analyses: list, valid_projects: set, is_default_node: bool = True, enforce_time_and_status_check: bool = True
+        analyses: list, valid_projects: set, datastore_required: bool = True, enforce_time_and_status_check: bool = True
     ) -> set:
         """Iterate through analyses and check whether they are approved, built, and have a run status."""
         ready_analyses = set()
@@ -381,7 +382,7 @@ class GoGoAnalysis:
                 is_recent = (datetime.now(timezone.utc) - created_at) < timedelta(hours=24)
                 is_valid = is_valid and is_recent and not run_status
 
-            if is_default_node and is_valid:  # If aggregator, then skip this since kong route is not needed
+            if datastore_required and is_valid:  # If aggregator, then skip this since kong route is not needed
                 is_valid = is_valid and project_id in valid_projects
                 if not is_valid:
                     logger.info(
