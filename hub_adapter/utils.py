@@ -9,6 +9,7 @@ from starlette.datastructures import FormData
 from starlette.requests import Request
 
 from hub_adapter.models.events import EventTag
+from hub_adapter.routers.node import load_persistent_settings
 
 
 def create_request_data(form: dict | None, body: dict | None) -> dict | None:
@@ -159,7 +160,8 @@ def annotate_event(event_name: str, status_code: int, tags: list[EventTag] | Non
     return annotated_event_name, tags
 
 
-def _check_data_required(node_type: str, data_requirement_setting: bool) -> bool:
+def _check_data_required(node_type: str) -> bool:
     """Check if data access is required for the current node. Aggregators do not require data nor if DATA_REQUIRED is
     disabled in the settings."""
-    return False if node_type == "aggregator" else data_requirement_setting
+    node_settings = load_persistent_settings()
+    return False if node_type == "aggregator" else node_settings.data_required

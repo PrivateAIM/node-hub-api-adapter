@@ -104,7 +104,7 @@ class GoGoAnalysis:
             return analyses_started
 
         valid_projects = await self.get_valid_projects()
-        datastore_required = _check_data_required(node_type, self.settings.DATA_REQUIRED)
+        datastore_required = _check_data_required(node_type)
         ready_to_start_analyses = self.parse_analyses(analyses, valid_projects, datastore_required)
 
         for analysis in ready_to_start_analyses:
@@ -133,7 +133,7 @@ class GoGoAnalysis:
         self, analysis_id: str, project_id: str, node_id: str, node_type: str
     ) -> tuple | None:
         """Return node information."""
-        datastore_required = _check_data_required(node_type, self.settings.DATA_REQUIRED)
+        datastore_required = _check_data_required(node_type)
         if datastore_required:
             kong_resp, status_code = await self.register_analysis(analysis_id, project_id)
             if status_code != status.HTTP_201_CREATED:

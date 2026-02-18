@@ -18,10 +18,6 @@ class Settings:
 
     EXTRA_CA_CERTS: str = os.getenv("EXTRA_CA_CERTS")
 
-    # If DATA_REQUIRED is true, then a data store is required for starting an analysis
-    # Aggregator nodes ignore this setting
-    DATA_REQUIRED: bool = os.getenv("DATA_REQUIRED", "true").lower() in TRUE_VALUES
-
     # IDP Settings
     IDP_URL: str = os.getenv("IDP_URL", "http://localhost:8080")  # User
     # If using a different service for node OIDC, set this to the URL of that service

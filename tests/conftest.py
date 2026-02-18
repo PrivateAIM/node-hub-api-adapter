@@ -81,7 +81,6 @@ def test_settings() -> Settings:
             POSTGRES_EVENT_PASSWORD="test_password",
             POSTGRES_EVENT_HOST="localhost",
             POSTGRES_EVENT_PORT="5432",
-            DATA_REQUIRED=True,
         )
 
 

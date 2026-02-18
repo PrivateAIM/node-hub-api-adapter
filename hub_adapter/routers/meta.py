@@ -53,7 +53,6 @@ class InitializeAnalysis(BaseModel):
 )
 async def initialize_analysis(
     analysis_params: Annotated[InitializeAnalysis, Form(description="Required information to start analysis")],
-    settings: Annotated[Settings, Depends(get_settings)],
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     """Perform the required checks to start an analysis and send information to the PO."""
@@ -72,7 +71,8 @@ async def initialize_analysis(
         )
 
     valid_projects = await initiator.get_valid_projects()
-    datastore_required = _check_data_required(node_type, settings.DATA_REQUIRED)
+    datastore_required = _check_data_required(node_type)
+    logger.info(f"Datastore required: {datastore_required}")
     parsed_analyses = initiator.parse_analyses(
         [analysis[0]], valid_projects, datastore_required, enforce_time_and_status_check=False
     )
