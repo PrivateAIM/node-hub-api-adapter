@@ -18,7 +18,7 @@ httpx = "^0.28.0"
 kong-admin-client = { git = "https://github.com/PrivateAIM/kong-admin-python-client.git" }
 python-dotenv = "^1.0.1"
 pyjwt = "^2.10.1"
-cryptography = "^46.0.3"
+cryptography = "^46.0.5"
 truststore = "^0.10.4"
 node-event-logging-database = { git = "https://github.com/PrivateAIM/node-event-logging-database" }
 
