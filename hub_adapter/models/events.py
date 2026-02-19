@@ -310,7 +310,7 @@ AGNOSTIC_EVENTS = {
     },
 }
 ANNOTATED_EVENTS = {
-    "unknown": {"body": "An unknown event has occurred", "tags": [], "model": GatewayEventLog},
+    "unknown": {"body": "An unknown event has occurred", "tags": [EventTag.WARNING], "model": GatewayEventLog},
     "api.ui.access": {
         "body": "The API Swagger UI was accessed",
         "tags": [EventTag.HUB_ADAPTER],
