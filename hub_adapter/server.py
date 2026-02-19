@@ -41,6 +41,7 @@ tags_metadata = [
     {"name": "Meta", "description": "Custom Hub Adapter endpoints which combine endpoints from other APIs."},
     {"name": "Node", "description": "Endpoints for setting and getting node settings and configuration options."},
     {"name": "Kong", "description": "Endpoints for the Kong gateway service."},
+    {"name": "Storage", "description": "Gateway endpoints for the Storage service."},
     {"name": "PodOrc", "description": "Gateway endpoints for the Pod Orchestration service."},
 ]
 
@@ -58,15 +59,22 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     openapi_tags=tags_metadata,
-    title="FLAME API",
-    description="FLAME project API for interacting with various microservices within the node for the UI.",
+    title="FLAME Hub Adapter API",
+    description="FLAME Hub Adapter gateway API for interacting with downstream services.",
+    contact={
+        "name": "Bruce Schultz",
+        "email": "bschultz013@gmail.com",
+        "url": "https://docs.privateaim.net/about/team.html",
+    },
     swagger_ui_init_oauth={
         "clientId": get_settings().API_CLIENT_ID,  # default client-id is Keycloak
     },
+    servers=[
+        {"url": "http://localhost:5000", "description": "api"},
+    ],
     license_info={
         "name": "Apache 2.0",
         "url": "https://www.apache.org/licenses/LICENSE-2.0.html",
-        "identifier": "Apache-2.0",
     },
     root_path=get_settings().API_ROOT_PATH,
     lifespan=lifespan,

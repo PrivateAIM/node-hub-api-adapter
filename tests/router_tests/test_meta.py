@@ -42,8 +42,8 @@ class TestMeta:
         """Test the basic steps of initializing an analysis."""
         # Setup core_client
         ctx = get_ssl_context(test_settings)
-        robot = get_flame_hub_auth_flow(ctx, test_settings)
-        cc = get_core_client(robot, ctx, test_settings)
+        auth = get_flame_hub_auth_flow(ctx, test_settings)
+        cc = get_core_client(auth, ctx, test_settings)
 
         # Set mock values
         mock_deps.return_value = None
@@ -51,7 +51,7 @@ class TestMeta:
         mock_hub_analyses.return_value = "foo"  # Just needs to be something
         mock_projects.return_value = None
         mock_parsed_analyses.return_value = [(TEST_MOCK_ANALYSIS_ID,)]
-        valid_resp = {TEST_MOCK_ANALYSIS_ID: "running"}
+        valid_resp = {TEST_MOCK_ANALYSIS_ID: "executing"}
         mock_start_resp.return_value = (valid_resp, status.HTTP_201_CREATED)
 
         # Input params

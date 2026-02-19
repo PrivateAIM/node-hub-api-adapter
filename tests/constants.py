@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from flame_hub._core_client import Node
+from flame_hub.models import Node
 from kong_admin_client import ACL, KeyAuth
 
 from hub_adapter.models.conf import OIDCConfiguration
@@ -33,7 +33,7 @@ TEST_MOCK_ANALYSIS_ID = "1c9cb547-4afc-4398-bcb6-954bc61a1bb1"
 TEST_MOCK_PROJECT_ID = "9cbefefe-2420-4b8e-8ac1-f48148a9fd40"
 TEST_MOCK_NODE_ID = "9c521144-364d-4cdc-8ec4-cb62a537f10c"
 
-TEST_MOCK_ROBOT_USER = "096434d8-1e26-4594-9883-64ca1d55e129"
+TEST_MOCK_NODE_CLIENT_ID = "096434d8-1e26-4594-9883-64ca1d55e129"
 
 TEST_MOCK_NODE = Node(
     id=uuid.UUID(TEST_MOCK_NODE_ID),
@@ -41,7 +41,7 @@ TEST_MOCK_NODE = Node(
     online=True,
     registry=None,
     registry_project_id=uuid.UUID(TEST_MOCK_PROJECT_ID),
-    robot_id=uuid.UUID(TEST_MOCK_ROBOT_USER),
+    client_id=uuid.UUID(TEST_MOCK_NODE_CLIENT_ID),
     created_at=datetime.now(timezone.utc),
     updated_at=datetime.now(timezone.utc),
     external_name=None,
@@ -50,188 +50,89 @@ TEST_MOCK_NODE = Node(
     realm_id=None,
     registry_id=None,
     type=NODE_TYPE,
+    robot_id=None,  # deprecated
 )
+
+MOCK_ANALYSIS = {
+    "name": None,
+    "project_id": TEST_MOCK_PROJECT_ID,
+    "build_status": "executed",
+    "created_at": 1756790836,
+    "updated_at": 1756790836,
+    "id": "ac776c7f-c39d-4484-9a37-fa7109017192",
+    "configuration_locked": True,
+    "nodes": 2,
+    "nodes_approved": 2,
+    "realm_id": "ac776c7f-c39d-4484-9a37-fa7109017192",
+    "user_id": "ac776c7f-c39d-4484-9a37-fa7109017192",
+    "description": None,
+    "master_image_id": None,
+    "registry_id": None,
+    "configuration_entrypoint_valid": False,
+    "configuration_image_valid": True,
+    "configuration_node_aggregator_valid": True,
+    "configuration_node_default_valid": True,
+    "configuration_nodes_valid": False,
+    "build_nodes_valid": True,
+    "build_progress": None,
+    "build_hash": None,
+    "build_os": None,
+    "build_size": None,
+    "distribution_status": None,
+    "distribution_progress": None,
+    "execution_status": None,
+    "execution_progress": 0,
+}
+
+MOCK_ANALYSIS_NODE = {
+    "id": "ac776c7f-c39d-4484-9a37-fa7109017192",
+    "created_at": 1756790836,
+    "updated_at": 1756790836,
+    "analysis_realm_id": "ac776c7f-c39d-4484-9a37-fa7109017192",
+    "node_realm_id": "ac776c7f-c39d-4484-9a37-fa7109017192",
+    "comment": None,
+    "artifact_tag": None,
+    "artifact_digest": None,
+    "analysis_id": TEST_MOCK_ANALYSIS_ID,
+    "node_id": TEST_MOCK_NODE_ID,
+    "approval_status": "approved",
+    "execution_status": None,
+    "execution_progress": 0,
+    "analysis": MOCK_ANALYSIS,
+}
+
 
 ANALYSIS_NODES_RESP = [
     {
-        "id": "ac776c7f-c39d-4484-9a37-fa7109017192",
-        "created_at": 1756790836,
-        "updated_at": 1756790836,
-        "analysis_realm_id": "ac776c7f-c39d-4484-9a37-fa7109017192",
-        "node_realm_id": "ac776c7f-c39d-4484-9a37-fa7109017192",
-        "comment": None,
-        "artifact_tag": None,
-        "artifact_digest": None,
-        "analysis_id": "1452cf2d-e9d5-4a2d-822a-fc0a3b8cd2fd",
-        "node_id": TEST_MOCK_NODE_ID,
-        "approval_status": "approved",
-        "run_status": "finished",  # Shouldn't start because finished
-        "analysis": {
-            "name": "autostart-test",
-            "project_id": TEST_MOCK_PROJECT_ID,
-            "build_status": "finished",
-            "created_at": 1756790836,
-            "updated_at": 1756790836,
-            "id": "ac776c7f-c39d-4484-9a37-fa7109017192",
-            "configuration_locked": True,
-            "nodes": 2,
-            "realm_id": "ac776c7f-c39d-4484-9a37-fa7109017192",
-            "user_id": "ac776c7f-c39d-4484-9a37-fa7109017192",
-            "description": None,
-            "master_image_id": None,
-            "registry_id": None,
-            "run_status": None,
-        },
+        # Shouldn't start because executed
+        **MOCK_ANALYSIS_NODE,
+        "analysis": {**MOCK_ANALYSIS, "name": "autostart-test"},
+        "execution_status": "executed",
     },
-    {  # Ready to start
-        "id": "ac776c7f-c39d-4484-9a37-fa7109017192",
+    {
+        # Ready to start
+        **MOCK_ANALYSIS_NODE,
+        "analysis": {**MOCK_ANALYSIS, "created_at": datetime.now(timezone.utc)},
         "created_at": datetime.now(timezone.utc),
-        "updated_at": 1756790836,
-        "analysis_realm_id": "ac776c7f-c39d-4484-9a37-fa7109017192",
-        "node_realm_id": "ac776c7f-c39d-4484-9a37-fa7109017192",
-        "comment": None,
-        "artifact_tag": None,
-        "artifact_digest": None,
-        "analysis_id": TEST_MOCK_ANALYSIS_ID,
-        "node_id": TEST_MOCK_NODE_ID,
-        "approval_status": "approved",
-        "run_status": None,
-        "analysis": {
-            "project_id": TEST_MOCK_PROJECT_ID,
-            "build_status": "finished",
-            "created_at": datetime.now(timezone.utc),
-            "updated_at": 1756790836,
-            "id": "ac776c7f-c39d-4484-9a37-fa7109017192",
-            "configuration_locked": True,
-            "nodes": 2,
-            "realm_id": "ac776c7f-c39d-4484-9a37-fa7109017192",
-            "user_id": "ac776c7f-c39d-4484-9a37-fa7109017192",
-            "description": None,
-            "master_image_id": None,
-            "registry_id": None,
-            "run_status": None,
-            "name": None,
-        },
     },
     {
-        "id": "ac776c7f-c39d-4484-9a37-fa7109017192",
-        "created_at": 1756790836,  # Should fail since too old
-        "updated_at": 1756790836,
-        "analysis_realm_id": "ac776c7f-c39d-4484-9a37-fa7109017192",
-        "node_realm_id": "ac776c7f-c39d-4484-9a37-fa7109017192",
-        "comment": None,
-        "artifact_tag": None,
-        "artifact_digest": None,
-        "analysis_id": TEST_MOCK_ANALYSIS_ID,
-        "node_id": TEST_MOCK_NODE_ID,
-        "approval_status": "approved",
-        "run_status": None,
-        "analysis": {
-            "project_id": TEST_MOCK_PROJECT_ID,
-            "build_status": "finished",
-            "created_at": 1756790836,  # Should fail since too old
-            "updated_at": 1756790836,
-            "id": "ac776c7f-c39d-4484-9a37-fa7109017192",
-            "configuration_locked": True,
-            "nodes": 2,
-            "realm_id": "ac776c7f-c39d-4484-9a37-fa7109017192",
-            "user_id": "ac776c7f-c39d-4484-9a37-fa7109017192",
-            "description": None,
-            "master_image_id": None,
-            "registry_id": None,
-            "run_status": None,
-            "name": None,
-        },
+        # Should fail since too old
+        **MOCK_ANALYSIS_NODE,
     },
     {
-        "id": "ac776c7f-c39d-4484-9a37-fa7109017192",
-        "created_at": 1756790836,
-        "updated_at": 1756790836,
-        "analysis_realm_id": "ac776c7f-c39d-4484-9a37-fa7109017192",
-        "node_realm_id": "ac776c7f-c39d-4484-9a37-fa7109017192",
-        "comment": None,
-        "artifact_tag": None,
-        "artifact_digest": None,
-        "analysis_id": "e4b9d64a-6619-4b31-9897-a85f37c83087",
-        "node_id": TEST_MOCK_NODE_ID,
-        "approval_status": "approved",
-        "run_status": None,
-        "analysis": {
-            "project_id": TEST_MOCK_PROJECT_ID,
-            "build_status": "starting",  # Shouldn't start because build isn't finished
-            "created_at": 1756790836,
-            "updated_at": 1756790836,
-            "id": "ac776c7f-c39d-4484-9a37-fa7109017192",
-            "configuration_locked": True,
-            "nodes": 2,
-            "realm_id": "ac776c7f-c39d-4484-9a37-fa7109017192",
-            "user_id": "ac776c7f-c39d-4484-9a37-fa7109017192",
-            "description": None,
-            "master_image_id": None,
-            "registry_id": None,
-            "run_status": None,
-            "name": None,
-        },
+        # Shouldn't start since still building
+        **MOCK_ANALYSIS_NODE,
+        "analysis": {**MOCK_ANALYSIS, "build_status": "starting"},
     },
     {
-        "id": "ac776c7f-c39d-4484-9a37-fa7109017192",
-        "created_at": 1756790836,
-        "updated_at": 1756790836,
-        "analysis_realm_id": "ac776c7f-c39d-4484-9a37-fa7109017192",
-        "node_realm_id": "ac776c7f-c39d-4484-9a37-fa7109017192",
-        "comment": None,
-        "artifact_tag": None,
-        "artifact_digest": None,
-        "analysis_id": "a727fecb-bb28-4d9a-9a6e-6410a99de34a",
-        "node_id": TEST_MOCK_NODE_ID,
-        "approval_status": "rejected",  # Shouldn't start because rejected
-        "run_status": None,
-        "analysis": {
-            "project_id": TEST_MOCK_PROJECT_ID,
-            "build_status": "finished",
-            "created_at": 1756790836,
-            "updated_at": 1756790836,
-            "id": "ac776c7f-c39d-4484-9a37-fa7109017192",
-            "configuration_locked": True,
-            "nodes": 2,
-            "realm_id": "ac776c7f-c39d-4484-9a37-fa7109017192",
-            "user_id": "ac776c7f-c39d-4484-9a37-fa7109017192",
-            "description": None,
-            "master_image_id": None,
-            "registry_id": None,
-            "run_status": None,
-            "name": None,
-        },
+        # Shouldn't start because rejected
+        **MOCK_ANALYSIS_NODE,
+        "approval_status": "rejected",
     },
     {
-        "id": "ac776c7f-c39d-4484-9a37-fa7109017192",
-        "created_at": 1756790836,
-        "updated_at": 1756790836,
-        "analysis_realm_id": "ac776c7f-c39d-4484-9a37-fa7109017192",
-        "node_realm_id": "ac776c7f-c39d-4484-9a37-fa7109017192",
-        "comment": None,
-        "artifact_tag": None,
-        "artifact_digest": None,
-        "analysis_id": TEST_MOCK_ANALYSIS_ID,
-        "node_id": TEST_MOCK_NODE_ID,
-        "approval_status": "approved",
-        "run_status": None,
-        "analysis": {
-            "project_id": "16cdb4d5-a4ee-47c4-822f-c0bfd4271ce2",  # Shouldn't start because project ID isn't in kong
-            "build_status": "finished",
-            "created_at": 1756790836,
-            "updated_at": 1756790836,
-            "id": "ac776c7f-c39d-4484-9a37-fa7109017192",
-            "configuration_locked": True,
-            "nodes": 2,
-            "realm_id": "ac776c7f-c39d-4484-9a37-fa7109017192",
-            "user_id": "ac776c7f-c39d-4484-9a37-fa7109017192",
-            "description": None,
-            "master_image_id": None,
-            "registry_id": None,
-            "run_status": None,
-            "name": None,
-        },
+        # Shouldn't start because project ID isn't in kong
+        **MOCK_ANALYSIS_NODE,
+        "analysis": {**MOCK_ANALYSIS, "project_id": "16cdb4d5-a4ee-47c4-822f-c0bfd4271ce2"},
     },
 ]
 
@@ -447,7 +348,7 @@ TEST_MOCK_EVENTS = [
         "event_name": "events.get.success",
         "service_name": "hub_adapter",
         "timestamp": "2026-01-20T11:28:55.712858",
-        "body": "http://localhost:8081/events?limit=50&start_date=2026-01-20T11%3A27%3A07",
+        "body": "http://localhost:5000/events?limit=50&start_date=2026-01-20T11%3A27%3A07",
         "attributes": {
             "path": "/events",
             "user": None,
@@ -462,7 +363,7 @@ TEST_MOCK_EVENTS = [
         "event_name": "events.get.success",
         "service_name": "hub_adapter",
         "timestamp": "2026-01-20T11:28:41.045536",
-        "body": "http://localhost:8081/events?limit=50&start_date=2026-01-20T05%3A53%3A00%2B05%3A00",
+        "body": "http://localhost:5000/events?limit=50&start_date=2026-01-20T05%3A53%3A00%2B05%3A00",
         "attributes": {
             "path": "/events",
             "user": None,
@@ -477,7 +378,7 @@ TEST_MOCK_EVENTS = [
         "event_name": "events.get.success",
         "service_name": "hub_adapter",
         "timestamp": "2026-01-20T11:27:11.612876",
-        "body": "http://localhost:8081/events?limit=50",
+        "body": "http://localhost:5000/events?limit=50",
         "attributes": {
             "path": "/events",
             "user": None,
@@ -492,7 +393,7 @@ TEST_MOCK_EVENTS = [
         "event_name": "api.ui.access",
         "service_name": "hub_adapter",
         "timestamp": "2026-01-20T11:27:07.770171",
-        "body": "http://localhost:8081/openapi.json",
+        "body": "http://localhost:5000/openapi.json",
         "attributes": {
             "path": "/openapi.json",
             "user": None,
@@ -507,7 +408,7 @@ TEST_MOCK_EVENTS = [
         "event_name": "api.ui.access",
         "service_name": "hub_adapter",
         "timestamp": "2026-01-20T11:27:07.617104",
-        "body": "http://localhost:8081/docs",
+        "body": "http://localhost:5000/docs",
         "attributes": {
             "path": "/docs",
             "user": None,
@@ -522,7 +423,7 @@ TEST_MOCK_EVENTS = [
         "event_name": "events.get.success",
         "service_name": "hub_adapter",
         "timestamp": "2026-01-20T11:22:51.485849",
-        "body": "http://localhost:8081/events?limit=50&filter_username=flameuser",
+        "body": "http://localhost:5000/events?limit=50&filter_username=flameuser",
         "attributes": {
             "path": "/events",
             "user": None,
@@ -537,7 +438,7 @@ TEST_MOCK_EVENTS = [
         "event_name": "events.get.success",
         "service_name": "hub_adapter",
         "timestamp": "2026-01-20T11:22:43.836330",
-        "body": "http://localhost:8081/events?limit=50&filter_username=fart",
+        "body": "http://localhost:5000/events?limit=50&filter_username=fart",
         "attributes": {
             "path": "/events",
             "user": None,

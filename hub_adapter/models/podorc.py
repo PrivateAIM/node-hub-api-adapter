@@ -53,13 +53,13 @@ class PodStatus(str, Enum):
     STARTING = "starting"
     STARTED = "started"
 
-    STUCK = "stuck"
-    RUNNING = "running"
-
     STOPPING = "stopping"
     STOPPED = "stopped"
 
-    FINISHED = "finished"
+    EXECUTING = "executing"
+    EXECUTED = "executed"
+
+    STUCK = "stuck"
     FAILED = "failed"
 
 

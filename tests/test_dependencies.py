@@ -8,7 +8,7 @@ import httpx
 import pytest
 from fastapi import HTTPException
 from flame_hub import CoreClient
-from flame_hub._auth_flows import RobotAuth
+from flame_hub._auth_flows import ClientAuth
 from pydantic import BaseModel
 from starlette import status
 
@@ -42,8 +42,8 @@ class TestDeps:
             self.ctx = get_ssl_context(self.mock_settings)
 
             # Create fake core client
-            robot = get_flame_hub_auth_flow(self.ctx, self.mock_settings)
-            self.cc = get_core_client(robot, self.ctx, self.mock_settings)
+            auth = get_flame_hub_auth_flow(self.ctx, self.mock_settings)
+            self.cc = get_core_client(auth, self.ctx, self.mock_settings)
 
             yield  # Test runs here
 
@@ -78,25 +78,25 @@ class TestDeps:
         from dataclasses import replace
 
         working_auth = get_flame_hub_auth_flow(self.ctx, self.mock_settings)
-        assert isinstance(working_auth, RobotAuth)
+        assert isinstance(working_auth, ClientAuth)
 
-        # Missing HUB_ROBOT_USER should raise ValueError
-        missing_robot_user_settings = replace(test_settings, HUB_ROBOT_USER="")
+        # Missing HUB_NODE_CLIENT_ID should raise ValueError
+        missing_node_client_user_settings = replace(test_settings, HUB_NODE_CLIENT_ID="")
         with pytest.raises(ValueError):
-            get_flame_hub_auth_flow(self.ctx, missing_robot_user_settings)
+            get_flame_hub_auth_flow(self.ctx, missing_node_client_user_settings)
 
-        # Non UUID HUB_ROBOT_USER should raise HTTPException error
-        wrong_robot_user_settings = replace(test_settings, HUB_ROBOT_USER="foo")
+        # Non UUID HUB_NODE_CLIENT_ID should raise HTTPException error
+        wrong_node_client_id_settings = replace(test_settings, HUB_NODE_CLIENT_ID="foo")
         with pytest.raises(HTTPException) as badUser:
-            get_flame_hub_auth_flow(self.ctx, wrong_robot_user_settings)
+            get_flame_hub_auth_flow(self.ctx, wrong_node_client_id_settings)
 
         assert badUser.value.status_code == status.HTTP_400_BAD_REQUEST
-        assert "Invalid robot ID" in badUser.value.detail["message"]
+        assert "Invalid node client ID" in badUser.value.detail["message"]
 
     def test_get_core_client(self):
         """Test the get_core_client method."""
-        robot = get_flame_hub_auth_flow(self.ctx, self.mock_settings)
-        cc = get_core_client(robot, self.ctx, self.mock_settings)
+        auth = get_flame_hub_auth_flow(self.ctx, self.mock_settings)
+        cc = get_core_client(auth, self.ctx, self.mock_settings)
         assert isinstance(cc, CoreClient)
 
     @pytest.mark.asyncio
@@ -203,7 +203,7 @@ class TestDeps:
             get_registry_metadata_for_url(TEST_MOCK_NODE, self.cc)
 
             assert err.value.status_code == status.HTTP_404_NOT_FOUND
-            assert err.value.detail["message"] == "Unable to retrieve robot name or secret from the registry"
+            assert err.value.detail["message"] == "Unable to retrieve node client ID or secret from the registry"
 
         # Missing registry_id
         mock_registry_project.return_value.account_name = account_name
