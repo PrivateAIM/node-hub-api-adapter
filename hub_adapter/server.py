@@ -22,6 +22,7 @@ from hub_adapter.routers.health import health_router
 from hub_adapter.routers.hub import hub_router
 from hub_adapter.routers.kong import kong_router
 from hub_adapter.routers.meta import meta_router
+from hub_adapter.routers.node import node_router
 from hub_adapter.routers.podorc import po_router
 from hub_adapter.routers.storage import storage_router
 
@@ -32,12 +33,13 @@ logger = logging.getLogger(__name__)
 tags_metadata = [
     {"name": "Auth", "description": "Endpoints for authorization specific tasks."},
     {"name": "Events", "description": "Gateway endpoints for interacting with logged events."},
-    {"name": "Meta", "description": "Custom Hub Adapter endpoints which combine endpoints from other APIs."},
+    {"name": "Hub", "description": "Gateway endpoints for the central Hub service."},
     {
         "name": "Health",
         "description": "Endpoints for checking the health of this API and the downstream services.",
     },
-    {"name": "Hub", "description": "Gateway endpoints for the central Hub service."},
+    {"name": "Meta", "description": "Custom Hub Adapter endpoints which combine endpoints from other APIs."},
+    {"name": "Node", "description": "Endpoints for setting and getting node settings and configuration options."},
     {"name": "Kong", "description": "Endpoints for the Kong gateway service."},
     {"name": "Storage", "description": "Gateway endpoints for the Storage service."},
     {"name": "PodOrc", "description": "Gateway endpoints for the Pod Orchestration service."},
@@ -107,6 +109,7 @@ async def event_logging_middleware(request: Request, call_next):
 routers = (
     po_router,
     meta_router,
+    node_router,
     hub_router,
     storage_router,
     kong_router,

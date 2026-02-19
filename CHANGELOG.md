@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.3](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.4.2...v0.4.3) (2026-02-18)
+
+
+### Features
+
+* allow settings to disable data requirements for non-aggregator nodes ([51a8ee0](https://github.com/PrivateAIM/node-hub-api-adapter/commit/51a8ee0cc5a4f3be03e3a9bb77f0a0d73d2302bb))
+* make node settings router and set config options ([0a7f992](https://github.com/PrivateAIM/node-hub-api-adapter/commit/0a7f992baa08a83431518620622492df5d550e9b))
+
+
+### Bug Fixes
+
+* handle when service healthcheck fails ([c3faa07](https://github.com/PrivateAIM/node-hub-api-adapter/commit/c3faa07b3cb934d41806d4b6eb9250328d4fc5df))
+
 ## [0.4.2](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.4.1...v0.4.2) (2026-02-10)
 
 

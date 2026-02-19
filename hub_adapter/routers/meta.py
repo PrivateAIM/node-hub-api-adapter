@@ -24,6 +24,7 @@ from hub_adapter.dependencies import get_core_client, get_settings
 from hub_adapter.models.podorc import StatusResponse
 from hub_adapter.oidc import check_oidc_configs_match
 from hub_adapter.routers.kong import delete_analysis
+from hub_adapter.utils import _check_data_required
 
 meta_router = APIRouter(
     dependencies=[
@@ -70,9 +71,10 @@ async def initialize_analysis(
         )
 
     valid_projects = await initiator.get_valid_projects()
-    is_default_node = node_type == "default"
+    datastore_required = _check_data_required(node_type)
+    logger.info(f"Datastore required: {datastore_required}")
     parsed_analyses = initiator.parse_analyses(
-        [analysis[0]], valid_projects, is_default_node, enforce_time_and_status_check=False
+        [analysis[0]], valid_projects, datastore_required, enforce_time_and_status_check=False
     )
     ready_to_start_analyses = [analysis[0] for analysis in parsed_analyses]
 
