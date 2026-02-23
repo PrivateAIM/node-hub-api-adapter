@@ -3,13 +3,15 @@ LABEL maintainer="bruce.schultz@uk-koeln.de"
 
 WORKDIR /app
 
-RUN apk add gcc musl-dev libffi-dev
+RUN apk add gcc musl-dev libffi-dev git
 RUN pip install uv
 
 COPY ./uv.lock ./pyproject.toml ./README.md ./
 COPY hub_adapter/ ./hub_adapter/
 
-RUN uv venv /app/.venv && /app/.venv/bin/uv pip sync
+RUN uv venv /app/.venv
+ENV VIRTUAL_ENV=/app/.venv
+RUN uv sync --frozen --no-dev
 
 FROM python:3.13-alpine
 
@@ -28,4 +30,4 @@ EXPOSE 5000
 
 USER 10000:10000
 
-ENTRYPOINT ["python", "-m", "hub_adapter.cli", "serve"]
+ENTRYPOINT ["hub-adapter", "serve"]
