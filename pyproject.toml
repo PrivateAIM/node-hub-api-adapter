@@ -1,40 +1,43 @@
-[tool.poetry]
+[project]
 name = "hub-adapter"
 version = "0.4.3"
 description = "API gateway interface for the Node UI to interact with the other node services and the hub."
-authors = ["Bruce Schultz <bruce.schultz@uk-koeln.de>"]
+authors = [{ name = "Bruce Schultz", email = "bruce.schultz@uk-koeln.de" }]
 readme = "README.md"
-license = "Apache 2.0"
-packages = [{ include = "hub_adapter" }]
+license = { text = "Apache 2.0" }
+requires-python = ">=3.12"
+dependencies = [
+    "uvicorn>=0.38.0",
+    "fastapi>=0.120.1",
+    "flame-hub-client==0.2.7",
+    "click>=8.1.7",
+    "python-multipart>=0.0.22",
+    "httpx>=0.28.0",
+    "kongadminclient @ git+https://github.com/PrivateAIM/kong-admin-python-client.git",
+    "python-dotenv>=1.0.1",
+    "pyjwt>=2.10.1",
+    "cryptography>=46.0.3",
+    "truststore>=0.10.4",
+    "node-event-logging-database @ git+https://github.com/PrivateAIM/node-event-logging-database",
+]
 
-[tool.poetry.dependencies]
-python = "^3.12"
-uvicorn = "^0.38.0"
-fastapi = "^0.120.1"
-flame-hub-client = "0.2.7"
-click = "^8.1.7"
-python-multipart = "^0.0.22"
-httpx = "^0.28.0"
-kong-admin-client = { git = "https://github.com/PrivateAIM/kong-admin-python-client.git" }
-python-dotenv = "^1.0.1"
-pyjwt = "^2.10.1"
-cryptography = "^46.0.5"
-truststore = "^0.10.4"
-node-event-logging-database = { git = "https://github.com/PrivateAIM/node-event-logging-database" }
-pydantic-settings = "^2.13.1"
-
-[tool.poetry.group.dev.dependencies]
-pytest = "^8.4.1"
-pytest-asyncio = "^1.1.0"
-pytest-httpx = "^0.35.0"
-pre-commit = "^3.6.0"
-ruff = "^0.14.9"
+[dependency-groups]
+dev = [
+    "pytest>=8.4.1",
+    "pytest-asyncio>=1.1.0",
+    "pytest-httpx>=0.35.0",
+    "pre-commit>=3.6.0",
+    "ruff>=0.14.9",
+]
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.poetry.scripts]
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[project.scripts]
 hub-adapter = "hub_adapter.cli:main"
 
 [tool.ruff]
