@@ -1,8 +1,20 @@
 """Adapter API Settings."""
 
-import os
-
+from pydantic import model_validator, BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class AutostartSettings(BaseSettings):
+    """Autostart Settings."""
+
+    enabled: bool = True
+    autostart_interval: int = 60
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+    )
 
 
 class Settings(BaseSettings):
@@ -17,9 +29,7 @@ class Settings(BaseSettings):
     # IDP Settings
     idp_url: str = "http://localhost:8080"  # User
     # If using a different service for node OIDC, set this to the URL of that service
-    NODE_SVC_OIDC_URL: str = os.getenv(
-        "NODE_SVC_OIDC_URL", os.getenv("IDP_URL", "http://localhost:8080")
-    )
+    node_svc_oidc_url: str | None = None
 
     # JWKS URI to override the endpoints fetched from the IDP issuer (meant for local testing)
     override_jwks: str | None = None
@@ -35,7 +45,6 @@ class Settings(BaseSettings):
     api_client_secret: str | None = None
 
     # Hub
-
     hub_auth_service_url: str = "https://auth.privateaim.dev"
     hub_service_url: str = "https://core.privateaim.dev"
     hub_robot_user: str | None = None
@@ -60,3 +69,16 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
     )
+
+    @model_validator(mode="after")
+    def set_node_svc_oidc_url(self) -> "Settings":
+        if self.node_svc_oidc_url is None:
+            object.__setattr__(self, "node_svc_oidc_url", self.idp_url)
+        return self
+
+
+class UserSettings(BaseModel):
+    """Node configuration settings set by the user."""
+
+    require_data_stored: bool = True
+    autostart: AutostartSettings = AutostartSettings()

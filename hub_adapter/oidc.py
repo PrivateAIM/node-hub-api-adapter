@@ -75,8 +75,8 @@ def get_svc_oidc_config() -> OIDCConfiguration:
     """Lazy-load the service OIDC configuration when first needed."""
     settings = get_settings()
     # Services always use internal IDP
-    if settings.NODE_SVC_OIDC_URL != settings.idp_url:
-        return fetch_openid_config(settings.NODE_SVC_OIDC_URL)
+    if settings.node_svc_oidc_url != settings.idp_url:
+        return fetch_openid_config(settings.node_svc_oidc_url)
     else:
         return get_user_oidc_config()
 
