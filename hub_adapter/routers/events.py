@@ -31,16 +31,28 @@ event_router = APIRouter(
 )
 async def get_events(
     settings: Annotated[Settings, Depends(get_settings)],
-    limit: Annotated[int | None, Query(description="Maximum number of events to return")] = None,
-    offset: Annotated[int | None, Query(description="Number of events to offset by")] = 0,
-    service_tag: Annotated[str | None, Query(description="Filter events by service tag")] = None,
-    event_name: Annotated[str | None, Query(description="Filter events by event name")] = None,
-    username: Annotated[str | None, Query(description="Filter events by username")] = None,
+    limit: Annotated[
+        int | None, Query(description="Maximum number of events to return")
+    ] = None,
+    offset: Annotated[
+        int | None, Query(description="Number of events to offset by")
+    ] = 0,
+    service_tag: Annotated[
+        str | None, Query(description="Filter events by service tag")
+    ] = None,
+    event_name: Annotated[
+        str | None, Query(description="Filter events by event name")
+    ] = None,
+    username: Annotated[
+        str | None, Query(description="Filter events by username")
+    ] = None,
     start_date: Annotated[
-        datetime.datetime | None, Query(description="Filter events by start date using ISO8601 format")
+        datetime.datetime | None,
+        Query(description="Filter events by start date using ISO8601 format"),
     ] = None,
     end_date: Annotated[
-        datetime.datetime | None, Query(description="Filter events by end date using ISO8601 format")
+        datetime.datetime | None,
+        Query(description="Filter events by end date using ISO8601 format"),
     ] = None,
 ):
     """Retrieve a selection of logged events."""
@@ -50,7 +62,7 @@ async def get_events(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail={
                 "message": f"Failed to connect to postgres database "
-                f"at {settings.POSTGRES_EVENT_HOST}, unable to retrieve events",
+                f"at {settings.postgres_event_host}, unable to retrieve events",
                 "service": "Hub Adapter",
                 "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
             },

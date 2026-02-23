@@ -23,17 +23,20 @@ storage_router = APIRouter(
     request_method=storage_router.delete,
     path="/local/",
     status_code=status.HTTP_200_OK,
-    service_url=get_settings().STORAGE_SERVICE_URL,
+    service_url=get_settings().storage_service_url,
     query_params=["project_id"],
     name="storage.local.delete",
 )
 async def delete_local_results(
-    project_id: Annotated[uuid.UUID | str, Query(description="UUID of the associated project.")],
+    project_id: Annotated[
+        uuid.UUID | str, Query(description="UUID of the associated project.")
+    ],
     request: Request,
     response: Response,
 ):
     """Delete all objects in MinIO and all Postgres database entries related to the specified project.
 
     Returns a 200 on success, a 400 if the project is still available on the Hub and a 403 if it is not the
-    Hub Adapter client that sends the request. In both error cases nothing is deleted at all."""
+    Hub Adapter client that sends the request. In both error cases nothing is deleted at all.
+    """
     pass

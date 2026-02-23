@@ -38,8 +38,10 @@ class TestAuth:
     @pytest.mark.asyncio
     async def test_get_hub_public_key(self, httpx_mock, test_settings):
         """Test that the public key is returned."""
-        fake_key_ep = test_settings.HUB_AUTH_SERVICE_URL.rstrip("/") + "/jwks"
-        httpx_mock.add_response(url=fake_key_ep, json=TEST_JWKS_RESPONSE, status_code=200)
+        fake_key_ep = test_settings.hub_auth_service_url.rstrip("/") + "/jwks"
+        httpx_mock.add_response(
+            url=fake_key_ep, json=TEST_JWKS_RESPONSE, status_code=200
+        )
 
         data = await get_hub_public_key(test_settings)
         assert isinstance(data, dict)
@@ -57,7 +59,9 @@ class TestAuth:
     @patch("hub_adapter.auth.get_user_oidc_config")
     @patch("hub_adapter.auth.jwt.decode")
     @pytest.mark.asyncio
-    async def test_verify_idp_token_errors(self, mock_decode, mock_user_oidc, mock_svc_oidc, test_settings):
+    async def test_verify_idp_token_errors(
+        self, mock_decode, mock_user_oidc, mock_svc_oidc, test_settings
+    ):
         """Test that verify_idp_token handles decode errors."""
         fake_token = HTTPAuthorizationCredentials(scheme="Bearer", credentials="")
         mock_user_oidc.return_value = ""
@@ -77,19 +81,28 @@ class TestAuth:
         with pytest.raises(HTTPException) as expired_sig_error:
             await verify_idp_token(test_settings, token=fake_token)
             assert expired_sig_error.value.status_code == status.HTTP_401_UNAUTHORIZED
-            assert expired_sig_error.value.detail["message"] == "Authorization token expired"
+            assert (
+                expired_sig_error.value.detail["message"]
+                == "Authorization token expired"
+            )
 
         mock_decode.side_effect = jwt.MissingRequiredClaimError(claim="iat")
         with pytest.raises(HTTPException) as missing_claim_error:
             await verify_idp_token(test_settings, token=TEST_JWT)
             assert missing_claim_error.value.status_code == status.HTTP_401_UNAUTHORIZED
-            assert missing_claim_error.value.detail["message"] == "Incorrect claims, check the audience and issuer."
+            assert (
+                missing_claim_error.value.detail["message"]
+                == "Incorrect claims, check the audience and issuer."
+            )
 
         mock_decode.side_effect = ValueError  # Some other random error
         with pytest.raises(HTTPException) as random_error:
             await verify_idp_token(test_settings, token=fake_token)
             assert random_error.value.status_code == status.HTTP_401_UNAUTHORIZED
-            assert missing_claim_error.value.detail["message"] == "Unable to parse authentication token"
+            assert (
+                missing_claim_error.value.detail["message"]
+                == "Unable to parse authentication token"
+            )
 
     @pytest.mark.asyncio
     async def test_get_internal_token(self, httpx_mock, test_settings):
@@ -101,13 +114,19 @@ class TestAuth:
             "refresh_token": TEST_JWT,
             "refresh_expires_in": 1800,
         }
-        httpx_mock.add_response(url=TEST_OIDC.token_endpoint, json=fake_token_resp, status_code=200)
-        assert await _get_internal_token(TEST_OIDC, test_settings) == {"Authorization": f"Bearer {TEST_JWT}"}
+        httpx_mock.add_response(
+            url=TEST_OIDC.token_endpoint, json=fake_token_resp, status_code=200
+        )
+        assert await _get_internal_token(TEST_OIDC, test_settings) == {
+            "Authorization": f"Bearer {TEST_JWT}"
+        }
 
     @patch("hub_adapter.auth._get_internal_token")
     @patch("hub_adapter.auth.check_oidc_configs_match")
     @pytest.mark.asyncio
-    async def test_add_internal_token_if_missing(self, mock_config_check, mock_internal_token):
+    async def test_add_internal_token_if_missing(
+        self, mock_config_check, mock_internal_token
+    ):
         """Test the add_internal_token_if_missing method."""
         req_scope = {
             "type": "http",
@@ -139,8 +158,8 @@ class TestAuth:
         correct_role_claim_name = "resource_access.node-ui.roles"
 
         mock_settings = Settings()
-        assert mock_settings.STEWARD_ROLE is None
-        assert mock_settings.RESEARCHER_ROLE is None
+        assert mock_settings.steward_role is None
+        assert mock_settings.researcher_role is None
 
         # No steward or researcher role set - auto pass
         await require_steward_role(TEST_STEWARD_DECRYPTED_JWT, mock_settings)
@@ -153,11 +172,15 @@ class TestAuth:
             STEWARD_ROLE=STEWARD_ROLE,
             RESEARCHER_ROLE=RESEARCHER_ROLE,
         )
-        assert mock_settings_with_correct_roles.STEWARD_ROLE == STEWARD_ROLE
-        assert mock_settings_with_correct_roles.RESEARCHER_ROLE == RESEARCHER_ROLE
+        assert mock_settings_with_correct_roles.steward_role == STEWARD_ROLE
+        assert mock_settings_with_correct_roles.researcher_role == researcher_role
 
-        await require_steward_role(TEST_STEWARD_DECRYPTED_JWT, mock_settings_with_correct_roles)
-        await require_researcher_role(TEST_RESEARCHER_DECRYPTED_JWT, mock_settings_with_correct_roles)
+        await require_steward_role(
+            TEST_STEWARD_DECRYPTED_JWT, mock_settings_with_correct_roles
+        )
+        await require_researcher_role(
+            TEST_RESEARCHER_DECRYPTED_JWT, mock_settings_with_correct_roles
+        )
 
         # Mismatch role names and expect fail
         mock_settings_with_mismatched_roles = Settings(
@@ -166,10 +189,12 @@ class TestAuth:
             RESEARCHER_ROLE="bar",
         )
         assert mock_settings_with_mismatched_roles.STEWARD_ROLE == "foo"
-        assert mock_settings_with_mismatched_roles.RESEARCHER_ROLE == "bar"
+        assert mock_settings_with_mismatched_roles.researcher_role == "bar"
 
         with pytest.raises(HTTPException) as steward_error:
-            await require_steward_role(TEST_STEWARD_DECRYPTED_JWT, mock_settings_with_mismatched_roles)
+            await require_steward_role(
+                TEST_STEWARD_DECRYPTED_JWT, mock_settings_with_mismatched_roles
+            )
             assert steward_error.value.status_code == status.HTTP_403_FORBIDDEN
             assert (
                 steward_error.value.detail["message"]
@@ -177,7 +202,9 @@ class TestAuth:
             )
 
         with pytest.raises(HTTPException) as researcher_error:
-            await require_researcher_role(TEST_RESEARCHER_DECRYPTED_JWT, mock_settings_with_mismatched_roles)
+            await require_researcher_role(
+                TEST_RESEARCHER_DECRYPTED_JWT, mock_settings_with_mismatched_roles
+            )
             assert researcher_error.value.status_code == status.HTTP_403_FORBIDDEN
             assert (
                 researcher_error.value.detail["message"]
@@ -190,12 +217,16 @@ class TestAuth:
             ROLE_CLAIM_NAME=wrong_claim_name,
             STEWARD_ROLE=STEWARD_ROLE,
         )
-        assert mock_settings_with_wrong_claim_name.STEWARD_ROLE == STEWARD_ROLE
+        assert mock_settings_with_wrong_claim_name.steward_role == steward_role
 
         with pytest.raises(HTTPException) as steward_error:
-            await require_steward_role(TEST_STEWARD_DECRYPTED_JWT, mock_settings_with_wrong_claim_name)
+            await require_steward_role(
+                TEST_STEWARD_DECRYPTED_JWT, mock_settings_with_wrong_claim_name
+            )
             assert mock_logger.warning.call_count == 1
-            mock_logger.warning.assert_any_call(f"No roles found in token using {wrong_claim_name}")
+            mock_logger.warning.assert_any_call(
+                f"No roles found in token using {wrong_claim_name}"
+            )
             assert steward_error.value.status_code == status.HTTP_403_FORBIDDEN
             assert (
                 steward_error.value.detail["message"]

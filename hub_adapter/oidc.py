@@ -36,8 +36,12 @@ def fetch_openid_config(
 
         except (httpx.ConnectError, httpx.ReadTimeout):  # OIDC Service not up yet
             attempt_num += 1
-            wait_time = wait_interval * (2 ** (attempt_num - 1))  # 10s, 20s, 40s, 80s, 160s, 320s
-            logger.warning(f"Unable to contact the IDP at {oidc_url}, retrying in {wait_time} seconds")
+            wait_time = wait_interval * (
+                2 ** (attempt_num - 1)
+            )  # 10s, 20s, 40s, 80s, 160s, 320s
+            logger.warning(
+                f"Unable to contact the IDP at {oidc_url}, retrying in {wait_time} seconds"
+            )
             time.sleep(wait_time)
 
         except httpx.HTTPStatusError as e:
@@ -56,20 +60,22 @@ def fetch_openid_config(
             ) from e
 
     logger.error(f"Unable to contact the IDP at {oidc_url} after {max_retries} retries")
-    raise httpx.ConnectError(f"Unable to contact the IDP at {oidc_url} after {max_retries} retries")
+    raise httpx.ConnectError(
+        f"Unable to contact the IDP at {oidc_url} after {max_retries} retries"
+    )
 
 
 def get_user_oidc_config() -> OIDCConfiguration:
     """Lazy-load the user OIDC configuration when first needed."""
     settings = get_settings()
-    return fetch_openid_config(settings.IDP_URL)
+    return fetch_openid_config(settings.idp_url)
 
 
 def get_svc_oidc_config() -> OIDCConfiguration:
     """Lazy-load the service OIDC configuration when first needed."""
     settings = get_settings()
     # Services always use internal IDP
-    if settings.NODE_SVC_OIDC_URL != settings.IDP_URL:
+    if settings.NODE_SVC_OIDC_URL != settings.idp_url:
         return fetch_openid_config(settings.NODE_SVC_OIDC_URL)
     else:
         return get_user_oidc_config()

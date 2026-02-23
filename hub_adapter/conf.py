@@ -1,57 +1,62 @@
 """Adapter API Settings."""
 
 import os
-from dataclasses import dataclass
 
-TRUE_VALUES = ("true", "1", "yes", "t")
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-# Init settings
-@dataclass(frozen=True)
-class Settings:
+class Settings(BaseSettings):
     """Settings for Hub Adapter API."""
 
-    API_ROOT_PATH: str = os.getenv("API_ROOT_PATH", "")
+    api_root_path: str = ""
 
-    HTTP_PROXY: str = os.getenv("HTTP_PROXY", "")
-    HTTPS_PROXY: str = os.getenv("HTTPS_PROXY", "")
-
-    EXTRA_CA_CERTS: str = os.getenv("EXTRA_CA_CERTS")
+    http_proxy: str | None = None
+    https_proxy: str | None = None
+    extra_ca_certs: str | None = None
 
     # IDP Settings
-    IDP_URL: str = os.getenv("IDP_URL", "http://localhost:8080")  # User
+    idp_url: str = "http://localhost:8080"  # User
     # If using a different service for node OIDC, set this to the URL of that service
-    NODE_SVC_OIDC_URL: str = os.getenv("NODE_SVC_OIDC_URL", os.getenv("IDP_URL", "http://localhost:8080"))
+    NODE_SVC_OIDC_URL: str = os.getenv(
+        "NODE_SVC_OIDC_URL", os.getenv("IDP_URL", "http://localhost:8080")
+    )
 
     # JWKS URI to override the endpoints fetched from the IDP issuer (meant for local testing)
-    OVERRIDE_JWKS: str = os.getenv("OVERRIDE_JWKS")
+    override_jwks: str | None = None
 
     # Service URLs
-    STORAGE_SERVICE_URL: str = os.getenv("STORAGE_SERVICE_URL", "http://localhost:8000")
-    KONG_ADMIN_SERVICE_URL: str = os.getenv("KONG_ADMIN_SERVICE_URL", "http://localhost:8000")
-    KONG_PROXY_SERVICE_URL: str = os.getenv("KONG_PROXY_SERVICE_URL")
-    PODORC_SERVICE_URL: str = os.getenv("PODORC_SERVICE_URL", "http://localhost:18080")
+    storage_service_url: str = "http://localhost:8000"
+    kong_admin_service_url: str = "http://localhost:8000"
+    kong_proxy_service_url: str = "http://localhost:8000"
+    podorc_service_url: str = "http://localhost:5000"
 
     # User IDP client ID and secret for the hub adapter
-    API_CLIENT_ID: str = os.getenv("API_CLIENT_ID", "hub-adapter")
-    API_CLIENT_SECRET: str = os.getenv("API_CLIENT_SECRET")  # Not used currently
+    api_client_id: str = "hub-adapter"
+    api_client_secret: str | None = None
 
     # Hub
-    HUB_AUTH_SERVICE_URL: str = os.getenv("HUB_AUTH_SERVICE_URL", "https://auth.privateaim.dev")
-    HUB_SERVICE_URL: str = os.getenv("HUB_SERVICE_URL", "https://core.privateaim.dev")
-    HUB_ROBOT_USER: str = os.getenv("HUB_ROBOT_USER")
-    HUB_ROBOT_SECRET: str = os.getenv("HUB_ROBOT_SECRET")
+
+    hub_auth_service_url: str = "https://auth.privateaim.dev"
+    hub_service_url: str = "https://core.privateaim.dev"
+    hub_robot_user: str | None = None
+    hub_robot_secret: str | None = None
 
     # RBAC
-    ROLE_CLAIM_NAME: str = os.getenv("ROLE_CLAIM_NAME")
-    ADMIN_ROLE: str = os.getenv("ADMIN_ROLE", "admin")
-    STEWARD_ROLE: str = os.getenv("STEWARD_ROLE")
-    RESEARCHER_ROLE: str = os.getenv("RESEARCHER_ROLE")
+    role_claim_name: str | None = None
+    admin_role: str | None = "admin"
+    steward_role: str | None = None
+    researcher_role: str | None = None
 
     # Event logging
-    LOG_EVENTS: bool = os.getenv("LOG_EVENTS", "true").lower() in TRUE_VALUES
-    POSTGRES_EVENT_USER: str = os.getenv("POSTGRES_EVENT_USER")
-    POSTGRES_EVENT_PASSWORD: str = os.getenv("POSTGRES_EVENT_PASSWORD")
-    POSTGRES_EVENT_DB: str = os.getenv("POSTGRES_EVENT_DB")
-    POSTGRES_EVENT_HOST: str = os.getenv("POSTGRES_EVENT_HOST", "localhost")
-    POSTGRES_EVENT_PORT: str = os.getenv("POSTGRES_EVENT_PORT", "5432")
+    log_events: bool = True
+    postgres_event_user: str | None = None
+    postgres_event_password: str | None = None
+    postgres_event_db: str | None = None
+    postgres_event_host: str | None = "localhost"
+    postgres_event_port: str | None = "5432"
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+    )

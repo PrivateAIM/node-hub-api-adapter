@@ -32,22 +32,37 @@ logger = logging.getLogger(__name__)
 # API metadata
 tags_metadata = [
     {"name": "Auth", "description": "Endpoints for authorization specific tasks."},
-    {"name": "Events", "description": "Gateway endpoints for interacting with logged events."},
+    {
+        "name": "Events",
+        "description": "Gateway endpoints for interacting with logged events.",
+    },
     {"name": "Hub", "description": "Gateway endpoints for the central Hub service."},
     {
         "name": "Health",
         "description": "Endpoints for checking the health of this API and the downstream services.",
     },
-    {"name": "Meta", "description": "Custom Hub Adapter endpoints which combine endpoints from other APIs."},
-    {"name": "Node", "description": "Endpoints for setting and getting node settings and configuration options."},
+    {
+        "name": "Meta",
+        "description": "Custom Hub Adapter endpoints which combine endpoints from other APIs.",
+    },
+    {
+        "name": "Node",
+        "description": "Endpoints for setting and getting node settings and configuration options.",
+    },
     {"name": "Kong", "description": "Endpoints for the Kong gateway service."},
-    {"name": "PodOrc", "description": "Gateway endpoints for the Pod Orchestration service."},
+    {
+        "name": "PodOrc",
+        "description": "Gateway endpoints for the Pod Orchestration service.",
+    },
 ]
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    EventModelMap.mapping = {event_name: event_data.get("model") for event_name, event_data in ANNOTATED_EVENTS.items()}
+    EventModelMap.mapping = {
+        event_name: event_data.get("model")
+        for event_name, event_data in ANNOTATED_EVENTS.items()
+    }
 
     get_event_logger()  # Attempts to setup connections
 
@@ -61,14 +76,14 @@ app = FastAPI(
     title="FLAME API",
     description="FLAME project API for interacting with various microservices within the node for the UI.",
     swagger_ui_init_oauth={
-        "clientId": get_settings().API_CLIENT_ID,  # default client-id is Keycloak
+        "clientId": get_settings().api_client_id,  # default client-id is Keycloak
     },
     license_info={
         "name": "Apache 2.0",
         "url": "https://www.apache.org/licenses/LICENSE-2.0.html",
         "identifier": "Apache-2.0",
     },
-    root_path=get_settings().API_ROOT_PATH,
+    root_path=get_settings().api_root_path,
     lifespan=lifespan,
 )
 
@@ -89,7 +104,9 @@ async def event_logging_middleware(request: Request, call_next):
 
     try:
         middleware_logger = get_event_logger()
-        middleware_logger.log_fastapi_request(request, response.status_code, log_health_checks=False)
+        middleware_logger.log_fastapi_request(
+            request, response.status_code, log_health_checks=False
+        )
 
     except AttributeError:
         # Event logging not initialized, skip
@@ -116,7 +133,9 @@ for router in routers:
 
 async def run_server(host: str, port: int, reload: bool):
     """Start the hub adapter API server."""
-    config = uvicorn.Config(app, host=host, port=port, reload=reload, log_config=logging_config)
+    config = uvicorn.Config(
+        app, host=host, port=port, reload=reload, log_config=logging_config
+    )
     server = uvicorn.Server(config)
     await server.serve()
 
@@ -144,7 +163,9 @@ async def deploy(host: str = "127.0.0.1", port: int = 5000, reload: bool = False
     autostart_interval: int = int(os.getenv("AUTOSTART_INTERVAL", "60"))
 
     if autostart:
-        autostart_operation = asyncio.create_task(autostart_probing(interval=autostart_interval))
+        autostart_operation = asyncio.create_task(
+            autostart_probing(interval=autostart_interval)
+        )
         tasks.append(autostart_operation)
 
     await asyncio.gather(*tasks)

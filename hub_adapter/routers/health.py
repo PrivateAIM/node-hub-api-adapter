@@ -48,13 +48,15 @@ async def get_health() -> HealthCheck:
     response_model=DownstreamHealthCheck,
     name="health.status.services.get",
 )
-def get_health_downstream_services(settings: Annotated[Settings, Depends(get_settings)]):
+def get_health_downstream_services(
+    settings: Annotated[Settings, Depends(get_settings)],
+):
     """Return the health of the downstream microservices."""
     health_eps = {
-        "po": settings.PODORC_SERVICE_URL.rstrip("/") + "/po/healthz",
-        "storage": settings.STORAGE_SERVICE_URL.rstrip("/") + "/healthz",
+        "po": settings.podorc_service_url.rstrip("/") + "/po/healthz",
+        "storage": settings.storage_service_url.rstrip("/") + "/healthz",
         # "hub": settings.HUB_SERVICE_URL,
-        "kong": settings.KONG_ADMIN_SERVICE_URL.rstrip("/") + "/status",
+        "kong": settings.kong_admin_service_url.rstrip("/") + "/status",
     }
 
     health_checks = {}
@@ -66,7 +68,9 @@ def get_health_downstream_services(settings: Annotated[Settings, Depends(get_set
             logger.error(f"Error connecting to {service} service: {e}")
             resp = str(e)
 
-        if service == "kong":  # Returns its own response : {"database": {"reachable": true}, ...}
+        if (
+            service == "kong"
+        ):  # Returns its own response : {"database": {"reachable": true}, ...}
             if isinstance(resp, dict) and "database" in resp:
                 kong_status: bool = resp.get("database").get("reachable")
                 resp = {"status": "ok" if kong_status else "fail"}

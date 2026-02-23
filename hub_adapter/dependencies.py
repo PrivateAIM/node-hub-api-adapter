@@ -32,9 +32,11 @@ def get_settings():
 
 
 @lru_cache
-def get_ssl_context(settings: Annotated[Settings, Depends(get_settings)]) -> ssl.SSLContext:
+def get_ssl_context(
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> ssl.SSLContext:
     """Check if there are additional certificates present and if so, load them."""
-    cert_path = settings.EXTRA_CA_CERTS
+    cert_path = settings.extra_ca_certs
     ctx = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
     if cert_path and Path(cert_path).exists():
         ctx.load_verify_locations(cafile=cert_path)
@@ -47,13 +49,15 @@ def get_flame_hub_auth_flow(
 ) -> RobotAuth:
     """Automated method for getting a robot token from the central Hub service."""
     robot_id, robot_secret = (
-        settings.HUB_ROBOT_USER,
-        settings.HUB_ROBOT_SECRET,
+        settings.hub_robot_user,
+        settings.hub_robot_secret,
     )
 
     if not robot_id or not robot_secret:
         logger.error("Missing robot ID or secret. Check env vars")
-        raise ValueError("Missing Hub robot credentials, check that the environment variables are set properly")
+        raise ValueError(
+            "Missing Hub robot credentials, check that the environment variables are set properly"
+        )
 
     try:
         uuid.UUID(robot_id)
@@ -75,7 +79,7 @@ def get_flame_hub_auth_flow(
         robot_id=robot_id,
         robot_secret=robot_secret,
         client=httpx.Client(
-            base_url=settings.HUB_AUTH_SERVICE_URL,
+            base_url=settings.hub_auth_service_url,
             verify=ssl_ctx,
         ),
     )
@@ -90,7 +94,9 @@ def get_core_client(
     ssl_ctx: Annotated[ssl.SSLContext, Depends(get_ssl_context)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> flame_hub.CoreClient:
-    httpx_client = httpx.Client(base_url=settings.HUB_SERVICE_URL, auth=hub_robot, verify=ssl_ctx)
+    httpx_client = httpx.Client(
+        base_url=settings.hub_service_url, auth=hub_robot, verify=ssl_ctx
+    )
     return flame_hub.CoreClient(client=httpx_client)
 
 
@@ -106,7 +112,7 @@ async def get_node_id(
 
     If None is returned, no filtering will be applied, which is useful for debugging.
     """
-    robot_id = settings.HUB_ROBOT_USER
+    robot_id = settings.hub_robot_user
 
     node_cache = {}
 
@@ -119,11 +125,15 @@ async def get_node_id(
 
     node_id = node_cache.get(robot_id) or "nothingFound"
 
-    if robot_id not in node_cache:  # Node ID may be None since not every robot is associated with a node
+    if (
+        robot_id not in node_cache
+    ):  # Node ID may be None since not every robot is associated with a node
         logger.info("NODE_ID not set for ROBOT_USER, retrieving from Hub")
 
         try:
-            node_id_resp = core_client.find_nodes(filter={"robot_id": robot_id}, fields="id")
+            node_id_resp = core_client.find_nodes(
+                filter={"robot_id": robot_id}, fields="id"
+            )
 
         except httpx.ConnectError as e:
             err = "Connection Error - Hub is currently unreachable"

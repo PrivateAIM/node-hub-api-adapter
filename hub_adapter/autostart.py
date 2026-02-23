@@ -60,19 +60,25 @@ class GoGoAnalysis:
         self.settings = settings
         self.core_client = core_client
 
-    def log_analysis(self, metadata: dict, body: str | None = None, status_code: int | None = None) -> None:
+    def log_analysis(
+        self, metadata: dict, body: str | None = None, status_code: int | None = None
+    ) -> None:
         """Log analysis info as an event."""
         if status_code:  # Overwrite if provided
             metadata["status_code"] = status_code
 
         annotated_event_name, tags = annotate_event(
-            "autostart.analysis.create", status_code=metadata["status_code"], tags=[EventTag.AUTOSTART]
+            "autostart.analysis.create",
+            status_code=metadata["status_code"],
+            tags=[EventTag.AUTOSTART],
         )
 
         event_data = ANNOTATED_EVENTS.get(annotated_event_name)
 
         # Use list(set()) to prune redundant tags and list is needed to make JSON serializable
-        metadata["tags"] = list(set(event_data["tags"] + tags)) if tags else event_data["tags"]
+        metadata["tags"] = (
+            list(set(event_data["tags"] + tags)) if tags else event_data["tags"]
+        )
         if self.event_logger:
             self.event_logger.log_event(
                 event_name=annotated_event_name,
@@ -92,11 +98,15 @@ class GoGoAnalysis:
             logger.error(f"Unable to connect to the Hub: {e}")
             return None
 
-        formatted_query_params = _format_query_params({"sort": "-updated_at", "include": "analysis"})
+        formatted_query_params = _format_query_params(
+            {"sort": "-updated_at", "include": "analysis"}
+        )
 
         try:
             analyses = await list_analysis_nodes(
-                core_client=self.core_client, node_id=node_id, query_params=formatted_query_params
+                core_client=self.core_client,
+                node_id=node_id,
+                query_params=formatted_query_params,
             )
 
         except ConnectError as e:
@@ -105,7 +115,9 @@ class GoGoAnalysis:
 
         valid_projects = await self.get_valid_projects()
         datastore_required = _check_data_required(node_type)
-        ready_to_start_analyses = self.parse_analyses(analyses, valid_projects, datastore_required)
+        ready_to_start_analyses = self.parse_analyses(
+            analyses, valid_projects, datastore_required
+        )
 
         for analysis in ready_to_start_analyses:
             analysis_id, project_id, node_id, _, _ = analysis
@@ -135,7 +147,9 @@ class GoGoAnalysis:
         """Return node information."""
         datastore_required = _check_data_required(node_type)
         if datastore_required:
-            kong_resp, status_code = await self.register_analysis(analysis_id, project_id)
+            kong_resp, status_code = await self.register_analysis(
+                analysis_id, project_id
+            )
             if status_code != status.HTTP_201_CREATED:
                 return kong_resp, status_code
 
@@ -150,13 +164,19 @@ class GoGoAnalysis:
             "node_id": node_id,
             "kong_token": kong_token,
         }
-        start_resp, status_code = await self.send_start_request(analysis_props=props, kong_token=kong_token)
+        start_resp, status_code = await self.send_start_request(
+            analysis_props=props, kong_token=kong_token
+        )
         return start_resp, status_code
 
     async def describe_node(self) -> tuple[str, str] | None:
         """Get node information from cache, and if not present, get from Hub and set cache."""
-        node_id = await get_node_id(core_client=self.core_client, settings=self.settings)
-        node_type_cache = await get_node_type_cache(settings=self.settings, core_client=self.core_client)
+        node_id = await get_node_id(
+            core_client=self.core_client, settings=self.settings
+        )
+        node_type_cache = await get_node_type_cache(
+            settings=self.settings, core_client=self.core_client
+        )
         node_type = node_type_cache["type"]
 
         return node_id, node_type
@@ -185,27 +205,41 @@ class GoGoAnalysis:
             return None, e.status_code
 
         except KongConflictError as e:
-            logger.warning(f"Analysis {analysis_id} already registered, checking if pod exists...")
+            logger.warning(
+                f"Analysis {analysis_id} already registered, checking if pod exists..."
+            )
             pod_exists = await self.pod_running(analysis_id)
             if pod_exists is None:  # Status could not be obtained, skip and try later
-                logger.warning(f"Status for analysis {analysis_id} could not be obtained, will try again")
+                logger.warning(
+                    f"Status for analysis {analysis_id} could not be obtained, will try again"
+                )
                 pass
 
-            elif not pod_exists:  # Status obtained and if not running, delete kong consumer
-                logger.info(f"No pod found for {analysis_id}, will delete kong consumer and retry")
+            elif (
+                not pod_exists
+            ):  # Status obtained and if not running, delete kong consumer
+                logger.info(
+                    f"No pod found for {analysis_id}, will delete kong consumer and retry"
+                )
                 await delete_analysis(settings=self.settings, analysis_id=analysis_id)
 
                 if attempt < max_attempts:
-                    return await self.register_analysis(analysis_id, project_id, attempt + 1, max_attempts)
+                    return await self.register_analysis(
+                        analysis_id, project_id, attempt + 1, max_attempts
+                    )
 
                 else:
                     msg = f"Failed to start analysis {analysis_id} after {max_attempts} attempts"
                     logger.error(msg)
-                    self.log_analysis(event_metadata, body=msg, status_code=e.status_code)
+                    self.log_analysis(
+                        event_metadata, body=msg, status_code=e.status_code
+                    )
                     return None, e.status_code
 
             else:
-                logger.info(f"Pod already exists for analysis {analysis_id}, skipping start sequence")
+                logger.info(
+                    f"Pod already exists for analysis {analysis_id}, skipping start sequence"
+                )
                 return None, e.status_code
 
         except HTTPException as e:
@@ -222,7 +256,10 @@ class GoGoAnalysis:
         if pod_status is not None:
             # null, 'finished', 'failed', and 'stopped' means no pod present
             existing_pod_statuses = ("started", "starting", "running", "stopping")
-            return bool(analysis_id in pod_status and pod_status[analysis_id] in existing_pod_statuses)
+            return bool(
+                analysis_id in pod_status
+                and pod_status[analysis_id] in existing_pod_statuses
+            )
 
         return pod_status  # Error occurred and no status retrieved
 
@@ -236,12 +273,18 @@ class GoGoAnalysis:
         except (HTTPException, HTTPStatusError) as e:
             logger.error(f"Unable to fetch OIDC token: {e}")
 
-    async def send_start_request(self, analysis_props: dict, kong_token: str) -> tuple[dict | None, int] | None:
+    async def send_start_request(
+        self, analysis_props: dict, kong_token: str
+    ) -> tuple[dict | None, int] | None:
         """Start a new analysis pod via the PO."""
         logger.info(f"Starting new analysis pod for {analysis_props['analysis_id']}")
 
-        node_metadata = get_node_metadata_for_url(analysis_props["node_id"], core_client=self.core_client)
-        analysis_info = get_registry_metadata_for_url(node_metadata, core_client=self.core_client)
+        node_metadata = get_node_metadata_for_url(
+            analysis_props["node_id"], core_client=self.core_client
+        )
+        analysis_info = get_registry_metadata_for_url(
+            node_metadata, core_client=self.core_client
+        )
 
         analysis_id = analysis_props["analysis_id"]
         project_id = analysis_props["project_id"]
@@ -259,7 +302,7 @@ class GoGoAnalysis:
         )
 
         headers = await self.fetch_token_header()
-        microsvc_path = f"{get_settings().PODORC_SERVICE_URL}/po/"
+        microsvc_path = f"{get_settings().podorc_service_url}/po/"
 
         if headers:
             try:
@@ -269,7 +312,9 @@ class GoGoAnalysis:
                     headers=headers,
                     data=props,
                 )
-                logger.info(f"Analysis start response for {analysis_id}: {resp_data[analysis_id]}")
+                logger.info(
+                    f"Analysis start response for {analysis_id}: {resp_data[analysis_id]}"
+                )
                 return resp_data, status_code
 
             except HTTPException as e:
@@ -286,13 +331,19 @@ class GoGoAnalysis:
                     "status_code": e.response.status_code,
                 }
                 logger.error(msg)
-                self.log_analysis(event_metadata, body=msg, status_code=e.response.status_code)
+                self.log_analysis(
+                    event_metadata, body=msg, status_code=e.response.status_code
+                )
                 return resp, e.response.status_code
 
             except (ConnectError, RemoteProtocolError) as e:
                 msg = f"Pod Orchestrator unreachable - {e}"
                 logger.error(msg)
-                self.log_analysis(event_metadata, body=msg, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                self.log_analysis(
+                    event_metadata,
+                    body=msg,
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
                 return None, status.HTTP_500_INTERNAL_SERVER_ERROR
 
             except ReadTimeout:
@@ -306,7 +357,11 @@ class GoGoAnalysis:
                     "service": "PO",
                     "status_code": status.HTTP_408_REQUEST_TIMEOUT,
                 }
-                self.log_analysis(event_metadata, body=msg, status_code=status.HTTP_408_REQUEST_TIMEOUT)
+                self.log_analysis(
+                    event_metadata,
+                    body=msg,
+                    status_code=status.HTTP_408_REQUEST_TIMEOUT,
+                )
                 return resp, status.HTTP_408_REQUEST_TIMEOUT
 
         else:  # No token available or PO unreachable
@@ -320,7 +375,7 @@ class GoGoAnalysis:
     async def fetch_analysis_status(self, analysis_id: uuid.UUID | str) -> dict | None:
         """Fetch the status for a specific analysis run. For autostart operation"""
         headers = await self.fetch_token_header()
-        microsvc_path = f"{get_settings().PODORC_SERVICE_URL}/po/status/{analysis_id}"
+        microsvc_path = f"{get_settings().podorc_service_url}/po/status/{analysis_id}"
         resp_data = None
 
         if headers:
@@ -332,7 +387,9 @@ class GoGoAnalysis:
                 )
 
             except HTTPException as e:
-                logger.error(f"Unable to fetch the status of analysis {analysis_id} due to the following error: {e}")
+                logger.error(
+                    f"Unable to fetch the status of analysis {analysis_id} due to the following error: {e}"
+                )
 
             except ConnectError as e:
                 logger.error(f"Unable to contact the PO: {e}")
@@ -360,12 +417,23 @@ class GoGoAnalysis:
 
     @staticmethod
     def parse_analyses(
-        analyses: list, valid_projects: set, datastore_required: bool = True, enforce_time_and_status_check: bool = True
+        analyses: list,
+        valid_projects: set,
+        datastore_required: bool = True,
+        enforce_time_and_status_check: bool = True,
     ) -> set:
         """Iterate through analyses and check whether they are approved, built, and have a run status."""
         ready_analyses = set()
         for entry in analyses:
-            analysis_id, project_id, node_id, build_status, run_status, approved, created_at = (
+            (
+                analysis_id,
+                project_id,
+                node_id,
+                build_status,
+                run_status,
+                approved,
+                created_at,
+            ) = (
                 str(entry.analysis_id),
                 str(entry.analysis.project_id),
                 str(entry.node_id),
@@ -379,10 +447,14 @@ class GoGoAnalysis:
 
             if enforce_time_and_status_check and is_valid:
                 # Need timezone.utc to make it offset-aware otherwise will not work with created_at datetime obj
-                is_recent = (datetime.now(timezone.utc) - created_at) < timedelta(hours=24)
+                is_recent = (datetime.now(timezone.utc) - created_at) < timedelta(
+                    hours=24
+                )
                 is_valid = is_valid and is_recent and not run_status
 
-            if datastore_required and is_valid:  # If aggregator, then skip this since kong route is not needed
+            if (
+                datastore_required and is_valid
+            ):  # If aggregator, then skip this since kong route is not needed
                 is_valid = is_valid and project_id in valid_projects
                 if not is_valid:
                     logger.info(
@@ -391,7 +463,13 @@ class GoGoAnalysis:
                     )
 
             if is_valid:
-                valid_entry = (analysis_id, project_id, node_id, build_status, run_status)
+                valid_entry = (
+                    analysis_id,
+                    project_id,
+                    node_id,
+                    build_status,
+                    run_status,
+                )
                 ready_analyses.add(valid_entry)
 
         logger.info(f"Found {len(ready_analyses)} valid analyses ready to start")

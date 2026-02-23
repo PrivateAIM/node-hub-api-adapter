@@ -52,14 +52,18 @@ class InitializeAnalysis(BaseModel):
     name="meta.initialize",
 )
 async def initialize_analysis(
-    analysis_params: Annotated[InitializeAnalysis, Form(description="Required information to start analysis")],
+    analysis_params: Annotated[
+        InitializeAnalysis, Form(description="Required information to start analysis")
+    ],
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     """Perform the required checks to start an analysis and send information to the PO."""
     initiator = GoGoAnalysis()
     node_id, node_type = await initiator.describe_node()
 
-    analysis = core_client.find_analysis_nodes(filter={"analysis_id": analysis_params.analysis_id})
+    analysis = core_client.find_analysis_nodes(
+        filter={"analysis_id": analysis_params.analysis_id}
+    )
     if not analysis:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -74,7 +78,10 @@ async def initialize_analysis(
     datastore_required = _check_data_required(node_type)
     logger.info(f"Datastore required: {datastore_required}")
     parsed_analyses = initiator.parse_analyses(
-        [analysis[0]], valid_projects, datastore_required, enforce_time_and_status_check=False
+        [analysis[0]],
+        valid_projects,
+        datastore_required,
+        enforce_time_and_status_check=False,
     )
     ready_to_start_analyses = [analysis[0] for analysis in parsed_analyses]
 
@@ -122,7 +129,9 @@ async def initialize_analysis(
     name="meta.terminate",
 )
 async def terminate_analysis(
-    analysis_id: Annotated[str | uuid.UUID, Path(description="Analysis UUID that should be terminated")],
+    analysis_id: Annotated[
+        str | uuid.UUID, Path(description="Analysis UUID that should be terminated")
+    ],
     settings: Annotated[Settings, Depends(get_settings)],
 ):
     """Perform the required checks to stop an analysis and delete it and its components.
@@ -134,7 +143,7 @@ async def terminate_analysis(
     configs_match, oidc_config = check_oidc_configs_match()
     headers = await _get_internal_token(oidc_config, settings)
 
-    microsvc_path = f"{get_settings().PODORC_SERVICE_URL}/po/delete/{analysis_id}"
+    microsvc_path = f"{get_settings().podorc_service_url}/po/delete/{analysis_id}"
 
     try:
         resp_data, status_code = await make_request(
@@ -169,7 +178,9 @@ async def terminate_analysis(
         ) from e
 
     if not resp_data:
-        logger.info(f"Analysis {analysis_id} had no pods running that could be terminated")
+        logger.info(
+            f"Analysis {analysis_id} had no pods running that could be terminated"
+        )
 
     else:
         logger.info(f"Analysis {analysis_id} was terminated")

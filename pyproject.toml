@@ -21,6 +21,7 @@ pyjwt = "^2.10.1"
 cryptography = "^46.0.5"
 truststore = "^0.10.4"
 node-event-logging-database = { git = "https://github.com/PrivateAIM/node-event-logging-database" }
+pydantic-settings = "^2.13.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.4.1"

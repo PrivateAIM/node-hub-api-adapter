@@ -39,7 +39,8 @@ class EventLogger:
 
             user_info = {
                 "user_id": decoded.get("sub"),
-                "username": decoded.get("preferred_username") or decoded.get("username"),
+                "username": decoded.get("preferred_username")
+                or decoded.get("username"),
                 "email": decoded.get("email"),
                 "client_id": decoded.get("azp") or decoded.get("client_id"),
             }
@@ -49,7 +50,12 @@ class EventLogger:
         except (jwt.DecodeError, jwt.InvalidTokenError):
             return None
 
-    def log_fastapi_request(self, request: Request, status_code: int | None = None, log_health_checks: bool = False):
+    def log_fastapi_request(
+        self,
+        request: Request,
+        status_code: int | None = None,
+        log_health_checks: bool = False,
+    ):
         """Log incoming FastAPI requests from external clients using the middleware."""
         user_info = self._extract_user_from_token(request=request)
 
@@ -128,7 +134,9 @@ class EventLogger:
                 return True
 
             except (pw.PeeweeException, DatabaseError) as db_err:
-                logger.warning(str(db_err).strip())  # Strip needed to remove newline from peewee error
+                logger.warning(
+                    str(db_err).strip()
+                )  # Strip needed to remove newline from peewee error
                 logger.warning("Failed to log event")
 
         return False
@@ -142,23 +150,29 @@ def setup_event_logging():
     global event_logger
 
     settings = get_settings()
-    logging_enabled = settings.LOG_EVENTS
+    logging_enabled = settings.log_events
 
-    logger.debug(f"Event logging set to: {'enabled' if logging_enabled else 'disabled'}")
+    logger.debug(
+        f"Event logging set to: {'enabled' if logging_enabled else 'disabled'}"
+    )
 
     if logging_enabled:
-        logger.info(f"Event logging enabled, connecting to database at {settings.POSTGRES_EVENT_HOST}")
+        logger.info(
+            f"Event logging enabled, connecting to database at {settings.postgres_event_host}"
+        )
         required = {
-            "database": settings.POSTGRES_EVENT_DB,
-            "user": settings.POSTGRES_EVENT_USER,
-            "password": settings.POSTGRES_EVENT_PASSWORD,
-            "host": settings.POSTGRES_EVENT_HOST,
-            "port": settings.POSTGRES_EVENT_PORT,
+            "database": settings.postgres_event_db,
+            "user": settings.postgres_event_user,
+            "password": settings.postgres_event_password,
+            "host": settings.postgres_event_host,
+            "port": settings.postgres_event_port,
         }
 
         if not all(required.values()):
             redacted = {**required, "password": "***"}
-            raise ValueError(f"Unable to connect to database due to incomplete configuration settings: {redacted}")
+            raise ValueError(
+                f"Unable to connect to database due to incomplete configuration settings: {redacted}"
+            )
 
         event_db = pw.PostgresqlDatabase(**required)
 
@@ -195,6 +209,8 @@ def get_event_logger() -> EventLogger | None:
 
         except (pw.PeeweeException, ValueError) as db_err:
             logger.warning(str(db_err).strip())
-            logger.warning("Event logging disabled due to database configuration or connection error")
+            logger.warning(
+                "Event logging disabled due to database configuration or connection error"
+            )
 
     return event_logger
