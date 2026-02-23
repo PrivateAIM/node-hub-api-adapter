@@ -19,6 +19,7 @@ dependencies = [
     "cryptography>=46.0.3",
     "truststore>=0.10.4",
     "node-event-logging-database @ git+https://github.com/PrivateAIM/node-event-logging-database",
+    "pydantic-settings>=2.13.1",
 ]
 
 [dependency-groups]

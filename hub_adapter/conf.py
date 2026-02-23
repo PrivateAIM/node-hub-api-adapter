@@ -1,6 +1,6 @@
 """Adapter API Settings."""
 
-from pydantic import model_validator, BaseModel
+from pydantic import BaseModel, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
