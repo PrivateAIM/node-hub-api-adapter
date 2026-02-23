@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.4](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.4.3...v0.4.4) (2026-02-23)
+
+
+### Features
+
+* allow limitless event returns ([5e7cead](https://github.com/PrivateAIM/node-hub-api-adapter/commit/5e7cead68f73ba0a1c803bd7c0550c7092fbdcf8))
+
 ## [0.4.3](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.4.2...v0.4.3) (2026-02-18)
 
 
