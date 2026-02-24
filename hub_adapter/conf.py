@@ -4,16 +4,24 @@ from pydantic import BaseModel, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class AutostartSettings(BaseSettings):
+class AutostartSettings(BaseModel):
     """Autostart Settings."""
 
-    enabled: bool = True
+    enabled: bool = False
     autostart_interval: int = 60
+
+
+class UserSettings(BaseSettings):
+    """Node configuration settings set by the user."""
+
+    require_data_store: bool = True
+    autostart: AutostartSettings = AutostartSettings()
 
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
+        env_nested_delimiter="__",
     )
 
 
@@ -75,10 +83,3 @@ class Settings(BaseSettings):
         if self.node_svc_oidc_url is None:
             object.__setattr__(self, "node_svc_oidc_url", self.idp_url)
         return self
-
-
-class UserSettings(BaseModel):
-    """Node configuration settings set by the user."""
-
-    require_data_stored: bool = True
-    autostart: AutostartSettings = AutostartSettings()
