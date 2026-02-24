@@ -36,12 +36,8 @@ def fetch_openid_config(
 
         except (httpx.ConnectError, httpx.ReadTimeout):  # OIDC Service not up yet
             attempt_num += 1
-            wait_time = wait_interval * (
-                2 ** (attempt_num - 1)
-            )  # 10s, 20s, 40s, 80s, 160s, 320s
-            logger.warning(
-                f"Unable to contact the IDP at {oidc_url}, retrying in {wait_time} seconds"
-            )
+            wait_time = wait_interval * (2 ** (attempt_num - 1))  # 10s, 20s, 40s, 80s, 160s, 320s
+            logger.warning(f"Unable to contact the IDP at {oidc_url}, retrying in {wait_time} seconds")
             time.sleep(wait_time)
 
         except httpx.HTTPStatusError as e:
@@ -60,9 +56,7 @@ def fetch_openid_config(
             ) from e
 
     logger.error(f"Unable to contact the IDP at {oidc_url} after {max_retries} retries")
-    raise httpx.ConnectError(
-        f"Unable to contact the IDP at {oidc_url} after {max_retries} retries"
-    )
+    raise httpx.ConnectError(f"Unable to contact the IDP at {oidc_url} after {max_retries} retries")
 
 
 def get_user_oidc_config() -> OIDCConfiguration:

@@ -31,21 +31,11 @@ event_router = APIRouter(
 )
 async def get_events(
     settings: Annotated[Settings, Depends(get_settings)],
-    limit: Annotated[
-        int | None, Query(description="Maximum number of events to return")
-    ] = None,
-    offset: Annotated[
-        int | None, Query(description="Number of events to offset by")
-    ] = 0,
-    service_tag: Annotated[
-        str | None, Query(description="Filter events by service tag")
-    ] = None,
-    event_name: Annotated[
-        str | None, Query(description="Filter events by event name")
-    ] = None,
-    username: Annotated[
-        str | None, Query(description="Filter events by username")
-    ] = None,
+    limit: Annotated[int | None, Query(description="Maximum number of events to return")] = None,
+    offset: Annotated[int | None, Query(description="Number of events to offset by")] = 0,
+    service_tag: Annotated[str | None, Query(description="Filter events by service tag")] = None,
+    event_name: Annotated[str | None, Query(description="Filter events by event name")] = None,
+    username: Annotated[str | None, Query(description="Filter events by username")] = None,
     start_date: Annotated[
         datetime.datetime | None,
         Query(description="Filter events by start date using ISO8601 format"),

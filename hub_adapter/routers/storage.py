@@ -28,9 +28,7 @@ storage_router = APIRouter(
     name="storage.local.delete",
 )
 async def delete_local_results(
-    project_id: Annotated[
-        uuid.UUID | str, Query(description="UUID of the associated project.")
-    ],
+    project_id: Annotated[uuid.UUID | str, Query(description="UUID of the associated project.")],
     request: Request,
     response: Response,
 ):
