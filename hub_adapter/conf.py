@@ -10,6 +10,8 @@ class AutostartSettings(BaseModel):
     enabled: bool | None = False
     interval: int | None = 60
 
+    model_config = {"extra": "forbid"}
+
 
 class UserSettings(BaseSettings):
     """Node configuration settings set by the user."""

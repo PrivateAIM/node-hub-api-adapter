@@ -66,15 +66,16 @@ def save_persistent_settings(settings: UserSettings):
     if node_database is not None:
         with bind_user_settings(node_database):
             query = PersistentUserConfiguration.update(configuration=settings_dict).where(
-                PersistentUserConfiguration.id == 1
+                PersistentUserConfiguration.id == 1  # Only one entry exists in the table
             )
             query.execute()
     SETTINGS_PATH.write_text(json.dumps(settings_dict, indent=2))
     logger.info(f"User settings successfully updated: {settings.model_dump_json(exclude_none=True)}")
 
 
-def _deep_merge(base: dict[str, Any], updates: dict[str, Any]) -> dict[str, Any]:
-    """Recursively merge updates dict into base dict, preserving nested structures."""
+def _deep_merge(base: dict, updates: dict) -> dict:
+    """Recursively merge updates dict into base dict, preserving nested structures. Used to get around the
+    frozen UserSettings model."""
     result = base.copy()
     for key, value in updates.items():
         if key in result and isinstance(result[key], dict) and isinstance(value, dict):

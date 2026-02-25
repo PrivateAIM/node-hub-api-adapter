@@ -46,7 +46,8 @@ async def update_node_settings(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail={
-                "message": f"Invalid settings: {e.error_count()} error(s) found",
+                "message": f"Invalid settings - {e.error_count()} error(s) found: "
+                f"{[err['loc'][0] for err in e.errors()]}",
                 "service": "Node",
                 "status_code": status.HTTP_422_UNPROCESSABLE_ENTITY,
             },
