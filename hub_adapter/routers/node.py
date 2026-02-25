@@ -40,7 +40,14 @@ async def update_node_settings(
         422: If unknown settings keys are provided.
     """
     try:
-        return update_settings(node_settings)
+        result = update_settings(node_settings)
+        
+        # Update autostart state if any autostart settings changed
+        if "autostart" in node_settings:
+            from hub_adapter.server import autostart_manager
+            await autostart_manager.update()
+        
+        return result
 
     except ValidationError as e:
         raise HTTPException(

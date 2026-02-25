@@ -11,7 +11,7 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 
 from hub_adapter import logging_config
-from hub_adapter.autostart import GoGoAnalysis
+from hub_adapter.autostart import AutostartManager
 from hub_adapter.dependencies import get_settings
 from hub_adapter.event_logging import get_event_logger, teardown_event_logging
 from hub_adapter.models.events import ANNOTATED_EVENTS
@@ -24,13 +24,11 @@ from hub_adapter.routers.meta import meta_router
 from hub_adapter.routers.node import node_router
 from hub_adapter.routers.podorc import po_router
 from hub_adapter.routers.storage import storage_router
-from hub_adapter.user_settings import load_persistent_settings
 
 logger = logging.getLogger(__name__)
 
-# Global autostart task management
-_autostart_task: asyncio.Task | None = None
-_autostart_lock = asyncio.Lock()
+# Global autostart manager instance
+autostart_manager = AutostartManager()
 
 
 # API metadata
@@ -67,8 +65,13 @@ async def lifespan(app: FastAPI):
 
     get_event_logger()  # Attempts to setup connections
 
+    # Initialize autostart based on settings
+    await autostart_manager.update()
+
     yield
 
+    # Cleanup
+    await autostart_manager.stop()
     teardown_event_logging()
 
 
@@ -130,83 +133,19 @@ for router in routers:
     app.include_router(router)
 
 
-async def run_server(host: str, port: int, reload: bool):
-    """Start the hub adapter API server."""
-    config = uvicorn.Config(app, host=host, port=port, reload=reload, log_config=logging_config)
-    server = uvicorn.Server(config)
-    await server.serve()
-
-
 async def autostart_probing(interval: int = 60):
-    """Check for available analyses in the background and start them automatically.
+    """Deprecated: Use AutostartManager instead.
 
-    Parameters
-    ----------
-    interval : int
-        Time in seconds to wait between checks.
+    This function is kept for backward compatibility but is no longer used.
     """
-    analysis_initiator = GoGoAnalysis()
-    while True:
-        # Check current settings on each iteration to respond to changes
-        try:
-            current_settings = load_persistent_settings()
-            if not current_settings.autostart.enabled:
-                logger.info("Autostart disabled, stopping probing")
-                break
-            interval = current_settings.autostart.interval
-        except Exception as e:
-    # Start autostart task if enabled
-    await start_autostart_task(
-
-async def start_autostart_task():
-    """Start the autostart task if not already running."""
-    global _autostart_task
-    async with _autostart_lock:
-        if _autostart_task is None or _autostart_task.done():
-            user_settings = load_persistent_settings()
-            if user_settings.autostart.enabled:
-                logger.info(f"Starting autostart task with interval {user_settings.autostart.interval}s")
-                _autostart_task = asyncio.create_task(autostart_probing(interval=user_settings.autostart.interval))
-            else:
-                logger.info("Autostart is disabled")
-
-
-async def stop_autostart_task():
-    """Stop the autostart task if running."""
-    global _autostart_task
-    async with _autostart_lock:
-        if _autostart_task is not None and not _autostart_task.done():
-            logger.info("Stopping autostart task")
-            _autostart_task.cancel()
-            try:
-                await _autostart_task
-            except asyncio.CancelledError:
-                pass
-            _autostart_task = None
-
-
-async def restart_autostart_task():
-    """Restart the autostart task with new settings."""
-    await stop_autostart_task()
-    await asyncio.sleep(0.1)  # Small delay to ensure task is fully stopped
-    await start_autostart_task()
+    pass
 
 
 async def deploy(host: str = "127.0.0.1", port: int = 5000, reload: bool = False):
-    # Run both tasks concurrently
-    tasks = [asyncio.create_task(run_server(host, port, reload))]
-
-    user_settings = load_persistent_settings()
-
-    autostart: bool = user_settings.autostart.enabled
-    logger.info(f"Autostart enabled: {autostart}")
-    autostart_interval: int = user_settings.autostart.interval
-
-    if autostart:
-        autostart_operation = asyncio.create_task(autostart_probing(interval=autostart_interval))
-        tasks.append(autostart_operation)
-
-    await asyncio.gather(*tasks)
+    """Start the hub adapter API server with autostart management."""
+    config = uvicorn.Config(app, host=host, port=port, reload=reload, log_config=logging_config)
+    server = uvicorn.Server(config)
+    await server.serve()
 
 
 if __name__ == "__main__":

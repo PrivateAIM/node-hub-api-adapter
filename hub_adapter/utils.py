@@ -164,4 +164,4 @@ def _check_data_required(node_type: str) -> bool:
     """Check if data access is required for the current node. Aggregators do not require data nor if DATA_REQUIRED is
     disabled in the settings."""
     node_settings = load_persistent_settings()
-    return False if node_type == "aggregator" else node_settings.data_required
+    return False if node_type == "aggregator" else node_settings.require_data_store
