@@ -8,7 +8,7 @@ class AutostartSettings(BaseModel):
     """Autostart Settings."""
 
     enabled: bool | None = False
-    autostart_interval: int | None = 60
+    interval: int | None = 60
 
 
 class UserSettings(BaseSettings):
@@ -22,6 +22,8 @@ class UserSettings(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
         env_nested_delimiter="__",
+        frozen=True,
+        extra="forbid",
     )
 
 
@@ -76,6 +78,7 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
+        frozen=True,
     )
 
     @model_validator(mode="after")

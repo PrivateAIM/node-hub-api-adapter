@@ -3,6 +3,7 @@
 import json
 import logging
 from contextlib import contextmanager
+from typing import Any
 
 import peewee as pw
 from playhouse.postgres_ext import BinaryJSONField
@@ -47,13 +48,13 @@ def bind_user_settings(db: pw.Database):
 def load_persistent_settings() -> UserSettings:
     """Get user settings."""
     saved_settings = {}
-    if node_database is not None:
+    if SETTINGS_PATH.exists():  # Write to the file as backup
+        saved_settings = json.loads(SETTINGS_PATH.read_text())
+
+    if node_database is not None:  # Write to the database if available
         with bind_user_settings(node_database):
             entry, _ = PersistentUserConfiguration.get_or_create(id=1)
             saved_settings = entry.configuration or {}
-
-    elif SETTINGS_PATH.exists():
-        saved_settings = json.loads(SETTINGS_PATH.read_text())
 
     overloaded = {**UserSettings().model_dump(), **saved_settings}  # Overwrite defaults with saved settings
     return UserSettings(**overloaded)
@@ -61,21 +62,45 @@ def load_persistent_settings() -> UserSettings:
 
 def save_persistent_settings(settings: UserSettings):
     """Save persistent user settings. Overwrites entire file."""
+    settings_dict = settings.model_dump()
     if node_database is not None:
         with bind_user_settings(node_database):
-            PersistentUserConfiguration.update(**settings.model_dump()).execute(id=1)
-    SETTINGS_PATH.write_text(json.dumps(settings.model_dump(), indent=2))
+            query = PersistentUserConfiguration.update(configuration=settings_dict).where(
+                PersistentUserConfiguration.id == 1
+            )
+            query.execute()
+    SETTINGS_PATH.write_text(json.dumps(settings_dict, indent=2))
     logger.info(f"User settings successfully updated: {settings.model_dump_json(exclude_none=True)}")
 
 
-def update_settings(new_settings: UserSettings) -> UserSettings:
-    """Update user settings."""
-    current_settings = load_persistent_settings()
-    updated_settings = current_settings.model_copy(update=new_settings.model_dump(exclude_none=True))
+def _deep_merge(base: dict[str, Any], updates: dict[str, Any]) -> dict[str, Any]:
+    """Recursively merge updates dict into base dict, preserving nested structures."""
+    result = base.copy()
+    for key, value in updates.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = _deep_merge(result[key], value)
+        else:
+            result[key] = value
+    return result
+
+
+def update_settings(new_settings: dict[str, Any]) -> UserSettings:
+    """Update user settings with partial or complete settings.
+
+    Parameters
+    ----------
+    new_settings : dict[str, Any]
+        Dictionary containing settings to update. Only provided keys will be updated;
+        unprovided keys will retain their current values. Nested dicts are merged recursively.
+
+    Returns
+    -------
+    UserSettings
+        The complete updated settings.
+    """
+    current_settings = load_persistent_settings().model_dump()
+    merged = _deep_merge(current_settings, new_settings)
+
+    updated_settings = UserSettings(**merged)
     save_persistent_settings(updated_settings)
     return updated_settings
-
-
-if __name__ == "__main__":
-    foo = UserSettings.model_construct(**{"autostart": {"enabled": False, "interval": 10}})
-    update_settings(foo)

@@ -1,9 +1,10 @@
 """Endpoints for setting and getting node configuration options."""
 
 import logging
-from typing import Annotated
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Body, Security
+from fastapi import APIRouter, Body, HTTPException, Security
+from pydantic import ValidationError
 from starlette import status
 
 from hub_adapter.auth import jwtbearer, verify_idp_token
@@ -29,10 +30,27 @@ logger = logging.getLogger(__name__)
     name="node.settings.update",
 )
 async def update_node_settings(
-    node_settings: Annotated[UserSettings, Body(description="Required information to start analysis")],
+    node_settings: Annotated[dict[str, Any], Body(description="Partial settings to update")],
 ) -> UserSettings:
-    """Update the node configuration settings."""
-    return update_settings(node_settings)
+    """Update the node configuration settings with partial data.
+
+    Raises
+    ------
+    HTTPException
+        422: If unknown settings keys are provided.
+    """
+    try:
+        return update_settings(node_settings)
+
+    except ValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "message": f"Invalid settings: {e.error_count()} error(s) found",
+                "service": "Node",
+                "status_code": status.HTTP_422_UNPROCESSABLE_ENTITY,
+            },
+        ) from e
 
 
 @node_router.get(
