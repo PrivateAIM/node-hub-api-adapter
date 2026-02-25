@@ -9,7 +9,7 @@ from starlette.datastructures import FormData
 from starlette.requests import Request
 
 from hub_adapter.models.events import EventTag
-from hub_adapter.routers.node import load_persistent_settings
+from hub_adapter.user_settings import load_persistent_settings
 
 
 def create_request_data(form: dict | None, body: dict | None) -> dict | None:

@@ -7,15 +7,15 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class AutostartSettings(BaseModel):
     """Autostart Settings."""
 
-    enabled: bool = False
-    autostart_interval: int = 60
+    enabled: bool | None = False
+    autostart_interval: int | None = 60
 
 
 class UserSettings(BaseSettings):
     """Node configuration settings set by the user."""
 
-    require_data_store: bool = True
-    autostart: AutostartSettings = AutostartSettings()
+    require_data_store: bool | None = True
+    autostart: AutostartSettings | None = AutostartSettings()
 
     model_config = SettingsConfigDict(
         env_file=".env",
