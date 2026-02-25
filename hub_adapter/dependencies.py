@@ -31,11 +31,12 @@ def get_settings():
     return Settings()
 
 
-def get_user_settings():
+@lru_cache(maxsize=1)
+def get_default_user_settings():
     return UserSettings()
 
 
-@lru_cache
+@lru_cache(maxsize=1)
 def get_ssl_context(
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> ssl.SSLContext:
@@ -59,9 +60,7 @@ def get_flame_hub_auth_flow(
 
     if not robot_id or not robot_secret:
         logger.error("Missing robot ID or secret. Check env vars")
-        raise ValueError(
-            "Missing Hub robot credentials, check that the environment variables are set properly"
-        )
+        raise ValueError("Missing Hub robot credentials, check that the environment variables are set properly")
 
     try:
         uuid.UUID(robot_id)
@@ -98,9 +97,7 @@ def get_core_client(
     ssl_ctx: Annotated[ssl.SSLContext, Depends(get_ssl_context)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> flame_hub.CoreClient:
-    httpx_client = httpx.Client(
-        base_url=settings.hub_service_url, auth=hub_robot, verify=ssl_ctx
-    )
+    httpx_client = httpx.Client(base_url=settings.hub_service_url, auth=hub_robot, verify=ssl_ctx)
     return flame_hub.CoreClient(client=httpx_client)
 
 
@@ -129,15 +126,11 @@ async def get_node_id(
 
     node_id = node_cache.get(robot_id) or "nothingFound"
 
-    if (
-        robot_id not in node_cache
-    ):  # Node ID may be None since not every robot is associated with a node
+    if robot_id not in node_cache:  # Node ID may be None since not every robot is associated with a node
         logger.info("NODE_ID not set for ROBOT_USER, retrieving from Hub")
 
         try:
-            node_id_resp = core_client.find_nodes(
-                filter={"robot_id": robot_id}, fields="id"
-            )
+            node_id_resp = core_client.find_nodes(filter={"robot_id": robot_id}, fields="id")
 
         except httpx.ConnectError as e:
             err = "Connection Error - Hub is currently unreachable"
@@ -308,4 +301,4 @@ def compile_analysis_pod_data(
 
 
 if __name__ == "__main__":
-    print(get_user_settings().autostart)
+    print(get_default_user_settings().autostart)
