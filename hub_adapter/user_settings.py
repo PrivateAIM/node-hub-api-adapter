@@ -39,7 +39,7 @@ def with_db_fallback(fallback_value: Any = None, log_message: str = "Database op
             try:
                 return func(*args, **kwargs)
 
-            except pw.OperationalError as db_err:
+            except (pw.OperationalError, pw.InterfaceError) as db_err:
                 logger.warning(f"{log_message}: {db_err}")
                 return fallback_value
 

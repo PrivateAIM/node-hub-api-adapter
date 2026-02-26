@@ -81,6 +81,7 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
         frozen=True,
+        extra="ignore",  # Needed for unit tests
     )
 
     @model_validator(mode="after")

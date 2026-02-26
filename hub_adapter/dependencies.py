@@ -18,7 +18,7 @@ from flame_hub._core_client import Node
 from starlette import status
 
 from hub_adapter import node_id_pickle_path
-from hub_adapter.conf import Settings, UserSettings
+from hub_adapter.conf import Settings
 from hub_adapter.errors import HubConnectError, catch_hub_errors
 
 _node_type_cache = None
@@ -29,11 +29,6 @@ logger = logging.getLogger(__name__)
 @lru_cache(maxsize=1)
 def get_settings():
     return Settings()
-
-
-@lru_cache(maxsize=1)
-def get_default_user_settings():
-    return UserSettings()
 
 
 @lru_cache(maxsize=1)
@@ -298,7 +293,3 @@ def compile_analysis_pod_data(
         "registry_password": registry_sec,
     }
     return compiled_response
-
-
-if __name__ == "__main__":
-    print(get_default_user_settings().autostart)

@@ -51,7 +51,7 @@ def authorized_test_client():
     server.app.dependency_overrides = {}  # Best to remove it
 
 
-@pytest.fixture(scope="package")
+@pytest.fixture(scope="session", autouse=True)
 def test_settings() -> Settings:
     """Create fake settings for testing."""
     env_test_path = Path(__file__).parent.joinpath(".env.test")
