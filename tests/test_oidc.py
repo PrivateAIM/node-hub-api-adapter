@@ -18,7 +18,6 @@ class TestOidc:
 
         This tests check_oidc_configs_match, get_svc_oidc_config, get_user_oidc_config, and partly
         fetch_openid_config."""
-        from dataclasses import replace
 
         fake_oidc_url = f"{TEST_URL}/.well-known/openid-configuration"
         fake_oidc_svc_url = f"{TEST_SVC_URL}/.well-known/openid-configuration"
@@ -31,7 +30,7 @@ class TestOidc:
         assert match_config == TEST_OIDC
 
         # Different OIDC URLs
-        different_oidc_settings = replace(test_settings, NODE_SVC_OIDC_URL=TEST_SVC_URL)
+        different_oidc_settings = test_settings.model_copy(update={"node_svc_oidc_url": TEST_SVC_URL})
         mock_settings.return_value = different_oidc_settings
 
         httpx_mock.add_response(url=fake_oidc_svc_url, json=TEST_OIDC_SVC_RESPONSE, status_code=200)

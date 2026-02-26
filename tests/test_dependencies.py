@@ -49,7 +49,6 @@ class TestDeps:
 
     def test_get_ssl_context(self, test_settings):
         """Test the get_ssl_context method."""
-        from dataclasses import replace
 
         # Clear the cache to avoid conflicts
         get_ssl_context.cache_clear()
@@ -67,7 +66,7 @@ class TestDeps:
         # Valid file
         get_ssl_context.cache_clear()
 
-        added_certs_settings = replace(test_settings, EXTRA_CA_CERTS=str(cert_file_path))
+        added_certs_settings = test_settings.model_copy(update={"extra_ca_certs": str(cert_file_path)})
 
         context = get_ssl_context(added_certs_settings)
         assert context is not None
@@ -75,18 +74,17 @@ class TestDeps:
 
     def test_hub_auth_flow(self, test_settings):
         """Test the get_flame_hub_auth_flow method."""
-        from dataclasses import replace
 
         working_auth = get_flame_hub_auth_flow(self.ctx, self.mock_settings)
         assert isinstance(working_auth, RobotAuth)
 
         # Missing HUB_ROBOT_USER should raise ValueError
-        missing_robot_user_settings = replace(test_settings, HUB_ROBOT_USER="")
+        missing_robot_user_settings = test_settings.model_copy(update={"hub_robot_user": ""})
         with pytest.raises(ValueError):
             get_flame_hub_auth_flow(self.ctx, missing_robot_user_settings)
 
         # Non UUID HUB_ROBOT_USER should raise HTTPException error
-        wrong_robot_user_settings = replace(test_settings, HUB_ROBOT_USER="foo")
+        wrong_robot_user_settings = test_settings.model_copy(update={"hub_robot_user": "foo"})
         with pytest.raises(HTTPException) as badUser:
             get_flame_hub_auth_flow(self.ctx, wrong_robot_user_settings)
 

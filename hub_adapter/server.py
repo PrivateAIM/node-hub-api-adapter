@@ -133,14 +133,6 @@ for router in routers:
     app.include_router(router)
 
 
-async def autostart_probing(interval: int = 60):
-    """Deprecated: Use AutostartManager instead.
-
-    This function is kept for backward compatibility but is no longer used.
-    """
-    pass
-
-
 async def deploy(host: str = "127.0.0.1", port: int = 5000, reload: bool = False):
     """Start the hub adapter API server with autostart management."""
     config = uvicorn.Config(app, host=host, port=port, reload=reload, log_config=logging_config)
