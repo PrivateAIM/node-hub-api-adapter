@@ -26,15 +26,17 @@ _node_type_cache = None
 logger = logging.getLogger(__name__)
 
 
-@lru_cache
+@lru_cache(maxsize=1)
 def get_settings():
     return Settings()
 
 
-@lru_cache
-def get_ssl_context(settings: Annotated[Settings, Depends(get_settings)]) -> ssl.SSLContext:
+@lru_cache(maxsize=1)
+def get_ssl_context(
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> ssl.SSLContext:
     """Check if there are additional certificates present and if so, load them."""
-    cert_path = settings.EXTRA_CA_CERTS
+    cert_path = settings.extra_ca_certs
     ctx = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
     if cert_path and Path(cert_path).exists():
         ctx.load_verify_locations(cafile=cert_path)
@@ -47,8 +49,8 @@ def get_flame_hub_auth_flow(
 ) -> RobotAuth:
     """Automated method for getting a robot token from the central Hub service."""
     robot_id, robot_secret = (
-        settings.HUB_ROBOT_USER,
-        settings.HUB_ROBOT_SECRET,
+        settings.hub_robot_user,
+        settings.hub_robot_secret,
     )
 
     if not robot_id or not robot_secret:
@@ -75,7 +77,7 @@ def get_flame_hub_auth_flow(
         robot_id=robot_id,
         robot_secret=robot_secret,
         client=httpx.Client(
-            base_url=settings.HUB_AUTH_SERVICE_URL,
+            base_url=settings.hub_auth_service_url,
             verify=ssl_ctx,
         ),
     )
@@ -90,7 +92,7 @@ def get_core_client(
     ssl_ctx: Annotated[ssl.SSLContext, Depends(get_ssl_context)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> flame_hub.CoreClient:
-    httpx_client = httpx.Client(base_url=settings.HUB_SERVICE_URL, auth=hub_robot, verify=ssl_ctx)
+    httpx_client = httpx.Client(base_url=settings.hub_service_url, auth=hub_robot, verify=ssl_ctx)
     return flame_hub.CoreClient(client=httpx_client)
 
 
@@ -106,7 +108,7 @@ async def get_node_id(
 
     If None is returned, no filtering will be applied, which is useful for debugging.
     """
-    robot_id = settings.HUB_ROBOT_USER
+    robot_id = settings.hub_robot_user
 
     node_cache = {}
 

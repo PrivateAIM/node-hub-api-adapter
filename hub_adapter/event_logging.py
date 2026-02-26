@@ -10,6 +10,7 @@ from node_event_logging import EventLog, bind_to
 from psycopg2 import DatabaseError
 
 from hub_adapter.constants import SERVICE_NAME
+from hub_adapter.database import node_database
 from hub_adapter.dependencies import get_settings
 from hub_adapter.models.events import ANNOTATED_EVENTS
 from hub_adapter.utils import annotate_event
@@ -49,12 +50,17 @@ class EventLogger:
         except (jwt.DecodeError, jwt.InvalidTokenError):
             return None
 
-    def log_fastapi_request(self, request: Request, status_code: int | None = None, log_health_checks: bool = False):
+    def log_fastapi_request(
+        self,
+        request: Request,
+        status_code: int | None = None,
+        log_health_checks: bool = False,
+    ):
         """Log incoming FastAPI requests from external clients using the middleware."""
         user_info = self._extract_user_from_token(request=request)
 
         if request.method not in ("GET", "POST", "PUT", "PATCH", "DELETE"):
-            # OPTIONS is sometimes used for CORS checks, this is to sanitize what is logged
+            # OPTIONS is sometimes used for CORS checks; this is to sanitize what is logged
             return
 
         event_name = "unknown"
@@ -142,31 +148,16 @@ def setup_event_logging():
     global event_logger
 
     settings = get_settings()
-    logging_enabled = settings.LOG_EVENTS
+    logging_enabled = settings.log_events
 
     logger.debug(f"Event logging set to: {'enabled' if logging_enabled else 'disabled'}")
 
     if logging_enabled:
-        logger.info(f"Event logging enabled, connecting to database at {settings.POSTGRES_EVENT_HOST}")
-        required = {
-            "database": settings.POSTGRES_EVENT_DB,
-            "user": settings.POSTGRES_EVENT_USER,
-            "password": settings.POSTGRES_EVENT_PASSWORD,
-            "host": settings.POSTGRES_EVENT_HOST,
-            "port": settings.POSTGRES_EVENT_PORT,
-        }
-
-        if not all(required.values()):
-            redacted = {**required, "password": "***"}
-            raise ValueError(f"Unable to connect to database due to incomplete configuration settings: {redacted}")
-
-        event_db = pw.PostgresqlDatabase(**required)
-
         # Test connection
-        with bind_to(event_db):
-            event_db.connect(reuse_if_open=True)
+        with bind_to(node_database):
+            node_database.connect(reuse_if_open=True)
 
-        event_logger = EventLogger(event_db, enabled=logging_enabled)
+        event_logger = EventLogger(node_database, enabled=logging_enabled)
 
 
 def teardown_event_logging():
@@ -189,11 +180,11 @@ def get_event_logger() -> EventLogger | None:
     Returns:
         EventLogger instance if initialized, None otherwise
     """
-    if not event_logger or not event_logger.event_db:
+    if (not event_logger or not event_logger.event_db) and node_database:
         try:
             setup_event_logging()
 
-        except (pw.PeeweeException, ValueError) as db_err:
+        except pw.PeeweeException as db_err:
             logger.warning(str(db_err).strip())
             logger.warning("Event logging disabled due to database configuration or connection error")
 

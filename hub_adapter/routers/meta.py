@@ -74,7 +74,10 @@ async def initialize_analysis(
     datastore_required = _check_data_required(node_type)
     logger.info(f"Datastore required: {datastore_required}")
     parsed_analyses = initiator.parse_analyses(
-        [analysis[0]], valid_projects, datastore_required, enforce_time_and_status_check=False
+        [analysis[0]],
+        valid_projects,
+        datastore_required,
+        enforce_time_and_status_check=False,
     )
     ready_to_start_analyses = [analysis[0] for analysis in parsed_analyses]
 
@@ -134,7 +137,7 @@ async def terminate_analysis(
     configs_match, oidc_config = check_oidc_configs_match()
     headers = await _get_internal_token(oidc_config, settings)
 
-    microsvc_path = f"{get_settings().PODORC_SERVICE_URL}/po/delete/{analysis_id}"
+    microsvc_path = f"{get_settings().podorc_service_url}/po/delete/{analysis_id}"
 
     try:
         resp_data, status_code = await make_request(

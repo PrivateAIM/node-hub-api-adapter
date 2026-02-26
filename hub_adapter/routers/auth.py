@@ -40,8 +40,8 @@ def get_token(
     payload = {
         "username": username,
         "password": password,
-        "client_id": settings.API_CLIENT_ID,
-        "client_secret": settings.API_CLIENT_SECRET,
+        "client_id": settings.api_client_id,
+        "client_secret": settings.api_client_secret,
         "grant_type": "password",
         "scope": "openid",
     }

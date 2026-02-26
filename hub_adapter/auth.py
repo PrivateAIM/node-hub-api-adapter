@@ -46,9 +46,11 @@ class ProxiedPyJWKClient(PyJWKClient):
             return response.json()
 
 
-async def get_hub_public_key(settings: Annotated[Settings, Depends(get_settings)]) -> dict:
+async def get_hub_public_key(
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> dict:
     """Get the central hub service public key."""
-    hub_jwks_ep = settings.HUB_AUTH_SERVICE_URL.rstrip("/") + "/jwks"
+    hub_jwks_ep = settings.hub_auth_service_url.rstrip("/") + "/jwks"
     return httpx.get(hub_jwks_ep).json()
 
 
@@ -74,11 +76,13 @@ async def verify_idp_token(
 
     try:
         # Decode just to get issuer
-        unverified_claims = jwt.decode(token.credentials, options={"verify_signature": False})
+        unverified_claims = jwt.decode(
+            token.credentials, options={"verify_signature": False}
+        )
         issuer = unverified_claims.get("iss")
 
-        if settings.OVERRIDE_JWKS:  # Override the fetched URIs
-            jwk_client = ProxiedPyJWKClient(settings.OVERRIDE_JWKS)
+        if settings.override_jwks:  # Override the fetched URIs
+            jwk_client = ProxiedPyJWKClient(settings.override_jwks)
         # If the issuer is the user's OIDC, use the user's public key, otherwise use the node's internal public key
         elif issuer == user_oidc_config.issuer:
             jwk_client = ProxiedPyJWKClient(user_oidc_config.jwks_uri)
@@ -96,8 +100,10 @@ async def verify_idp_token(
 
     except httpx.ConnectError as e:
         err_msg = f"{status.HTTP_404_NOT_FOUND} - {e}"
-        if settings.HTTP_PROXY or settings.HTTPS_PROXY:
-            err_msg += f" - Possibly an issue with the forward proxy: {settings.HTTP_PROXY}"
+        if settings.http_proxy or settings.https_proxy:
+            err_msg += (
+                f" - Possibly an issue with the forward proxy: {settings.http_proxy}"
+            )
         logger.error(err_msg)
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -158,14 +164,16 @@ async def verify_idp_token(
         ) from Exception
 
 
-async def _get_internal_token(oidc_config, settings: Annotated[Settings, Depends(get_settings)]) -> dict | None:
+async def _get_internal_token(
+    oidc_config, settings: Annotated[Settings, Depends(get_settings)]
+) -> dict | None:
     """If the Hub Adapter is set up tp use an external IDP, it needs to retrieve a JWT from the internal keycloak
     to make requests to the PO."""
 
     payload = {
         "grant_type": "client_credentials",
-        "client_id": settings.API_CLIENT_ID,
-        "client_secret": settings.API_CLIENT_SECRET,
+        "client_id": settings.api_client_id,
+        "client_secret": settings.api_client_secret,
     }
 
     with httpx.Client(verify=get_ssl_context(settings)) as client:
@@ -182,7 +190,9 @@ async def _add_internal_token_if_missing(request: Request) -> Request:
     configs_match, oidc_config = check_oidc_configs_match()
 
     if not configs_match:
-        logger.debug("External IDP different from internal, retrieving JWT from internal keycloak")
+        logger.debug(
+            "External IDP different from internal, retrieving JWT from internal keycloak"
+        )
         internal_token = await _get_internal_token(oidc_config)
         if internal_token:
             updated_headers = MutableHeaders(request.headers)
@@ -201,14 +211,18 @@ def _require_role(
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> dict:
     """Dependency to check if token contains allowed role, otherwise raise 403 error."""
-    role_claim_name = settings.ROLE_CLAIM_NAME
-    admin_role = settings.ADMIN_ROLE
+    role_claim_name = settings.role_claim_name
+    admin_role = settings.admin_role
     if additional_allowed_role and role_claim_name:
-        logger.debug(f"Role claim name and specified role '{role_claim_name}' found. Verifying role in token.")
+        logger.debug(
+            f"Role claim name and specified role '{role_claim_name}' found. Verifying role in token."
+        )
         role_claim_keys = role_claim_name.split(".")
 
         has_allowed_role = False
-        parsed_claim = verified_token  # Initialize with token data to begin recursive parsing
+        parsed_claim = (
+            verified_token  # Initialize with token data to begin recursive parsing
+        )
         for key in role_claim_keys:
             parsed_claim = parsed_claim.get(key, {})
 
@@ -239,7 +253,7 @@ async def require_steward_role(
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> dict:
     """Dependency to check if the user has the ADMIN_ROLE or STEWARD_ROLE."""
-    steward_role = settings.STEWARD_ROLE
+    steward_role = settings.steward_role
     return _require_role(steward_role, verified_token, settings)
 
 
@@ -248,5 +262,5 @@ async def require_researcher_role(
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> dict:
     """Dependency to check if the user has the ADMIN_ROLE or RESEARCHER_ROLE."""
-    researcher_role = settings.RESEARCHER_ROLE
+    researcher_role = settings.researcher_role
     return _require_role(researcher_role, verified_token, settings)
