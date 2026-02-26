@@ -169,7 +169,7 @@ def save_persistent_settings(settings: UserSettings):
     _save_to_json(settings_dict, db_saved)
 
 
-def update_settings(new_settings: dict[str, Any]) -> UserSettings:
+def update_settings(new_settings) -> UserSettings:
     """Update user settings with partial or complete settings.
 
     Parameters

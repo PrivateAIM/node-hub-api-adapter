@@ -1,7 +1,7 @@
 """Endpoints for setting and getting node configuration options."""
 
 import logging
-from typing import Annotated, Any
+from typing import Annotated
 
 from fastapi import APIRouter, Body, HTTPException, Security
 from pydantic import ValidationError
@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
     name="node.settings.update",
 )
 async def update_node_settings(
-    node_settings: Annotated[dict[str, Any], Body(description="Partial settings to update")],
+    node_settings: Annotated[UserSettings, Body(description="Partial settings to update")],
 ) -> UserSettings:
     """Update the node configuration settings with partial data.
 
@@ -40,13 +40,14 @@ async def update_node_settings(
         422: If unknown settings keys are provided.
     """
     try:
-        result = update_settings(node_settings)
-        
+        result = update_settings(node_settings.model_dump())
+
         # Update autostart state if any autostart settings changed
         if "autostart" in node_settings:
             from hub_adapter.server import autostart_manager
+
             await autostart_manager.update()
-        
+
         return result
 
     except ValidationError as e:
