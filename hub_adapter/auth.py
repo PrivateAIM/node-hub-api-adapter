@@ -76,9 +76,7 @@ async def verify_idp_token(
 
     try:
         # Decode just to get issuer
-        unverified_claims = jwt.decode(
-            token.credentials, options={"verify_signature": False}
-        )
+        unverified_claims = jwt.decode(token.credentials, options={"verify_signature": False})
         issuer = unverified_claims.get("iss")
 
         if settings.override_jwks:  # Override the fetched URIs
@@ -101,9 +99,7 @@ async def verify_idp_token(
     except httpx.ConnectError as e:
         err_msg = f"{status.HTTP_404_NOT_FOUND} - {e}"
         if settings.http_proxy or settings.https_proxy:
-            err_msg += (
-                f" - Possibly an issue with the forward proxy: {settings.http_proxy}"
-            )
+            err_msg += f" - Possibly an issue with the forward proxy: {settings.http_proxy}"
         logger.error(err_msg)
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -164,9 +160,7 @@ async def verify_idp_token(
         ) from Exception
 
 
-async def _get_internal_token(
-    oidc_config, settings: Annotated[Settings, Depends(get_settings)]
-) -> dict | None:
+async def _get_internal_token(oidc_config, settings: Annotated[Settings, Depends(get_settings)]) -> dict | None:
     """If the Hub Adapter is set up tp use an external IDP, it needs to retrieve a JWT from the internal keycloak
     to make requests to the PO."""
 
@@ -187,13 +181,12 @@ async def _get_internal_token(
 
 async def _add_internal_token_if_missing(request: Request) -> Request:
     """Adds a JWT from the internal IDP is not present in the request."""
+    settings = get_settings()
     configs_match, oidc_config = check_oidc_configs_match()
 
     if not configs_match:
-        logger.debug(
-            "External IDP different from internal, retrieving JWT from internal keycloak"
-        )
-        internal_token = await _get_internal_token(oidc_config)
+        logger.debug("External IDP different from internal, retrieving JWT from internal keycloak")
+        internal_token = await _get_internal_token(oidc_config, settings)
         if internal_token:
             updated_headers = MutableHeaders(request.headers)
             updated_headers.update(internal_token)
@@ -214,15 +207,11 @@ def _require_role(
     role_claim_name = settings.role_claim_name
     admin_role = settings.admin_role
     if additional_allowed_role and role_claim_name:
-        logger.debug(
-            f"Role claim name and specified role '{role_claim_name}' found. Verifying role in token."
-        )
+        logger.debug(f"Role claim name and specified role '{role_claim_name}' found. Verifying role in token.")
         role_claim_keys = role_claim_name.split(".")
 
         has_allowed_role = False
-        parsed_claim = (
-            verified_token  # Initialize with token data to begin recursive parsing
-        )
+        parsed_claim = verified_token  # Initialize with token data to begin recursive parsing
         for key in role_claim_keys:
             parsed_claim = parsed_claim.get(key, {})
 

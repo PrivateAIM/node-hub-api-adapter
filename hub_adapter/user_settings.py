@@ -12,7 +12,7 @@ from playhouse.postgres_ext import BinaryJSONField
 
 from hub_adapter import cache_dir
 from hub_adapter.conf import UserSettings
-from hub_adapter.database import node_database
+from hub_adapter.database import get_node_database
 
 SETTINGS_PATH = cache_dir.joinpath("userSettings.json")
 SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -20,6 +20,8 @@ SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
+
+node_database = get_node_database()
 
 
 def with_db_fallback(fallback_value: Any = None, log_message: str = "Database operation failed"):
@@ -163,7 +165,7 @@ def load_persistent_settings() -> UserSettings:
 
 
 def save_persistent_settings(settings: UserSettings):
-    """Save per_save_to_database(settings_dict)"""
+    """Save persistent settings to the database with fallback to JSON file."""
     settings_dict = settings.model_dump(exclude_none=True)
     db_saved = _save_to_database(settings_dict)
     _save_to_json(settings_dict, db_saved)

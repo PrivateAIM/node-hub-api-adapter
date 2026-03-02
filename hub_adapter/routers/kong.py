@@ -19,6 +19,7 @@ from kong_admin_client import (
     ListService200Response,
     Service,
 )
+from pydantic import Field
 from starlette import status
 
 from hub_adapter.auth import jwtbearer, require_steward_role, verify_idp_token
@@ -57,7 +58,10 @@ kong_router = APIRouter(
 )
 
 logger = logging.getLogger(__name__)
+
 FLAME = "flame"
+DEFAULT_METHODS: list[HttpMethodCode] = [HttpMethodCode.GET]
+DEFAULT_PROTOCOLS: list[ProtocolCode] = [ProtocolCode.HTTP]
 
 
 def parse_project_info(services, client) -> dict:
@@ -325,15 +329,20 @@ async def create_route_to_datastore(
     settings: Annotated[Settings, Depends(get_settings)],
     data_store_id: Annotated[uuid.UUID | str, Body(description="UUID of the data store or 'service'")],
     project_id: Annotated[uuid.UUID | str, Body(description="UUID of the project")],
-    methods: Annotated[list[HttpMethodCode], Body(description="List of acceptable HTTP methods")] = ["GET"],
+    methods: Annotated[list[HttpMethodCode] | None, Body(description="List of acceptable HTTP methods")] = None,
     protocols: Annotated[
-        list[ProtocolCode],
+        list[ProtocolCode] | None,
         Body(description="List of acceptable transfer protocols. A combo of 'http', 'grpc', 'grpcs', 'tls', 'tcp'"),
-    ] = ["http"],
+    ] = None,
     ds_type: Annotated[DataStoreType, Body(description="Data store type. Either 's3' or 'fhir'")] = "fhir",
 ):
     """Connect a project to a data store (referred to as a route by kong)."""
     configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
+    if methods is None:
+        methods = DEFAULT_METHODS
+    if protocols is None:
+        protocols = DEFAULT_PROTOCOLS
+
     ds_type = ds_type.value if isinstance(ds_type, DataStoreType) else ds_type
     methods = [method.value if isinstance(method, HttpMethodCode) else method for method in methods]
     protocols = [protocol.value if isinstance(protocol, ProtocolCode) else protocol for protocol in protocols]

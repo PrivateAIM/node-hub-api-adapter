@@ -39,4 +39,11 @@ def connect_to_db() -> pw.PostgresqlDatabase | None:
     return db
 
 
-node_database = connect_to_db()
+_node_database: pw.PostgresqlDatabase | None = None
+
+
+def get_node_database() -> pw.PostgresqlDatabase | None:
+    global _node_database
+    if _node_database is None or _node_database.is_closed():
+        _node_database = connect_to_db()
+    return _node_database

@@ -194,20 +194,12 @@ def route(
             downstream_path = scope["path"]
 
             content_type = str(request.headers.get(CONTENT_TYPE))
-            www_request_form = (
-                await request.form()
-                if "x-www-form-urlencoded" in content_type
-                else None
-            )
+            www_request_form = await request.form() if "x-www-form-urlencoded" in content_type else None
 
             # Prune headers
             request_headers = dict(request.headers)
-            request_headers.pop(
-                "content-length", None
-            )  # Let httpx configure content-length
-            request_headers.pop(
-                "content-type", None
-            )  # Let httpx configure content-type
+            request_headers.pop("content-length", None)  # Let httpx configure content-length
+            request_headers.pop("content-type", None)  # Let httpx configure content-type
             request_headers.pop("host", None)
 
             if pre_processing_func:  # all used pp functions found in post_processing
@@ -234,12 +226,8 @@ def route(
                 additional_params=kwargs,
             )
 
-            request_files = await unzip_file_params(
-                specified_params=file_params, additional_params=kwargs
-            )
-            request_data = create_request_data(
-                form=request_form, body=request_body
-            )  # Either JSON or Form
+            request_files = await unzip_file_params(specified_params=file_params, additional_params=kwargs)
+            request_data = create_request_data(form=request_form, body=request_body)  # Either JSON or Form
 
             microsvc_path = f"{service_url}{downstream_path.removeprefix(get_settings().api_root_path)}"
 
@@ -275,8 +263,8 @@ def route(
             except DecodingError as de:
                 err_msg = (
                     f"Service error - HTTP Request: {method.upper()} {microsvc_path} "
+                    f'"- HTTP Status: {status.HTTP_500_INTERNAL_SERVER_ERROR}"'
                 )
-                f'"- HTTP Status: {status.HTTP_500_INTERNAL_SERVER_ERROR}"'
                 logger.error(err_msg)
                 logger.error(de)
                 raise HTTPException(
@@ -290,9 +278,7 @@ def route(
                 ) from de
 
             except HTTPStatusError as http_error:
-                err_msg = (
-                    f"HTTP Request: {method.upper()} {microsvc_path} - {http_error}"
-                )
+                err_msg = f"HTTP Request: {method.upper()} {microsvc_path} - {http_error}"
                 logger.error(err_msg)
                 raise HTTPException(
                     status_code=http_error.response.status_code,

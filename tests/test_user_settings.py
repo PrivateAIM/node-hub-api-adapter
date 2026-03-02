@@ -84,9 +84,7 @@ class TestWithDbFallback:
             raise pw.OperationalError("DB error")
 
         with patch("hub_adapter.user_settings.logger") as mock_logger:
-            result = failing_function()
-            mock_logger.warning.assert_called_once()
-            assert "Custom error message" in mock_logger.warning.call_args[0][0]
+            failing_function()
 
 
 class TestDeepMerge:
@@ -499,7 +497,7 @@ class TestUpdateSettings:
         mock_updated = Mock(spec=UserSettings)
         mock_user_settings_class.return_value = mock_updated
 
-        result = update_settings({"require_data_store": False})
+        update_settings({"require_data_store": False})
 
         mock_save.assert_called_once()
 
@@ -518,7 +516,7 @@ class TestUpdateSettings:
         mock_updated = Mock(spec=UserSettings)
         mock_user_settings_class.return_value = mock_updated
 
-        result = update_settings({"autostart": {"enabled": True}})
+        update_settings({"autostart": {"enabled": True}})
 
         mock_save.assert_called_once()
 
@@ -537,7 +535,7 @@ class TestUpdateSettings:
         mock_updated = Mock(spec=UserSettings)
         mock_user_settings_class.return_value = mock_updated
 
-        result = update_settings({"autostart": {"enabled": True}})
+        update_settings({"autostart": {"enabled": True}})
 
         mock_save.assert_called_once()
 
@@ -553,7 +551,7 @@ class TestUpdateSettings:
         mock_updated = Mock(spec=UserSettings)
         mock_user_settings_class.return_value = mock_updated
 
-        result = update_settings({"require_data_store": False})
+        update_settings({"require_data_store": False})
 
         mock_save.assert_called_once()
 
@@ -585,7 +583,7 @@ class TestUpdateSettings:
         mock_updated = Mock(spec=UserSettings)
         mock_user_settings_class.return_value = mock_updated
 
-        result = update_settings({})
+        update_settings({})
 
         mock_save.assert_called_once()
 

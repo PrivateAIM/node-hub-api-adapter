@@ -10,7 +10,7 @@ from node_event_logging import EventLog, bind_to
 from psycopg2 import DatabaseError
 
 from hub_adapter.constants import SERVICE_NAME
-from hub_adapter.database import node_database
+from hub_adapter.database import get_node_database
 from hub_adapter.dependencies import get_settings
 from hub_adapter.models.events import ANNOTATED_EVENTS
 from hub_adapter.utils import annotate_event
@@ -154,6 +154,7 @@ def setup_event_logging():
 
     if logging_enabled:
         # Test connection
+        node_database = get_node_database()
         with bind_to(node_database):
             node_database.connect(reuse_if_open=True)
 
@@ -180,6 +181,7 @@ def get_event_logger() -> EventLogger | None:
     Returns:
         EventLogger instance if initialized, None otherwise
     """
+    node_database = get_node_database()
     if (not event_logger or not event_logger.event_db) and node_database:
         try:
             setup_event_logging()

@@ -137,7 +137,7 @@ async def terminate_analysis(
     configs_match, oidc_config = check_oidc_configs_match()
     headers = await _get_internal_token(oidc_config, settings)
 
-    microsvc_path = f"{get_settings().podorc_service_url}/po/delete/{analysis_id}"
+    microsvc_path = f"{settings.podorc_service_url}/po/delete/{analysis_id}"
 
     try:
         resp_data, status_code = await make_request(
