@@ -3,14 +3,14 @@
 import uuid
 from datetime import datetime, timezone
 
-from flame_hub._core_client import AnalysisBuildStatus
+from dateutil.tz import UTC
 from flame_hub.models import Node
 from kong_admin_client import ACL, KeyAuth
 
 from hub_adapter.models.conf import OIDCConfiguration
+from hub_adapter.models.podorc import PodStatus
 
 DS_TYPE = "fhir"
-NODE_TYPE = "default"
 
 TEST_URL = "https://api.example.com"
 TEST_OIDC = OIDCConfiguration(
@@ -43,14 +43,14 @@ TEST_MOCK_NODE = Node(
     registry=None,
     registry_project_id=uuid.UUID(TEST_MOCK_PROJECT_ID),
     client_id=uuid.UUID(TEST_MOCK_NODE_CLIENT_ID),
-    created_at=datetime.now(timezone.utc),
-    updated_at=datetime.now(timezone.utc),
+    created_at=datetime.now(UTC),
+    updated_at=datetime.now(UTC),
     external_name=None,
     hidden=False,
     name=TEST_MOCK_NODE_ID,
     realm_id=None,
     registry_id=None,
-    type=NODE_TYPE,
+    type="default",
     robot_id=None,  # deprecated
 )
 
@@ -123,7 +123,7 @@ ANALYSIS_NODES_RESP = [
     {
         # Shouldn't start since still building
         **MOCK_ANALYSIS_NODE,
-        "analysis": {**MOCK_ANALYSIS, "build_status": AnalysisBuildStatus.STARTING},
+        "analysis": {**MOCK_ANALYSIS, "build_status": PodStatus.STARTING},
     },
     {
         # Shouldn't start because rejected

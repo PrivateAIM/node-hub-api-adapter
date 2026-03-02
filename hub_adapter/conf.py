@@ -59,8 +59,8 @@ class Settings(BaseSettings):
     # Hub
     hub_auth_service_url: str = "https://auth.privateaim.dev"
     hub_service_url: str = "https://core.privateaim.dev"
-    hub_robot_user: str | None = None
-    hub_robot_secret: str | None = None
+    hub_node_client_id: str | None = None
+    hub_node_client_secret: str | None = None
 
     # RBAC
     role_claim_name: str | None = None

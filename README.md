@@ -42,8 +42,9 @@ API_CLIENT_SECRET=""  # IDP Client Secret for this hub-adapter service
 OVERRIDE_JWKS=""  # JWKS URI to override the endpoints fetched from the IDP issuer (meant for local testing)
 HTTP_PROXY=""  # Forward proxy address for HTTP requests
 HTTPS_PROXY=""  # Forward proxy address for HTTPS requests
-AUTOSTART=false  # Whether the API should also operate in "autostart" mode where it'll start analyses automatically
-AUTOSTART_INTERVAL=60  # How often (in seconds) the server should check for new analyses
+AUTOSTART__ENABLED=false  # Whether the API should also operate in "autostart" mode where it'll start analyses automatically
+AUTOSTART__INTERVAL=60  # How often (in seconds) the server should check for new analyses
+REQUIRE_DATA_STORE=true  # Whether a data store is required for an analysis to start
 EXTRA_CA_CERTS=""  # Path to a concatenated file containing all of the additional SSL certificates needed for communication
 ROLE_CLAIM_NAME="" # Period separated list of keys leading to the role value for a user e.g. "resource_access.node-ui.role"
 ADMIN_ROLE="admin"  # Role name for users who have full access and control as defined in the IDP
@@ -69,8 +70,9 @@ RESEARCHER_ROLE="researcher"  # Role name for users who can only modify analyses
 | OVERRIDE_JWKS           | JWKS URI to override the endpoints fetched from the IDP issuer (meant for local testing)                          |                             |          |
 | HTTP_PROXY              | Forward proxy address for HTTP requests                                                                           |                             |          |
 | HTTPS_PROXY             | Forward proxy address for HTTPS requests                                                                          |                             |          |
-| AUTOSTART               | Whether the API should also operate in "autostart" mode where it'll start analyses automatically                  |            false            |          |
-| AUTOSTART_INTERVAL      | How often (in seconds) the server should check for new analyses                                                   |             60              |          |
+| AUTOSTART__ENABLED      | Whether the API should also operate in "autostart" mode where it'll start analyses automatically                  |            false            |          |
+| AUTOSTART__INTERVAL     | How often (in seconds) the server should check for new analyses                                                   |             60              |          |
+| REQUIRE_DATA_STORE      | Whether a data store is required for an analysis to start                                                         |            true             |          |
 | EXTRA_CA_CERTS          | Path to a concatenated file containing all of the additional SSL certificates needed for communication            |                             |          |
 | ROLE_CLAIM_NAME         | Period separated list of keys leading to the role value for a user e.g. "resource_access.node-ui.roles"           |                             |          |
 | ADMIN_ROLE              | Role name for users who have full access and control as defined in the IDP                                        |            admin            |          |
