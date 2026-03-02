@@ -2,7 +2,6 @@
 
 import asyncio
 import logging
-import os
 from contextlib import asynccontextmanager
 
 import uvicorn
@@ -12,7 +11,7 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 
 from hub_adapter import logging_config
-from hub_adapter.autostart import GoGoAnalysis
+from hub_adapter.autostart import AutostartManager
 from hub_adapter.dependencies import get_settings
 from hub_adapter.event_logging import get_event_logger, teardown_event_logging
 from hub_adapter.models.events import ANNOTATED_EVENTS
@@ -28,20 +27,35 @@ from hub_adapter.routers.storage import storage_router
 
 logger = logging.getLogger(__name__)
 
+# Global autostart manager instance
+autostart_manager = AutostartManager()
+
 
 # API metadata
 tags_metadata = [
     {"name": "Auth", "description": "Endpoints for authorization specific tasks."},
-    {"name": "Events", "description": "Gateway endpoints for interacting with logged events."},
+    {
+        "name": "Events",
+        "description": "Gateway endpoints for interacting with logged events.",
+    },
     {"name": "Hub", "description": "Gateway endpoints for the central Hub service."},
     {
         "name": "Health",
         "description": "Endpoints for checking the health of this API and the downstream services.",
     },
-    {"name": "Meta", "description": "Custom Hub Adapter endpoints which combine endpoints from other APIs."},
-    {"name": "Node", "description": "Endpoints for setting and getting node settings and configuration options."},
+    {
+        "name": "Meta",
+        "description": "Custom Hub Adapter endpoints which combine endpoints from other APIs.",
+    },
+    {
+        "name": "Node",
+        "description": "Endpoints for setting and getting node settings and configuration options.",
+    },
     {"name": "Kong", "description": "Endpoints for the Kong gateway service."},
-    {"name": "PodOrc", "description": "Gateway endpoints for the Pod Orchestration service."},
+    {
+        "name": "PodOrc",
+        "description": "Gateway endpoints for the Pod Orchestration service.",
+    },
 ]
 
 
@@ -51,8 +65,13 @@ async def lifespan(app: FastAPI):
 
     get_event_logger()  # Attempts to setup connections
 
+    # Initialize autostart based on settings
+    await autostart_manager.update()
+
     yield
 
+    # Cleanup
+    await autostart_manager.stop()
     teardown_event_logging()
 
 
@@ -61,14 +80,14 @@ app = FastAPI(
     title="FLAME API",
     description="FLAME project API for interacting with various microservices within the node for the UI.",
     swagger_ui_init_oauth={
-        "clientId": get_settings().API_CLIENT_ID,  # default client-id is Keycloak
+        "clientId": get_settings().api_client_id,  # default client-id is Keycloak
     },
     license_info={
         "name": "Apache 2.0",
         "url": "https://www.apache.org/licenses/LICENSE-2.0.html",
         "identifier": "Apache-2.0",
     },
-    root_path=get_settings().API_ROOT_PATH,
+    root_path=get_settings().api_root_path,
     lifespan=lifespan,
 )
 
@@ -114,40 +133,11 @@ for router in routers:
     app.include_router(router)
 
 
-async def run_server(host: str, port: int, reload: bool):
-    """Start the hub adapter API server."""
+async def deploy(host: str = "127.0.0.1", port: int = 5000, reload: bool = False):
+    """Start the hub adapter API server with autostart management."""
     config = uvicorn.Config(app, host=host, port=port, reload=reload, log_config=logging_config)
     server = uvicorn.Server(config)
     await server.serve()
-
-
-async def autostart_probing(interval: int = 60):
-    """Check for available analyses in the background and start them automatically.
-
-    Parameters
-    ----------
-    interval : int
-        Time in seconds to wait between checks.
-    """
-    analysis_initiator = GoGoAnalysis()
-    while True:
-        await analysis_initiator.auto_start_analyses()
-        await asyncio.sleep(interval)
-
-
-async def deploy(host: str = "127.0.0.1", port: int = 5000, reload: bool = False):
-    # Run both tasks concurrently
-    tasks = [asyncio.create_task(run_server(host, port, reload))]
-
-    autostart: bool = os.getenv("AUTOSTART", "False").lower() in ("true", "1", "yes")
-    logger.info(f"Autostart enabled: {autostart}")
-    autostart_interval: int = int(os.getenv("AUTOSTART_INTERVAL", "60"))
-
-    if autostart:
-        autostart_operation = asyncio.create_task(autostart_probing(interval=autostart_interval))
-        tasks.append(autostart_operation)
-
-    await asyncio.gather(*tasks)
 
 
 if __name__ == "__main__":

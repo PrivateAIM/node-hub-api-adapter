@@ -310,9 +310,8 @@ class TestConnection:
     @pytest.mark.asyncio
     async def test_test_connection_missing_proxy_url(self, test_settings):
         """Unit test for test_connection in which the proxy URL is not set."""
-        from dataclasses import replace
 
-        removed_kong_url_settings = replace(test_settings, KONG_PROXY_SERVICE_URL="")
+        removed_kong_url_settings = test_settings.model_copy(update={"kong_proxy_service_url": ""})
 
         with pytest.raises(HTTPException) as err:
             await probe_connection(

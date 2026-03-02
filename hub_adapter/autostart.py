@@ -1,9 +1,11 @@
 """Collection of methods for running in autostart mode in which analyses are detected and started automatically."""
 
+import asyncio
 import logging
 import time
 import uuid
-from datetime import datetime, timedelta, timezone
+from contextlib import suppress
+from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException
 from flame_hub import HubAPIError
@@ -37,6 +39,7 @@ from hub_adapter.routers.kong import (
     delete_analysis,
     list_projects,
 )
+from hub_adapter.user_settings import load_persistent_settings
 from hub_adapter.utils import _check_data_required, annotate_event
 
 logger = logging.getLogger(__name__)
@@ -66,7 +69,9 @@ class GoGoAnalysis:
             metadata["status_code"] = status_code
 
         annotated_event_name, tags = annotate_event(
-            "autostart.analysis.create", status_code=metadata["status_code"], tags=[EventTag.AUTOSTART]
+            "autostart.analysis.create",
+            status_code=metadata["status_code"],
+            tags=[EventTag.AUTOSTART],
         )
 
         event_data = ANNOTATED_EVENTS.get(annotated_event_name)
@@ -96,7 +101,9 @@ class GoGoAnalysis:
 
         try:
             analyses = await list_analysis_nodes(
-                core_client=self.core_client, node_id=node_id, query_params=formatted_query_params
+                core_client=self.core_client,
+                node_id=node_id,
+                query_params=formatted_query_params,
             )
 
         except ConnectError as e:
@@ -259,7 +266,7 @@ class GoGoAnalysis:
         )
 
         headers = await self.fetch_token_header()
-        microsvc_path = f"{get_settings().PODORC_SERVICE_URL}/po/"
+        microsvc_path = f"{get_settings().podorc_service_url}/po/"
 
         if headers:
             try:
@@ -292,7 +299,11 @@ class GoGoAnalysis:
             except (ConnectError, RemoteProtocolError) as e:
                 msg = f"Pod Orchestrator unreachable - {e}"
                 logger.error(msg)
-                self.log_analysis(event_metadata, body=msg, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                self.log_analysis(
+                    event_metadata,
+                    body=msg,
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
                 return None, status.HTTP_500_INTERNAL_SERVER_ERROR
 
             except ReadTimeout:
@@ -306,7 +317,11 @@ class GoGoAnalysis:
                     "service": "PO",
                     "status_code": status.HTTP_408_REQUEST_TIMEOUT,
                 }
-                self.log_analysis(event_metadata, body=msg, status_code=status.HTTP_408_REQUEST_TIMEOUT)
+                self.log_analysis(
+                    event_metadata,
+                    body=msg,
+                    status_code=status.HTTP_408_REQUEST_TIMEOUT,
+                )
                 return resp, status.HTTP_408_REQUEST_TIMEOUT
 
         else:  # No token available or PO unreachable
@@ -320,7 +335,7 @@ class GoGoAnalysis:
     async def fetch_analysis_status(self, analysis_id: uuid.UUID | str) -> dict | None:
         """Fetch the status for a specific analysis run. For autostart operation"""
         headers = await self.fetch_token_header()
-        microsvc_path = f"{get_settings().PODORC_SERVICE_URL}/po/status/{analysis_id}"
+        microsvc_path = f"{get_settings().podorc_service_url}/po/status/{analysis_id}"
         resp_data = None
 
         if headers:
@@ -360,12 +375,23 @@ class GoGoAnalysis:
 
     @staticmethod
     def parse_analyses(
-        analyses: list, valid_projects: set, datastore_required: bool = True, enforce_time_and_status_check: bool = True
+        analyses: list,
+        valid_projects: set,
+        datastore_required: bool = True,
+        enforce_time_and_status_check: bool = True,
     ) -> set:
         """Iterate through analyses and check whether they are approved, built, and have a run status."""
         ready_analyses = set()
         for entry in analyses:
-            analysis_id, project_id, node_id, build_status, run_status, approved, created_at = (
+            (
+                analysis_id,
+                project_id,
+                node_id,
+                build_status,
+                run_status,
+                approved,
+                created_at,
+            ) = (
                 str(entry.analysis_id),
                 str(entry.analysis.project_id),
                 str(entry.node_id),
@@ -379,7 +405,7 @@ class GoGoAnalysis:
 
             if enforce_time_and_status_check and is_valid:
                 # Need timezone.utc to make it offset-aware otherwise will not work with created_at datetime obj
-                is_recent = (datetime.now(timezone.utc) - created_at) < timedelta(hours=24)
+                is_recent = (datetime.now(UTC) - created_at) < timedelta(hours=24)
                 is_valid = is_valid and is_recent and not run_status
 
             if datastore_required and is_valid:  # If aggregator, then skip this since kong route is not needed
@@ -391,8 +417,76 @@ class GoGoAnalysis:
                     )
 
             if is_valid:
-                valid_entry = (analysis_id, project_id, node_id, build_status, run_status)
+                valid_entry = (
+                    analysis_id,
+                    project_id,
+                    node_id,
+                    build_status,
+                    run_status,
+                )
                 ready_analyses.add(valid_entry)
 
         logger.info(f"Found {len(ready_analyses)} valid analyses ready to start")
         return ready_analyses
+
+
+class AutostartManager:
+    """Manages the autostart task lifecycle."""
+
+    def __init__(self):
+        self._task: asyncio.Task | None = None
+        self._enabled = False
+
+    async def update(self) -> None:
+        """Update autostart state based on current settings."""
+        settings = load_persistent_settings()
+        user_enabled = settings.autostart.enabled if settings.autostart else False
+        interval = settings.autostart.interval if settings.autostart else 60
+
+        if user_enabled and not self._enabled:
+            # Start autostart task
+            logger.info(f"Starting autostart with interval {interval}s")
+            self._task = asyncio.create_task(self._run_autostart(interval))
+            self._enabled = True
+
+        elif not user_enabled and self._enabled:
+            # Stop autostart task
+            logger.info("Stopping autostart")
+            if self._task and not self._task.done():
+                self._task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await self._task
+
+            self._task = None
+            self._enabled = False
+
+        elif user_enabled and self._enabled:
+            # Interval might have changed, restart if needed
+            if self._task and not self._task.done():
+                self._task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await self._task
+
+            logger.info(f"Restarting autostart with new interval {interval}s")
+            self._task = asyncio.create_task(self._run_autostart(interval))
+
+    async def _run_autostart(self, interval: int) -> None:
+        """Run the autostart probing loop."""
+        analysis_initiator = GoGoAnalysis()
+        while True:
+            try:
+                await analysis_initiator.auto_start_analyses()
+
+            except Exception as e:
+                logger.error(f"Error during autostart: {e}")
+
+            await asyncio.sleep(interval)
+
+    async def stop(self) -> None:
+        """Stop the autostart task."""
+        if self._task and not self._task.done():
+            self._task.cancel()
+            with suppress(asyncio.CancelledError):
+                await self._task
+
+        self._enabled = False

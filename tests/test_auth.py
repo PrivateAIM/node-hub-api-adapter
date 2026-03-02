@@ -26,11 +26,9 @@ from tests.constants import (
     STEWARD_ROLE,
     TEST_JWKS_RESPONSE,
     TEST_JWT,
-    TEST_MOCK_ROBOT_USER,
     TEST_OIDC,
     TEST_RESEARCHER_DECRYPTED_JWT,
     TEST_STEWARD_DECRYPTED_JWT,
-    TEST_URL,
 )
 
 
@@ -38,7 +36,7 @@ class TestAuth:
     @pytest.mark.asyncio
     async def test_get_hub_public_key(self, httpx_mock, test_settings):
         """Test that the public key is returned."""
-        fake_key_ep = test_settings.HUB_AUTH_SERVICE_URL.rstrip("/") + "/jwks"
+        fake_key_ep = test_settings.hub_auth_service_url.rstrip("/") + "/jwks"
         httpx_mock.add_response(url=fake_key_ep, json=TEST_JWKS_RESPONSE, status_code=200)
 
         data = await get_hub_public_key(test_settings)
@@ -139,8 +137,8 @@ class TestAuth:
         correct_role_claim_name = "resource_access.node-ui.roles"
 
         mock_settings = Settings()
-        assert mock_settings.STEWARD_ROLE is None
-        assert mock_settings.RESEARCHER_ROLE is None
+        assert mock_settings.steward_role is None
+        assert mock_settings.researcher_role is None
 
         # No steward or researcher role set - auto pass
         await require_steward_role(TEST_STEWARD_DECRYPTED_JWT, mock_settings)
@@ -148,25 +146,25 @@ class TestAuth:
 
         # Set role names and check
         mock_settings_with_correct_roles = Settings(
-            ROLE_CLAIM_NAME=correct_role_claim_name,
-            ADMIN_ROLE=ADMIN_ROLE,
-            STEWARD_ROLE=STEWARD_ROLE,
-            RESEARCHER_ROLE=RESEARCHER_ROLE,
+            role_claim_name=correct_role_claim_name,
+            admin_role=ADMIN_ROLE,
+            steward_role=STEWARD_ROLE,
+            researcher_role=RESEARCHER_ROLE,
         )
-        assert mock_settings_with_correct_roles.STEWARD_ROLE == STEWARD_ROLE
-        assert mock_settings_with_correct_roles.RESEARCHER_ROLE == RESEARCHER_ROLE
+        assert mock_settings_with_correct_roles.steward_role == STEWARD_ROLE
+        assert mock_settings_with_correct_roles.researcher_role == RESEARCHER_ROLE
 
         await require_steward_role(TEST_STEWARD_DECRYPTED_JWT, mock_settings_with_correct_roles)
         await require_researcher_role(TEST_RESEARCHER_DECRYPTED_JWT, mock_settings_with_correct_roles)
 
         # Mismatch role names and expect fail
         mock_settings_with_mismatched_roles = Settings(
-            ROLE_CLAIM_NAME=correct_role_claim_name,
-            STEWARD_ROLE="foo",
-            RESEARCHER_ROLE="bar",
+            role_claim_name=correct_role_claim_name,
+            steward_role="foo",
+            researcher_role="bar",
         )
-        assert mock_settings_with_mismatched_roles.STEWARD_ROLE == "foo"
-        assert mock_settings_with_mismatched_roles.RESEARCHER_ROLE == "bar"
+        assert mock_settings_with_mismatched_roles.steward_role == "foo"
+        assert mock_settings_with_mismatched_roles.researcher_role == "bar"
 
         with pytest.raises(HTTPException) as steward_error:
             await require_steward_role(TEST_STEWARD_DECRYPTED_JWT, mock_settings_with_mismatched_roles)
@@ -187,10 +185,10 @@ class TestAuth:
         # Wrong claim name
         wrong_claim_name = "foo"
         mock_settings_with_wrong_claim_name = Settings(
-            ROLE_CLAIM_NAME=wrong_claim_name,
-            STEWARD_ROLE=STEWARD_ROLE,
+            role_claim_name=wrong_claim_name,
+            steward_role=STEWARD_ROLE,
         )
-        assert mock_settings_with_wrong_claim_name.STEWARD_ROLE == STEWARD_ROLE
+        assert mock_settings_with_wrong_claim_name.steward_role == STEWARD_ROLE
 
         with pytest.raises(HTTPException) as steward_error:
             await require_steward_role(TEST_STEWARD_DECRYPTED_JWT, mock_settings_with_wrong_claim_name)

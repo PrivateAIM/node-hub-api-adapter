@@ -51,7 +51,7 @@ def authorized_test_client():
     server.app.dependency_overrides = {}  # Best to remove it
 
 
-@pytest.fixture(scope="package")
+@pytest.fixture(scope="session", autouse=True)
 def test_settings() -> Settings:
     """Create fake settings for testing."""
     env_test_path = Path(__file__).parent.joinpath(".env.test")
@@ -61,26 +61,26 @@ def test_settings() -> Settings:
 
     else:
         return Settings(
-            IDP_URL=TEST_URL,
-            API_ROOT_PATH="",
-            PODORC_SERVICE_URL="http://localhost:8000",
-            STORAGE_SERVICE_URL="http://localhost:8005",
-            KONG_ADMIN_SERVICE_URL="http://localhost:8001",
-            KONG_PROXY_SERVICE_URL="http://localhost:8002",
-            HUB_AUTH_SERVICE_URL="https://auth.privateaim.dev",
-            HUB_SERVICE_URL="https://core.privateaim.dev",
-            HUB_ROBOT_USER=TEST_MOCK_ROBOT_USER,  # fake uuid
-            HUB_ROBOT_SECRET="foobar",
-            API_CLIENT_ID="hub-adapter-test",
-            API_CLIENT_SECRET="notASecret",
-            HTTP_PROXY="http://squid.proxy:3128",
-            HTTPS_PROXY="http://squid.proxy:3128",
-            NODE_SVC_OIDC_URL=TEST_URL,
-            POSTGRES_EVENT_DB="test_db",
-            POSTGRES_EVENT_USER="test_user",
-            POSTGRES_EVENT_PASSWORD="test_password",
-            POSTGRES_EVENT_HOST="localhost",
-            POSTGRES_EVENT_PORT="5432",
+            idp_url=TEST_URL,
+            api_root_path="",
+            podorc_service_url="http://localhost:8000",
+            storage_service_url="http://localhost:8005",
+            kong_admin_service_url="http://localhost:8001",
+            kong_proxy_service_url="http://localhost:8002",
+            hub_auth_service_url="https://auth.privateaim.dev",
+            hub_service_url="https://core.privateaim.dev",
+            hub_robot_user=TEST_MOCK_ROBOT_USER,  # fake uuid
+            hub_robot_secret="foobar",
+            api_client_id="hub-adapter-test",
+            api_client_secret="notASecret",
+            http_proxy="http://squid.proxy:3128",
+            https_proxy="http://squid.proxy:3128",
+            node_svc_oidc_url=TEST_URL,
+            postgres_event_db="test_db",
+            postgres_event_user="test_user",
+            postgres_event_password="test_password",
+            postgres_event_host="localhost",
+            postgres_event_port="5432",
         )
 
 
