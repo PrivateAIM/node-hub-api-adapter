@@ -3,6 +3,7 @@
 import uuid
 from datetime import datetime, timezone
 
+from flame_hub._core_client import AnalysisBuildStatus
 from flame_hub.models import Node
 from kong_admin_client import ACL, KeyAuth
 
@@ -122,7 +123,7 @@ ANALYSIS_NODES_RESP = [
     {
         # Shouldn't start since still building
         **MOCK_ANALYSIS_NODE,
-        "analysis": {**MOCK_ANALYSIS, "build_status": "starting"},
+        "analysis": {**MOCK_ANALYSIS, "build_status": AnalysisBuildStatus.STARTING},
     },
     {
         # Shouldn't start because rejected

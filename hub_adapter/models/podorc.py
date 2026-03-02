@@ -56,6 +56,10 @@ class PodStatus(str, Enum):
     STOPPING = "stopping"
     STOPPED = "stopped"
 
+    # Deprecated
+    RUNNING = "running"
+    FINISHED = "finished"
+
     EXECUTING = "executing"
     EXECUTED = "executed"
 

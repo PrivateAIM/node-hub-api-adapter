@@ -27,6 +27,7 @@ from hub_adapter.dependencies import (
 from hub_adapter.errors import KongConflictError, KongConnectError
 from hub_adapter.event_logging import EventLogger, get_event_logger
 from hub_adapter.models.events import ANNOTATED_EVENTS, EventTag
+from hub_adapter.models.podorc import PodStatus
 from hub_adapter.oidc import check_oidc_configs_match
 from hub_adapter.routers.hub import (
     _format_query_params,
@@ -221,7 +222,13 @@ class GoGoAnalysis:
         pod_status = await self.fetch_analysis_status(analysis_id=analysis_id)
         if pod_status is not None:
             # null, 'executed', 'failed', and 'stopped' means no pod present
-            existing_pod_statuses = ("started", "starting", "executing", "stopping")
+            existing_pod_statuses = (
+                PodStatus.STARTED,
+                PodStatus.STARTING,
+                PodStatus.EXECUTING,
+                PodStatus.STOPPING,
+                PodStatus.RUNNING,  # Deprecated
+            )
             return bool(analysis_id in pod_status and pod_status[analysis_id] in existing_pod_statuses)
 
         return pod_status  # Error occurred and no status retrieved
