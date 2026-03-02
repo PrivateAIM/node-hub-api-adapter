@@ -26,15 +26,17 @@ _node_type_cache = None
 logger = logging.getLogger(__name__)
 
 
-@lru_cache
+@lru_cache(maxsize=1)
 def get_settings():
     return Settings()
 
 
-@lru_cache
-def get_ssl_context(settings: Annotated[Settings, Depends(get_settings)]) -> ssl.SSLContext:
+@lru_cache(maxsize=1)
+def get_ssl_context(
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> ssl.SSLContext:
     """Check if there are additional certificates present and if so, load them."""
-    cert_path = settings.EXTRA_CA_CERTS
+    cert_path = settings.extra_ca_certs
     ctx = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
     if cert_path and Path(cert_path).exists():
         ctx.load_verify_locations(cafile=cert_path)
@@ -47,8 +49,8 @@ def get_flame_hub_auth_flow(
 ) -> ClientAuth:
     """Automated method for getting a robot token from the central Hub service."""
     hub_node_client_id, hub_node_client_secret = (
-        settings.HUB_NODE_CLIENT_ID,
-        settings.HUB_NODE_CLIENT_SECRET,
+        settings.hub_node_client_id,
+        settings.hub_node_client_secret,
     )
 
     if not hub_node_client_id or not hub_node_client_secret:
@@ -75,7 +77,7 @@ def get_flame_hub_auth_flow(
         client_id=hub_node_client_id,
         client_secret=hub_node_client_secret,
         client=httpx.Client(
-            base_url=settings.HUB_AUTH_SERVICE_URL,
+            base_url=settings.hub_auth_service_url,
             verify=ssl_ctx,
         ),
     )
@@ -91,7 +93,7 @@ def get_core_client(
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> flame_hub.CoreClient:
     return flame_hub.CoreClient(
-        client=httpx.Client(base_url=settings.HUB_SERVICE_URL, auth=hub_auth, verify=ssl_ctx)
+        client=httpx.Client(base_url=settings.hub_service_url, auth=hub_auth, verify=ssl_ctx)
     )
 
 
@@ -107,7 +109,7 @@ async def get_node_id(
 
     If None is returned, no filtering will be applied, which is useful for debugging.
     """
-    node_client_id = settings.HUB_NODE_CLIENT_ID
+    node_client_id = settings.hub_node_client_id
 
     node_cache = {}
 

@@ -19,6 +19,7 @@ from kong_admin_client import (
     ListService200Response,
     Service,
 )
+from pydantic import Field
 from starlette import status
 
 from hub_adapter.auth import jwtbearer, require_steward_role, verify_idp_token
@@ -57,7 +58,10 @@ kong_router = APIRouter(
 )
 
 logger = logging.getLogger(__name__)
+
 FLAME = "flame"
+DEFAULT_METHODS: list[HttpMethodCode] = [HttpMethodCode.GET]
+DEFAULT_PROTOCOLS: list[ProtocolCode] = [ProtocolCode.HTTP]
 
 
 def parse_project_info(services, client) -> dict:
@@ -92,7 +96,7 @@ def get_data_stores(
     detailed: bool = False,
 ) -> ListService200Response | dict:
     """Get either all or a single data store (service)."""
-    configuration = kong_admin_client.Configuration(host=settings.KONG_ADMIN_SERVICE_URL)
+    configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
     with kong_admin_client.ApiClient(configuration) as api_client:
         service_api_instance = kong_admin_client.ServicesApi(api_client)
         services = service_api_instance.list_service(tags=project_id)
@@ -146,7 +150,7 @@ async def delete_data_store(
     data_store_name: Annotated[str, Path(description="Unique name of the data store.")],
 ):
     """Delete the listed data store (referred to as services by kong)."""
-    configuration = kong_admin_client.Configuration(host=settings.KONG_ADMIN_SERVICE_URL)
+    configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
 
     # Delete related projects and analyses first, data_store_name is same as associated project in kong (route)
     # {ProjectUUID}-{datastore type}
@@ -189,7 +193,7 @@ async def create_service(
     minio_config: Annotated[MinioConfig | None, Body(description="Minio configuration")] = None,
 ) -> Service | None:
     """Create a datastore (referred to as services by kong) by providing necessary metadata."""
-    configuration = kong_admin_client.Configuration(host=settings.KONG_ADMIN_SERVICE_URL)
+    configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
 
     datastore_name = f"{datastore.name}-{ds_type.value}"
 
@@ -241,7 +245,7 @@ def get_projects(
     detailed: bool = False,
 ) -> ListRoutes | dict:
     """Get either all or a single data store (service)."""
-    configuration = kong_admin_client.Configuration(host=settings.KONG_ADMIN_SERVICE_URL)
+    configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
     project = str(project_id) if project_id else None
 
     with kong_admin_client.ApiClient(configuration) as api_client:
@@ -325,15 +329,20 @@ async def create_route_to_datastore(
     settings: Annotated[Settings, Depends(get_settings)],
     data_store_id: Annotated[uuid.UUID | str, Body(description="UUID of the data store or 'service'")],
     project_id: Annotated[uuid.UUID | str, Body(description="UUID of the project")],
-    methods: Annotated[list[HttpMethodCode], Body(description="List of acceptable HTTP methods")] = ["GET"],
+    methods: Annotated[list[HttpMethodCode] | None, Body(description="List of acceptable HTTP methods")] = None,
     protocols: Annotated[
-        list[ProtocolCode],
+        list[ProtocolCode] | None,
         Body(description="List of acceptable transfer protocols. A combo of 'http', 'grpc', 'grpcs', 'tls', 'tcp'"),
-    ] = ["http"],
+    ] = None,
     ds_type: Annotated[DataStoreType, Body(description="Data store type. Either 's3' or 'fhir'")] = "fhir",
 ):
     """Connect a project to a data store (referred to as a route by kong)."""
-    configuration = kong_admin_client.Configuration(host=settings.KONG_ADMIN_SERVICE_URL)
+    configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
+    if methods is None:
+        methods = DEFAULT_METHODS
+    if protocols is None:
+        protocols = DEFAULT_PROTOCOLS
+
     ds_type = ds_type.value if isinstance(ds_type, DataStoreType) else ds_type
     methods = [method.value if isinstance(method, HttpMethodCode) else method for method in methods]
     protocols = [protocol.value if isinstance(protocol, ProtocolCode) else protocol for protocol in protocols]
@@ -448,7 +457,7 @@ async def delete_route(
     ],
 ) -> DeleteProject:
     """Disconnect a project (route) from all data stores (services) and delete associated analyses (consumers)."""
-    configuration = kong_admin_client.Configuration(host=settings.KONG_ADMIN_SERVICE_URL)
+    configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
     project_uuid = project_route_id.rsplit("-", 1)[0]
 
     with kong_admin_client.ApiClient(configuration) as api_client:
@@ -476,7 +485,7 @@ def get_analyses(
     tag: str | None = None,
 ) -> ListConsumers | dict:
     """Get either all or a single analysis (consumer)."""
-    configuration = kong_admin_client.Configuration(host=settings.KONG_ADMIN_SERVICE_URL)
+    configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
     username = f"{analysis_id}-{FLAME}"
 
     with kong_admin_client.ApiClient(configuration) as api_client:
@@ -500,7 +509,10 @@ def get_analyses(
 @catch_kong_errors
 async def list_analyses(
     settings: Annotated[Settings, Depends(get_settings)],
-    tag: Annotated[str | None, Query(description="Filter consumers by project using the project UUID")] = None,
+    tag: Annotated[
+        str | None,
+        Query(description="Filter consumers by project using the project UUID"),
+    ] = None,
 ):
     """List all analyses (referred to as consumers by kong) available. Can be filtered by project UUID using tag."""
     return get_analyses(settings, analysis_id=None, tag=tag)
@@ -516,7 +528,10 @@ async def list_analyses(
 async def list_specific_analysis(
     settings: Annotated[Settings, Depends(get_settings)],
     analysis_id: Annotated[uuid.UUID | str | None, Path(description="UUID of the analysis.")],
-    tag: Annotated[str | None, Query(description="Filter consumers by project using the project UUID")] = None,
+    tag: Annotated[
+        str | None,
+        Query(description="Filter consumers by project using the project UUID"),
+    ] = None,
 ):
     """List all analyses (referred to as consumers by kong) available."""
     return get_analyses(settings, analysis_id=analysis_id, tag=tag)
@@ -555,7 +570,7 @@ async def create_and_connect_analysis_to_project(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    configuration = kong_admin_client.Configuration(host=settings.KONG_ADMIN_SERVICE_URL)
+    configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
     response = {}
     username = f"{analysis_id}-{FLAME}"
 
@@ -611,7 +626,7 @@ async def delete_analysis(
     analysis_id: Annotated[str, Path(description="UUID or unique name of the analysis.")],
 ):
     """Delete the listed analysis."""
-    configuration = kong_admin_client.Configuration(host=settings.KONG_ADMIN_SERVICE_URL)
+    configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
     username = f"{analysis_id}-{FLAME}"
 
     with kong_admin_client.ApiClient(configuration) as api_client:
@@ -638,7 +653,7 @@ async def probe_connection(
 
     Because we use the key-auth plugin, a consumer is required for pinging the data service.
     """
-    if not settings.KONG_PROXY_SERVICE_URL:
+    if not settings.kong_proxy_service_url:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={
@@ -648,7 +663,7 @@ async def probe_connection(
             },
         )
 
-    configuration = kong_admin_client.Configuration(host=settings.KONG_ADMIN_SERVICE_URL)
+    configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
     route_id = f"{project_id}-{ds_type.value}"
     apikey = None
 
@@ -681,7 +696,7 @@ async def probe_connection(
             apikey = api_response.data[0].key
 
     if apikey:
-        url = f"{settings.KONG_PROXY_SERVICE_URL}{route_path}"
+        url = f"{settings.kong_proxy_service_url}{route_path}"
         is_fhir = ds_type == DataStoreType.FHIR
 
         if is_fhir:
