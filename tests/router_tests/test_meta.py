@@ -8,7 +8,7 @@ from httpx import ConnectError
 from starlette import status
 
 from hub_adapter.dependencies import get_core_client, get_flame_hub_auth_flow, get_ssl_context
-from hub_adapter.models.podorc import StatusResponse
+from hub_adapter.models.podorc import StatusOnlyResponse
 from hub_adapter.routers.meta import InitializeAnalysis, initialize_analysis, meta_router, terminate_analysis
 from tests.conftest import check_routes
 from tests.constants import TEST_MOCK_ANALYSIS_ID, TEST_MOCK_NODE_ID, TEST_MOCK_PROJECT_ID
@@ -60,7 +60,7 @@ class TestMeta:
         # Working
         gen_resp = await initialize_analysis(analysis_params=fake_analysis_form, core_client=cc)
         assert gen_resp == valid_resp
-        assert StatusResponse.model_validate(gen_resp)
+        assert StatusOnlyResponse.model_validate(gen_resp)
 
         # Returned status code not 201 or 200
         mock_start_resp.return_value = (valid_resp, status.HTTP_202_ACCEPTED)
@@ -133,7 +133,7 @@ class TestMeta:
         assert returned_data == valid_resp
         assert mock_logger.info.call_count == 1
         mock_logger.info.assert_called_with(f"Analysis {TEST_MOCK_ANALYSIS_ID} was terminated")
-        assert StatusResponse.model_validate(returned_data)
+        assert StatusOnlyResponse.model_validate(returned_data)
 
         # Can't connect to PodOrc
         mock_po_request.side_effect = ConnectError(message="")

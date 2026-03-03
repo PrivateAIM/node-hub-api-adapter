@@ -22,8 +22,9 @@ from hub_adapter.models.podorc import (
     CleanUpType,
     CreateAnalysis,
     LogResponse,
+    PodProgressResponse,
     PodResponse,
-    StatusResponse,
+    StatusOnlyResponse,
 )
 
 po_router = APIRouter(
@@ -46,7 +47,7 @@ logger = logging.getLogger(__name__)
     path="",
     status_code=status.HTTP_200_OK,
     service_url=get_settings().podorc_service_url,
-    response_model=StatusResponse,
+    response_model=StatusOnlyResponse,
     pre_processing_func="extract_po_params",
     body_params=[
         "analysis_id",
@@ -138,7 +139,7 @@ async def get_analysis_log_history(
     request_method=po_router.get,
     path="/status",
     status_code=status.HTTP_200_OK,
-    response_model=StatusResponse,
+    response_model=PodProgressResponse,
     service_url=get_settings().podorc_service_url,
     name="podorc.status.get",
 )
@@ -154,7 +155,7 @@ async def get_all_analysis_status(
     request_method=po_router.get,
     path="/status/{analysis_id}",
     status_code=status.HTTP_200_OK,
-    response_model=StatusResponse,
+    response_model=PodProgressResponse,
     service_url=get_settings().podorc_service_url,
     name="podorc.status.get",
 )
@@ -205,7 +206,7 @@ async def get_analysis_pods(
     request_method=po_router.put,
     path="/stop",
     status_code=status.HTTP_200_OK,
-    response_model=StatusResponse,
+    response_model=StatusOnlyResponse,
     service_url=get_settings().podorc_service_url,
     name="podorc.pods.stop",
 )
@@ -221,7 +222,7 @@ async def stop_all_analyses(
     request_method=po_router.put,
     path="/stop/{analysis_id}",
     status_code=status.HTTP_200_OK,
-    response_model=StatusResponse,
+    response_model=StatusOnlyResponse,
     service_url=get_settings().podorc_service_url,
     name="podorc.pods.stop",
 )
@@ -238,7 +239,7 @@ async def stop_analysis(
     request_method=po_router.delete,
     path="/delete",
     status_code=status.HTTP_200_OK,
-    response_model=StatusResponse,
+    response_model=StatusOnlyResponse,
     service_url=get_settings().podorc_service_url,
     name="podorc.pods.delete",
 )
@@ -254,7 +255,7 @@ async def delete_all_analyses(
     request_method=po_router.delete,
     path="/delete/{analysis_id}",
     status_code=status.HTTP_200_OK,
-    response_model=StatusResponse,
+    response_model=StatusOnlyResponse,
     service_url=get_settings().podorc_service_url,
     name="podorc.pods.delete",
 )

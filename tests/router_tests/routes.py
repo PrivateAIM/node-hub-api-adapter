@@ -13,7 +13,13 @@ from hub_adapter.models.kong import (
     ListRoutes,
     ListServices,
 )
-from hub_adapter.models.podorc import CleanupPodResponse, LogResponse, PodResponse, StatusResponse
+from hub_adapter.models.podorc import (
+    CleanupPodResponse,
+    LogResponse,
+    PodProgressResponse,
+    PodResponse,
+    StatusOnlyResponse,
+)
 
 EXPECTED_EVENT_ROUTE_CONFIG = (
     {
@@ -44,14 +50,14 @@ EXPECTED_META_ROUTE_CONFIG = (
         "name": "meta.initialize",
         "path": "/analysis/initialize",
         "methods": {"POST"},
-        "response_model": StatusResponse,
+        "response_model": StatusOnlyResponse,
         "status_code": 201,
     },
     {
         "name": "meta.terminate",
         "path": "/analysis/terminate/{analysis_id}",
         "methods": {"DELETE"},
-        "response_model": StatusResponse,
+        "response_model": StatusOnlyResponse,
         "status_code": 200,
     },
 )
@@ -307,7 +313,7 @@ EXPECTED_PO_ROUTE_CONFIG = (
         "name": "podorc.pods.create",
         "path": "/po",
         "methods": {"POST"},
-        "response_model": StatusResponse,
+        "response_model": StatusOnlyResponse,
         "status_code": 200,
     },
     {
@@ -342,14 +348,14 @@ EXPECTED_PO_ROUTE_CONFIG = (
         "name": "podorc.status.get",
         "path": "/po/status",
         "methods": {"GET"},
-        "response_model": StatusResponse,
+        "response_model": PodProgressResponse,
         "status_code": 200,
     },
     {
         "name": "podorc.status.get",
         "path": "/po/status/{analysis_id}",
         "methods": {"GET"},
-        "response_model": StatusResponse,
+        "response_model": PodProgressResponse,
         "status_code": 200,
     },
     {
@@ -370,28 +376,28 @@ EXPECTED_PO_ROUTE_CONFIG = (
         "name": "podorc.pods.stop",
         "path": "/po/stop",
         "methods": {"PUT"},
-        "response_model": StatusResponse,
+        "response_model": StatusOnlyResponse,
         "status_code": 200,
     },
     {
         "name": "podorc.pods.stop",
         "path": "/po/stop/{analysis_id}",
         "methods": {"PUT"},
-        "response_model": StatusResponse,
+        "response_model": StatusOnlyResponse,
         "status_code": 200,
     },
     {
         "name": "podorc.pods.delete",
         "path": "/po/delete",
         "methods": {"DELETE"},
-        "response_model": StatusResponse,
+        "response_model": StatusOnlyResponse,
         "status_code": 200,
     },
     {
         "name": "podorc.pods.delete",
         "path": "/po/delete/{analysis_id}",
         "methods": {"DELETE"},
-        "response_model": StatusResponse,
+        "response_model": StatusOnlyResponse,
         "status_code": 200,
     },
     {
