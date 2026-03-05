@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.5.0](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.4.3...v0.5.0) (2026-03-05)
+
+
+### ⚠ BREAKING CHANGES
+
+* autostart catches key errors
+
+### Features
+
+* allow limitless event returns ([5e7cead](https://github.com/PrivateAIM/node-hub-api-adapter/commit/5e7cead68f73ba0a1c803bd7c0550c7092fbdcf8))
+* make autostart toggleable ([5dbc4dc](https://github.com/PrivateAIM/node-hub-api-adapter/commit/5dbc4dc75300de18e6d524c89f9a3db28df2ccda))
+* **po:** add progress to PO pod status resp ([2cb21cd](https://github.com/PrivateAIM/node-hub-api-adapter/commit/2cb21cde2a95e27e0055c6d81e23508385d629b1))
+* working settings update ([fd793e9](https://github.com/PrivateAIM/node-hub-api-adapter/commit/fd793e9a23c2618967e71bcef0cff9a614a451de))
+
+
+### Bug Fixes
+
+* autostart catches key errors ([fc88364](https://github.com/PrivateAIM/node-hub-api-adapter/commit/fc883647dab5803a009812cafde708ef26fc473b))
+* proper model for node settings ([f35b4b3](https://github.com/PrivateAIM/node-hub-api-adapter/commit/f35b4b3fee2bef881c30bc8de0efc9e1c8511de2))
+
+
+### Performance Improvements
+
+* improve error handling and fallback for user settings ([90fd1a8](https://github.com/PrivateAIM/node-hub-api-adapter/commit/90fd1a855752aa2a9d49f3da597e43b4acaa840f))
+
+
+### Documentation
+
+* better error in user settings update message ([028ad02](https://github.com/PrivateAIM/node-hub-api-adapter/commit/028ad02ca5fb7d72cd9e3e351be3f0f4f8c127b5))
+
 ## [0.4.3](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.4.2...v0.4.3) (2026-02-18)
 
 
