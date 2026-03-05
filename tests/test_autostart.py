@@ -6,7 +6,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
-from flame_hub import HubAPIError
 from flame_hub.models import AnalysisNode
 from httpx import ConnectError, HTTPStatusError, RemoteProtocolError, Request, Response
 from kong_admin_client import ListRoute200Response
@@ -528,6 +527,7 @@ class TestAutostartErrorAndEvents:
         formatted_analyses = [AnalysisNode(**analysis) for analysis in ANALYSIS_NODES_RESP]
         ready_analyses = self.analyzer.parse_analyses(formatted_analyses, set())
         assert len(ready_analyses) == 0
+
 
 class TestAutostartManager:
     """Unit tests for AutostartManager."""
