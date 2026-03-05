@@ -21,7 +21,7 @@ from hub_adapter.autostart import GoGoAnalysis
 from hub_adapter.conf import Settings
 from hub_adapter.core import make_request
 from hub_adapter.dependencies import get_core_client, get_settings
-from hub_adapter.models.podorc import StatusResponse
+from hub_adapter.models.podorc import StatusOnlyResponse
 from hub_adapter.oidc import check_oidc_configs_match
 from hub_adapter.routers.kong import delete_analysis
 from hub_adapter.utils import _check_data_required
@@ -47,7 +47,7 @@ class InitializeAnalysis(BaseModel):
 
 @meta_router.post(
     "/analysis/initialize",
-    response_model=StatusResponse,
+    response_model=StatusOnlyResponse,
     status_code=status.HTTP_201_CREATED,
     name="meta.initialize",
 )
@@ -120,7 +120,7 @@ async def initialize_analysis(
 
 @meta_router.delete(
     "/analysis/terminate/{analysis_id}",
-    response_model=StatusResponse,
+    response_model=StatusOnlyResponse,
     status_code=status.HTTP_200_OK,
     name="meta.terminate",
 )

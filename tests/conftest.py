@@ -15,7 +15,7 @@ from hub_adapter.conf import Settings
 from hub_adapter.models.events import AGNOSTIC_EVENTS
 from tests.constants import (
     FAKE_USER,
-    TEST_MOCK_ROBOT_USER,
+    TEST_MOCK_NODE_CLIENT_ID,
     TEST_URL,
 )
 
@@ -69,8 +69,8 @@ def test_settings() -> Settings:
             kong_proxy_service_url="http://localhost:8002",
             hub_auth_service_url="https://auth.privateaim.dev",
             hub_service_url="https://core.privateaim.dev",
-            hub_robot_user=TEST_MOCK_ROBOT_USER,  # fake uuid
-            hub_robot_secret="foobar",
+            hub_node_client_id=TEST_MOCK_NODE_CLIENT_ID,  # fake uuid
+            hub_node_client_secret="foobar",
             api_client_id="hub-adapter-test",
             api_client_secret="notASecret",
             http_proxy="http://squid.proxy:3128",

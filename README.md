@@ -12,8 +12,8 @@ This module assumes there is a running Keycloak instance available. One can be q
 realm and user using the [docker-compose file](./docker/docker-compose.yml) which will populate the keycloak instance
 using the [instance export file](docker/test-realm.json).
 
-Once started, the API can be found at http://127.0.0.1:8081 with a GUI for the API available
-at http://127.0.0.1:8081/docs. Here,
+Once started, the API can be found at http://127.0.0.1:5000 with a GUI for the API available
+at http://127.0.0.1:5000/docs. Here,
 users must authorize themselves with the deployed keycloak instance
 (from the [docker-compose file](./docker/docker-compose.yml)) to run protected endpoints:
 
@@ -34,16 +34,17 @@ KONG_ADMIN_SERVICE_URL="http://localhost:8000"  # URL to the Kong admin service
 KONG_PROXY_SERVICE_URL="http://localhost:8000"  # URL to the Kong proxy service
 HUB_AUTH_SERVICE_URL="https://auth.privateaim.dev"  # URL for auth EPs for the Hub
 HUB_SERVICE_URL="https://core.privateaim.dev"  # URL for project/analysis EPs for the Hub
-HUB_ROBOT_USER=""  # Robot UUID for a registered node
-HUB_ROBOT_SECRET=""  # Robot secret for a registered node
+HUB_NODE_CLIENT_ID=""  # Client UUID for a registered node
+HUB_NODE_CLIENT_SECRET=""  # Client secret for a registered node 
 API_CLIENT_ID="hub-adapter"  # IDP Client ID for this hub-adapter service, this must be the client ID specified 
 API_CLIENT_SECRET=""  # IDP Client Secret for this hub-adapter service
 #NODE_SVC_OIDC_URL="https://data-center.node.com/keycloak/realms/flame"  # The internal IDP used by other Node microsvcs
 OVERRIDE_JWKS=""  # JWKS URI to override the endpoints fetched from the IDP issuer (meant for local testing)
 HTTP_PROXY=""  # Forward proxy address for HTTP requests
 HTTPS_PROXY=""  # Forward proxy address for HTTPS requests
-AUTOSTART=false  # Whether the API should also operate in "autostart" mode where it'll start analyses automatically
-AUTOSTART_INTERVAL=60  # How often (in seconds) the server should check for new analyses
+AUTOSTART__ENABLED=false  # Whether the API should also operate in "autostart" mode where it'll start analyses automatically
+AUTOSTART__INTERVAL=60  # How often (in seconds) the server should check for new analyses
+REQUIRE_DATA_STORE=true  # Whether a data store is required for an analysis to start
 EXTRA_CA_CERTS=""  # Path to a concatenated file containing all of the additional SSL certificates needed for communication
 ROLE_CLAIM_NAME="" # Period separated list of keys leading to the role value for a user e.g. "resource_access.node-ui.role"
 ADMIN_ROLE="admin"  # Role name for users who have full access and control as defined in the IDP
@@ -61,16 +62,17 @@ RESEARCHER_ROLE="researcher"  # Role name for users who can only modify analyses
 | KONG_PROXY_SERVICE_URL  | URL to the Kong proxy service                                                                                     |                             |    x     |
 | HUB_SERVICE_URL         | URL to the core Hub service                                                                                       | https://core.privateaim.dev |    x     |
 | HUB_AUTH_SERVICE_URL    | URL to the auth Hub service                                                                                       | https://auth.privateaim.dev |    x     |
-| HUB_ROBOT_USER          | Robot UUID for a registered node                                                                                  |                             |    x     |
-| HUB_ROBOT_SECRET        | Robot secret for a registered node                                                                                |                             |    x     |
+| HUB_NODE_CLIENT_ID      | Client UUID for a registered node                                                                                 |                             |    x     |
+| HUB_NODE_CLIENT_SECRET  | Client secret for a registered node                                                                               |                             |    x     |
 | API_CLIENT_ID           | IDP Client ID for this hub-adapter service, should be the same (internal) IDP used by the other node services     |         hub-adapter         |    x     |
 | API_CLIENT_SECRET       | IDP Client Secret for this hub-adapter service, should be the same (internal) IDP used by the other node services |                             |    x     |
 | NODE_SVC_OIDC_URL       | The (internal) IDP URL used by the other Node services when different from the IDP used for user authentication.  |                             |          |
 | OVERRIDE_JWKS           | JWKS URI to override the endpoints fetched from the IDP issuer (meant for local testing)                          |                             |          |
 | HTTP_PROXY              | Forward proxy address for HTTP requests                                                                           |                             |          |
 | HTTPS_PROXY             | Forward proxy address for HTTPS requests                                                                          |                             |          |
-| AUTOSTART               | Whether the API should also operate in "autostart" mode where it'll start analyses automatically                  |            false            |          |
-| AUTOSTART_INTERVAL      | How often (in seconds) the server should check for new analyses                                                   |             60              |          |
+| AUTOSTART__ENABLED      | Whether the API should also operate in "autostart" mode where it'll start analyses automatically                  |            false            |          |
+| AUTOSTART__INTERVAL     | How often (in seconds) the server should check for new analyses                                                   |             60              |          |
+| REQUIRE_DATA_STORE      | Whether a data store is required for an analysis to start                                                         |            true             |          |
 | EXTRA_CA_CERTS          | Path to a concatenated file containing all of the additional SSL certificates needed for communication            |                             |          |
 | ROLE_CLAIM_NAME         | Period separated list of keys leading to the role value for a user e.g. "resource_access.node-ui.roles"           |                             |          |
 | ADMIN_ROLE              | Role name for users who have full access and control as defined in the IDP                                        |            admin            |          |
@@ -128,7 +130,7 @@ being ready to start, it must meet the following criteria:
 
 * It was created in the last 24 hours
 * Its `approval_status` as reported by the Hub is set to "approved"
-* The `build_status` is set to "finished"
+* The `build_status` is set to "executed"
 * If the node on which the hub adapter is deployed is a "default" node, then a data store is available for the analysis
 * The analysis was never previously started on the node
 

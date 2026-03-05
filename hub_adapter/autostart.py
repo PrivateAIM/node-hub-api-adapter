@@ -29,6 +29,7 @@ from hub_adapter.dependencies import (
 from hub_adapter.errors import KongConflictError, KongConnectError
 from hub_adapter.event_logging import EventLogger, get_event_logger
 from hub_adapter.models.events import ANNOTATED_EVENTS, EventTag
+from hub_adapter.models.podorc import PodStatus
 from hub_adapter.oidc import check_oidc_configs_match
 from hub_adapter.routers.hub import (
     _format_query_params,
@@ -57,8 +58,8 @@ class GoGoAnalysis:
         """Gather all the dependencies needed to run the autostart mode."""
         settings = get_settings()
         ssl_ctx = get_ssl_context(settings)
-        hub_robot = get_flame_hub_auth_flow(ssl_ctx, settings)
-        core_client = get_core_client(hub_robot, ssl_ctx, settings)
+        hub_auth = get_flame_hub_auth_flow(ssl_ctx, settings)
+        core_client = get_core_client(hub_auth, ssl_ctx, settings)
 
         self.settings = settings
         self.core_client = core_client
@@ -227,8 +228,14 @@ class GoGoAnalysis:
         """Check whether a pod with the given analysis_id is already running."""
         pod_status = await self.fetch_analysis_status(analysis_id=analysis_id)
         if pod_status is not None:
-            # null, 'finished', 'failed', and 'stopped' means no pod present
-            existing_pod_statuses = ("started", "starting", "running", "stopping")
+            # null, 'executed', 'failed', and 'stopped' means no pod present
+            existing_pod_statuses = (
+                PodStatus.STARTED,
+                PodStatus.STARTING,
+                PodStatus.EXECUTING,
+                PodStatus.STOPPING,
+                PodStatus.RUNNING,  # Deprecated
+            )
             return bool(analysis_id in pod_status and pod_status[analysis_id] in existing_pod_statuses)
 
         return pod_status  # Error occurred and no status retrieved
@@ -396,12 +403,12 @@ class GoGoAnalysis:
                 str(entry.analysis.project_id),
                 str(entry.node_id),
                 entry.analysis.build_status,
-                entry.run_status,
+                entry.execution_status,
                 entry.approval_status,
                 entry.created_at,  # Already parsed as datetime object from python hub client
             )
 
-            is_valid = approved == "approved" and build_status == "finished"
+            is_valid = approved == "approved" and build_status == "executed"
 
             if enforce_time_and_status_check and is_valid:
                 # Need timezone.utc to make it offset-aware otherwise will not work with created_at datetime obj
