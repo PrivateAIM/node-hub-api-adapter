@@ -9,7 +9,7 @@ from fastapi import HTTPException
 from starlette import status
 
 from hub_adapter.dependencies import get_settings
-from hub_adapter.models.conf import OIDCConfiguration
+from hub_adapter.schemas.conf import OIDCConfiguration
 
 logger = logging.getLogger(__name__)
 

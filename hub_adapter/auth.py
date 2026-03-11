@@ -17,12 +17,12 @@ from starlette.requests import Request
 
 from hub_adapter.conf import Settings
 from hub_adapter.dependencies import get_settings, get_ssl_context
-from hub_adapter.models.conf import Token
 from hub_adapter.oidc import (
     check_oidc_configs_match,
     get_svc_oidc_config,
     get_user_oidc_config,
 )
+from hub_adapter.schemas.conf import Token
 
 logger = logging.getLogger(__name__)
 

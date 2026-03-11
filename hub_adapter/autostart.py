@@ -28,8 +28,6 @@ from hub_adapter.dependencies import (
 )
 from hub_adapter.errors import KongConflictError, KongConnectError
 from hub_adapter.event_logging import EventLogger, get_event_logger
-from hub_adapter.models.events import ANNOTATED_EVENTS, EventTag
-from hub_adapter.models.podorc import PodStatus
 from hub_adapter.oidc import check_oidc_configs_match
 from hub_adapter.routers.hub import (
     _format_query_params,
@@ -40,6 +38,8 @@ from hub_adapter.routers.kong import (
     delete_analysis,
     list_projects,
 )
+from hub_adapter.schemas.events import ANNOTATED_EVENTS, EventTag
+from hub_adapter.schemas.podorc import PodStatus
 from hub_adapter.user_settings import load_persistent_settings
 from hub_adapter.utils import _check_data_required, annotate_event
 

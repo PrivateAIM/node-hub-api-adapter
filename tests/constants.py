@@ -7,8 +7,8 @@ from dateutil.tz import UTC
 from flame_hub.models import Node
 from kong_admin_client import ACL, KeyAuth
 
-from hub_adapter.models.conf import OIDCConfiguration
-from hub_adapter.models.podorc import PodStatus
+from hub_adapter.schemas.conf import OIDCConfiguration
+from hub_adapter.schemas.podorc import PodStatus
 
 DS_TYPE = "fhir"
 

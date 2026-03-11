@@ -8,8 +8,8 @@ from httpx import ConnectError
 from starlette import status
 
 from hub_adapter.dependencies import get_core_client, get_flame_hub_auth_flow, get_ssl_context
-from hub_adapter.models.podorc import StatusOnlyResponse
 from hub_adapter.routers.meta import InitializeAnalysis, initialize_analysis, meta_router, terminate_analysis
+from hub_adapter.schemas.podorc import StatusOnlyResponse
 from tests.conftest import check_routes
 from tests.constants import TEST_MOCK_ANALYSIS_ID, TEST_MOCK_NODE_ID, TEST_MOCK_PROJECT_ID
 from tests.router_tests.routes import EXPECTED_META_ROUTE_CONFIG

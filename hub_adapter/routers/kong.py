@@ -19,7 +19,6 @@ from kong_admin_client import (
     ListService200Response,
     Service,
 )
-from pydantic import Field
 from starlette import status
 
 from hub_adapter.auth import jwtbearer, require_steward_role, verify_idp_token
@@ -33,7 +32,7 @@ from hub_adapter.errors import (
     KongServiceError,
     catch_kong_errors,
 )
-from hub_adapter.models.kong import (
+from hub_adapter.schemas.kong import (
     DataStoreType,
     DeleteProject,
     HttpMethodCode,

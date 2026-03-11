@@ -457,7 +457,7 @@ class TestAutostartErrorAndEvents:
     @pytest.mark.asyncio
     async def test_pod_running_with_different_statuses(self, mock_fetch_status):
         """Test pod_running with all possible pod statuses."""
-        from hub_adapter.models.podorc import PodStatus
+        from hub_adapter.schemas.podorc import PodStatus
 
         # Test all running statuses
         running_statuses = [

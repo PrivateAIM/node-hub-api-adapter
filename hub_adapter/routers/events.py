@@ -11,7 +11,7 @@ from hub_adapter.auth import jwtbearer, verify_idp_token
 from hub_adapter.conf import Settings
 from hub_adapter.dependencies import get_settings
 from hub_adapter.event_logging import get_event_logger
-from hub_adapter.models.events import EventLogResponse
+from hub_adapter.schemas.events import EventLogResponse
 
 event_router = APIRouter(
     dependencies=[

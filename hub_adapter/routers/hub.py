@@ -22,7 +22,7 @@ from starlette.requests import Request
 from hub_adapter.auth import jwtbearer, verify_idp_token
 from hub_adapter.dependencies import compile_analysis_pod_data, get_core_client, get_node_id, get_node_type_cache
 from hub_adapter.errors import catch_hub_errors
-from hub_adapter.models.hub import (
+from hub_adapter.schemas.hub import (
     AnalysisImageUrl,
     DetailedAnalysis,
     NodeTypeResponse,

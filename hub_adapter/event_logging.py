@@ -12,7 +12,7 @@ from psycopg2 import DatabaseError
 from hub_adapter.constants import SERVICE_NAME
 from hub_adapter.database import get_node_database
 from hub_adapter.dependencies import get_settings
-from hub_adapter.models.events import ANNOTATED_EVENTS
+from hub_adapter.schemas.events import ANNOTATED_EVENTS
 from hub_adapter.utils import annotate_event
 
 logger = logging.getLogger(__name__)

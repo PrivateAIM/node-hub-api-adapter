@@ -8,7 +8,7 @@ from fastapi.routing import serialize_response
 from starlette.datastructures import FormData
 from starlette.requests import Request
 
-from hub_adapter.models.events import EventTag
+from hub_adapter.schemas.events import EventTag
 from hub_adapter.user_settings import load_persistent_settings
 
 

@@ -3,9 +3,9 @@
 from flame_hub._core_client import Analysis, AnalysisBucket, AnalysisNode, Node, Project, ProjectNode, RegistryProject
 from kong_admin_client import Service
 
-from hub_adapter.models.events import EventLogResponse
-from hub_adapter.models.hub import AnalysisImageUrl, DetailedAnalysis, NodeTypeResponse
-from hub_adapter.models.kong import (
+from hub_adapter.schemas.events import EventLogResponse
+from hub_adapter.schemas.hub import AnalysisImageUrl, DetailedAnalysis, NodeTypeResponse
+from hub_adapter.schemas.kong import (
     DeleteProject,
     LinkDataStoreProject,
     LinkProjectAnalysis,
@@ -13,7 +13,7 @@ from hub_adapter.models.kong import (
     ListRoutes,
     ListServices,
 )
-from hub_adapter.models.podorc import (
+from hub_adapter.schemas.podorc import (
     CleanupPodResponse,
     LogResponse,
     PodProgressResponse,

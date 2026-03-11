@@ -17,7 +17,7 @@ from hub_adapter.auth import (
 )
 from hub_adapter.core import route
 from hub_adapter.dependencies import compile_analysis_pod_data, get_settings
-from hub_adapter.models.podorc import (
+from hub_adapter.schemas.podorc import (
     CleanupPodResponse,
     CleanUpType,
     CreateAnalysis,

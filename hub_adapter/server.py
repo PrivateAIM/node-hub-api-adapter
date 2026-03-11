@@ -14,7 +14,6 @@ from hub_adapter import logging_config
 from hub_adapter.autostart import AutostartManager
 from hub_adapter.dependencies import get_settings
 from hub_adapter.event_logging import get_event_logger, teardown_event_logging
-from hub_adapter.models.events import ANNOTATED_EVENTS
 from hub_adapter.routers.auth import auth_router
 from hub_adapter.routers.events import event_router
 from hub_adapter.routers.health import health_router
@@ -24,6 +23,7 @@ from hub_adapter.routers.meta import meta_router
 from hub_adapter.routers.node import node_router
 from hub_adapter.routers.podorc import po_router
 from hub_adapter.routers.storage import storage_router
+from hub_adapter.schemas.events import ANNOTATED_EVENTS
 
 logger = logging.getLogger(__name__)
 

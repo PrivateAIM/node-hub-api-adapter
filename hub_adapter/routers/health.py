@@ -10,7 +10,7 @@ from starlette import status
 
 from hub_adapter.conf import Settings
 from hub_adapter.dependencies import get_settings
-from hub_adapter.models.health import DownstreamHealthCheck, HealthCheck
+from hub_adapter.schemas.health import DownstreamHealthCheck, HealthCheck
 
 health_router = APIRouter(
     tags=["Health"],

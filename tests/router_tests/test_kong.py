@@ -26,10 +26,10 @@ from hub_adapter.errors import (
     KongGatewayError,
     KongServiceError,
 )
-from hub_adapter.models.kong import (
+from hub_adapter.routers.kong import kong_router, probe_connection, probe_data_service
+from hub_adapter.schemas.kong import (
     DataStoreType,
 )
-from hub_adapter.routers.kong import kong_router, probe_connection, probe_data_service
 from tests.conftest import check_routes
 from tests.constants import (
     DS_TYPE,
