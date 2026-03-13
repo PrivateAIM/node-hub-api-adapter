@@ -161,7 +161,7 @@ async def verify_idp_token(
 
 
 async def _get_internal_token(oidc_config, settings: Annotated[Settings, Depends(get_settings)]) -> dict | None:
-    """If the Hub Adapter is set up tp use an external IDP, it needs to retrieve a JWT from the internal keycloak
+    """If the Hub Adapter is set up to use an external IDP, it needs to retrieve a JWT from the internal keycloak
     to make requests to the PO."""
 
     payload = {
@@ -203,7 +203,7 @@ def _require_role(
     verified_token: Annotated[dict, Depends(verify_idp_token)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> dict:
-    """Dependency to check if token contains allowed role, otherwise raise 403 error."""
+    """Dependency to check if token contains the allowed role, otherwise raise 403 error."""
     role_claim_name = settings.role_claim_name
     admin_role = settings.admin_role
     if additional_allowed_role and role_claim_name:
