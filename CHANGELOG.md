@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.5.0...v0.5.1) (2026-03-13)
+
+
+### Bug Fixes
+
+* **auth:** manually build internal token ep from k8s svc ([6586fc9](https://github.com/PrivateAIM/node-hub-api-adapter/commit/6586fc991c622c9f8f85864da166fd0254e0bcef))
+
 ## [0.5.0](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.4.3...v0.5.0) (2026-03-05)
 
 
