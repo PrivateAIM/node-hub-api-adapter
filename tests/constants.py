@@ -79,7 +79,7 @@ MOCK_ANALYSIS = {
     "build_hash": None,
     "build_os": None,
     "build_size": None,
-    "distribution_status": None,
+    "distribution_status": "executed",
     "distribution_progress": None,
     "execution_status": None,
     "execution_progress": 0,
