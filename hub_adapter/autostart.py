@@ -390,15 +390,7 @@ class GoGoAnalysis:
         """Iterate through analyses and check whether they are approved, built, and have a run status."""
         ready_analyses = set()
         for entry in analyses:
-            (
-                analysis_id,
-                project_id,
-                node_id,
-                build_status,
-                run_status,
-                approved,
-                created_at,
-            ) = (
+            (analysis_id, project_id, node_id, build_status, run_status, approved, created_at, distribution_status) = (
                 str(entry.analysis_id),
                 str(entry.analysis.project_id),
                 str(entry.node_id),
@@ -406,9 +398,10 @@ class GoGoAnalysis:
                 entry.execution_status,
                 entry.approval_status,
                 entry.created_at,  # Already parsed as datetime object from python hub client
+                entry.analysis.distribution_status,
             )
 
-            is_valid = approved == "approved" and build_status == "executed"
+            is_valid = approved == "approved" and build_status == "executed" and distribution_status == "executed"
 
             if enforce_time_and_status_check and is_valid:
                 # Need timezone.utc to make it offset-aware otherwise will not work with created_at datetime obj
@@ -445,7 +438,7 @@ class AutostartManager:
         self._enabled = False
 
     async def update(self) -> None:
-        """Update autostart state based on current settings."""
+        """Update the autostart state based on current settings."""
         settings = load_persistent_settings()
         user_enabled = settings.autostart.enabled if settings.autostart else False
         interval = settings.autostart.interval if settings.autostart else 60
@@ -477,11 +470,13 @@ class AutostartManager:
             logger.info(f"Restarting autostart with new interval {interval}s")
             self._task = asyncio.create_task(self._run_autostart(interval))
 
-    async def _run_autostart(self, interval: int) -> None:
+    @staticmethod
+    async def _run_autostart(interval: int) -> None:
         """Run the autostart probing loop."""
         analysis_initiator = GoGoAnalysis()
         while True:
             try:
+                logger.info("Checking for new analyses to start")
                 await analysis_initiator.auto_start_analyses()
 
             except Exception as e:
