@@ -44,7 +44,6 @@ class JsonFormatter(logging.Formatter):
             "level": record.levelname,
             "logger": record.name,
             "module": record.module,
-            "line": record.lineno,
             "message": record.getMessage(),
         }
         if hasattr(record, "service"):
@@ -76,6 +75,7 @@ logging_config = {
         },
         "json_formatter": {
             "()": JsonFormatter,
+            "datefmt": "%Y-%m-%d %H:%M:%S",
         },
     },
     "handlers": {
@@ -110,17 +110,13 @@ logging_config = {
 
 logging.config.dictConfig(logging_config)
 
-fluent_log_handler: logging.Handler | None = None  # exposed so server.py can re-attach after uvicorn resets logging
+fluent_log_handler: logging.Handler | None = None
 
-# Optional Fluent Bit handler for local development.
-# Set FLUENT_HOST (e.g. "localhost" or "https://1.2.3.4:24224") to enable; FLUENT_PORT defaults to 24224.
 _fluent_host = os.environ.get("FLUENT_HOST")
 if _fluent_host:
     try:
         from fluent import handler as _fluent_handler
 
-        # Accept plain hostnames ("localhost", "1.2.3.4") or full URLs
-        # ("https://1.2.3.4:24224") strip the scheme (http/s) and extract the port.
         _parsed = urlparse(_fluent_host if "://" in _fluent_host else f"tcp://{_fluent_host}")
         _fluent_host = _parsed.hostname
         _fluent_port = _parsed.port or int(os.environ.get("FLUENT_PORT", "24224"))

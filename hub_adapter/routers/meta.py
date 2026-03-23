@@ -49,7 +49,7 @@ class InitializeAnalysis(BaseModel):
     "/analysis/initialize",
     response_model=StatusOnlyResponse,
     status_code=status.HTTP_201_CREATED,
-    name="meta.initialize",
+    
 )
 async def initialize_analysis(
     analysis_params: Annotated[InitializeAnalysis, Form(description="Required information to start analysis")],
@@ -122,7 +122,7 @@ async def initialize_analysis(
     "/analysis/terminate/{analysis_id}",
     response_model=StatusOnlyResponse,
     status_code=status.HTTP_200_OK,
-    name="meta.terminate",
+    
 )
 async def terminate_analysis(
     analysis_id: Annotated[str | uuid.UUID, Path(description="Analysis UUID that should be terminated")],

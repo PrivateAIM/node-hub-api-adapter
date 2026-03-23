@@ -53,6 +53,8 @@ async def make_request(
         For passing on uploaded files. Should be packaged using the same form param and the read bytes
     file_response : bool
         Whether a file or stream data is expected as the response. Defaults to False
+    service : str | None
+        Name of the service to include in the log.
 
     Returns
     -------
@@ -109,7 +111,7 @@ def route(
     request_method,
     path: str,
     service_url: str,
-    name: str | None = None,
+    service: str | None = None,
     status_code: int | None = None,
     query_params: list[str] | None = None,
     form_params: list[str] | None = None,
@@ -139,8 +141,8 @@ def route(
         HTTP status code.
     service_url : str
         Root endpoint of the microservice for the forwarded request.
-    name : str | None
-        Name of the process or method that will be used for event logging, ideally period separated
+    service : str | None
+        Human-readable name of the downstream service.
     query_params : list[str] | None
         Keys passed referencing query model parameters to be sent to downstream microservice
     form_params : list[str] | None
@@ -179,7 +181,6 @@ def route(
         path,
         status_code=status_code,
         response_model=response_model,
-        name=name,
         tags=tags,
         dependencies=dependencies,
         summary=summary,
@@ -235,6 +236,7 @@ def route(
 
             svc = service_tags[0] if service_tags else None
             log_extra = {"service": svc} if svc else {}
+            logger.info(service_tags, extra=log_extra)
 
             try:
                 resp_data, status_code_from_service = await make_request(
@@ -252,7 +254,7 @@ def route(
                 err_msg = (
                     f"HTTP Request: {method.upper()} {microsvc_path} "
                     f"- HTTP Status: {status.HTTP_503_SERVICE_UNAVAILABLE} - Service is unavailable. "
-                    f"Check the {service_tags[0]} service at {service_url}"
+                    f"Check the {svc} service at {service_url}"
                 )
                 logger.error(err_msg, extra=log_extra)
                 logger.error(ce, extra=log_extra)
@@ -260,7 +262,7 @@ def route(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                     detail={
                         "message": err_msg,
-                        "service": service_tags[0],
+                        "service": svc,
                         "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
                     },
                     headers={"WWW-Authenticate": "Bearer"},
@@ -277,7 +279,7 @@ def route(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail={
                         "message": err_msg,
-                        "service": service_tags[0],
+                        "service": svc,
                         "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
                     },
                     headers={"WWW-Authenticate": "Bearer"},
@@ -290,7 +292,7 @@ def route(
                     status_code=http_error.response.status_code,
                     detail={
                         "message": err_msg,
-                        "service": service_tags[0],
+                        "service": svc,
                         "status_code": http_error.response.status_code,
                     },
                     headers={"WWW-Authenticate": "Bearer"},
@@ -303,7 +305,7 @@ def route(
                     status_code=status.HTTP_408_REQUEST_TIMEOUT,
                     detail={
                         "message": err_msg,
-                        "service": service_tags[0],
+                        "service": svc,
                         "status_code": status.HTTP_408_REQUEST_TIMEOUT,
                     },
                     headers={"WWW-Authenticate": "Bearer"},
