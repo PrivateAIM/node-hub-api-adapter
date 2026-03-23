@@ -1,4 +1,14 @@
 services:
+  hub-adapter:
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: "localhost:24224"
+        fluentd-async: "true"
+        tag: "docker.hub-adapter"
+    networks:
+      - logging   # must be on same network as the logging stack
+
   victorialogs:
     image: victoriametrics/victoria-logs:v1.23.2-victorialogs
     container_name: victorialogs

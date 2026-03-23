@@ -8,7 +8,6 @@ from fastapi.routing import serialize_response
 from starlette.datastructures import FormData
 from starlette.requests import Request
 
-from hub_adapter.schemas.events import EventTag
 from hub_adapter.user_settings import load_persistent_settings
 
 
@@ -135,29 +134,6 @@ def _extract_user_from_token(request: Request) -> dict | None:
 
     except (jwt.DecodeError, jwt.InvalidTokenError):
         return None
-
-
-def annotate_event(event_name: str, status_code: int, tags: list[EventTag] | None = None) -> tuple[str, list[EventTag]]:
-    """Append suffix to event name indicating if request was a "success" or "failure" and add tag."""
-    if status_code in (401, 403):
-        log_tag = EventTag.WARNING
-
-    elif status_code >= 400:
-        log_tag = EventTag.ERROR
-
-    else:
-        log_tag = EventTag.INFO
-
-    if tags:
-        tags.append(log_tag)
-
-    else:
-        tags = [log_tag]
-
-    suffix = ".failure" if status_code >= 400 else ".success"
-    annotated_event_name = f"{event_name}{suffix}"
-
-    return annotated_event_name, tags
 
 
 def _check_data_required(node_type: str) -> bool:

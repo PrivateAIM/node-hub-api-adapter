@@ -1,31 +1,20 @@
 """Test FastAPI app instance."""
 
 from pathlib import Path
-from unittest.mock import Mock, patch
 
 import pytest
 from dotenv import load_dotenv
 from fastapi import APIRouter
 from fastapi.testclient import TestClient
-from starlette.requests import Request
 
 import hub_adapter.server as server
 from hub_adapter.auth import verify_idp_token
 from hub_adapter.conf import Settings
-from hub_adapter.schemas.events import AGNOSTIC_EVENTS
 from tests.constants import (
     FAKE_USER,
     TEST_MOCK_NODE_CLIENT_ID,
     TEST_URL,
 )
-
-
-@pytest.fixture
-def mock_event_logger():
-    """Create a mock event logger."""
-    mock_logger = Mock()
-    mock_logger.log_fastapi_request = Mock()
-    return mock_logger
 
 
 @pytest.fixture(scope="session")
@@ -76,30 +65,10 @@ def test_settings() -> Settings:
             http_proxy="http://squid.proxy:3128",
             https_proxy="http://squid.proxy:3128",
             node_svc_oidc_url=TEST_URL,
-            postgres_event_db="test_db",
-            postgres_event_user="test_user",
-            postgres_event_password="test_password",
-            postgres_event_host="localhost",
-            postgres_event_port="5432",
         )
 
 
-def middleware_event_test(endpoint: str, test_client, mock_event_logger):
-    """Method for testing if an endpoint triggers the event logging middleware."""
-    with patch("hub_adapter.server.get_event_logger", return_value=mock_event_logger):
-        response = test_client.get(endpoint)
-
-        mock_event_logger.log_fastapi_request.assert_called()
-
-        call_args = mock_event_logger.log_fastapi_request.call_args
-        request = call_args[0][0]
-        status_code = call_args[0][1]
-
-        assert isinstance(request, Request)
-        assert status_code == response.status_code  # should match
-
-
-def check_routes(router: APIRouter, expected_routes: tuple, test_client, mock_event_logger):
+def check_routes(router: APIRouter, expected_routes: tuple, test_client):
     """Go through observed routes and compare them against what is expected."""
     for route in router.routes:
         observed_route = {
@@ -109,6 +78,4 @@ def check_routes(router: APIRouter, expected_routes: tuple, test_client, mock_ev
             "status_code": route.status_code,
             "response_model": route.response_model,
         }
-        assert route.name in AGNOSTIC_EVENTS
         assert observed_route in expected_routes
-        middleware_event_test(route.path, test_client, mock_event_logger)  # check if event middleware called

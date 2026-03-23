@@ -312,61 +312,6 @@ class TestAutostartErrorAndEvents:
         mock_node_type_cache.assert_called_once()
 
     @patch("hub_adapter.autostart.logger")
-    @patch("hub_adapter.autostart.get_event_logger")
-    @pytest.mark.asyncio
-    async def test_log_analysis_with_event_logger(self, mock_get_event_logger, mock_logger):
-        """Test log_analysis when event logger is available."""
-        mock_event_logger = MagicMock()
-        self.analyzer.event_logger = mock_event_logger
-
-        metadata = {
-            "analysis_id": TEST_MOCK_ANALYSIS_ID,
-            "project_id": TEST_MOCK_PROJECT_ID,
-            "status_code": status.HTTP_201_CREATED,
-        }
-
-        self.analyzer.log_analysis(metadata, body="Test body")
-
-        mock_event_logger.log_event.assert_called_once()
-        call_args = mock_event_logger.log_event.call_args
-        assert call_args[1]["event_name"] == "autostart.analysis.create.success"
-        assert call_args[1]["body"] == "Test body"
-        assert call_args[1]["attributes"]["analysis_id"] == TEST_MOCK_ANALYSIS_ID
-
-    @patch("hub_adapter.autostart.logger")
-    def test_log_analysis_without_event_logger(self, mock_logger):
-        """Test log_analysis when event logger is None."""
-        self.analyzer.event_logger = None
-
-        metadata = {
-            "analysis_id": TEST_MOCK_ANALYSIS_ID,
-            "project_id": TEST_MOCK_PROJECT_ID,
-            "status_code": status.HTTP_201_CREATED,
-        }
-
-        # Should not raise even without event logger
-        self.analyzer.log_analysis(metadata)
-
-    @patch("hub_adapter.autostart.logger")
-    @patch("hub_adapter.autostart.get_event_logger")
-    def test_log_analysis_status_code_override(self, mock_get_event_logger, mock_logger):
-        """Test log_analysis overrides status_code when provided."""
-        mock_event_logger = MagicMock()
-        self.analyzer.event_logger = mock_event_logger
-
-        metadata = {
-            "analysis_id": TEST_MOCK_ANALYSIS_ID,
-            "project_id": TEST_MOCK_PROJECT_ID,
-            "status_code": status.HTTP_201_CREATED,
-        }
-
-        # Override with different status code
-        self.analyzer.log_analysis(metadata, status_code=status.HTTP_409_CONFLICT)
-
-        call_args = mock_event_logger.log_event.call_args
-        assert call_args[1]["attributes"]["status_code"] == status.HTTP_409_CONFLICT
-
-    @patch("hub_adapter.autostart.logger")
     @patch("hub_adapter.autostart.make_request")
     @patch("hub_adapter.autostart.GoGoAnalysis.fetch_token_header")
     @patch("hub_adapter.autostart.compile_analysis_pod_data")

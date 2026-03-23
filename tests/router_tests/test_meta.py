@@ -18,9 +18,9 @@ from tests.router_tests.routes import EXPECTED_META_ROUTE_CONFIG
 class TestMeta:
     """Collection of unit tests for testing the meta router module."""
 
-    def test_route_configs(self, test_client, mock_event_logger):
+    def test_route_configs(self, test_client):
         """Test end point configurations for the Hub gateway routes."""
-        check_routes(meta_router, EXPECTED_META_ROUTE_CONFIG, test_client, mock_event_logger)
+        check_routes(meta_router, EXPECTED_META_ROUTE_CONFIG, test_client)
 
     @pytest.mark.asyncio
     @patch("hub_adapter.routers.meta.GoGoAnalysis.register_and_start_analysis")

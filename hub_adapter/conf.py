@@ -68,8 +68,7 @@ class Settings(BaseSettings):
     steward_role: str | None = None
     researcher_role: str | None = None
 
-    # Event logging
-    log_events: bool = True
+    # Database (user settings persistence)
     postgres_event_user: str | None = None
     postgres_event_password: str | None = None
     postgres_event_db: str | None = None

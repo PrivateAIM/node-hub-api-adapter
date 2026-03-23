@@ -3,7 +3,6 @@
 from flame_hub._core_client import Analysis, AnalysisBucket, AnalysisNode, Node, Project, ProjectNode, RegistryProject
 from kong_admin_client import Service
 
-from hub_adapter.schemas.events import EventLogResponse
 from hub_adapter.schemas.hub import AnalysisImageUrl, DetailedAnalysis, NodeTypeResponse
 from hub_adapter.schemas.kong import (
     DeleteProject,
@@ -19,30 +18,6 @@ from hub_adapter.schemas.podorc import (
     PodProgressResponse,
     PodResponse,
     StatusOnlyResponse,
-)
-
-EXPECTED_EVENT_ROUTE_CONFIG = (
-    {
-        "name": "events.get",
-        "path": "/events",
-        "methods": {"GET"},
-        "response_model": EventLogResponse,
-        "status_code": 200,
-    },
-    {
-        "name": "auth.user.signin",
-        "path": "/events/signin",
-        "methods": {"POST"},
-        "response_model": None,
-        "status_code": 201,
-    },
-    {
-        "name": "auth.user.signout",
-        "path": "/events/signout",
-        "methods": {"POST"},
-        "response_model": None,
-        "status_code": 201,
-    },
 )
 
 EXPECTED_META_ROUTE_CONFIG = (

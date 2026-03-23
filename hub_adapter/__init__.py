@@ -1,6 +1,9 @@
 """Package initialization step."""
 
+import json
+import logging
 import logging.config
+import os
 import sys
 from pathlib import Path
 
@@ -32,6 +35,25 @@ class AnsiColorFormatter(logging.Formatter):
         return f"{start_style}{super().format(record)}{end_style}"
 
 
+class JsonFormatter(logging.Formatter):
+    """Emit each log record as a single JSON line for structured log ingestion."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        payload = {
+            "time": self.formatTime(record, "%Y-%m-%dT%H:%M:%S"),
+            "level": record.levelname,
+            "logger": record.name,
+            "module": record.module,
+            "line": record.lineno,
+            "message": record.getMessage(),
+        }
+        if hasattr(record, "service"):
+            payload["service"] = record.service
+        if record.exc_info:
+            payload["exc_info"] = self.formatException(record.exc_info)
+        return json.dumps(payload)
+
+
 log_dir = root_dir.joinpath("logs")
 log_dir.mkdir(parents=True, exist_ok=True)
 
@@ -52,6 +74,9 @@ logging_config = {
             "format": "%(asctime)s [%(levelname)s] %(message)s",
             "datefmt": "%Y-%m-%d %H:%M:%S",
         },
+        "json_formatter": {
+            "()": JsonFormatter,
+        },
     },
     "handlers": {
         "file_handler": {
@@ -67,7 +92,7 @@ logging_config = {
         "console_handler": {
             "class": "logging.StreamHandler",
             "stream": sys.stdout,
-            "formatter": "console_formatter",
+            "formatter": "json_formatter",
             "level": "INFO",
         },
     },
@@ -84,3 +109,39 @@ logging_config = {
 }
 
 logging.config.dictConfig(logging_config)
+
+# Optional Fluent Bit handler for local development.
+# Set FLUENT_HOST (e.g. "localhost") to enable; FLUENT_PORT defaults to 24224.
+_fluent_host = os.environ.get("FLUENT_HOST")
+if _fluent_host:
+    try:
+        from fluent import handler as _fluent_handler
+
+        _fluent_port = int(os.environ.get("FLUENT_PORT", "24224"))
+
+        class _FluentFormatter(_fluent_handler.FluentRecordFormatter):
+            """FluentRecordFormatter that preserves the service extra field."""
+
+            def format(self, record: logging.LogRecord) -> dict:
+                data = super().format(record)
+                if hasattr(record, "service"):
+                    data["service"] = record.service
+                return data
+
+        _fmt = _FluentFormatter(
+            {
+                "level": "%(levelname)s",
+                "logger": "%(name)s",
+                "module": "%(module)s",
+                "line": "%(lineno)d",
+                "message": "%(message)s",
+            }
+        )
+        _fh = _fluent_handler.FluentHandler("hub_adapter", host=_fluent_host, port=_fluent_port)
+        _fh.setFormatter(_fmt)
+        _fh.setLevel(logging.INFO)
+        logging.getLogger().addHandler(_fh)
+        logging.getLogger(__name__).info(f"Fluent handler enabled → {_fluent_host}:{_fluent_port}")
+
+    except Exception as _e:
+        logging.getLogger(__name__).warning(f"Could not configure Fluent handler: {_e}")
