@@ -6,6 +6,7 @@ import logging.config
 import os
 import sys
 from pathlib import Path
+from urllib.parse import urlparse
 
 root_dir = Path(__file__).parent.resolve()
 
@@ -111,13 +112,17 @@ logging_config = {
 logging.config.dictConfig(logging_config)
 
 # Optional Fluent Bit handler for local development.
-# Set FLUENT_HOST (e.g. "localhost") to enable; FLUENT_PORT defaults to 24224.
+# Set FLUENT_HOST (e.g. "localhost" or "https://1.2.3.4:24224") to enable; FLUENT_PORT defaults to 24224.
 _fluent_host = os.environ.get("FLUENT_HOST")
 if _fluent_host:
     try:
         from fluent import handler as _fluent_handler
 
-        _fluent_port = int(os.environ.get("FLUENT_PORT", "24224"))
+        # Accept plain hostnames ("localhost", "1.2.3.4") or full URLs
+        # ("https://1.2.3.4:24224") strip the scheme (http/s) and extract the port.
+        _parsed = urlparse(_fluent_host if "://" in _fluent_host else f"tcp://{_fluent_host}")
+        _fluent_host = _parsed.hostname
+        _fluent_port = _parsed.port or int(os.environ.get("FLUENT_PORT", "24224"))
 
         class _FluentFormatter(_fluent_handler.FluentRecordFormatter):
             """FluentRecordFormatter that preserves the service extra field."""
@@ -141,7 +146,7 @@ if _fluent_host:
         _fh.setFormatter(_fmt)
         _fh.setLevel(logging.INFO)
         logging.getLogger().addHandler(_fh)
-        logging.getLogger(__name__).info(f"Fluent handler enabled → {_fluent_host}:{_fluent_port}")
+        logging.getLogger(__name__).info(f"Fluent handler enabled: {_fluent_host}:{_fluent_port}")
 
     except Exception as _e:
         logging.getLogger(__name__).warning(f"Could not configure Fluent handler: {_e}")
