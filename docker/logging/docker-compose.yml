@@ -1,0 +1,60 @@
+services:
+  victorialogs:
+    image: victoriametrics/victoria-logs:v1.23.2-victorialogs
+    container_name: victorialogs
+    restart: unless-stopped
+    command:
+      - -storageDataPath=/vlogs
+      - -retentionPeriod=4w
+      - -httpListenAddr=0.0.0.0:9428
+      - -loggerLevel=INFO
+    volumes:
+      - victorialogs_data:/vlogs
+    ports:
+      - "9428:9428"
+    networks:
+      - logging
+    healthcheck:
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9428/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  fluent-bit:
+    image: fluent/fluent-bit:3.3
+    container_name: fluent-bit
+    restart: unless-stopped
+    depends_on:
+      victorialogs:
+        condition: service_healthy
+    environment:
+      HOSTNAME: "${HOSTNAME:-docker-host}"
+      ENVIRONMENT: "${ENVIRONMENT:-production}"
+    volumes:
+      - ./fluent-bit/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf:ro
+      - ./fluent-bit/parsers.conf:/fluent-bit/etc/parsers.conf:ro
+      # Can also mount the host journal so systemd logs can be read
+    #      - /var/log/journal:/var/log/journal:ro
+    #      - /run/log/journal:/run/log/journal:ro
+    #      - /etc/machine-id:/etc/machine-id:ro
+    ports:
+      - "24224:24224"
+      - "24224:24224/udp"
+      - "2020:2020"  # http
+    networks:
+      - logging
+    healthcheck:
+      test: [ "CMD", "curl", "-sf", "http://localhost:2020/api/v1/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  logging:
+    driver: bridge
+
+volumes:
+  victorialogs_data:
+    driver: local
