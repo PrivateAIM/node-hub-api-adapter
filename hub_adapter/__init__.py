@@ -110,8 +110,8 @@ logging_config = {
 
 logging.config.dictConfig(logging_config)
 
+# The following is for local debugging, it is not needed in a k8s environment
 fluent_log_handler: logging.Handler | None = None
-
 _fluent_host = os.environ.get("FLUENT_HOST")
 if _fluent_host:
     try:
