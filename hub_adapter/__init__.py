@@ -1,7 +1,6 @@
 """Package initialization step."""
 
 import json
-import logging
 import logging.config
 import os
 import sys
@@ -111,6 +110,8 @@ logging_config = {
 
 logging.config.dictConfig(logging_config)
 
+fluent_log_handler: logging.Handler | None = None  # exposed so server.py can re-attach after uvicorn resets logging
+
 # Optional Fluent Bit handler for local development.
 # Set FLUENT_HOST (e.g. "localhost" or "https://1.2.3.4:24224") to enable; FLUENT_PORT defaults to 24224.
 _fluent_host = os.environ.get("FLUENT_HOST")
@@ -145,6 +146,7 @@ if _fluent_host:
         _fh = _fluent_handler.FluentHandler("hub_adapter", host=_fluent_host, port=_fluent_port)
         _fh.setFormatter(_fmt)
         _fh.setLevel(logging.INFO)
+        fluent_log_handler = _fh
         logging.getLogger().addHandler(_fh)
         logging.getLogger(__name__).info(f"Fluent handler enabled: {_fluent_host}:{_fluent_port}")
 
