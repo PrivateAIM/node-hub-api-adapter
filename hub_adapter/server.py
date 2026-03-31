@@ -109,12 +109,6 @@ for router in routers:
 async def deploy(host: str = "127.0.0.1", port: int = 5000, reload: bool = False):
     """Start the hub adapter API server with autostart management."""
     config = uvicorn.Config(app, host=host, port=port, reload=reload, log_config=logging_config)
-
-    from hub_adapter import fluent_log_handler
-
-    if fluent_log_handler:  # Have to reattach it since uvicorn kicks it out, just for debugging
-        logging.getLogger().addHandler(fluent_log_handler)
-
     server = uvicorn.Server(config)
     await server.serve()
 
