@@ -35,6 +35,7 @@ from hub_adapter.errors import (
 from hub_adapter.schemas.kong import (
     DataStoreType,
     DeleteProject,
+    DeleteService,
     HttpMethodCode,
     LinkDataStoreProject,
     LinkProjectAnalysis,
@@ -198,6 +199,7 @@ async def delete_data_store(
     "/datastore",
     status_code=status.HTTP_200_OK,
     dependencies=[Depends(require_steward_role)],
+    response_model=DeleteService,
     name="kong.datastore.delete_orphaned",
 )
 @catch_kong_errors

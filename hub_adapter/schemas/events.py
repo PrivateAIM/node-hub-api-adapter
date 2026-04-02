@@ -253,6 +253,11 @@ AGNOSTIC_EVENTS = {
         "tags": [EventTag.KONG],
         "model": GatewayEventLog,
     },
+    "kong.datastore.delete_orphaned": {
+        "body": "A user sent a request to delete a analysis to Kong",
+        "tags": [EventTag.KONG],
+        "model": GatewayEventLog,
+    },
     "kong.initialize": {
         "body": "A user sent a request to create a datastore and link a project to it",
         "tags": [EventTag.KONG],
