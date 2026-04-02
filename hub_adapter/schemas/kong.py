@@ -149,5 +149,5 @@ class DeleteProject(BaseModel):
 class DeleteService(BaseModel):
     """Response for deleting orphaned services."""
 
-    deleted: list[str]
+    deleted: list[dict]
     count: int
