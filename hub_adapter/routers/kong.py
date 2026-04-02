@@ -194,6 +194,38 @@ async def delete_data_store(
         return status.HTTP_200_OK
 
 
+@kong_router.delete(
+    "/datastore",
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(require_steward_role)],
+    name="kong.datastore.delete_orphaned",
+)
+@catch_kong_errors
+async def delete_orphaned_data_stores(
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> dict:
+    """Delete all data stores (services) that have no associated project (route)."""
+    configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
+
+    with kong_admin_client.ApiClient(configuration) as api_client:
+        svc_api = kong_admin_client.ServicesApi(api_client)
+        route_api = kong_admin_client.RoutesApi(api_client)
+
+        services = svc_api.list_service()
+        routes = route_api.list_route()
+
+        routed_service_ids = {route.service.id for route in routes.data if route.service}
+        orphaned = [svc for svc in services.data if svc.id not in routed_service_ids]
+
+        deleted = []
+        for svc in orphaned:
+            svc_api.delete_service(service_id_or_name=svc.id)
+            logger.info(f"Deleted orphaned data store {svc.id} ({svc.name})")
+            deleted.append({"id": svc.id, "name": svc.name})
+
+    return {"deleted": deleted, "count": len(deleted)}
+
+
 @kong_router.post(
     "/datastore",
     response_model=Service,
