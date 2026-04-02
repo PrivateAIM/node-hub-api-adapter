@@ -440,13 +440,19 @@ async def create_datastore_and_project_with_link(
     ds_type: Annotated[DataStoreType, Body(description="Data store type. Either 's3' or 'fhir'")] = DataStoreType.FHIR,
 ):
     """Creates a new datastore (service) and a new project (route), then links them together with a health consumer."""
-    proj_response = await create_route_to_datastore(
-        settings=settings,
-        project_id=project_id,
-        data_store_id=datastore.id,
-        protocols=protocols,
-        ds_type=ds_type,
-    )
+    try:
+        proj_response = await create_route_to_datastore(
+            settings=settings,
+            project_id=project_id,
+            data_store_id=datastore.id,
+            protocols=protocols,
+            ds_type=ds_type,
+        )
+    except HTTPException as error:  # if route creation fails, delete the orphaned service
+        logger.error("Failed to create route for datastore, deleting service")
+        await delete_data_store(settings=settings, data_store_name=datastore.id)
+        raise error
+
     # Test connection
     try:
         await probe_connection(settings=settings, project_id=str(project_id), ds_type=ds_type)
