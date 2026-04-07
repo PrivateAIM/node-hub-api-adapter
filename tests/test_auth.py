@@ -90,9 +90,11 @@ class TestAuth:
             assert random_error.value.status_code == status.HTTP_401_UNAUTHORIZED
             assert missing_claim_error.value.detail["message"] == "Unable to parse authentication token"
 
+    @patch("hub_adapter.auth.get_svc_oidc_config")
     @pytest.mark.asyncio
-    async def test_get_internal_token(self, httpx_mock, test_settings):
+    async def test_get_internal_token(self, mock_svc_oidc, httpx_mock, test_settings):
         """Test the get_internal_token method."""
+        mock_svc_oidc.return_value = TEST_SVC_OIDC
         fake_token_resp = {
             "access_token": TEST_JWT,
             "token_type": "Bearer",
@@ -171,16 +173,16 @@ class TestAuth:
             await require_steward_role(TEST_STEWARD_DECRYPTED_JWT, mock_settings_with_mismatched_roles)
             assert steward_error.value.status_code == status.HTTP_403_FORBIDDEN
             assert (
-                    steward_error.value.detail["message"]
-                    == f"Insufficient permissions, admin or {STEWARD_ROLE} role not found in token."
+                steward_error.value.detail["message"]
+                == f"Insufficient permissions, admin or {STEWARD_ROLE} role not found in token."
             )
 
         with pytest.raises(HTTPException) as researcher_error:
             await require_researcher_role(TEST_RESEARCHER_DECRYPTED_JWT, mock_settings_with_mismatched_roles)
             assert researcher_error.value.status_code == status.HTTP_403_FORBIDDEN
             assert (
-                    researcher_error.value.detail["message"]
-                    == f"Insufficient permissions, admin or {RESEARCHER_ROLE} role not found in token."
+                researcher_error.value.detail["message"]
+                == f"Insufficient permissions, admin or {RESEARCHER_ROLE} role not found in token."
             )
 
         # Wrong claim name
@@ -197,6 +199,6 @@ class TestAuth:
             mock_logger.warning.assert_any_call(f"No roles found in token using {wrong_claim_name}")
             assert steward_error.value.status_code == status.HTTP_403_FORBIDDEN
             assert (
-                    steward_error.value.detail["message"]
-                    == f"Insufficient permissions, admin or {STEWARD_ROLE} role not found in token."
+                steward_error.value.detail["message"]
+                == f"Insufficient permissions, admin or {STEWARD_ROLE} role not found in token."
             )

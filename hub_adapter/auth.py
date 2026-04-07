@@ -170,7 +170,8 @@ async def _get_internal_token(settings: Annotated[Settings, Depends(get_settings
         "client_secret": settings.api_client_secret,
     }
 
-    int_token_ep = settings.node_svc_oidc_url.rstrip("/") + "/protocol/openid-connect/token"
+    svc_oidc_config = get_svc_oidc_config()
+    int_token_ep = svc_oidc_config.token_endpoint
 
     resp = httpx.post(int_token_ep, data=payload)
     resp.raise_for_status()
