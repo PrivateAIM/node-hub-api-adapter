@@ -16,7 +16,7 @@ TEST_URL = "https://api.example.com"
 TEST_OIDC = OIDCConfiguration(
     issuer=TEST_URL,
     authorization_endpoint=TEST_URL,
-    token_endpoint=TEST_URL,
+    token_endpoint=f"{TEST_URL}/protocol/openid-connect/token",
     jwks_uri=TEST_URL,
     userinfo_endpoint=TEST_URL,
 )
@@ -24,11 +24,10 @@ TEST_SVC_URL = "https://service.example"
 TEST_SVC_OIDC = OIDCConfiguration(
     issuer=TEST_SVC_URL,
     authorization_endpoint=TEST_SVC_URL,
-    token_endpoint=TEST_SVC_URL,
+    token_endpoint=f"{TEST_SVC_URL}/protocol/openid-connect/token",
     jwks_uri=TEST_SVC_URL,
     userinfo_endpoint=TEST_SVC_URL,
 )
-
 
 TEST_MOCK_ANALYSIS_ID = "1c9cb547-4afc-4398-bcb6-954bc61a1bb1"
 TEST_MOCK_PROJECT_ID = "9cbefefe-2420-4b8e-8ac1-f48148a9fd40"
@@ -101,7 +100,6 @@ MOCK_ANALYSIS_NODE = {
     "execution_progress": 0,
     "analysis": MOCK_ANALYSIS,
 }
-
 
 ANALYSIS_NODES_RESP = [
     {
@@ -208,7 +206,7 @@ TEST_OIDC_RESPONSE = {
     "authorization_endpoint": TEST_URL,
     "issuer": TEST_URL,
     "jwks_uri": TEST_URL,
-    "token_endpoint": TEST_URL,
+    "token_endpoint": f"{TEST_URL}/protocol/openid-connect/token",
     "userinfo_endpoint": TEST_URL,
 }
 
@@ -216,7 +214,7 @@ TEST_OIDC_SVC_RESPONSE = {
     "authorization_endpoint": TEST_SVC_URL,
     "issuer": TEST_SVC_URL,
     "jwks_uri": TEST_SVC_URL,
-    "token_endpoint": TEST_SVC_URL,
+    "token_endpoint": f"{TEST_SVC_URL}/protocol/openid-connect/token",
     "userinfo_endpoint": TEST_SVC_URL,
 }
 
@@ -319,7 +317,6 @@ TEST_KONG_CONSUMER_DATA = {
     "keyauth": KeyAuth().__dict__,
     "acl": ACL().__dict__,
 }
-
 
 FAKE_USER = {
     "acr": "1",

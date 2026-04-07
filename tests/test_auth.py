@@ -29,6 +29,7 @@ from tests.constants import (
     TEST_OIDC,
     TEST_RESEARCHER_DECRYPTED_JWT,
     TEST_STEWARD_DECRYPTED_JWT,
+    TEST_SVC_OIDC,
 )
 
 
@@ -89,9 +90,11 @@ class TestAuth:
             assert random_error.value.status_code == status.HTTP_401_UNAUTHORIZED
             assert missing_claim_error.value.detail["message"] == "Unable to parse authentication token"
 
+    @patch("hub_adapter.auth.get_svc_oidc_config")
     @pytest.mark.asyncio
-    async def test_get_internal_token(self, httpx_mock, test_settings):
+    async def test_get_internal_token(self, mock_svc_oidc, httpx_mock, test_settings):
         """Test the get_internal_token method."""
+        mock_svc_oidc.return_value = TEST_SVC_OIDC
         fake_token_resp = {
             "access_token": TEST_JWT,
             "token_type": "Bearer",
@@ -99,8 +102,8 @@ class TestAuth:
             "refresh_token": TEST_JWT,
             "refresh_expires_in": 1800,
         }
-        httpx_mock.add_response(url=TEST_OIDC.token_endpoint, json=fake_token_resp, status_code=200)
-        assert await _get_internal_token(TEST_OIDC, test_settings) == {"Authorization": f"Bearer {TEST_JWT}"}
+        httpx_mock.add_response(url=TEST_SVC_OIDC.token_endpoint, json=fake_token_resp, status_code=200)
+        assert await _get_internal_token(test_settings) == {"Authorization": f"Bearer {TEST_JWT}"}
 
     @patch("hub_adapter.auth._get_internal_token")
     @patch("hub_adapter.auth.check_oidc_configs_match")
