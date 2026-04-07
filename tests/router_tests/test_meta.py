@@ -8,12 +8,20 @@ from httpx import ConnectError
 from starlette import status
 
 from hub_adapter.dependencies import get_core_client, get_flame_hub_auth_flow, get_ssl_context
-from hub_adapter.models.podorc import StatusResponse
-from hub_adapter.routers.meta import InitializeAnalysis, initialize_analysis, terminate_analysis
+from hub_adapter.routers.meta import InitializeAnalysis, initialize_analysis, meta_router, terminate_analysis
+from hub_adapter.schemas.podorc import StatusOnlyResponse
+from tests.conftest import check_routes
 from tests.constants import TEST_MOCK_ANALYSIS_ID, TEST_MOCK_NODE_ID, TEST_MOCK_PROJECT_ID
+from tests.router_tests.routes import EXPECTED_META_ROUTE_CONFIG
 
 
 class TestMeta:
+    """Collection of unit tests for testing the meta router module."""
+
+    def test_route_configs(self, test_client, mock_event_logger):
+        """Test end point configurations for the Hub gateway routes."""
+        check_routes(meta_router, EXPECTED_META_ROUTE_CONFIG, test_client, mock_event_logger)
+
     @pytest.mark.asyncio
     @patch("hub_adapter.routers.meta.GoGoAnalysis.register_and_start_analysis")
     @patch("hub_adapter.routers.meta.GoGoAnalysis.parse_analyses")
@@ -34,8 +42,8 @@ class TestMeta:
         """Test the basic steps of initializing an analysis."""
         # Setup core_client
         ctx = get_ssl_context(test_settings)
-        robot = get_flame_hub_auth_flow(ctx, test_settings)
-        cc = get_core_client(robot, ctx, test_settings)
+        auth = get_flame_hub_auth_flow(ctx, test_settings)
+        cc = get_core_client(auth, ctx, test_settings)
 
         # Set mock values
         mock_deps.return_value = None
@@ -43,7 +51,7 @@ class TestMeta:
         mock_hub_analyses.return_value = "foo"  # Just needs to be something
         mock_projects.return_value = None
         mock_parsed_analyses.return_value = [(TEST_MOCK_ANALYSIS_ID,)]
-        valid_resp = {TEST_MOCK_ANALYSIS_ID: "running"}
+        valid_resp = {TEST_MOCK_ANALYSIS_ID: "executing"}
         mock_start_resp.return_value = (valid_resp, status.HTTP_201_CREATED)
 
         # Input params
@@ -52,7 +60,7 @@ class TestMeta:
         # Working
         gen_resp = await initialize_analysis(analysis_params=fake_analysis_form, core_client=cc)
         assert gen_resp == valid_resp
-        assert StatusResponse.model_validate(gen_resp)
+        assert StatusOnlyResponse.model_validate(gen_resp)
 
         # Returned status code not 201 or 200
         mock_start_resp.return_value = (valid_resp, status.HTTP_202_ACCEPTED)
@@ -96,7 +104,7 @@ class TestMeta:
     @pytest.mark.asyncio
     @patch("hub_adapter.routers.meta.logger")
     @patch("hub_adapter.routers.meta.make_request")
-    @patch("hub_adapter.routers.meta.get_internal_token")
+    @patch("hub_adapter.routers.meta._get_internal_token")
     @patch("hub_adapter.routers.meta.check_oidc_configs_match")
     @patch("hub_adapter.routers.meta.delete_analysis")
     async def test_terminate_analysis(
@@ -125,7 +133,7 @@ class TestMeta:
         assert returned_data == valid_resp
         assert mock_logger.info.call_count == 1
         mock_logger.info.assert_called_with(f"Analysis {TEST_MOCK_ANALYSIS_ID} was terminated")
-        assert StatusResponse.model_validate(returned_data)
+        assert StatusOnlyResponse.model_validate(returned_data)
 
         # Can't connect to PodOrc
         mock_po_request.side_effect = ConnectError(message="")

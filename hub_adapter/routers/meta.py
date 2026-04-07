@@ -11,21 +11,28 @@ from pydantic import BaseModel
 from starlette import status
 
 from hub_adapter.auth import (
-    add_internal_token_if_missing,
-    get_internal_token,
+    _add_internal_token_if_missing,
+    _get_internal_token,
     jwtbearer,
+    require_researcher_role,
     verify_idp_token,
 )
 from hub_adapter.autostart import GoGoAnalysis
 from hub_adapter.conf import Settings
 from hub_adapter.core import make_request
 from hub_adapter.dependencies import get_core_client, get_settings
-from hub_adapter.models.podorc import StatusResponse
 from hub_adapter.oidc import check_oidc_configs_match
 from hub_adapter.routers.kong import delete_analysis
+from hub_adapter.schemas.podorc import StatusOnlyResponse
+from hub_adapter.utils import _check_data_required
 
 meta_router = APIRouter(
-    dependencies=[Security(verify_idp_token), Security(jwtbearer), Depends(add_internal_token_if_missing)],
+    dependencies=[
+        Security(verify_idp_token),
+        Security(jwtbearer),
+        Depends(_add_internal_token_if_missing),
+        Depends(require_researcher_role),
+    ],
     tags=["Meta"],
     responses={404: {"description": "Not found"}},
 )
@@ -40,8 +47,9 @@ class InitializeAnalysis(BaseModel):
 
 @meta_router.post(
     "/analysis/initialize",
-    response_model=StatusResponse,
+    response_model=StatusOnlyResponse,
     status_code=status.HTTP_201_CREATED,
+    name="meta.initialize",
 )
 async def initialize_analysis(
     analysis_params: Annotated[InitializeAnalysis, Form(description="Required information to start analysis")],
@@ -63,9 +71,13 @@ async def initialize_analysis(
         )
 
     valid_projects = await initiator.get_valid_projects()
-    is_default_node = node_type == "default"
+    datastore_required = _check_data_required(node_type)
+    logger.info(f"Datastore required: {datastore_required}")
     parsed_analyses = initiator.parse_analyses(
-        [analysis[0]], valid_projects, is_default_node, enforce_time_and_status_check=False
+        [analysis[0]],
+        valid_projects,
+        datastore_required,
+        enforce_time_and_status_check=False,
     )
     ready_to_start_analyses = [analysis[0] for analysis in parsed_analyses]
 
@@ -108,23 +120,24 @@ async def initialize_analysis(
 
 @meta_router.delete(
     "/analysis/terminate/{analysis_id}",
-    response_model=StatusResponse,
+    response_model=StatusOnlyResponse,
     status_code=status.HTTP_200_OK,
+    name="meta.terminate",
 )
 async def terminate_analysis(
     analysis_id: Annotated[str | uuid.UUID, Path(description="Analysis UUID that should be terminated")],
-    hub_adapter_settings: Annotated[Settings, Depends(get_settings)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ):
     """Perform the required checks to stop an analysis and delete it and its components.
 
     This method will first delete the kong consumer and then send the delete command to the PO.
     """
-    await delete_analysis(analysis_id=analysis_id, hub_adapter_settings=hub_adapter_settings)
+    await delete_analysis(analysis_id=analysis_id, settings=settings)
 
     configs_match, oidc_config = check_oidc_configs_match()
-    headers = await get_internal_token(oidc_config, hub_adapter_settings)
+    headers = await _get_internal_token(oidc_config, settings)
 
-    microsvc_path = f"{get_settings().PODORC_SERVICE_URL}/po/delete/{analysis_id}"
+    microsvc_path = f"{settings.podorc_service_url}/po/delete/{analysis_id}"
 
     try:
         resp_data, status_code = await make_request(

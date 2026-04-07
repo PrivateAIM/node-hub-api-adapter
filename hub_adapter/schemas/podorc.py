@@ -44,6 +44,8 @@ class LogResponse(BaseModel):
 
 
 class PodResponse(RootModel[dict[uuid.UUID, list[str | None]]]):
+    """Response with a list of running pods for a given analysis ID"""
+
     pass
 
 
@@ -53,13 +55,17 @@ class PodStatus(str, Enum):
     STARTING = "starting"
     STARTED = "started"
 
-    STUCK = "stuck"
-    RUNNING = "running"
-
     STOPPING = "stopping"
     STOPPED = "stopped"
 
+    # Deprecated
+    RUNNING = "running"
     FINISHED = "finished"
+
+    EXECUTING = "executing"
+    EXECUTED = "executed"
+
+    STUCK = "stuck"
     FAILED = "failed"
 
 
@@ -70,15 +76,14 @@ class AnalysisStatus(BaseModel):
     progress: int | None = None
 
 
-# TODO Use this one once progress has been added to PO endpoints
-# class StatusResponse(RootModel[dict[uuid.UUID, AnalysisStatus]]):
-#     """Response with dynamic UUID keys and dynamic analysis keys"""
-#
-#     pass
-
-
-class StatusResponse(RootModel[dict[uuid.UUID, PodStatus]]):
+class StatusOnlyResponse(RootModel[dict[uuid.UUID, PodStatus]]):
     """Response with dynamic UUID keys and dynamic analysis keys"""
+
+    pass
+
+
+class PodProgressResponse(RootModel[dict[uuid.UUID, AnalysisStatus]]):
+    """Response with dynamic UUID keys and dynamic analysis keys with progress/status"""
 
     pass
 

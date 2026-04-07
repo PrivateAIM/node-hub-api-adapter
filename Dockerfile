@@ -1,35 +1,39 @@
 FROM python:3.13-alpine AS builder
 LABEL maintainer="bruce.schultz@uk-koeln.de"
 
-# Have poetry create .venv/ folder in WORKDIR
-ENV POETRY_NO_INTERACTION=1 \
-    POETRY_VIRTUALENVS_IN_PROJECT=1
-
 WORKDIR /app
 
-RUN apk add gcc musl-dev libffi-dev
-RUN pip install poetry==2.2.1
+RUN apk add gcc musl-dev libffi-dev git
+RUN pip install uv
 
-COPY ./poetry.lock ./pyproject.toml ./
+COPY ./uv.lock ./pyproject.toml ./README.md ./
+COPY hub_adapter/ ./hub_adapter/
 
-RUN poetry install --no-root --without dev
+RUN uv venv /app/.venv
+ENV VIRTUAL_ENV=/app/.venv
+RUN uv sync --frozen --no-dev
+
+# Test stage — installs dev deps (e.g. pytest) and runs tests
+FROM builder AS tester
+RUN uv sync --frozen
+COPY tests/ ./tests/
+RUN .venv/bin/pytest tests/
 
 FROM python:3.13-alpine
 
 RUN adduser -u 10000 -D hubadapter
 
-COPY --from=builder /app/.venv /app/.venv
+WORKDIR /app
+
+COPY --from=tester /app/.venv /app/.venv
 ENV PATH="/app/.venv/bin:$PATH"
 
 COPY hub_adapter/ ./hub_adapter/
 
-# Set permissions for the app directory
 RUN chown -R hubadapter:hubadapter /app
-RUN chown -R hubadapter:hubadapter /hub_adapter
 
-# API server port
 EXPOSE 5000
 
 USER 10000:10000
 
-ENTRYPOINT ["python", "-m", "hub_adapter.cli", "serve"]
+ENTRYPOINT ["hub-adapter", "serve"]

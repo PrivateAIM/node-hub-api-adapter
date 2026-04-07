@@ -26,8 +26,11 @@ from hub_adapter.errors import (
     KongGatewayError,
     KongServiceError,
 )
-from hub_adapter.models.kong import DataStoreType
-from hub_adapter.routers.kong import probe_connection, probe_data_service
+from hub_adapter.routers.kong import kong_router, probe_connection, probe_data_service
+from hub_adapter.schemas.kong import (
+    DataStoreType,
+)
+from tests.conftest import check_routes
 from tests.constants import (
     DS_TYPE,
     KONG_ANALYSIS_SUCCESS_RESP,
@@ -44,6 +47,7 @@ from tests.constants import (
     TEST_MOCK_PROJECT_ID,
 )
 from tests.pseudo_auth import BearerAuth
+from tests.router_tests.routes import EXPECTED_KONG_ROUTE_CONFIG
 
 test_svc_name = test_route_name = f"{TEST_MOCK_PROJECT_ID}-{DS_TYPE}"
 
@@ -52,6 +56,10 @@ TEST_SVC_NAME = f"{TEST_MOCK_PROJECT_ID}-{DS_TYPE}"
 
 class TestKong:
     """Kong EP tests."""
+
+    def test_route_configs(self, test_client, mock_event_logger):
+        """Test end point configurations for the PodOrc gateway routes."""
+        check_routes(kong_router, EXPECTED_KONG_ROUTE_CONFIG, test_client, mock_event_logger)
 
     @patch("hub_adapter.routers.kong.kong_admin_client.ServicesApi.list_service")
     def test_get_data_stores(self, mock_svc, authorized_test_client):
@@ -278,6 +286,47 @@ class TestKong:
         }
 
     @patch("hub_adapter.routers.kong.logger")
+    @patch("hub_adapter.routers.kong.kong_admin_client.ServicesApi.delete_service")
+    @patch("hub_adapter.routers.kong.kong_admin_client.RoutesApi.list_route")
+    @patch("hub_adapter.routers.kong.kong_admin_client.ServicesApi.list_service")
+    def test_delete_orphaned_data_stores(
+        self, mock_list_svc, mock_list_route, mock_delete_svc, mock_logger, authorized_test_client
+    ):
+        """Test delete_orphaned_data_stores (DELETE /datastore).
+
+        Verifies that only services without a route are deleted, and that services
+        with an associated route are left untouched.
+        """
+        orphaned_svc_id = "foo-bar-baz"
+        orphaned_svc_name = "orphaned-svc"
+
+        # One service is referenced by an existing route, one is not
+        mock_list_svc.return_value = ListService200Response(
+            data=[
+                Service(**TEST_KONG_SERVICE_DATA),  # routed — must not be deleted
+                Service(id=orphaned_svc_id, name=orphaned_svc_name),  # orphaned — must be deleted
+            ]
+        )
+        mock_list_route.return_value = ListRoute200Response(data=[Route(**TEST_KONG_ROUTE_DATA)])
+        mock_delete_svc.return_value = None
+
+        resp = authorized_test_client.delete("/kong/datastore", auth=BearerAuth(TEST_JWT))
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.json() == {"deleted": [{"id": orphaned_svc_id, "name": orphaned_svc_name}], "count": 1}
+        mock_delete_svc.assert_called_once_with(service_id_or_name=orphaned_svc_id)
+        mock_logger.info.assert_called_once_with(f"Deleted orphaned data store {orphaned_svc_id} ({orphaned_svc_name})")
+
+        # When all services have routes, nothing should be deleted
+        mock_list_svc.return_value = ListService200Response(data=[Service(**TEST_KONG_SERVICE_DATA)])
+        mock_delete_svc.reset_mock()
+        mock_logger.reset_mock()
+
+        resp = authorized_test_client.delete("/kong/datastore", auth=BearerAuth(TEST_JWT))
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.json() == {"deleted": [], "count": 0}
+        mock_delete_svc.assert_not_called()
+
+    @patch("hub_adapter.routers.kong.logger")
     @patch("hub_adapter.routers.kong.kong_admin_client.ConsumersApi.delete_consumer")
     def test_delete_analysis(
         self,
@@ -302,13 +351,12 @@ class TestConnection:
     @pytest.mark.asyncio
     async def test_test_connection_missing_proxy_url(self, test_settings):
         """Unit test for test_connection in which the proxy URL is not set."""
-        from dataclasses import replace
 
-        removed_kong_url_settings = replace(test_settings, KONG_PROXY_SERVICE_URL="")
+        removed_kong_url_settings = test_settings.model_copy(update={"kong_proxy_service_url": ""})
 
         with pytest.raises(HTTPException) as err:
             await probe_connection(
-                hub_adapter_settings=removed_kong_url_settings,
+                settings=removed_kong_url_settings,
                 project_id=TEST_MOCK_PROJECT_ID,
                 ds_type=DataStoreType.FHIR,
             )
@@ -345,17 +393,15 @@ class TestConnection:
         )
         mock_probe_data_service.return_value = status.HTTP_200_OK
         success_resp = await probe_connection(
-            hub_adapter_settings=test_settings, project_id=TEST_MOCK_PROJECT_ID, ds_type=DataStoreType.FHIR
+            settings=test_settings, project_id=TEST_MOCK_PROJECT_ID, ds_type=DataStoreType.FHIR
         )
-        mock_logger.warning.assert_called_with(f"No health consumer found for {TEST_MOCK_PROJECT_ID}, creating one now")
+        mock_logger.info.assert_called_with(f"No health consumer found for {TEST_MOCK_PROJECT_ID}, creating one now")
         assert success_resp == status.HTTP_200_OK
 
         # Failed health retrieval
         mock_list_key_auths_for_consumer.return_value = {}
         with pytest.raises(KongConsumerApiKeyError) as err:
-            await probe_connection(
-                hub_adapter_settings=test_settings, project_id=TEST_MOCK_PROJECT_ID, ds_type=DataStoreType.FHIR
-            )
+            await probe_connection(settings=test_settings, project_id=TEST_MOCK_PROJECT_ID, ds_type=DataStoreType.FHIR)
 
         assert err.value.status_code == status.HTTP_404_NOT_FOUND
 
