@@ -16,6 +16,7 @@ from hub_adapter.schemas.events import AGNOSTIC_EVENTS
 from tests.constants import (
     FAKE_USER,
     TEST_MOCK_NODE_CLIENT_ID,
+    TEST_SVC_URL,
     TEST_URL,
 )
 
@@ -75,7 +76,7 @@ def test_settings() -> Settings:
             api_client_secret="notASecret",
             http_proxy="http://squid.proxy:3128",
             https_proxy="http://squid.proxy:3128",
-            node_svc_oidc_url=TEST_URL,
+            node_svc_oidc_url=TEST_SVC_URL,
             postgres_event_db="test_db",
             postgres_event_user="test_user",
             postgres_event_password="test_password",

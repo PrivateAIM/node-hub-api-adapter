@@ -161,8 +161,8 @@ async def verify_idp_token(
 
 
 async def _get_internal_token(settings: Annotated[Settings, Depends(get_settings)]) -> dict | None:
-    """If the Hub Adapter is set up to use an external IDP, it needs to retrieve a JWT from the internal keycloak
-    to make requests to the PO."""
+    """If the Hub Adapter is set up to use an external IDP for user auth, it needs to retrieve a JWT from the
+    internal keycloak to make requests to the PO."""
 
     payload = {
         "grant_type": "client_credentials",
@@ -183,11 +183,11 @@ async def _get_internal_token(settings: Annotated[Settings, Depends(get_settings
 async def _add_internal_token_if_missing(request: Request) -> Request:
     """Adds a JWT from the internal IDP is not present in the request."""
     settings = get_settings()
-    configs_match, oidc_config = check_oidc_configs_match()
+    configs_match, _ = check_oidc_configs_match()
 
     if not configs_match:
         logger.debug("External IDP different from internal, retrieving JWT from internal keycloak")
-        internal_token = await _get_internal_token(oidc_config, settings)
+        internal_token = await _get_internal_token(settings)
         if internal_token:
             updated_headers = MutableHeaders(request.headers)
             updated_headers.update(internal_token)
