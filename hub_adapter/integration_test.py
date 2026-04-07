@@ -89,8 +89,7 @@ class IntegrationTestRunner:
         if self.token:
             return self.token
 
-        oidc_config = get_svc_oidc_config()
-        self.token = await _get_internal_token(oidc_config, self.settings)
+        self.token = await _get_internal_token(self.settings)
         logger.info("Successfully obtained authentication token")
         return self.token
 

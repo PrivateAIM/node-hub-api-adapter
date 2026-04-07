@@ -134,8 +134,7 @@ async def terminate_analysis(
     """
     await delete_analysis(analysis_id=analysis_id, settings=settings)
 
-    configs_match, oidc_config = check_oidc_configs_match()
-    headers = await _get_internal_token(oidc_config, settings)
+    headers = await _get_internal_token(settings)
 
     microsvc_path = f"{settings.podorc_service_url}/po/delete/{analysis_id}"
 

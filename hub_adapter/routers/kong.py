@@ -4,6 +4,7 @@ import logging
 import time
 import uuid
 from typing import Annotated
+from uuid import UUID
 
 import httpx
 import kong_admin_client
@@ -687,7 +688,7 @@ async def create_and_connect_analysis_to_project(
 @catch_kong_errors
 async def delete_analysis(
     settings: Annotated[Settings, Depends(get_settings)],
-    analysis_id: Annotated[str, Path(description="UUID or unique name of the analysis.")],
+    analysis_id: Annotated[str | UUID, Path(description="UUID or unique name of the analysis.")],
 ):
     """Delete the listed analysis."""
     configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
