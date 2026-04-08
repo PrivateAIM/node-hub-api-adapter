@@ -214,8 +214,7 @@ class GoGoAnalysis:
     async def fetch_token_header(self) -> dict | None:
         """Append OIDC token to headers."""
         try:
-            _, oidc_config = check_oidc_configs_match()
-            token = await _get_internal_token(oidc_config, self.settings)
+            token = await _get_internal_token(self.settings)
             return token
 
         except (HTTPException, HTTPStatusError) as e:

@@ -6,6 +6,7 @@ from kong_admin_client import Service
 from hub_adapter.schemas.hub import AnalysisImageUrl, DetailedAnalysis, NodeTypeResponse
 from hub_adapter.schemas.kong import (
     DeleteProject,
+    DeleteService,
     LinkDataStoreProject,
     LinkProjectAnalysis,
     ListConsumers,
@@ -53,6 +54,13 @@ EXPECTED_KONG_ROUTE_CONFIG = (
         "path": "/kong/datastore",
         "methods": {"GET"},
         "response_model": ListServices,
+        "status_code": 200,
+    },
+    {
+        "name": "kong.datastore.delete_orphaned",
+        "path": "/kong/datastore",
+        "methods": {"DELETE"},
+        "response_model": DeleteService,
         "status_code": 200,
     },
     {

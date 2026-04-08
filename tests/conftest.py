@@ -13,6 +13,7 @@ from hub_adapter.conf import Settings
 from tests.constants import (
     FAKE_USER,
     TEST_MOCK_NODE_CLIENT_ID,
+    TEST_SVC_URL,
     TEST_URL,
 )
 

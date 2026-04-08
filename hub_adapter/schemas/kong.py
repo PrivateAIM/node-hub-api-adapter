@@ -144,3 +144,10 @@ class DeleteProject(BaseModel):
 
     removed: Route | None
     status: int | None = None
+
+
+class DeleteService(BaseModel):
+    """Response for deleting orphaned services."""
+
+    deleted: list[dict]
+    count: int

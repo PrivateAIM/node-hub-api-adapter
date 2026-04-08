@@ -286,6 +286,47 @@ class TestKong:
         }
 
     @patch("hub_adapter.routers.kong.logger")
+    @patch("hub_adapter.routers.kong.kong_admin_client.ServicesApi.delete_service")
+    @patch("hub_adapter.routers.kong.kong_admin_client.RoutesApi.list_route")
+    @patch("hub_adapter.routers.kong.kong_admin_client.ServicesApi.list_service")
+    def test_delete_orphaned_data_stores(
+        self, mock_list_svc, mock_list_route, mock_delete_svc, mock_logger, authorized_test_client
+    ):
+        """Test delete_orphaned_data_stores (DELETE /datastore).
+
+        Verifies that only services without a route are deleted, and that services
+        with an associated route are left untouched.
+        """
+        orphaned_svc_id = "foo-bar-baz"
+        orphaned_svc_name = "orphaned-svc"
+
+        # One service is referenced by an existing route, one is not
+        mock_list_svc.return_value = ListService200Response(
+            data=[
+                Service(**TEST_KONG_SERVICE_DATA),  # routed — must not be deleted
+                Service(id=orphaned_svc_id, name=orphaned_svc_name),  # orphaned — must be deleted
+            ]
+        )
+        mock_list_route.return_value = ListRoute200Response(data=[Route(**TEST_KONG_ROUTE_DATA)])
+        mock_delete_svc.return_value = None
+
+        resp = authorized_test_client.delete("/kong/datastore", auth=BearerAuth(TEST_JWT))
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.json() == {"deleted": [{"id": orphaned_svc_id, "name": orphaned_svc_name}], "count": 1}
+        mock_delete_svc.assert_called_once_with(service_id_or_name=orphaned_svc_id)
+        mock_logger.info.assert_called_once_with(f"Deleted orphaned data store {orphaned_svc_id} ({orphaned_svc_name})")
+
+        # When all services have routes, nothing should be deleted
+        mock_list_svc.return_value = ListService200Response(data=[Service(**TEST_KONG_SERVICE_DATA)])
+        mock_delete_svc.reset_mock()
+        mock_logger.reset_mock()
+
+        resp = authorized_test_client.delete("/kong/datastore", auth=BearerAuth(TEST_JWT))
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.json() == {"deleted": [], "count": 0}
+        mock_delete_svc.assert_not_called()
+
+    @patch("hub_adapter.routers.kong.logger")
     @patch("hub_adapter.routers.kong.kong_admin_client.ConsumersApi.delete_consumer")
     def test_delete_analysis(
         self,

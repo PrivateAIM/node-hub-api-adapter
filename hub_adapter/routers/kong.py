@@ -4,6 +4,7 @@ import logging
 import time
 import uuid
 from typing import Annotated
+from uuid import UUID
 
 import httpx
 import kong_admin_client
@@ -35,6 +36,7 @@ from hub_adapter.errors import (
 from hub_adapter.schemas.kong import (
     DataStoreType,
     DeleteProject,
+    DeleteService,
     HttpMethodCode,
     LinkDataStoreProject,
     LinkProjectAnalysis,
@@ -61,6 +63,29 @@ logger = logging.getLogger(__name__)
 FLAME = "flame"
 DEFAULT_METHODS: list[HttpMethodCode] = [HttpMethodCode.GET]
 DEFAULT_PROTOCOLS: list[ProtocolCode] = [ProtocolCode.HTTP]
+
+
+# For consistent naming between methods
+# Use of general UUIDs causes logic problems in kong so need the suffixes
+def datastore_name(project_id: str | uuid.UUID, ds_type: DataStoreType | str) -> str:
+    """Canonical name for a Kong service (data store): '{project_uuid}-{ds_type}'."""
+    ds = ds_type.value if isinstance(ds_type, DataStoreType) else ds_type
+    return f"{project_id}-{ds}"
+
+
+def consumer_username(analysis_id: str | uuid.UUID) -> str:
+    """Canonical username for a Kong consumer (analysis): '{analysis_uuid}-flame'."""
+    return f"{analysis_id}-{FLAME}"
+
+
+def health_consumer_username(project_id: str | uuid.UUID, ds_type: DataStoreType | str) -> str:
+    """Canonical username for a health-check consumer: '{project_uuid}-{ds_type}-health-flame'."""
+    return f"{datastore_name(project_id, ds_type)}-health-{FLAME}"
+
+
+def health_analysis_id(project_id: str | uuid.UUID, ds_type: DataStoreType | str) -> str:
+    """Analysis ID used when creating a health-check consumer: '{project_uuid}-{ds_type}-health'."""
+    return f"{datastore_name(project_id, ds_type)}-health"
 
 
 def parse_project_info(services, client) -> dict:
@@ -168,6 +193,39 @@ async def delete_data_store(
         return status.HTTP_200_OK
 
 
+@kong_router.delete(
+    "/datastore",
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(require_steward_role)],
+    response_model=DeleteService,
+    name="kong.datastore.delete_orphaned",
+)
+@catch_kong_errors
+async def delete_orphaned_data_stores(
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> dict:
+    """Delete all data stores (services) that have no associated project (route)."""
+    configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
+
+    with kong_admin_client.ApiClient(configuration) as api_client:
+        svc_api = kong_admin_client.ServicesApi(api_client)
+        route_api = kong_admin_client.RoutesApi(api_client)
+
+        services = svc_api.list_service()
+        routes = route_api.list_route()
+
+        routed_service_ids = {route.service.id for route in routes.data if route.service}
+        orphaned = [svc for svc in services.data if svc.id not in routed_service_ids]
+
+        deleted = []
+        for svc in orphaned:
+            svc_api.delete_service(service_id_or_name=svc.id)
+            logger.info(f"Deleted orphaned data store {svc.id} ({svc.name})")
+            deleted.append({"id": svc.id, "name": svc.name})
+
+    return {"deleted": deleted, "count": len(deleted)}
+
+
 @kong_router.post(
     "/datastore",
     response_model=Service,
@@ -190,7 +248,7 @@ async def create_service(
     """Create a datastore (referred to as services by kong) by providing necessary metadata."""
     configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
 
-    datastore_name = f"{datastore.name}-{ds_type.value}"
+    svc_name = datastore_name(datastore.name, ds_type)
 
     with kong_admin_client.ApiClient(configuration) as api_client:
         api_instance = kong_admin_client.ServicesApi(api_client)
@@ -199,10 +257,10 @@ async def create_service(
             path=datastore.path,
             port=datastore.port,
             protocol=datastore.protocol,
-            name=datastore_name,
+            name=svc_name,
             enabled=datastore.enabled,
             tls_verify=datastore.tls_verify,
-            tags=[datastore.name, datastore_name],
+            tags=[datastore.name, svc_name],
         )
         service_create_response = api_instance.create_service(create_service_request)
 
@@ -210,7 +268,7 @@ async def create_service(
         if minio_config:
             create_minio_gateway_request = CreatePluginForConsumerRequest(  # Also works for services
                 name="minio-gateway",
-                instance_name=f"{datastore_name}-minio-gateway",
+                instance_name=f"{svc_name}-minio-gateway",
                 config={  # Can't use .model_dump() because of SecretStr
                     "minio_access_key": minio_config.minio_access_key.get_secret_value(),
                     "minio_secret_key": minio_config.minio_secret_key.get_secret_value(),
@@ -226,7 +284,7 @@ async def create_service(
                 plugin_api.create_plugin_for_service(service_create_response.id, create_minio_gateway_request)
 
             except HTTPException as error:  # Delete service if minio fails
-                msg = f"Unable to create minio gateway for {datastore_name}"
+                msg = f"Unable to create minio gateway for {svc_name}"
                 logger.error(msg)
                 await delete_data_store(settings, service_create_response.id)
                 raise error
@@ -339,10 +397,9 @@ async def create_route_to_datastore(
     methods = [method.value if isinstance(method, HttpMethodCode) else method for method in methods]
     protocols = [protocol.value if isinstance(protocol, ProtocolCode) else protocol for protocol in protocols]
 
-    # Construct path from project_id and type
-    project = str(project_id)
-    name = f"{project_id}-{ds_type}"
-    path = f"/{name}/{ds_type}"
+    # Construct route name and path from project_id and ds_type
+    route_name = datastore_name(project_id, ds_type)
+    path = f"/{route_name}/{ds_type}"
 
     with kong_admin_client.ApiClient(configuration) as api_client:
         route_api = kong_admin_client.RoutesApi(api_client)
@@ -350,7 +407,7 @@ async def create_route_to_datastore(
 
         # Create requests
         create_route_request = CreateRouteRequest(
-            name=name,
+            name=route_name,
             protocols=protocols,
             methods=methods,
             paths=[path],
@@ -364,7 +421,7 @@ async def create_route_to_datastore(
         # Keyauth for authentication
         create_keyauth_request = CreatePluginForConsumerRequest(
             name="key-auth",
-            instance_name=f"{project}-{ds_type}-keyauth",
+            instance_name=f"{route_name}-keyauth",
             config={
                 "hide_credentials": True,
                 "key_in_body": False,
@@ -379,8 +436,8 @@ async def create_route_to_datastore(
 
         create_acl_request = CreatePluginForConsumerRequest(
             name="acl",
-            instance_name=f"{project}-{ds_type}-acl",
-            config={"allow": [project], "hide_groups_header": True},
+            instance_name=f"{route_name}-acl",
+            config={"allow": [str(project_id)], "hide_groups_header": True},
             enabled=True,
             protocols=protocols,
         )
@@ -410,20 +467,26 @@ async def create_datastore_and_project_with_link(
     ds_type: Annotated[DataStoreType, Body(description="Data store type. Either 's3' or 'fhir'")] = DataStoreType.FHIR,
 ):
     """Creates a new datastore (service) and a new project (route), then links them together with a health consumer."""
-    proj_response = await create_route_to_datastore(
-        settings=settings,
-        project_id=project_id,
-        data_store_id=datastore.id,
-        protocols=protocols,
-        ds_type=ds_type,
-    )
+    try:
+        proj_response = await create_route_to_datastore(
+            settings=settings,
+            project_id=project_id,
+            data_store_id=datastore.id,
+            protocols=protocols,
+            ds_type=ds_type,
+        )
+    except HTTPException as error:  # if route creation fails, delete the orphaned service
+        logger.error("Failed to create route for datastore, deleting service")
+        await delete_data_store(settings=settings, data_store_name=datastore.id)
+        raise error
+
     # Test connection
     try:
         await probe_connection(settings=settings, project_id=str(project_id), ds_type=ds_type)
 
     except HTTPException as error:  # if connection fails, delete service and route, then raise error
         logger.error("Failed to validate connection to datastore, deleting service and route")
-        await delete_data_store(settings=settings, data_store_name=f"{project_id}-{ds_type.value}")
+        await delete_data_store(settings=settings, data_store_name=datastore_name(project_id, ds_type))
         raise error
 
     return proj_response
@@ -448,13 +511,16 @@ async def delete_route(
 ) -> DeleteProject:
     """Disconnect a project (route) from all data stores (services) and delete associated analyses (consumers)."""
     configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
-    project_uuid = project_route_id.rsplit("-", 1)[0]
 
     with kong_admin_client.ApiClient(configuration) as api_client:
         route_api = kong_admin_client.RoutesApi(api_client)
         consumer_api = kong_admin_client.ConsumersApi(api_client)
 
         route = route_api.get_route(route_id_or_name=project_route_id)
+
+        # Extract project UUID from route tags (tags=[project_uuid, ds_type])
+        ds_type_values = {e.value for e in DataStoreType}
+        project_uuid = next((tag for tag in (route.tags or []) if tag not in ds_type_values), None)
 
         # Get related analyses (consumers) and delete them first
         consumer_response = consumer_api.list_consumer(tags=project_uuid)
@@ -476,11 +542,11 @@ def get_analyses(
 ) -> ListConsumers | dict:
     """Get either all or a single analysis (consumer)."""
     configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
-    username = f"{analysis_id}-{FLAME}"
+    username = consumer_username(analysis_id) if analysis_id else None
 
     with kong_admin_client.ApiClient(configuration) as api_client:
         consumer_api = kong_admin_client.ConsumersApi(api_client)
-        if analysis_id:
+        if username:
             api_response = consumer_api.get_consumer(consumer_username_or_id=username)
             api_response = {"data": [api_response]}
 
@@ -559,7 +625,7 @@ async def create_and_connect_analysis_to_project(
 
     configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
     response = {}
-    username = f"{analysis_id}-{FLAME}"
+    username = consumer_username(analysis_id)
 
     with kong_admin_client.ApiClient(configuration) as api_client:
         consumer_api = kong_admin_client.ConsumersApi(api_client)
@@ -609,11 +675,11 @@ async def create_and_connect_analysis_to_project(
 @catch_kong_errors
 async def delete_analysis(
     settings: Annotated[Settings, Depends(get_settings)],
-    analysis_id: Annotated[str, Path(description="UUID or unique name of the analysis.")],
+    analysis_id: Annotated[str | UUID, Path(description="UUID or unique name of the analysis.")],
 ):
     """Delete the listed analysis."""
     configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
-    username = f"{analysis_id}-{FLAME}"
+    username = consumer_username(analysis_id)
 
     with kong_admin_client.ApiClient(configuration) as api_client:
         consumer_api = kong_admin_client.ConsumersApi(api_client)
@@ -649,13 +715,12 @@ async def probe_connection(
         )
 
     configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
-    route_id = f"{project_id}-{ds_type.value}"
+    route_id = datastore_name(project_id, ds_type)
+    health_consumer_id = health_consumer_username(project_id, ds_type)
     apikey = None
 
     # Get API key for project (route) health consumer and route info
     with kong_admin_client.ApiClient(configuration) as api_client:
-        # Check if health consumer exists for route/project
-        health_consumer_id = f"{route_id}-health-{FLAME}"
         consumer_api = kong_admin_client.ConsumersApi(api_client)
 
         try:
@@ -666,7 +731,7 @@ async def probe_connection(
             await create_and_connect_analysis_to_project(
                 settings=settings,
                 project_id=str(project_id),
-                analysis_id=f"{route_id}-health",
+                analysis_id=health_analysis_id(project_id, ds_type),
             )
 
         # Parse project/route info
