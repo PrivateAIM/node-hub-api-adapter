@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.5.2](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.5.1...v0.5.2) (2026-04-09)
+
+
+### Features
+
+* **auth:** keep internal token fetch within cluster ([7f999e5](https://github.com/PrivateAIM/node-hub-api-adapter/commit/7f999e5fc7c07292af5f16ab2fb148e1fb99ad07))
+* **kong:** add kong ep to delete orphaned services ([e6efc2b](https://github.com/PrivateAIM/node-hub-api-adapter/commit/e6efc2b77055bbe193f4b6d54a95372ecb327285))
+
+
+### Bug Fixes
+
+* **kong:** have kong delete service if route fails during initialize ([e13ad2e](https://github.com/PrivateAIM/node-hub-api-adapter/commit/e13ad2e0b87e1edf992cb47960a3141a8d045499))
+
 ## [0.5.1](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.5.0...v0.5.1) (2026-03-18)
 
 
