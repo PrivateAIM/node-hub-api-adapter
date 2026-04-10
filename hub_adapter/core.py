@@ -81,7 +81,10 @@ async def make_request(
             follow_redirects=True,
         )
 
-        logger.info(f'HTTP Request: {method.upper()} {r.url} "{r.http_version} {r.status_code}"')
+        logger.info(
+            f'HTTP Request: {method.upper()} {r.url} "{r.http_version} {r.status_code}"',
+            extra={"service": service} if service else {},
+        )
 
         r.raise_for_status()
 
@@ -108,7 +111,6 @@ def route(
     request_method,
     path: str,
     service_url: str,
-    service: str | None = None,
     status_code: int | None = None,
     query_params: list[str] | None = None,
     form_params: list[str] | None = None,
@@ -138,8 +140,6 @@ def route(
         HTTP status code.
     service_url : str
         Root endpoint of the microservice for the forwarded request.
-    service : str | None
-        Human-readable name of the downstream service.
     query_params : list[str] | None
         Keys passed referencing query model parameters to be sent to downstream microservice
     form_params : list[str] | None
@@ -232,6 +232,7 @@ def route(
             microsvc_path = f"{service_url}{downstream_path.removeprefix(get_settings().api_root_path)}"
 
             svc = service_tags[0] if service_tags else None
+            log_extra = {"service": svc} if svc else {}
 
             try:
                 resp_data, status_code_from_service = await make_request(
@@ -251,8 +252,8 @@ def route(
                     f"- HTTP Status: {status.HTTP_503_SERVICE_UNAVAILABLE} - Service is unavailable. "
                     f"Check the {svc} service at {service_url}"
                 )
-                logger.error(err_msg)
-                logger.error(ce)
+                logger.error(err_msg, extra=log_extra)
+                logger.error(ce, extra=log_extra)
                 raise HTTPException(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                     detail={
@@ -268,8 +269,8 @@ def route(
                     f"Service error - HTTP Request: {method.upper()} {microsvc_path} "
                     f'"- HTTP Status: {status.HTTP_500_INTERNAL_SERVER_ERROR}"'
                 )
-                logger.error(err_msg)
-                logger.error(de)
+                logger.error(err_msg, extra=log_extra)
+                logger.error(de, extra=log_extra)
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail={
@@ -282,7 +283,7 @@ def route(
 
             except HTTPStatusError as http_error:
                 err_msg = f"HTTP Request: {method.upper()} {microsvc_path} - {http_error}"
-                logger.error(err_msg)
+                logger.error(err_msg, extra=log_extra)
                 raise HTTPException(
                     status_code=http_error.response.status_code,
                     detail={
@@ -295,7 +296,7 @@ def route(
 
             except ReadTimeout:
                 err_msg = f"HTTP Request: {method.upper()} {microsvc_path} - Service took too long to respond."
-                logger.warning(err_msg)
+                logger.warning(err_msg, extra=log_extra)
                 raise HTTPException(
                     status_code=status.HTTP_408_REQUEST_TIMEOUT,
                     detail={

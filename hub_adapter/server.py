@@ -4,11 +4,12 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
+import jwt
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from starlette.middleware.cors import CORSMiddleware
 
-from hub_adapter import logging_config
+from hub_adapter import current_user_id, logging_config
 from hub_adapter.autostart import AutostartManager
 from hub_adapter.dependencies import get_settings
 from hub_adapter.routers.auth import auth_router
@@ -81,6 +82,24 @@ app = FastAPI(
     root_path=get_settings().api_root_path,
     lifespan=lifespan,
 )
+
+
+@app.middleware("http")
+async def set_user_context(request: Request, call_next):
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header.removeprefix("Bearer ")
+
+        try:
+            claims = jwt.decode(token, options={"verify_signature": False})
+            user_id = claims.get("sub") or claims.get("preferred_username")
+            current_user_id.set(user_id)
+
+        except Exception:  # doesn't matter too much if it fails
+            pass
+
+    return await call_next(request)
+
 
 app.add_middleware(
     CORSMiddleware,
