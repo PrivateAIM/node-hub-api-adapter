@@ -1,5 +1,7 @@
 """Constants."""
 
+from enum import Enum
+
 CONTENT_TYPE = "Content-Type"
 CONTENT_LENGTH = "Content-Length"
 
@@ -17,3 +19,19 @@ EXTERNAL_NAME = "external_name"
 ACCOUNT_SECRET = "account_secret"
 REGISTRY_PROJECT = "registry_project"
 REGISTRY_PROJECT_ID = "registry_project_id"
+
+
+class ServiceTag(str, Enum):
+    """Service tags."""
+
+    AUTH = "Auth"
+    EVENTS = "Events"
+    HEALTH = "Health"
+    HUB = "Hub"
+    KONG = "Kong"
+    META = "Meta"
+    NODE = "Node"
+    PODORC = "PodOrc"
+    STORAGE = "Storage"
+    IDP = "IDP"
+    UNKNOWN = "Unknown"

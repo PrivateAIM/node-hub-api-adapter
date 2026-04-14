@@ -9,12 +9,13 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from hub_adapter.auth import jwtbearer, verify_idp_token
+from hub_adapter.constants import ServiceTag
 from hub_adapter.core import route
 from hub_adapter.dependencies import get_settings
 
 storage_router = APIRouter(
     dependencies=[Security(verify_idp_token), Security(jwtbearer)],
-    tags=["Storage"],
+    tags=[ServiceTag.STORAGE],
     responses={404: {"description": "Not found"}},
 )
 
@@ -25,7 +26,6 @@ storage_router = APIRouter(
     status_code=status.HTTP_200_OK,
     service_url=get_settings().storage_service_url,
     query_params=["project_id"],
-    
 )
 async def delete_local_results(
     project_id: Annotated[uuid.UUID | str, Query(description="UUID of the associated project.")],

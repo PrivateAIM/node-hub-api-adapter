@@ -24,6 +24,7 @@ from starlette import status
 
 from hub_adapter.auth import jwtbearer, require_steward_role, verify_idp_token
 from hub_adapter.conf import Settings
+from hub_adapter.constants import ServiceTag
 from hub_adapter.dependencies import get_settings
 from hub_adapter.errors import (
     BucketError,
@@ -53,7 +54,7 @@ kong_router = APIRouter(
         Security(verify_idp_token),
         Security(jwtbearer),
     ],
-    tags=["Kong"],
+    tags=[ServiceTag.KONG],
     responses={404: {"description": "Not found"}},
     prefix="/kong",
 )

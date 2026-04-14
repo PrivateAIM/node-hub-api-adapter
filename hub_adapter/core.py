@@ -12,7 +12,7 @@ from httpx import ConnectError, DecodingError, HTTPStatusError, ReadTimeout
 from starlette.responses import FileResponse, Response
 
 from hub_adapter import post_processing, pre_processing
-from hub_adapter.constants import CONTENT_TYPE
+from hub_adapter.constants import CONTENT_TYPE, ServiceTag
 from hub_adapter.dependencies import get_settings
 from hub_adapter.dependencies import make_log_hook
 from hub_adapter.utils import (
@@ -34,7 +34,7 @@ async def make_request(
     data: dict | None = None,
     files: dict | None = None,
     file_response: bool = False,
-    service: str | None = None,
+    service: ServiceTag | None = None,
 ) -> tuple[[JSONResponse | StreamingResponse], int] | tuple[FileResponse, int]:
     """Make an asynchronous request by creating a temporary session.
 

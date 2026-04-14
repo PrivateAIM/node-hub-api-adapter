@@ -11,8 +11,10 @@ from starlette.middleware.cors import CORSMiddleware
 
 from hub_adapter import current_user_id, logging_config
 from hub_adapter.autostart import AutostartManager
+from hub_adapter.constants import ServiceTag
 from hub_adapter.dependencies import get_settings
 from hub_adapter.routers.auth import auth_router
+from hub_adapter.routers.events import event_router
 from hub_adapter.routers.health import health_router
 from hub_adapter.routers.hub import hub_router
 from hub_adapter.routers.kong import kong_router
@@ -28,26 +30,27 @@ autostart_manager = AutostartManager()
 
 # API metadata
 tags_metadata = [
-    {"name": "Auth", "description": "Endpoints for authorization specific tasks."},
-    {"name": "Hub", "description": "Gateway endpoints for the central Hub service."},
+    {"name": ServiceTag.AUTH, "description": "Endpoints for authorization specific tasks."},
+    {"name": ServiceTag.EVENTS, "description": "Retrieval of event logs."},
+    {"name": ServiceTag.HUB, "description": "Gateway endpoints for the central Hub service."},
     {
-        "name": "Health",
+        "name": ServiceTag.HEALTH,
         "description": "Endpoints for checking the health of this API and the downstream services.",
     },
     {
-        "name": "Meta",
+        "name": ServiceTag.META,
         "description": "Custom Hub Adapter endpoints which combine endpoints from other APIs.",
     },
     {
-        "name": "Node",
+        "name": ServiceTag.NODE,
         "description": "Endpoints for setting and getting node settings and configuration options.",
     },
-    {"name": "Kong", "description": "Endpoints for the Kong gateway service."},
+    {"name": ServiceTag.KONG, "description": "Endpoints for the Kong gateway service."},
     {
-        "name": "PodOrc",
+        "name": ServiceTag.PODORC,
         "description": "Gateway endpoints for the Pod Orchestration service.",
     },
-    {"name": "Storage", "description": "Gateway endpoints for the Storage service."},
+    {"name": ServiceTag.STORAGE, "description": "Gateway endpoints for the Storage service."},
 ]
 
 
@@ -119,6 +122,7 @@ routers = (
     kong_router,
     health_router,
     auth_router,
+    event_router,
 )
 
 for router in routers:
