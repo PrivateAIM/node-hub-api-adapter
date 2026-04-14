@@ -8,7 +8,7 @@ from fastapi import APIRouter
 from fastapi.testclient import TestClient
 
 import hub_adapter.server as server
-from hub_adapter.auth import verify_idp_token
+from hub_adapter.auth import require_steward_role, verify_idp_token
 from hub_adapter.conf import Settings
 from tests.constants import (
     FAKE_USER,
@@ -33,7 +33,11 @@ def authorized_test_client():
     def mock_verify_token():
         return FAKE_USER
 
+    async def mock_require_steward_role():
+        pass
+
     server.app.dependency_overrides[verify_idp_token] = mock_verify_token
+    server.app.dependency_overrides[require_steward_role] = mock_require_steward_role
 
     with TestClient(server.app) as authorized_client:
         yield authorized_client
@@ -65,7 +69,7 @@ def test_settings() -> Settings:
             api_client_secret="notASecret",
             http_proxy="http://squid.proxy:3128",
             https_proxy="http://squid.proxy:3128",
-            node_svc_oidc_url=TEST_URL,
+            node_svc_oidc_url=TEST_SVC_URL,
         )
 
 

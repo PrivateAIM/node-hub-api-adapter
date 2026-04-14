@@ -25,7 +25,7 @@ class UserSettings(BaseSettings):
         case_sensitive=False,
         env_nested_delimiter="__",
         frozen=True,
-        extra="forbid",
+        extra="ignore",
     )
 
 
