@@ -79,9 +79,23 @@ def get_flame_hub_auth_flow(
         client=httpx.Client(
             base_url=settings.hub_auth_service_url,
             verify=ssl_ctx,
+            event_hooks={"response": [make_log_hook("Hub")]},
         ),
     )
     return auth
+
+
+def make_log_hook(service: str):
+    """Return an httpx response event hook that logs with the given service label."""
+
+    def log_response(response: httpx.Response) -> None:
+        request = response.request
+        logger.info(
+            f"HTTP Request: {request.method} {request.url} {response.http_version} {response.status_code}",
+            extra={"service": service},
+        )
+
+    return log_response
 
 
 def get_core_client(
@@ -93,7 +107,12 @@ def get_core_client(
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> flame_hub.CoreClient:
     return flame_hub.CoreClient(
-        client=httpx.Client(base_url=settings.hub_service_url, auth=hub_auth, verify=ssl_ctx)
+        client=httpx.Client(
+            base_url=settings.hub_service_url,
+            auth=hub_auth,
+            verify=ssl_ctx,
+            event_hooks={"response": [make_log_hook("Hub")]},
+        )
     )
 
 

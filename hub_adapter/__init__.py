@@ -74,7 +74,7 @@ logging_config = {
     "handlers": {
         "file_handler": {
             "class": "logging.handlers.RotatingFileHandler",
-            "filename": str(log_dir.joinpath("node_hub_api_adapter.log")),
+            "filename": log_dir.joinpath("node_hub_api_adapter.log").absolute(),
             "encoding": "utf-8",
             "mode": "a",
             "maxBytes": 4098 * 10,  # 4MB file max
@@ -99,6 +99,9 @@ logging_config = {
         "fastapi": {
             "handlers": ["file_handler", "console_handler"],
             "level": "INFO",
+        },
+        "httpx": {
+            "level": "WARNING",
         },
     },
 }

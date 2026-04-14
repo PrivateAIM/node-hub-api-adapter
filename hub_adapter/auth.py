@@ -16,7 +16,7 @@ from starlette.datastructures import MutableHeaders
 from starlette.requests import Request
 
 from hub_adapter.conf import Settings
-from hub_adapter.dependencies import get_settings, get_ssl_context
+from hub_adapter.dependencies import get_settings, get_ssl_context, make_log_hook
 from hub_adapter.oidc import (
     check_oidc_configs_match,
     get_svc_oidc_config,
@@ -40,7 +40,7 @@ class ProxiedPyJWKClient(PyJWKClient):
         self._ssl_ctx = get_ssl_context(get_settings())
 
     def fetch_data(self):
-        with httpx.Client(verify=self._ssl_ctx) as client:
+        with httpx.Client(verify=self._ssl_ctx, event_hooks={"response": [make_log_hook("IDP")]}) as client:
             response = client.get(self.uri)
             response.raise_for_status()
             return response.json()
@@ -51,7 +51,8 @@ async def get_hub_public_key(
 ) -> dict:
     """Get the central hub service public key."""
     hub_jwks_ep = settings.hub_auth_service_url.rstrip("/") + "/jwks"
-    return httpx.get(hub_jwks_ep).json()
+    with httpx.Client(event_hooks={"response": [make_log_hook("Hub")]}) as client:
+        return client.get(hub_jwks_ep).json()
 
 
 async def verify_idp_token(
@@ -173,7 +174,8 @@ async def _get_internal_token(settings: Annotated[Settings, Depends(get_settings
     svc_oidc_config = get_svc_oidc_config()
     int_token_ep = svc_oidc_config.token_endpoint
 
-    resp = httpx.post(int_token_ep, data=payload)
+    with httpx.Client(event_hooks={"response": [make_log_hook("IDP")]}) as client:
+        resp = client.post(int_token_ep, data=payload)
     resp.raise_for_status()
     token_data = resp.json()
 

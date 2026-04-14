@@ -14,6 +14,7 @@ from starlette.responses import FileResponse, Response
 from hub_adapter import post_processing, pre_processing
 from hub_adapter.constants import CONTENT_TYPE
 from hub_adapter.dependencies import get_settings
+from hub_adapter.dependencies import make_log_hook
 from hub_adapter.utils import (
     create_request_data,
     unzip_body_object,
@@ -71,7 +72,8 @@ async def make_request(
     if not files:
         files = {}
 
-    async with httpx.AsyncClient(headers=headers, timeout=60.0, mounts=None) as client:
+    event_hooks = {"response": [make_log_hook(service)]} if service else {}
+    async with httpx.AsyncClient(headers=headers, timeout=60.0, mounts=None, event_hooks=event_hooks) as client:
         r = await client.request(
             url=url,
             method=method,
@@ -79,11 +81,6 @@ async def make_request(
             json=data,
             files=files,
             follow_redirects=True,
-        )
-
-        logger.info(
-            f'HTTP Request: {method.upper()} {r.url} "{r.http_version} {r.status_code}"',
-            extra={"service": service} if service else {},
         )
 
         r.raise_for_status()

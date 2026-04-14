@@ -204,8 +204,7 @@ def catch_hub_errors(f):
                 ) from err
 
             else:
-                logger.error("Failed to retrieve JWT from Hub")
-                logger.error(err, extra={SERVICE: svc})
+                logger.error("Failed to retrieve JWT from Hub", extra={SERVICE: svc})
                 raise HTTPException(
                     status_code=err.error_response.status_code,
                     detail={  # Invalid authentication credentials
