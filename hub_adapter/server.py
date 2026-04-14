@@ -92,7 +92,7 @@ async def set_user_context(request: Request, call_next):
 
         try:
             claims = jwt.decode(token, options={"verify_signature": False})
-            user_id = claims.get("sub") or claims.get("preferred_username")
+            user_id = claims.get("preferred_username") or claims.get("sub")
             current_user_id.set(user_id)
 
         except Exception:  # doesn't matter too much if it fails

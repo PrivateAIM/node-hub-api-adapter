@@ -4,6 +4,7 @@ import json
 import logging.config
 import sys
 from contextvars import ContextVar
+from datetime import UTC, datetime
 from pathlib import Path
 
 current_user_id: ContextVar[str | None] = ContextVar("current_user_id", default=None)
@@ -30,13 +31,15 @@ class JsonFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         log = {
-            "timestamp": self.formatTime(record, "%Y-%m-%dT%H:%M:%S") + f".{record.msecs:03.0f}Z",
+            "timestamp": (
+                datetime.fromtimestamp(record.created, tz=UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+            ),
             "level": record.levelname,
             "logger": record.name,
             "module": record.module,
             "msg": record.getMessage(),
             # Just for the Hub Adapter
-            "service": getattr(record, "service", "unknown"),
+            "service": getattr(record, "service", "Unknown"),
             "user_id": getattr(record, "user_id", None),
         }
 
