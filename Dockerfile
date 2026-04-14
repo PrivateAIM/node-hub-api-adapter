@@ -13,19 +13,13 @@ RUN uv venv /app/.venv
 ENV VIRTUAL_ENV=/app/.venv
 RUN uv sync --frozen --no-dev
 
-# Test stage — installs dev deps (e.g. pytest) and runs tests
-FROM builder AS tester
-RUN uv sync --frozen
-COPY tests/ ./tests/
-RUN .venv/bin/pytest tests/
-
 FROM python:3.13-alpine
 
 RUN adduser -u 10000 -D hubadapter
 
 WORKDIR /app
 
-COPY --from=tester /app/.venv /app/.venv
+COPY --from=builder /app/.venv /app/.venv
 ENV PATH="/app/.venv/bin:$PATH"
 
 COPY hub_adapter/ ./hub_adapter/

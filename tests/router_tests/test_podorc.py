@@ -8,6 +8,6 @@ from tests.router_tests.routes import EXPECTED_PO_ROUTE_CONFIG
 class TestPodOrc:
     """Pod orchestration tests."""
 
-    def test_route_configs(self, test_client, mock_event_logger):
+    def test_route_configs(self, test_client):
         """Test end point configurations for the PodOrc gateway routes."""
-        check_routes(po_router, EXPECTED_PO_ROUTE_CONFIG, test_client, mock_event_logger)
+        check_routes(po_router, EXPECTED_PO_ROUTE_CONFIG, test_client)

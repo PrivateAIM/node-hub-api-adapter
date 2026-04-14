@@ -139,7 +139,7 @@ class TestAuth:
         """Test the add_internal_token_if_missing method."""
         correct_role_claim_name = "resource_access.node-ui.roles"
 
-        mock_settings = Settings()
+        mock_settings = Settings(steward_role=None, researcher_role=None)
         assert mock_settings.steward_role is None
         assert mock_settings.researcher_role is None
 

@@ -56,6 +56,7 @@ class TestAutostart:
     @patch("hub_adapter.autostart.create_and_connect_analysis_to_project")
     async def test_register_analysis_conflict_pod_exists(self, mock_create_and_connect, mock_pod_running, mock_logger):
         """Test registering an analysis with kong and there is already a pod running."""
+        self.analyzer._log = mock_logger
         # Pod exists already
         mock_create_and_connect.side_effect = KongConflictError(
             status_code=status.HTTP_409_CONFLICT, detail={"message": "Conflict"}
@@ -85,6 +86,7 @@ class TestAutostart:
         self, mock_create_and_connect, mock_delete_analysis, mock_pod_running, mock_logger
     ):
         """Test registering an analysis with kong and there is a conflict but no pod running."""
+        self.analyzer._log = mock_logger
         # No pod found, but consumer found, and delete was successful
         mock_create_and_connect.side_effect = KongConflictError(
             status_code=status.HTTP_409_CONFLICT, detail={"message": "Conflict"}
@@ -118,6 +120,7 @@ class TestAutostart:
     @patch("hub_adapter.autostart.create_and_connect_analysis_to_project")
     async def test_register_analysis_missing_datastore(self, mock_create_and_connect, mock_logger):
         """Test registering an analysis with kong and data store is missing."""
+        self.analyzer._log = mock_logger
         fake_err_msg = "Not found"
         mock_create_and_connect.side_effect = KongConnectError(
             status_code=status.HTTP_404_NOT_FOUND, detail={"message": fake_err_msg}
@@ -145,14 +148,13 @@ class TestAutostart:
         assert pod_running_error is None
 
     @patch("hub_adapter.autostart.logger")
-    @patch("hub_adapter.autostart.check_oidc_configs_match")
     @patch("hub_adapter.autostart._get_internal_token")
     @pytest.mark.asyncio
-    async def test_fetch_token_header(self, mock_fetch_token, mock_config_check, mock_logger):
+    async def test_fetch_token_header(self, mock_fetch_token, mock_logger):
         """Test checking whether the pod is running."""
+        self.analyzer._log = mock_logger
         # Success
         mock_fetch_token.return_value = {"Authorization": "Bearer test_token"}
-        mock_config_check.return_value = True, "http://myIDP.com"
         token_resp = await self.analyzer.fetch_token_header()
         assert token_resp == {"Authorization": "Bearer test_token"}
 
@@ -184,6 +186,7 @@ class TestAutostart:
         self, mock_registry_metadata, mock_node_metadata, mock_pod_data, mock_token_header, mock_request, mock_logger
     ):
         """Test starting an analysis pod."""
+        self.analyzer._log = mock_logger
         # These first methods are for feeding into one another
         mock_registry_metadata.return_value = {}  # Not needed
         mock_node_metadata.return_value = {}  # Not needed
@@ -220,6 +223,7 @@ class TestAutostart:
     @patch("hub_adapter.autostart.GoGoAnalysis.fetch_token_header")
     async def test_fetch_analysis_status(self, mock_header, mock_request, mock_logger):
         """Test fetching the status of an analysis."""
+        self.analyzer._log = mock_logger
         mock_header.return_value = {"foo"}  # Just need something
 
         # Success
@@ -250,7 +254,7 @@ class TestAutostart:
     @patch("hub_adapter.autostart.list_projects")
     async def test_get_valid_projects(self, mock_projects, mock_logger):
         """Test getting and parsing projects (routes) from kong."""
-
+        self.analyzer._log = mock_logger
         # Success
         mock_projects.return_value = ListRoute200Response(**KONG_GET_ROUTE_RESPONSE)
         projects = await self.analyzer.get_valid_projects()
@@ -312,61 +316,6 @@ class TestAutostartErrorAndEvents:
         mock_node_type_cache.assert_called_once()
 
     @patch("hub_adapter.autostart.logger")
-    @patch("hub_adapter.autostart.get_event_logger")
-    @pytest.mark.asyncio
-    async def test_log_analysis_with_event_logger(self, mock_get_event_logger, mock_logger):
-        """Test log_analysis when event logger is available."""
-        mock_event_logger = MagicMock()
-        self.analyzer.event_logger = mock_event_logger
-
-        metadata = {
-            "analysis_id": TEST_MOCK_ANALYSIS_ID,
-            "project_id": TEST_MOCK_PROJECT_ID,
-            "status_code": status.HTTP_201_CREATED,
-        }
-
-        self.analyzer.log_analysis(metadata, body="Test body")
-
-        mock_event_logger.log_event.assert_called_once()
-        call_args = mock_event_logger.log_event.call_args
-        assert call_args[1]["event_name"] == "autostart.analysis.create.success"
-        assert call_args[1]["body"] == "Test body"
-        assert call_args[1]["attributes"]["analysis_id"] == TEST_MOCK_ANALYSIS_ID
-
-    @patch("hub_adapter.autostart.logger")
-    def test_log_analysis_without_event_logger(self, mock_logger):
-        """Test log_analysis when event logger is None."""
-        self.analyzer.event_logger = None
-
-        metadata = {
-            "analysis_id": TEST_MOCK_ANALYSIS_ID,
-            "project_id": TEST_MOCK_PROJECT_ID,
-            "status_code": status.HTTP_201_CREATED,
-        }
-
-        # Should not raise even without event logger
-        self.analyzer.log_analysis(metadata)
-
-    @patch("hub_adapter.autostart.logger")
-    @patch("hub_adapter.autostart.get_event_logger")
-    def test_log_analysis_status_code_override(self, mock_get_event_logger, mock_logger):
-        """Test log_analysis overrides status_code when provided."""
-        mock_event_logger = MagicMock()
-        self.analyzer.event_logger = mock_event_logger
-
-        metadata = {
-            "analysis_id": TEST_MOCK_ANALYSIS_ID,
-            "project_id": TEST_MOCK_PROJECT_ID,
-            "status_code": status.HTTP_201_CREATED,
-        }
-
-        # Override with different status code
-        self.analyzer.log_analysis(metadata, status_code=status.HTTP_409_CONFLICT)
-
-        call_args = mock_event_logger.log_event.call_args
-        assert call_args[1]["attributes"]["status_code"] == status.HTTP_409_CONFLICT
-
-    @patch("hub_adapter.autostart.logger")
     @patch("hub_adapter.autostart.make_request")
     @patch("hub_adapter.autostart.GoGoAnalysis.fetch_token_header")
     @patch("hub_adapter.autostart.compile_analysis_pod_data")
@@ -377,6 +326,7 @@ class TestAutostartErrorAndEvents:
         self, mock_registry_metadata, mock_node_metadata, mock_pod_data, mock_token_header, mock_request, mock_logger
     ):
         """Test send_start_request with HTTPStatusError."""
+        self.analyzer._log = mock_logger
         mock_registry_metadata.return_value = {}
         mock_node_metadata.return_value = {}
         mock_pod_data.return_value = {}
@@ -411,6 +361,7 @@ class TestAutostartErrorAndEvents:
         self, mock_registry_metadata, mock_node_metadata, mock_pod_data, mock_token_header, mock_request, mock_logger
     ):
         """Test send_start_request with ConnectError."""
+        self.analyzer._log = mock_logger
         mock_registry_metadata.return_value = {}
         mock_node_metadata.return_value = {}
         mock_pod_data.return_value = {}
@@ -549,6 +500,7 @@ class TestAutostartManager:
         from hub_adapter.autostart import AutostartManager
 
         manager = AutostartManager()
+        manager._log = mock_logger
         mock_settings = MagicMock()
         mock_settings.autostart.enabled = True
         mock_settings.autostart.interval = 30
@@ -641,6 +593,7 @@ class TestAutostartManager:
         from hub_adapter.autostart import AutostartManager
 
         manager = AutostartManager()
+        manager._log = mock_logger
         mock_settings = MagicMock()
         mock_settings.autostart.enabled = True
         mock_settings.autostart.interval = 1

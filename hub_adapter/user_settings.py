@@ -160,6 +160,8 @@ def load_persistent_settings() -> UserSettings:
     if not saved_settings:
         saved_settings = _load_from_json()
 
+    valid_fields = set(UserSettings.model_fields.keys())
+    saved_settings = {k: v for k, v in saved_settings.items() if k in valid_fields}
     overloaded = {**UserSettings().model_dump(), **saved_settings}
     return UserSettings(**overloaded)
 

@@ -4,6 +4,7 @@ CONTENT_TYPE = "Content-Type"
 CONTENT_LENGTH = "Content-Length"
 
 SERVICE_NAME = "hub_adapter"  # Name of this service
+SERVICE = "service"
 
 # Hub Keywords
 ID = "id"

@@ -8,9 +8,9 @@ from tests.router_tests.routes import EXPECTED_HUB_ROUTE_CONFIG
 class TestHub:
     """Hub endpoint configuration tests."""
 
-    def test_route_configs(self, test_client, mock_event_logger):
+    def test_route_configs(self, test_client):
         """Test end point configurations for the Meta gateway routes."""
-        check_routes(hub_router, EXPECTED_HUB_ROUTE_CONFIG, test_client, mock_event_logger)
+        check_routes(hub_router, EXPECTED_HUB_ROUTE_CONFIG, test_client)
 
     def test_format_query_params(self):
         """Test endpoint formatting query params."""
