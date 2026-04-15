@@ -1,10 +1,6 @@
 import datetime
 
-from node_event_logging import AttributesModel
 from pydantic import BaseModel
-from starlette.datastructures import Address
-
-from hub_adapter.constants import ServiceTag
 
 
 class EventLog(BaseModel):
@@ -32,38 +28,6 @@ class EventLogResponse(BaseModel):
 
     data: list[EventLog]
     meta: Meta
-
-
-# For logging events
-class UserInfo(BaseModel):
-    """User info model."""
-
-    id: str | None = None
-    username: str
-    email: str | None = None
-    client_id: str | None = None
-
-
-class GatewayEventLog(AttributesModel):
-    """General event log class for requests."""
-
-    method: str
-    path: str
-    url: str
-    client: Address
-    user: UserInfo | None = None
-    service: str | None = None
-    status_code: int | None = None
-    tags: list[ServiceTag] | None = None
-
-
-class AutostartEventLog(AttributesModel):
-    """Event log entry class for analyses started automatically."""
-
-    status_code: int
-    project_id: str
-    analysis_id: str
-    tags: list[ServiceTag] | None = None
 
 
 # Events

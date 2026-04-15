@@ -43,6 +43,7 @@ class JsonFormatter(logging.Formatter):
             "status_code": getattr(record, "status_code", None),
             "user": getattr(record, "user", None),
             "event_name": getattr(record, "event_name", None),
+            "event_description": getattr(record, "event_description", None),
         }
 
         if record.exc_info:

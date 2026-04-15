@@ -88,9 +88,9 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         path = request.scope.get("path", "")
         if path.split("/")[-1] in ("docs", "redoc", "openapi.json"):
             logger.info(
-                "api.ui.access.success",
+                "api.ui.access",
                 extra={
-                    "event_name": "api.ui.access.success",
+                    "event_name": "api.ui.access",
                     "event_description": TRACKED_EVENTS.get("api.ui.access"),
                     "service": "hub_adapter",
                     "user": user,
