@@ -770,7 +770,7 @@ async def probe_connection(
         return probe_data_service(url=url, apikey=apikey, is_fhir=is_fhir)
 
     else:
-        raise KongConsumerApiKeyError
+        raise KongConsumerApiKeyError()
 
 
 def probe_data_service(url: str, apikey: str, is_fhir: bool, attempt: int = 1, max_attempts: int = 4) -> int:
@@ -786,15 +786,14 @@ def probe_data_service(url: str, apikey: str, is_fhir: bool, attempt: int = 1, m
             time.sleep(attempt)  # Wait a little longer each attempt
             return probe_data_service(url=url, apikey=apikey, is_fhir=is_fhir, attempt=attempt + 1)
 
-        logger.error(f"Unable to connect to data service after {attempt - 1} attempt(s)")
         if svc_resp.status_code == status.HTTP_403_FORBIDDEN and not is_fhir:
-            raise BucketError
+            raise BucketError()
 
         elif svc_resp.status_code == status.HTTP_503_SERVICE_UNAVAILABLE:
             raise KongServiceError(server_type=svc)
 
         elif svc_resp.status_code == status.HTTP_404_NOT_FOUND and is_fhir:
-            raise FhirEndpointError
+            raise FhirEndpointError()
 
         elif svc_resp.status_code == status.HTTP_502_BAD_GATEWAY:
             raise KongGatewayError(server_type=svc)

@@ -21,6 +21,7 @@ from hub_adapter import node_id_pickle_path
 from hub_adapter.conf import Settings
 from hub_adapter.constants import ServiceTag
 from hub_adapter.errors import HubConnectError, catch_hub_errors
+from hub_adapter.middleware import log_event
 
 _node_type_cache = None
 
@@ -91,9 +92,12 @@ def make_log_hook(service: str):
 
     def log_response(response: httpx.Response) -> None:
         request = response.request
-        logger.info(
-            f"HTTP Request: {request.method} {request.url} {response.http_version} {response.status_code}",
-            extra={"service": service},
+        log_event(
+            "hub.http.response",
+            event_description=f"HTTP {request.method} {request.url} {response.http_version} {response.status_code}",
+            level=logging.INFO,
+            status_code=response.status_code,
+            service=service,
         )
 
     return log_response

@@ -12,8 +12,7 @@ from starlette import status
 from urllib3.exceptions import MaxRetryError
 
 from hub_adapter.constants import SERVICE
-
-logger = logging.getLogger(__name__)
+from hub_adapter.middleware import log_event
 
 
 class ProxyError(HTTPException):
@@ -50,66 +49,106 @@ class KongConflictError(HTTPException):
 
 class BucketError(KongError):
     def __init__(self):
+        message = "Bucket does not exist or is set to private"
         super().__init__(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
-                "message": "Bucket does not exist or is set to private",
+                "message": message,
                 SERVICE: "MinIO",
                 "status_code": status.HTTP_403_FORBIDDEN,
             },
             headers={"WWW-Authenticate": "Bearer"},
         )
+        log_event(
+            "storage.bucket.forbidden",
+            event_description=message,
+            level=logging.ERROR,
+            status_code=status.HTTP_403_FORBIDDEN,
+            service="MinIO",
+        )
 
 
 class KongGatewayError(KongError):
     def __init__(self, server_type: str):
+        message = f"Unable to contact the {server_type} service, likely an incorrect port"
         super().__init__(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail={
-                "message": f"Unable to contact the {server_type} service, likely an incorrect port",
+                "message": message,
                 SERVICE: server_type,
                 "status_code": status.HTTP_502_BAD_GATEWAY,
             },
             headers={"WWW-Authenticate": "Bearer"},
         )
+        log_event(
+            "kong.gateway.error",
+            event_description=message,
+            level=logging.ERROR,
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            service=server_type,
+        )
 
 
 class KongServiceError(KongError):
     def __init__(self, server_type: str):
+        message = f"{server_type} server name resolution failed"
         super().__init__(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail={
-                "message": f"{server_type} server name resolution failed",
+                "message": message,
                 SERVICE: server_type,
                 "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
             },
             headers={"WWW-Authenticate": "Bearer"},
         )
+        log_event(
+            "kong.service.resolution_failed",
+            event_description=message,
+            level=logging.ERROR,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            service=server_type,
+        )
 
 
 class FhirEndpointError(KongError):
     def __init__(self):
+        message = "FHIR endpoint not found, check the data path"
         super().__init__(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={
-                "message": "FHIR endpoint not found, check the data path",
+                "message": message,
                 SERVICE: "FHIR",
                 "status_code": status.HTTP_404_NOT_FOUND,
             },
             headers={"WWW-Authenticate": "Bearer"},
         )
+        log_event(
+            "fhir.endpoint.not_found",
+            event_description=message,
+            level=logging.ERROR,
+            status_code=status.HTTP_404_NOT_FOUND,
+            service="FHIR",
+        )
 
 
 class KongConsumerApiKeyError(KongError):
     def __init__(self):
+        message = "Unable to obtain API key for health consumer"
         super().__init__(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={
-                "message": "Unable to obtain API key for health consumer",
+                "message": message,
                 SERVICE: "Kong",
                 "status_code": status.HTTP_404_NOT_FOUND,
             },
             headers={"WWW-Authenticate": "Bearer"},
+        )
+        log_event(
+            "kong.consumer.api_key.not_found",
+            event_description=message,
+            level=logging.ERROR,
+            status_code=status.HTTP_404_NOT_FOUND,
+            service="Kong",
         )
 
 
@@ -124,7 +163,13 @@ def catch_hub_errors(f):
 
         except httpx.ProxyError as e:
             err = "Proxy Error - Unable to contact the Hub"
-            logger.error(err, extra={SERVICE: "Proxy"})
+            log_event(
+                "hub.proxy.error",
+                event_description=err,
+                level=logging.ERROR,
+                status_code=status.HTTP_400_BAD_REQUEST,
+                service="Proxy",
+            )
             raise ProxyError(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={
@@ -137,7 +182,13 @@ def catch_hub_errors(f):
 
         except httpx.ReadTimeout as e:
             err = "ReadTimeout Error - Hub is offline or undergoing maintenance"
-            logger.error(err, extra={SERVICE: svc})
+            log_event(
+                "hub.read.timeout",
+                event_description=err,
+                level=logging.ERROR,
+                status_code=status.HTTP_408_REQUEST_TIMEOUT,
+                service=svc,
+            )
             raise HubTimeoutError(
                 status_code=status.HTTP_408_REQUEST_TIMEOUT,
                 detail={
@@ -150,7 +201,13 @@ def catch_hub_errors(f):
 
         except httpx.ConnectError as e:
             err = "ConnectError - CoreClient is unable to get token from Hub"
-            logger.error(err, extra={SERVICE: "CoreClient"})
+            log_event(
+                "hub.connect.error",
+                event_description=err,
+                level=logging.ERROR,
+                status_code=status.HTTP_404_NOT_FOUND,
+                service="CoreClient",
+            )
             raise HubConnectError(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={
@@ -162,8 +219,13 @@ def catch_hub_errors(f):
             ) from e
 
         except pydantic.ValidationError as e:
-            logger.error(f"Pydantic type error: {e.errors()}", extra={SERVICE: "CoreClient"})
-
+            log_event(
+                "hub.validation.error",
+                event_description=f"Pydantic type error: {e.errors()}",
+                level=logging.ERROR,
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                service="CoreClient",
+            )
             raise HubTypeError(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail={
@@ -178,12 +240,18 @@ def catch_hub_errors(f):
             resp_error = err.error_response
 
             if type(resp_error) is httpx.ConnectTimeout:
-                err = "Connection Timeout - Hub is currently unreachable"
-                logger.error(err, extra={SERVICE: svc})
+                err_msg = "Connection Timeout - Hub is currently unreachable"
+                log_event(
+                    "hub.connection.timeout",
+                    event_description=err_msg,
+                    level=logging.ERROR,
+                    status_code=status.HTTP_408_REQUEST_TIMEOUT,
+                    service=svc,
+                )
                 raise HubTimeoutError(
                     status_code=status.HTTP_408_REQUEST_TIMEOUT,
                     detail={
-                        "message": err,
+                        "message": err_msg,
                         SERVICE: svc,
                         "status_code": status.HTTP_408_REQUEST_TIMEOUT,
                     },
@@ -191,12 +259,18 @@ def catch_hub_errors(f):
                 ) from err
 
             elif type(resp_error) is httpx.ConnectError:
-                err = "Connection Error - Hub is currently unreachable"
-                logger.error(err, extra={SERVICE: svc})
+                err_msg = "Connection Error - Hub is currently unreachable"
+                log_event(
+                    "hub.connection.error",
+                    event_description=err_msg,
+                    level=logging.ERROR,
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    service=svc,
+                )
                 raise HubConnectError(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                     detail={
-                        "message": err,
+                        "message": err_msg,
                         SERVICE: svc,
                         "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
                     },
@@ -204,10 +278,16 @@ def catch_hub_errors(f):
                 ) from err
 
             else:
-                logger.error("Failed to retrieve JWT from Hub", extra={SERVICE: svc})
+                log_event(
+                    "hub.auth.error",
+                    event_description="Failed to retrieve JWT from Hub",
+                    level=logging.ERROR,
+                    status_code=err.error_response.status_code,
+                    service=svc,
+                )
                 raise HTTPException(
                     status_code=err.error_response.status_code,
-                    detail={  # Invalid authentication credentials
+                    detail={
                         "message": err.error_response.message,
                         SERVICE: svc,
                         "status_code": err.error_response.status_code,
@@ -230,7 +310,13 @@ def catch_kong_errors(f):
         except ApiException as e:
             if e.status == status.HTTP_409_CONFLICT:
                 err = "Kong consumer conflict"
-                logger.error(err, extra={SERVICE: svc})
+                log_event(
+                    "kong.consumer.conflict",
+                    event_description=err,
+                    level=logging.ERROR,
+                    status_code=e.status,
+                    service=svc,
+                )
                 raise KongConflictError(
                     status_code=e.status,
                     detail={
@@ -242,7 +328,13 @@ def catch_kong_errors(f):
                 ) from e
 
             elif e.status == status.HTTP_404_NOT_FOUND:
-                logger.error("Kong service not found", extra={SERVICE: svc})
+                log_event(
+                    "kong.service.not_found",
+                    event_description="Kong service not found",
+                    level=logging.ERROR,
+                    status_code=e.status,
+                    service=svc,
+                )
                 raise KongConnectError(
                     status_code=e.status,
                     detail={
@@ -254,7 +346,13 @@ def catch_kong_errors(f):
                 ) from e
 
             else:
-                logger.error(f"Kong error: {e}", extra={SERVICE: svc})
+                log_event(
+                    "kong.api.error",
+                    event_description=f"Kong error: {e}",
+                    level=logging.ERROR,
+                    status_code=e.status,
+                    service=svc,
+                )
                 raise KongError(
                     status_code=e.status,
                     detail={
@@ -266,7 +364,13 @@ def catch_kong_errors(f):
                 ) from e
 
         except MaxRetryError as e:
-            logger.error(f"Kong error: {e}", extra={SERVICE: svc})
+            log_event(
+                "kong.service.unavailable",
+                event_description="Kong service unavailable",
+                level=logging.ERROR,
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                service=svc,
+            )
             raise KongTimeoutError(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail={
@@ -278,11 +382,16 @@ def catch_kong_errors(f):
             ) from e
 
         except HTTPException as http_error:
-            logger.error(f"Kong error: {http_error}", extra={SERVICE: svc})
-            raise http_error
+            raise http_error  # Already logged at the raise site
 
         except Exception as e:
-            logger.error(e, extra={SERVICE: svc})
+            log_event(
+                "kong.service.error",
+                event_description=f"Service error - {e}",
+                level=logging.ERROR,
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                service=svc,
+            )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail={

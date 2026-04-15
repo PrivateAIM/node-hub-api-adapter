@@ -1,7 +1,6 @@
 """Middleware to inject into FastAPI"""
 
 import logging
-from typing import Literal
 
 import jwt
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -10,8 +9,6 @@ from starlette.responses import Response
 
 from hub_adapter import current_user_id
 from hub_adapter.schemas.logs import TRACKED_EVENTS
-
-_LOG_LEVEL = Literal["info", "warning", "error", "critical"]
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +30,8 @@ def _set_user_context(request: Request) -> None:
 
 def log_event(
     event_name: str,
-    level: _LOG_LEVEL = "info",
+    event_description: str | None = None,
+    level: int = logging.INFO,
     status_code: int | None = None,
     user: str | None = None,
     service: str | None = None,
@@ -45,6 +43,8 @@ def log_event(
     ----------
     event_name : str
         Key from TRACKED_EVENTS (e.g. "autostart.analysis.create").
+    event_description : str | None
+        If provided, is used in the emitted log instead of the value in TRACKED_EVENTS (if present).
     level : str
         Log level — "info", "warning", "error", or "critical".
     status_code : int
@@ -57,9 +57,9 @@ def log_event(
         If provided, the exception and its traceback are included in the log.
     """
 
-    log_fn = getattr(logger, level)
-    log_fn(
-        TRACKED_EVENTS.get(event_name, event_name),
+    logger.log(
+        level,
+        event_description or TRACKED_EVENTS.get(event_name, event_name),
         exc_info=exc,
         extra={
             "event_name": event_name,
@@ -111,7 +111,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             return response
 
         service = route.tags[0] if route.tags else None
-        log_level = "info" if response.status_code < 400 else "error"
+        log_level = logging.INFO if response.status_code < 400 else logging.ERROR
 
         log_event(event_name, level=log_level, user=user, service=service, status_code=response.status_code)
 
