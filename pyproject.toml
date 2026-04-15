@@ -11,7 +11,7 @@ dependencies = [
     "fastapi>=0.120.1",
     "flame-hub-client==0.2.12",
     "click>=8.1.7",
-    "python-multipart>=0.0.22",
+    "python-multipart>=0.0.26",
     "httpx>=0.28.0",
     "kongadminclient @ git+https://github.com/PrivateAIM/kong-admin-python-client.git",
     "python-dotenv>=1.0.1",
