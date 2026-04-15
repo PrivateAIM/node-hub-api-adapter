@@ -1,8 +1,9 @@
 """Collection of unit tests for testing the dependency methods."""
 
+import logging
 import uuid
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
@@ -247,3 +248,26 @@ class TestDeps:
         }
 
         assert compiled_info == expected_result
+
+    @patch("hub_adapter.dependencies.log_event")
+    def test_make_log_hook_calls_log_event(self, mock_log_event):
+        """make_log_hook emits a structured hub.http.response event."""
+        from hub_adapter.dependencies import make_log_hook
+
+        hook = make_log_hook("Hub")
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.http_version = "HTTP/1.1"
+        mock_response.request.method = "GET"
+        mock_response.request.url = "https://core.privateaim.dev/nodes"
+
+        hook(mock_response)
+
+        mock_log_event.assert_called_once_with(
+            "hub.http.response",
+            event_description="HTTP GET https://core.privateaim.dev/nodes HTTP/1.1 200",
+            level=logging.INFO,
+            status_code=200,
+            service="Hub",
+        )
