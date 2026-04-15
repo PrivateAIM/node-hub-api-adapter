@@ -19,6 +19,7 @@ from starlette import status
 
 from hub_adapter import node_id_pickle_path
 from hub_adapter.conf import Settings
+from hub_adapter.constants import ServiceTag
 from hub_adapter.errors import HubConnectError, catch_hub_errors
 
 _node_type_cache = None
@@ -79,7 +80,7 @@ def get_flame_hub_auth_flow(
         client=httpx.Client(
             base_url=settings.hub_auth_service_url,
             verify=ssl_ctx,
-            event_hooks={"response": [make_log_hook("Hub")]},
+            event_hooks={"response": [make_log_hook(ServiceTag.HUB)]},
         ),
     )
     return auth
@@ -111,7 +112,7 @@ def get_core_client(
             base_url=settings.hub_service_url,
             auth=hub_auth,
             verify=ssl_ctx,
-            event_hooks={"response": [make_log_hook("Hub")]},
+            event_hooks={"response": [make_log_hook(ServiceTag.HUB)]},
         )
     )
 

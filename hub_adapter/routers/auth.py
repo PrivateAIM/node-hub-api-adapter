@@ -9,12 +9,13 @@ from starlette import status
 
 from hub_adapter.auth import get_ssl_context
 from hub_adapter.conf import Settings
+from hub_adapter.constants import ServiceTag
 from hub_adapter.dependencies import get_settings
 from hub_adapter.oidc import get_svc_oidc_config
 from hub_adapter.schemas.conf import Token
 
 auth_router = APIRouter(
-    tags=["Auth"],
+    tags=[ServiceTag.AUTH],
     responses={404: {"description": "Not found"}},
 )
 

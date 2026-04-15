@@ -108,6 +108,7 @@ def route(
     request_method,
     path: str,
     service_url: str,
+    name: str | None = None,
     status_code: int | None = None,
     query_params: list[str] | None = None,
     form_params: list[str] | None = None,
@@ -137,6 +138,8 @@ def route(
         HTTP status code.
     service_url : str
         Root endpoint of the microservice for the forwarded request.
+    name : str | None
+        Name of the process or method that will be used for event logging, ideally period separated
     query_params : list[str] | None
         Keys passed referencing query model parameters to be sent to downstream microservice
     form_params : list[str] | None
@@ -176,6 +179,7 @@ def route(
         status_code=status_code,
         response_model=response_model,
         tags=tags,
+        name=name,
         dependencies=dependencies,
         summary=summary,
         description=description,

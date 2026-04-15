@@ -40,7 +40,9 @@ class JsonFormatter(logging.Formatter):
             "msg": record.getMessage(),
             # Just for the Hub Adapter
             "service": getattr(record, "service", "Unknown"),
-            "user_id": getattr(record, "user_id", None),
+            "status_code": getattr(record, "status_code", None),
+            "user": getattr(record, "user", None),
+            "event_name": getattr(record, "event_name", None),
         }
 
         if record.exc_info:

@@ -8,6 +8,8 @@ CONTENT_LENGTH = "Content-Length"
 SERVICE_NAME = "hub_adapter"  # Name of this service
 SERVICE = "service"
 
+EVENT = "event"
+
 # Hub Keywords
 ID = "id"
 HOST = "host"
@@ -25,9 +27,11 @@ class ServiceTag(str, Enum):
     """Service tags."""
 
     AUTH = "Auth"
-    EVENTS = "Events"
+    AUTOSTART = "Autostart"
+    LOGS = "Logs"
     HEALTH = "Health"
     HUB = "Hub"
+    HUB_ADAPTER = "Hub Adapter"
     KONG = "Kong"
     META = "Meta"
     NODE = "Node"

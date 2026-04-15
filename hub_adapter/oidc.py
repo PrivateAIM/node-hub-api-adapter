@@ -9,6 +9,7 @@ import httpx
 from fastapi import HTTPException
 from starlette import status
 
+from hub_adapter.constants import ServiceTag
 from hub_adapter.dependencies import get_settings, make_log_hook
 from hub_adapter.schemas.conf import OIDCConfiguration
 
@@ -47,7 +48,7 @@ def fetch_openid_config(
     attempt_num = 0
     while attempt_num <= max_retries:
         try:
-            with httpx.Client(event_hooks={"response": [make_log_hook("IDP")]}) as client:
+            with httpx.Client(event_hooks={"response": [make_log_hook(ServiceTag.IDP)]}) as client:
                 response = client.get(oidc_url)
 
             response.raise_for_status()

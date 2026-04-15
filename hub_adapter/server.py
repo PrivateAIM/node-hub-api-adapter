@@ -4,20 +4,20 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
-import jwt
 import uvicorn
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
-from hub_adapter import current_user_id, logging_config
+from hub_adapter import logging_config
 from hub_adapter.autostart import AutostartManager
 from hub_adapter.constants import ServiceTag
 from hub_adapter.dependencies import get_settings
+from hub_adapter.middleware import RequestLoggingMiddleware
 from hub_adapter.routers.auth import auth_router
-from hub_adapter.routers.events import event_router
 from hub_adapter.routers.health import health_router
 from hub_adapter.routers.hub import hub_router
 from hub_adapter.routers.kong import kong_router
+from hub_adapter.routers.logs import logs_router
 from hub_adapter.routers.meta import meta_router
 from hub_adapter.routers.node import node_router
 from hub_adapter.routers.podorc import po_router
@@ -31,7 +31,7 @@ autostart_manager = AutostartManager()
 # API metadata
 tags_metadata = [
     {"name": ServiceTag.AUTH, "description": "Endpoints for authorization specific tasks."},
-    {"name": ServiceTag.EVENTS, "description": "Retrieval of event logs."},
+    {"name": ServiceTag.LOGS, "description": "Retrieval of logs and events."},
     {"name": ServiceTag.HUB, "description": "Gateway endpoints for the central Hub service."},
     {
         "name": ServiceTag.HEALTH,
@@ -87,23 +87,7 @@ app = FastAPI(
 )
 
 
-@app.middleware("http")
-async def set_user_context(request: Request, call_next):
-    auth_header = request.headers.get("Authorization", "")
-    if auth_header.startswith("Bearer "):
-        token = auth_header.removeprefix("Bearer ")
-
-        try:
-            claims = jwt.decode(token, options={"verify_signature": False})
-            user_id = claims.get("preferred_username") or claims.get("sub")
-            current_user_id.set(user_id)
-
-        except Exception:  # doesn't matter too much if it fails
-            pass
-
-    return await call_next(request)
-
-
+app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins="*",
@@ -122,7 +106,7 @@ routers = (
     kong_router,
     health_router,
     auth_router,
-    event_router,
+    logs_router,
 )
 
 for router in routers:

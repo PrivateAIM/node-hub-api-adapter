@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
     "/node/settings",
     response_model=UserSettings,
     status_code=status.HTTP_202_ACCEPTED,
+    name="node.settings.update",
 )
 async def update_node_settings(
     node_settings: Annotated[UserSettings, Body(description="Partial settings to update")],
@@ -67,6 +68,7 @@ async def update_node_settings(
     "/node/settings",
     response_model=UserSettings,
     status_code=status.HTTP_200_OK,
+    name="node.settings.get",
 )
 async def get_node_settings() -> UserSettings:
     """Get the node configuration settings"""

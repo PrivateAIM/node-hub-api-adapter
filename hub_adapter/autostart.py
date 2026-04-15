@@ -13,6 +13,7 @@ from httpx import ConnectError, HTTPStatusError, ReadTimeout, RemoteProtocolErro
 from starlette import status
 
 from hub_adapter.auth import _get_internal_token
+from hub_adapter.constants import ServiceTag
 from hub_adapter.core import make_request
 from hub_adapter.dependencies import (
     compile_analysis_pod_data,
@@ -44,7 +45,7 @@ logger = logging.getLogger(__name__)
 
 class GoGoAnalysis:
     def __init__(self):
-        self._log = logging.LoggerAdapter(logger, {"service": "Autostart"})
+        self._log = logging.LoggerAdapter(logger, {"service": ServiceTag.AUTOSTART})
         self.settings = None
         self.core_client = None
 
