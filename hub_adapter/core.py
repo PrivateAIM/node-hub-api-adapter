@@ -35,6 +35,7 @@ async def make_request(
     files: dict | None = None,
     file_response: bool = False,
     service: ServiceTag | None = None,
+    request_name: str | None = None,
 ) -> tuple[[JSONResponse | StreamingResponse], int] | tuple[FileResponse, int]:
     """Make an asynchronous request by creating a temporary session.
 
@@ -72,7 +73,7 @@ async def make_request(
     if not files:
         files = {}
 
-    event_hooks = {"response": [make_log_hook(service, is_async=True)]} if service else {}
+    event_hooks = {"response": [make_log_hook(service, is_async=True, event_name=request_name)]} if service else {}
     async with httpx.AsyncClient(headers=headers, timeout=60.0, mounts=None, event_hooks=event_hooks) as client:
         r = await client.request(
             url=url,
@@ -245,6 +246,7 @@ def route(
                     files=request_files,
                     file_response=file_response,
                     service=svc,
+                    request_name=name,
                 )
 
             except ConnectError as ce:

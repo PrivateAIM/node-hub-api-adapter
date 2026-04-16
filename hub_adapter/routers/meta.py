@@ -140,9 +140,7 @@ async def terminate_analysis(
 
     try:
         resp_data, status_code = await make_request(
-            url=microsvc_path,
-            method="delete",
-            headers=headers,
+            url=microsvc_path, method="delete", headers=headers, request_name="meta.terminate"
         )
 
     except httpx.ConnectError as e:

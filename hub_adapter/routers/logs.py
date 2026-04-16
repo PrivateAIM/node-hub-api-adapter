@@ -79,11 +79,12 @@ async def get_events(
 ):
     """Retrieve a selection of logged events."""
     query_parts = ["*"] if not start_date and not end_date else ["_time:1h"]
+    query_parts.append("log.event_name:*")
     if service_tag:
         query_parts.append(f'log.service:"{service_tag}"')
 
     if username:
-        query_parts.append(f'log.user_id:"{username}"')
+        query_parts.append(f'log.user:"{username}"')
 
     query = " AND ".join(query_parts)
     params = {"limit": limit or 100}

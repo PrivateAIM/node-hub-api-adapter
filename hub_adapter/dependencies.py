@@ -87,15 +87,16 @@ def get_flame_hub_auth_flow(
     return auth
 
 
-def make_log_hook(service: str, is_async: bool = False):
+def make_log_hook(service: str, is_async: bool = False, event_name: str | None = None):
     """Return an httpx response event hook that logs with the given service label."""
 
     def log_response(response: httpx.Response) -> None:
         request = response.request
+        log_level = logging.ERROR if response.status_code >= 400 else logging.INFO
         log_event(
-            "hub.http.response",
+            f"{event_name}.response" or f"{service.lower()}.http.response",
             event_description=f"HTTP {request.method} {request.url} {response.http_version} {response.status_code}",
-            level=logging.INFO,
+            level=log_level,
             status_code=response.status_code,
             service=service,
         )
