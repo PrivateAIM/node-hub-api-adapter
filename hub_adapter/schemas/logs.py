@@ -6,12 +6,14 @@ from pydantic import BaseModel
 class EventLog(BaseModel):
     """Event log response model."""
 
-    id: int
+    image: str
+    component: str
     event_name: str
-    service_name: str
+    service: str
+    level: str
     timestamp: datetime.datetime
-    body: str
-    attributes: dict
+    message: str
+    user: str | None = None
 
 
 class Meta(BaseModel):

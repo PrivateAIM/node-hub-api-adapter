@@ -93,8 +93,9 @@ def make_log_hook(service: str, is_async: bool = False, event_name: str | None =
     def log_response(response: httpx.Response) -> None:
         request = response.request
         log_level = logging.ERROR if response.status_code >= 400 else logging.INFO
+        event = f"{event_name}.response" if event_name else f"{service.lower()}.http.response"
         log_event(
-            f"{event_name}.response" or f"{service.lower()}.http.response",
+            event,
             event_description=f"HTTP {request.method} {request.url} {response.http_version} {response.status_code}",
             level=log_level,
             status_code=response.status_code,

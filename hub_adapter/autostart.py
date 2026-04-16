@@ -288,6 +288,7 @@ class GoGoAnalysis:
                     method="post",
                     headers=headers,
                     data=props,
+                    request_name="podorc.pods.create",
                 )
                 log_event(
                     "autostart.analysis.start_response",
@@ -366,7 +367,13 @@ class GoGoAnalysis:
 
         if headers:
             try:
-                resp_data, _ = await make_request(url=microsvc_path, method="get", headers=headers, service="PodOrc")
+                resp_data, _ = await make_request(
+                    url=microsvc_path,
+                    method="get",
+                    headers=headers,
+                    service=ServiceTag.PODORC,
+                    request_name="podorc.status.get",
+                )
 
             except HTTPException as e:
                 log_event(

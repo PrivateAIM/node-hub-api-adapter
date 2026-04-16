@@ -57,6 +57,8 @@ async def make_request(
         Whether a file or stream data is expected as the response. Defaults to False
     service : str | None
         Name of the service to include in the log.
+    request_name : str | None
+        Name of the request used to fetch its description in the case that it is an event.
 
     Returns
     -------
