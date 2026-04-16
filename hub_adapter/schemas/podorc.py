@@ -76,7 +76,7 @@ class AnalysisStatus(BaseModel):
     progress: int | None = None
 
 
-class StatusOnlyResponse(RootModel[dict[uuid.UUID, PodStatus]]):
+class StatusOnlyResponse(RootModel[dict[uuid.UUID, PodStatus | None]]):
     """Response with dynamic UUID keys and dynamic analysis keys"""
 
     pass
