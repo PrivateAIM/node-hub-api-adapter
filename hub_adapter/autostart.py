@@ -13,7 +13,6 @@ from httpx import ConnectError, HTTPStatusError, ReadTimeout, RemoteProtocolErro
 from starlette import status
 
 from hub_adapter.auth import _get_internal_token
-from hub_adapter.constants import SERVICE_NAME
 from hub_adapter.core import make_request
 from hub_adapter.dependencies import (
     compile_analysis_pod_data,
@@ -27,8 +26,6 @@ from hub_adapter.dependencies import (
     get_ssl_context,
 )
 from hub_adapter.errors import KongConflictError, KongConnectError
-from hub_adapter.event_logging import EventLogger, get_event_logger
-from hub_adapter.oidc import check_oidc_configs_match
 from hub_adapter.routers.hub import (
     _format_query_params,
     list_analysis_nodes,
@@ -38,19 +35,18 @@ from hub_adapter.routers.kong import (
     delete_analysis,
     list_projects,
 )
-from hub_adapter.schemas.events import ANNOTATED_EVENTS, EventTag
 from hub_adapter.schemas.podorc import PodStatus
 from hub_adapter.user_settings import load_persistent_settings
-from hub_adapter.utils import _check_data_required, annotate_event
+from hub_adapter.utils import _check_data_required
 
 logger = logging.getLogger(__name__)
 
 
 class GoGoAnalysis:
     def __init__(self):
+        self._log = logging.LoggerAdapter(logger, {"service": "Autostart"})
         self.settings = None
         self.core_client = None
-        self.event_logger: EventLogger | None = get_event_logger()
 
         self.gather_deps()  # populates self.settings and self.core_client
 
@@ -64,29 +60,6 @@ class GoGoAnalysis:
         self.settings = settings
         self.core_client = core_client
 
-    def log_analysis(self, metadata: dict, body: str | None = None, status_code: int | None = None) -> None:
-        """Log analysis info as an event."""
-        if status_code:  # Overwrite if provided
-            metadata["status_code"] = status_code
-
-        annotated_event_name, tags = annotate_event(
-            "autostart.analysis.create",
-            status_code=metadata["status_code"],
-            tags=[EventTag.AUTOSTART],
-        )
-
-        event_data = ANNOTATED_EVENTS.get(annotated_event_name)
-
-        # Use list(set()) to prune redundant tags and list is needed to make JSON serializable
-        metadata["tags"] = list(set(event_data["tags"] + tags)) if tags else event_data["tags"]
-        if self.event_logger:
-            self.event_logger.log_event(
-                event_name=annotated_event_name,
-                service_name=SERVICE_NAME,
-                body=body or event_data.get("body"),  # User given body takes priority
-                attributes=metadata,
-            )
-
     async def auto_start_analyses(self) -> set | None:
         """Gather and iterate over analyses from hub and start them if they pass checks."""
         analyses_started = set()
@@ -95,7 +68,7 @@ class GoGoAnalysis:
             node_id, node_type = await self.describe_node()
 
         except (HubAPIError, HTTPException) as e:
-            logger.error(f"Unable to connect to the Hub: {e}")
+            self._log.error(f"Unable to connect to the Hub: {e}")
             return None
 
         formatted_query_params = _format_query_params({"sort": "-updated_at", "include": "analysis"})
@@ -108,7 +81,7 @@ class GoGoAnalysis:
             )
 
         except ConnectError as e:
-            logger.error(f"Unable to start analyses, error connecting to Hub: {e}")
+            self._log.error(f"Unable to start analyses, error connecting to Hub: {e}")
             return analyses_started
 
         valid_projects = await self.get_valid_projects()
@@ -119,14 +92,6 @@ class GoGoAnalysis:
             analysis_id, project_id, node_id, _, _ = analysis
             start_resp, status_code = await self.register_and_start_analysis(
                 analysis_id, project_id, node_id, node_type
-            )
-
-            self.log_analysis(
-                metadata={
-                    "project_id": project_id,
-                    "status_code": status_code,
-                    "analysis_id": analysis_id,
-                },
             )
 
             if start_resp is None:
@@ -161,7 +126,7 @@ class GoGoAnalysis:
         start_resp, status_code = await self.send_start_request(analysis_props=props, kong_token=kong_token)
         return start_resp, status_code
 
-    async def describe_node(self) -> tuple[str, str] | None:
+    async def describe_node(self) -> tuple[str | None, str] | None:
         """Get node information from cache, and if not present, get from Hub and set cache."""
         node_id = await get_node_id(core_client=self.core_client, settings=self.settings)
         node_type_cache = await get_node_type_cache(settings=self.settings, core_client=self.core_client)
@@ -173,12 +138,7 @@ class GoGoAnalysis:
         self, analysis_id: str, project_id: str, attempt: int = 1, max_attempts: int = 5
     ) -> tuple[dict | None, int] | None:
         """Register an analysis with kong."""
-        logger.info(f"Attempt {attempt} at starting analysis {analysis_id}")
-        event_metadata = {
-            "project_id": project_id,
-            "analysis_id": analysis_id,
-            "tags": [EventTag.KONG],
-        }
+        self._log.info(f"Attempt {attempt} at starting analysis {analysis_id}")
         try:
             kong_resp = await create_and_connect_analysis_to_project(
                 settings=self.settings, project_id=project_id, analysis_id=analysis_id
@@ -186,40 +146,33 @@ class GoGoAnalysis:
             return kong_resp, status.HTTP_201_CREATED
 
         except KongConnectError as e:
-            msg = f"{e.detail['message']}, failed to start analysis {analysis_id}"
-            logger.error(msg)
-            self.log_analysis(event_metadata, body=msg, status_code=e.status_code)
-
+            self._log.error(f"{e.detail['message']}, failed to start analysis {analysis_id}")
             return None, e.status_code
 
         except KongConflictError as e:
-            logger.warning(f"Analysis {analysis_id} already registered, checking if pod exists...")
+            self._log.warning(f"Analysis {analysis_id} already registered, checking if pod exists...")
             pod_exists = await self.pod_running(analysis_id)
             if pod_exists is None:  # Status could not be obtained, skip and try later
-                logger.warning(f"Status for analysis {analysis_id} could not be obtained, will try again")
+                self._log.warning(f"Status for analysis {analysis_id} could not be obtained, will try again")
                 pass
 
             elif not pod_exists:  # Status obtained and if not running, delete kong consumer
-                logger.info(f"No pod found for {analysis_id}, will delete kong consumer and retry")
+                self._log.info(f"No pod found for {analysis_id}, will delete kong consumer and retry")
                 await delete_analysis(settings=self.settings, analysis_id=analysis_id)
 
                 if attempt < max_attempts:
                     return await self.register_analysis(analysis_id, project_id, attempt + 1, max_attempts)
 
                 else:
-                    msg = f"Failed to start analysis {analysis_id} after {max_attempts} attempts"
-                    logger.error(msg)
-                    self.log_analysis(event_metadata, body=msg, status_code=e.status_code)
+                    self._log.error(f"Failed to start analysis {analysis_id} after {max_attempts} attempts")
                     return None, e.status_code
 
             else:
-                logger.info(f"Pod already exists for analysis {analysis_id}, skipping start sequence")
+                self._log.info(f"Pod already exists for analysis {analysis_id}, skipping start sequence")
                 return None, e.status_code
 
         except HTTPException as e:
-            msg = f"Failed to start analysis {analysis_id}, {e}"
-            logger.error(msg)
-            self.log_analysis(event_metadata, body=msg, status_code=e.status_code)
+            self._log.error(f"Failed to start analysis {analysis_id}, {e}")
             return None, e.status_code
 
         return None, status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -247,22 +200,17 @@ class GoGoAnalysis:
             return token
 
         except (HTTPException, HTTPStatusError) as e:
-            logger.error(f"Unable to fetch OIDC token: {e}")
+            self._log.error(f"Unable to fetch OIDC token: {e}")
 
     async def send_start_request(self, analysis_props: dict, kong_token: str) -> tuple[dict | None, int] | None:
         """Start a new analysis pod via the PO."""
-        logger.info(f"Starting new analysis pod for {analysis_props['analysis_id']}")
+        self._log.info(f"Starting new analysis pod for {analysis_props['analysis_id']}")
 
         node_metadata = get_node_metadata_for_url(analysis_props["node_id"], core_client=self.core_client)
         analysis_info = get_registry_metadata_for_url(node_metadata, core_client=self.core_client)
 
         analysis_id = analysis_props["analysis_id"]
         project_id = analysis_props["project_id"]
-        event_metadata = {
-            "project_id": project_id,
-            "analysis_id": analysis_id,
-            "tags": [EventTag.PO],
-        }
 
         props = compile_analysis_pod_data(
             analysis_id=analysis_id,
@@ -282,60 +230,40 @@ class GoGoAnalysis:
                     headers=headers,
                     data=props,
                 )
-                logger.info(f"Analysis start response for {analysis_id}: {resp_data[analysis_id]}")
+                self._log.info(f"Analysis start response for {analysis_id}: {resp_data[analysis_id]}")
                 return resp_data, status_code
 
             except HTTPException as e:
-                msg = f"Unable to start analysis {analysis_id} due to the following error: {e}"
-                logger.error(msg)
-                self.log_analysis(event_metadata, body=msg, status_code=e.status_code)
+                self._log.error(f"Unable to start analysis {analysis_id} due to the following error: {e}")
                 return e.detail, e.status_code
 
             except HTTPStatusError as e:
-                msg = f"Unable to start analysis {analysis_id} due to the following error: {e.response.text}"
+                self._log.error(f"Unable to start analysis {analysis_id} due to the following error: {e.response.text}")
                 resp = {
                     "message": f"PodOrc encountered the following error: {e.response.text}",
                     "service": "PO",
                     "status_code": e.response.status_code,
                 }
-                logger.error(msg)
-                self.log_analysis(event_metadata, body=msg, status_code=e.response.status_code)
                 return resp, e.response.status_code
 
             except (ConnectError, RemoteProtocolError) as e:
-                msg = f"Pod Orchestrator unreachable - {e}"
-                logger.error(msg)
-                self.log_analysis(
-                    event_metadata,
-                    body=msg,
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                )
+                self._log.error(f"Pod Orchestrator unreachable - {e}")
                 return None, status.HTTP_500_INTERNAL_SERVER_ERROR
 
             except ReadTimeout:
-                logger.warning(
+                self._log.warning(
                     f"Analysis {analysis_props['analysis_id']} taking longer than usual to start, waiting 60 seconds"
                 )
                 time.sleep(60)
-                msg = "PodOrc failed to respond in time likely due to an image pull taking too long"
                 resp = {
-                    "message": msg,
+                    "message": "PodOrc failed to respond in time likely due to an image pull taking too long",
                     "service": "PO",
                     "status_code": status.HTTP_408_REQUEST_TIMEOUT,
                 }
-                self.log_analysis(
-                    event_metadata,
-                    body=msg,
-                    status_code=status.HTTP_408_REQUEST_TIMEOUT,
-                )
                 return resp, status.HTTP_408_REQUEST_TIMEOUT
 
         else:  # No token available or PO unreachable
-            self.log_analysis(
-                event_metadata,
-                body="PO failed to start the analysis due to a missing token or is unreachable",
-                status_code=status.HTTP_404_NOT_FOUND,
-            )
+            self._log.error("PO failed to start the analysis due to a missing token or is unreachable")
             return None, status.HTTP_404_NOT_FOUND
 
     async def fetch_analysis_status(self, analysis_id: uuid.UUID | str) -> dict | None:
@@ -346,17 +274,13 @@ class GoGoAnalysis:
 
         if headers:
             try:
-                resp_data, _ = await make_request(
-                    url=microsvc_path,
-                    method="get",
-                    headers=headers,
-                )
+                resp_data, _ = await make_request(url=microsvc_path, method="get", headers=headers, service="PodOrc")
 
             except HTTPException as e:
-                logger.error(f"Unable to fetch the status of analysis {analysis_id} due to the following error: {e}")
+                self._log.error(f"Unable to fetch the status of analysis {analysis_id} due to the following error: {e}")
 
             except ConnectError as e:
-                logger.error(f"Unable to contact the PO: {e}")
+                self._log.error(f"Unable to contact the PO: {e}")
 
         return resp_data
 
@@ -367,7 +291,7 @@ class GoGoAnalysis:
             kong_routes = await list_projects(settings=self.settings, detailed=False)
 
         except HTTPException as e:
-            logger.error(f"Route retrieval failed, unable to contact Kong: {e}")
+            self._log.error(f"Route retrieval failed, unable to contact Kong: {e}")
 
         valid_projects = set()
 
@@ -379,8 +303,8 @@ class GoGoAnalysis:
 
         return valid_projects
 
-    @staticmethod
     def parse_analyses(
+        self,
         analyses: list,
         valid_projects: set,
         datastore_required: bool = True,
@@ -410,7 +334,7 @@ class GoGoAnalysis:
             if datastore_required and is_valid:  # If aggregator, then skip this since kong route is not needed
                 is_valid = is_valid and project_id in valid_projects
                 if not is_valid:
-                    logger.info(
+                    self._log.info(
                         f"Cannot start analysis {analysis_id} because its project with ID {project_id} is not valid. "
                         f"Project is either not approved or missing a data store"
                     )
@@ -425,7 +349,7 @@ class GoGoAnalysis:
                 )
                 ready_analyses.add(valid_entry)
 
-        logger.info(f"Found {len(ready_analyses)} valid analyses ready to start")
+        self._log.info(f"Found {len(ready_analyses)} valid analyses ready to start")
         return ready_analyses
 
 
@@ -433,6 +357,7 @@ class AutostartManager:
     """Manages the autostart task lifecycle."""
 
     def __init__(self):
+        self._log = logging.LoggerAdapter(logger, {"service": "AutostartManager"})
         self._task: asyncio.Task | None = None
         self._enabled = False
 
@@ -444,13 +369,13 @@ class AutostartManager:
 
         if user_enabled and not self._enabled:
             # Start autostart task
-            logger.info(f"Starting autostart with interval {interval}s")
+            self._log.info(f"Starting autostart with interval {interval}s")
             self._task = asyncio.create_task(self._run_autostart(interval))
             self._enabled = True
 
         elif not user_enabled and self._enabled:
             # Stop autostart task
-            logger.info("Stopping autostart")
+            self._log.info("Stopping autostart")
             if self._task and not self._task.done():
                 self._task.cancel()
                 with suppress(asyncio.CancelledError):
@@ -466,20 +391,19 @@ class AutostartManager:
                 with suppress(asyncio.CancelledError):
                     await self._task
 
-            logger.info(f"Restarting autostart with new interval {interval}s")
+            self._log.info(f"Restarting autostart with new interval {interval}s")
             self._task = asyncio.create_task(self._run_autostart(interval))
 
-    @staticmethod
-    async def _run_autostart(interval: int) -> None:
+    async def _run_autostart(self, interval: int) -> None:
         """Run the autostart probing loop."""
         analysis_initiator = GoGoAnalysis()
         while True:
             try:
-                logger.info("Checking for new analyses to start")
+                self._log.info("Checking for new analyses to start")
                 await analysis_initiator.auto_start_analyses()
 
             except Exception as e:
-                logger.error(f"Error during autostart: {e}")
+                self._log.error(f"Error during autostart: {e}")
 
             await asyncio.sleep(interval)
 

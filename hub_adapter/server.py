@@ -4,18 +4,15 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
+import jwt
 import uvicorn
-from fastapi import FastAPI
-from node_event_logging import EventModelMap
+from fastapi import FastAPI, Request
 from starlette.middleware.cors import CORSMiddleware
-from starlette.requests import Request
 
-from hub_adapter import logging_config
+from hub_adapter import current_user_id, logging_config
 from hub_adapter.autostart import AutostartManager
 from hub_adapter.dependencies import get_settings
-from hub_adapter.event_logging import get_event_logger, teardown_event_logging
 from hub_adapter.routers.auth import auth_router
-from hub_adapter.routers.events import event_router
 from hub_adapter.routers.health import health_router
 from hub_adapter.routers.hub import hub_router
 from hub_adapter.routers.kong import kong_router
@@ -23,21 +20,15 @@ from hub_adapter.routers.meta import meta_router
 from hub_adapter.routers.node import node_router
 from hub_adapter.routers.podorc import po_router
 from hub_adapter.routers.storage import storage_router
-from hub_adapter.schemas.events import ANNOTATED_EVENTS
 
 logger = logging.getLogger(__name__)
 
-# Global autostart manager instance
 autostart_manager = AutostartManager()
 
 
 # API metadata
 tags_metadata = [
     {"name": "Auth", "description": "Endpoints for authorization specific tasks."},
-    {
-        "name": "Events",
-        "description": "Gateway endpoints for interacting with logged events.",
-    },
     {"name": "Hub", "description": "Gateway endpoints for the central Hub service."},
     {
         "name": "Health",
@@ -62,18 +53,11 @@ tags_metadata = [
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    EventModelMap.mapping = {event_name: event_data.get("model") for event_name, event_data in ANNOTATED_EVENTS.items()}
-
-    get_event_logger()  # Attempts to setup connections
-
-    # Initialize autostart based on settings
     await autostart_manager.update()
 
     yield
 
-    # Cleanup
     await autostart_manager.stop()
-    teardown_event_logging()
 
 
 app = FastAPI(
@@ -99,6 +83,24 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+
+@app.middleware("http")
+async def set_user_context(request: Request, call_next):
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header.removeprefix("Bearer ")
+
+        try:
+            claims = jwt.decode(token, options={"verify_signature": False})
+            user_id = claims.get("preferred_username") or claims.get("sub")
+            current_user_id.set(user_id)
+
+        except Exception:  # doesn't matter too much if it fails
+            pass
+
+    return await call_next(request)
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins="*",
@@ -107,23 +109,6 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["*"],
 )
-
-
-@app.middleware("http")
-async def event_logging_middleware(request: Request, call_next):
-    """Middleware to log the events."""
-    response = await call_next(request)
-
-    try:
-        middleware_logger = get_event_logger()
-        middleware_logger.log_fastapi_request(request, response.status_code, log_health_checks=False)
-
-    except AttributeError:
-        # Event logging not initialized, skip
-        pass
-
-    return response
-
 
 routers = (
     po_router,
@@ -134,7 +119,6 @@ routers = (
     kong_router,
     health_router,
     auth_router,
-    event_router,
 )
 
 for router in routers:

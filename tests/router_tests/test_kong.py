@@ -57,9 +57,9 @@ TEST_SVC_NAME = f"{TEST_MOCK_PROJECT_ID}-{DS_TYPE}"
 class TestKong:
     """Kong EP tests."""
 
-    def test_route_configs(self, test_client, mock_event_logger):
+    def test_route_configs(self, test_client):
         """Test end point configurations for the PodOrc gateway routes."""
-        check_routes(kong_router, EXPECTED_KONG_ROUTE_CONFIG, test_client, mock_event_logger)
+        check_routes(kong_router, EXPECTED_KONG_ROUTE_CONFIG, test_client)
 
     @patch("hub_adapter.routers.kong.kong_admin_client.ServicesApi.list_service")
     def test_get_data_stores(self, mock_svc, authorized_test_client):

@@ -9,13 +9,13 @@ be allowed to see other nodes participating in the current analysis.
 ## Testing
 
 This module assumes there is a running Keycloak instance available. One can be quickly created with an appropriate test
-realm and user using the [docker-compose file](./docker/docker-compose.yml) which will populate the keycloak instance
-using the [instance export file](docker/test-realm.json).
+realm and user using the [docker-compose file](docker/kong/docker-compose.yml) which will populate the keycloak instance
+using the [instance export file](docker/kong/test-realm.json).
 
 Once started, the API can be found at http://127.0.0.1:5000 with a GUI for the API available
 at http://127.0.0.1:5000/docs. Here,
 users must authorize themselves with the deployed keycloak instance
-(from the [docker-compose file](./docker/docker-compose.yml)) to run protected endpoints:
+(from the [docker-compose file](docker/kong/docker-compose.yml)) to run protected endpoints:
 
 * Test User: `flameuser`
 * Test pwd: `flamepwd`

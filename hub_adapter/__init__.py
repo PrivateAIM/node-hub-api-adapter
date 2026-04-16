@@ -1,8 +1,13 @@
 """Package initialization step."""
 
+import json
 import logging.config
 import sys
+from contextvars import ContextVar
+from datetime import UTC, datetime
 from pathlib import Path
+
+current_user_id: ContextVar[str | None] = ContextVar("current_user_id", default=None)
 
 root_dir = Path(__file__).parent.resolve()
 
@@ -13,42 +18,55 @@ node_id_pickle_path = cache_dir.joinpath("nodeId")
 
 
 # Logging
-class AnsiColorFormatter(logging.Formatter):
-    def format(self, record: logging.LogRecord):
-        no_style = "\033[0m"
-        bold = "\033[91m"
-        grey = "\033[90m"
-        yellow = "\033[93m"
-        red = "\033[31m"
-        red_light = "\033[91m"
-        start_style = {
-            "DEBUG": grey,
-            "INFO": no_style,
-            "WARNING": yellow,
-            "ERROR": red,
-            "CRITICAL": red_light + bold,
-        }.get(record.levelname, no_style)
-        end_style = no_style
-        return f"{start_style}{super().format(record)}{end_style}"
+class UserContextFilter(logging.Filter):
+    """Inject the current request's user_id into every log record."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        record.user_id = current_user_id.get()
+        return True
+
+
+class JsonFormatter(logging.Formatter):
+    """Emit each log record as a single JSON line for structured log ingestion."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        log = {
+            "timestamp": (
+                datetime.fromtimestamp(record.created, tz=UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+            ),
+            "level": record.levelname,
+            "logger": record.name,
+            "module": record.module,
+            "msg": record.getMessage(),
+            # Just for the Hub Adapter
+            "service": getattr(record, "service", "Unknown"),
+            "user_id": getattr(record, "user_id", None),
+        }
+
+        if record.exc_info:
+            log["error"] = self.formatException(record.exc_info)
+
+        return json.dumps(log, default=str)  # for non-serializable msgs
 
 
 log_dir = root_dir.joinpath("logs")
 log_dir.mkdir(parents=True, exist_ok=True)
 
-logging.basicConfig(
-    level=logging.INFO,
-)
-
 logging_config = {
     "version": 1,
     "disable_existing_loggers": False,
+    "filters": {
+        "user_context": {
+            "()": UserContextFilter,
+        },
+    },
     "formatters": {
         "file_formatter": {
             "format": "%(levelname)s - %(module)s:L%(lineno)d - %(asctime)s - %(message)s",
             "datefmt": "%Y-%m-%d %H:%M:%S",
         },
         "console_formatter": {
-            "()": AnsiColorFormatter,
+            "()": JsonFormatter,
             "format": "%(asctime)s [%(levelname)s] %(message)s",
             "datefmt": "%Y-%m-%d %H:%M:%S",
         },
@@ -62,12 +80,14 @@ logging_config = {
             "maxBytes": 4098 * 10,  # 4MB file max
             "backupCount": 5,
             "formatter": "file_formatter",
-            "level": "INFO",
+            "filters": ["user_context"],
+            "level": "DEBUG",
         },
         "console_handler": {
             "class": "logging.StreamHandler",
             "stream": sys.stdout,
             "formatter": "console_formatter",
+            "filters": ["user_context"],
             "level": "INFO",
         },
     },
