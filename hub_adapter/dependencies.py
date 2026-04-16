@@ -87,7 +87,7 @@ def get_flame_hub_auth_flow(
     return auth
 
 
-def make_log_hook(service: str):
+def make_log_hook(service: str, is_async: bool = False):
     """Return an httpx response event hook that logs with the given service label."""
 
     def log_response(response: httpx.Response) -> None:
@@ -100,7 +100,10 @@ def make_log_hook(service: str):
             service=service,
         )
 
-    return log_response
+    async def async_log_response(response: httpx.Response) -> None:
+        log_response(response)
+
+    return async_log_response if is_async else log_response
 
 
 def get_core_client(

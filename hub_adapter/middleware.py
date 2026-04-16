@@ -105,8 +105,10 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         event_name = route.name
         if not self.log_health_checks and event_name == "health.status.get":
             return response
+
         if event_name == "podorc.status.get":
             return response
+
         if event_name not in TRACKED_EVENTS:
             return response
 

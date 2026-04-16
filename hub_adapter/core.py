@@ -72,7 +72,7 @@ async def make_request(
     if not files:
         files = {}
 
-    event_hooks = {"response": [make_log_hook(service)]} if service else {}
+    event_hooks = {"response": [make_log_hook(service, is_async=True)]} if service else {}
     async with httpx.AsyncClient(headers=headers, timeout=60.0, mounts=None, event_hooks=event_hooks) as client:
         r = await client.request(
             url=url,

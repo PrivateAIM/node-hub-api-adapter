@@ -6,10 +6,9 @@ import logging
 from typing import Annotated
 
 import httpx
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Query
 from starlette import status
 
-from hub_adapter.conf import Settings
 from hub_adapter.constants import ServiceTag
 from hub_adapter.dependencies import get_settings, make_log_hook
 
@@ -65,7 +64,6 @@ def query_logs(query: str, params: dict | None = None):
     name="logs.events.get",
 )
 async def get_events(
-    settings: Annotated[Settings, Depends(get_settings)],
     limit: Annotated[int | None, Query(description="Maximum number of events to return")] = None,
     offset: Annotated[int | None, Query(description="Number of events to offset by")] = 0,
     service_tag: Annotated[ServiceTag | None, Query(description="Filter events by service tag")] = None,
