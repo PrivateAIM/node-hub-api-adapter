@@ -57,14 +57,19 @@ def log_event(
         If provided, the exception and its traceback are included in the log.
     """
 
+    resolved_user = user or current_user_id.get()
+    resolved_description = event_description or TRACKED_EVENTS.get(event_name, event_name)
+    if resolved_description and resolved_description.startswith("A user") and resolved_user:
+        resolved_description = resolved_user + resolved_description[len("A user"):]
+
     logger.log(
         level,
-        event_description or TRACKED_EVENTS.get(event_name, event_name),
+        resolved_description,
         exc_info=exc,
         extra={
             "event_name": event_name,
             "service": service,
-            "user": user or current_user_id.get(),
+            "user": resolved_user,
             "status_code": status_code,
         },
     )
