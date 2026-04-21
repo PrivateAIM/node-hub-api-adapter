@@ -13,12 +13,37 @@ from hub_adapter.schemas.kong import (
     ListRoutes,
     ListServices,
 )
+from hub_adapter.schemas.logs import EventLogResponse
 from hub_adapter.schemas.podorc import (
     CleanupPodResponse,
     LogResponse,
     PodProgressResponse,
     PodResponse,
     StatusOnlyResponse,
+)
+
+EXPECTED_LOGS_ROUTE_CONFIG = (
+    {
+        "path": "/events",
+        "name": "logs.events.get",
+        "methods": {"GET"},
+        "status_code": 200,
+        "response_model": EventLogResponse,
+    },
+    {
+        "path": "/events/signin",
+        "name": "auth.user.signin",
+        "methods": {"POST"},
+        "status_code": 201,
+        "response_model": None,
+    },
+    {
+        "path": "/events/signout",
+        "name": "auth.user.signout",
+        "methods": {"POST"},
+        "status_code": 201,
+        "response_model": None,
+    },
 )
 
 EXPECTED_META_ROUTE_CONFIG = (

@@ -6,7 +6,7 @@ import logging
 from typing import Annotated
 
 import httpx
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 from starlette import status
 
 from hub_adapter.constants import ServiceTag
@@ -111,6 +111,13 @@ async def get_events(
     ] = None,
 ):
     """Retrieve a selection of logged events."""
+    settings = get_settings()
+    if not settings.victoria_logs_url:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Event log service is not configured",
+        )
+
     query_parts = ["log.event_name:*"]
 
     if service_tag:
