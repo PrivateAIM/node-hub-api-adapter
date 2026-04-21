@@ -6,9 +6,10 @@ import logging
 from typing import Annotated
 
 import httpx
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Security
 from starlette import status
 
+from hub_adapter.auth import verify_idp_token, jwtbearer
 from hub_adapter.constants import ServiceTag
 from hub_adapter.dependencies import get_settings, make_log_hook
 from hub_adapter.schemas.logs import EventLogResponse
@@ -16,10 +17,10 @@ from hub_adapter.schemas.logs import EventLogResponse
 logger = logging.getLogger(__name__)
 
 logs_router = APIRouter(
-    # dependencies=[
-    #     Security(verify_idp_token),
-    #     Security(jwtbearer),
-    # ],
+    dependencies=[
+        Security(verify_idp_token),
+        Security(jwtbearer),
+    ],
     tags=[ServiceTag.LOGS],
     responses={404: {"description": "Not found"}},
 )

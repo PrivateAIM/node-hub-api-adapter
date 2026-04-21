@@ -2,8 +2,6 @@ import datetime
 
 from pydantic import BaseModel
 
-from hub_adapter.constants import ServiceTag
-
 
 class EventLog(BaseModel):
     """Event log response model."""
@@ -11,7 +9,7 @@ class EventLog(BaseModel):
     image: str
     component: str
     event_name: str
-    service: ServiceTag
+    service: str
     level: str
     timestamp: datetime.datetime
     message: str
