@@ -1,6 +1,8 @@
 import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+
+from hub_adapter.constants import ServiceTag
 
 
 class EventLog(BaseModel):
@@ -9,11 +11,19 @@ class EventLog(BaseModel):
     image: str
     component: str
     event_name: str
-    service: str
+    service: ServiceTag
     level: str
     timestamp: datetime.datetime
     message: str
     user: str | None = None
+
+    @field_validator("service", mode="before")
+    @classmethod
+    def coerce_service(cls, v: object) -> ServiceTag:
+        try:
+            return ServiceTag(v)
+        except ValueError:
+            return ServiceTag.UNKNOWN
 
 
 class Meta(BaseModel):

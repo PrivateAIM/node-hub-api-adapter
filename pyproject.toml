@@ -9,7 +9,7 @@ requires-python = ">=3.12"
 dependencies = [
     "uvicorn>=0.38.0",
     "fastapi>=0.120.1",
-    "flame-hub-client==0.2.14",
+    "flame-hub-client==0.2.15",
     "click>=8.1.7",
     "python-multipart>=0.0.26",
     "httpx>=0.28.0",
