@@ -247,15 +247,27 @@ def get_registry_metadata_for_url(
         )
 
     except HubAPIError as err:
-        err_msg = f"Registry Project {node_metadata.registry_project_id} not found"
-        logger.error(err_msg)
         if err.error_response.status_code == status.HTTP_404_NOT_FOUND:
+            err_msg = f"Registry Project {node_metadata.registry_project_id} not found"
+            logger.error(err_msg)
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={
                     "message": err_msg,
                     "service": "Hub",
                     "status_code": status.HTTP_404_NOT_FOUND,
+                },
+                headers={"WWW-Authenticate": "Bearer"},
+            ) from err
+
+        else:
+            logger.error(err.error_response.message)
+            raise HTTPException(
+                status_code=err.error_response.status_code,
+                detail={
+                    "message": err.error_response.message,
+                    "service": "Hub",
+                    "status_code": err.error_response.status_code,
                 },
                 headers={"WWW-Authenticate": "Bearer"},
             ) from err
