@@ -32,6 +32,7 @@ PODORC_SERVICE_URL="http://localhost:18080"  # URL to Pod Orchestration service
 STORAGE_SERVICE_URL="http://localhost:8000"  # URL to the Storage service
 KONG_ADMIN_SERVICE_URL="http://localhost:8000"  # URL to the Kong admin service
 KONG_PROXY_SERVICE_URL="http://localhost:8000"  # URL to the Kong proxy service
+VICTORIA_LOGS_URL="http://localhost:9428"  # URL to the VictoriaLogs service for event log queries
 HUB_AUTH_SERVICE_URL="https://auth.privateaim.dev"  # URL for auth EPs for the Hub
 HUB_SERVICE_URL="https://core.privateaim.dev"  # URL for project/analysis EPs for the Hub
 HUB_NODE_CLIENT_ID=""  # Client UUID for a registered node
@@ -60,6 +61,7 @@ RESEARCHER_ROLE="researcher"  # Role name for users who can only modify analyses
 | STORAGE_SERVICE_URL     | URL to the Storage service                                                                                        |                             |    x     |
 | KONG_ADMIN_SERVICE_URL  | URL to the Kong admin service                                                                                     |                             |    x     |
 | KONG_PROXY_SERVICE_URL  | URL to the Kong proxy service                                                                                     |                             |    x     |
+| VICTORIA_LOGS_URL       | URL to the VictoriaLogs service used for event log queries                                                        |                             |          |
 | HUB_SERVICE_URL         | URL to the core Hub service                                                                                       | https://core.privateaim.dev |    x     |
 | HUB_AUTH_SERVICE_URL    | URL to the auth Hub service                                                                                       | https://auth.privateaim.dev |    x     |
 | HUB_NODE_CLIENT_ID      | Client UUID for a registered node                                                                                 |                             |    x     |

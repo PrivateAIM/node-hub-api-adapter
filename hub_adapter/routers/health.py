@@ -9,11 +9,12 @@ from httpx import ConnectError
 from starlette import status
 
 from hub_adapter.conf import Settings
+from hub_adapter.constants import ServiceTag
 from hub_adapter.dependencies import get_settings
 from hub_adapter.schemas.health import DownstreamHealthCheck, HealthCheck
 
 health_router = APIRouter(
-    tags=["Health"],
+    tags=[ServiceTag.HEALTH],
 )
 
 logger = logging.getLogger(__name__)
@@ -25,7 +26,7 @@ logger = logging.getLogger(__name__)
     response_description="Return HTTP Status Code 200 (OK)",
     status_code=status.HTTP_200_OK,
     response_model=HealthCheck,
-    
+    name="health.status.get",
 )
 async def get_health() -> HealthCheck:
     """
@@ -46,7 +47,7 @@ async def get_health() -> HealthCheck:
     response_description="Return HTTP Status code for downstream services",
     status_code=status.HTTP_200_OK,
     response_model=DownstreamHealthCheck,
-    
+    name="health.status.services.get",
 )
 def get_health_downstream_services(
     settings: Annotated[Settings, Depends(get_settings)],

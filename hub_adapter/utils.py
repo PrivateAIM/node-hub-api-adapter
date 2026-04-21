@@ -5,7 +5,7 @@ import os
 import jwt
 from fastapi import UploadFile
 from fastapi.routing import serialize_response
-from starlette.datastructures import FormData
+from starlette.datastructures import FormData, QueryParams
 from starlette.requests import Request
 
 from hub_adapter.user_settings import load_persistent_settings
@@ -27,7 +27,7 @@ async def serialize_query_content(key, value) -> dict:
 async def unzip_query_params(
     additional_params: dict,
     necessary_params: list[str] | None = None,
-    req_params: dict | None = None,
+    req_params: dict | QueryParams | None = None,
 ) -> dict:
     """Prepare query parameters to be added to URL of downstream microservice."""
     response_query_params = {}

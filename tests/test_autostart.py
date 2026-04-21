@@ -1,8 +1,9 @@
 """Collection of unit tests for testing autostart operation."""
 
 import asyncio
+import logging
 from contextlib import suppress
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
@@ -51,12 +52,13 @@ class TestAutostart:
         assert resp == (KONG_ANALYSIS_SUCCESS_RESP, status.HTTP_201_CREATED)
 
     @pytest.mark.asyncio
-    @patch("hub_adapter.autostart.logger")
+    @patch("hub_adapter.autostart.log_event")
     @patch("hub_adapter.autostart.GoGoAnalysis.pod_running")
     @patch("hub_adapter.autostart.create_and_connect_analysis_to_project")
-    async def test_register_analysis_conflict_pod_exists(self, mock_create_and_connect, mock_pod_running, mock_logger):
+    async def test_register_analysis_conflict_pod_exists(
+        self, mock_create_and_connect, mock_pod_running, mock_log_event
+    ):
         """Test registering an analysis with kong and there is already a pod running."""
-        self.analyzer._log = mock_logger
         # Pod exists already
         mock_create_and_connect.side_effect = KongConflictError(
             status_code=status.HTTP_409_CONFLICT, detail={"message": "Conflict"}
@@ -65,28 +67,31 @@ class TestAutostart:
         pod_exists_resp = await self.analyzer.register_analysis(TEST_MOCK_ANALYSIS_ID, TEST_MOCK_PROJECT_ID)
 
         # check logs
-        assert mock_logger.info.call_count == 2  # Attempt log and pod exists log
-        assert mock_logger.warning.call_count == 1
-        mock_logger.warning.assert_called_with(
-            f"Analysis {TEST_MOCK_ANALYSIS_ID} already registered, checking if pod exists..."
+        mock_log_event.assert_any_call(
+            "autostart.analysis.conflict",
+            event_description=f"Analysis {TEST_MOCK_ANALYSIS_ID} already registered, checking if pod exists...",
+            level=logging.WARNING,
+            service=ANY,
         )
-        mock_logger.info.assert_called_with(
-            f"Pod already exists for analysis {TEST_MOCK_ANALYSIS_ID}, skipping start sequence"
+        mock_log_event.assert_any_call(
+            "autostart.analysis.already_running",
+            event_description=f"Pod already exists for analysis {TEST_MOCK_ANALYSIS_ID}, skipping start sequence",
+            level=logging.INFO,
+            service=ANY,
         )
 
         # Return None if pod already exists
         assert pod_exists_resp == (None, 409)
 
     @pytest.mark.asyncio
-    @patch("hub_adapter.autostart.logger")
+    @patch("hub_adapter.autostart.log_event")
     @patch("hub_adapter.autostart.GoGoAnalysis.pod_running")
     @patch("hub_adapter.autostart.delete_analysis")
     @patch("hub_adapter.autostart.create_and_connect_analysis_to_project")
     async def test_register_analysis_conflict_no_pod(
-        self, mock_create_and_connect, mock_delete_analysis, mock_pod_running, mock_logger
+        self, mock_create_and_connect, mock_delete_analysis, mock_pod_running, mock_log_event
     ):
         """Test registering an analysis with kong and there is a conflict but no pod running."""
-        self.analyzer._log = mock_logger
         # No pod found, but consumer found, and delete was successful
         mock_create_and_connect.side_effect = KongConflictError(
             status_code=status.HTTP_409_CONFLICT, detail={"message": "Conflict"}
@@ -100,34 +105,44 @@ class TestAutostart:
         )
 
         # check logs
-        assert mock_logger.info.call_count == max_attempts * 2
-        assert mock_logger.warning.call_count == max_attempts
-        mock_logger.warning.assert_called_with(
-            f"Analysis {TEST_MOCK_ANALYSIS_ID} already registered, checking if pod exists..."
+        mock_log_event.assert_any_call(
+            "autostart.analysis.conflict",
+            event_description=f"Analysis {TEST_MOCK_ANALYSIS_ID} already registered, checking if pod exists...",
+            level=logging.WARNING,
+            service=ANY,
         )
-        mock_logger.info.assert_called_with(
-            f"No pod found for {TEST_MOCK_ANALYSIS_ID}, will delete kong consumer and retry"
+        mock_log_event.assert_any_call(
+            "autostart.analysis.orphan_cleanup",
+            event_description=f"No pod found for {TEST_MOCK_ANALYSIS_ID}, will delete kong consumer and retry",
+            level=logging.INFO,
+            service=ANY,
         )
-        mock_logger.error.assert_called_with(
-            f"Failed to start analysis {TEST_MOCK_ANALYSIS_ID} after {max_attempts} attempts"
+        mock_log_event.assert_any_call(
+            "autostart.analysis.max_retries",
+            event_description=f"Failed to start analysis {TEST_MOCK_ANALYSIS_ID} after {max_attempts} attempts",
+            level=logging.ERROR,
+            service=ANY,
         )
 
         # Return None if pod already exists
         assert pod_exists_resp == (None, 409)
 
     @pytest.mark.asyncio
-    @patch("hub_adapter.autostart.logger")
+    @patch("hub_adapter.autostart.log_event")
     @patch("hub_adapter.autostart.create_and_connect_analysis_to_project")
-    async def test_register_analysis_missing_datastore(self, mock_create_and_connect, mock_logger):
+    async def test_register_analysis_missing_datastore(self, mock_create_and_connect, mock_log_event):
         """Test registering an analysis with kong and data store is missing."""
-        self.analyzer._log = mock_logger
         fake_err_msg = "Not found"
         mock_create_and_connect.side_effect = KongConnectError(
             status_code=status.HTTP_404_NOT_FOUND, detail={"message": fake_err_msg}
         )
         missing_db_resp = await self.analyzer.register_analysis(TEST_MOCK_ANALYSIS_ID, TEST_MOCK_PROJECT_ID)
-        assert mock_logger.error.call_count == 1
-        mock_logger.error.assert_called_with(f"{fake_err_msg}, failed to start analysis {TEST_MOCK_ANALYSIS_ID}")
+        mock_log_event.assert_any_call(
+            "autostart.analysis.register_error",
+            event_description=f"{fake_err_msg}, failed to start analysis {TEST_MOCK_ANALYSIS_ID}",
+            level=logging.ERROR,
+            service=ANY,
+        )
         assert missing_db_resp == (None, 404)
 
     @patch("hub_adapter.autostart.GoGoAnalysis.fetch_analysis_status")
@@ -147,12 +162,11 @@ class TestAutostart:
         pod_running_error = await self.analyzer.pod_running(TEST_MOCK_ANALYSIS_ID)
         assert pod_running_error is None
 
-    @patch("hub_adapter.autostart.logger")
+    @patch("hub_adapter.autostart.log_event")
     @patch("hub_adapter.autostart._get_internal_token")
     @pytest.mark.asyncio
-    async def test_fetch_token_header(self, mock_fetch_token, mock_logger):
+    async def test_fetch_token_header(self, mock_fetch_token, mock_log_event):
         """Test checking whether the pod is running."""
-        self.analyzer._log = mock_logger
         # Success
         mock_fetch_token.return_value = {"Authorization": "Bearer test_token"}
         token_resp = await self.analyzer.fetch_token_header()
@@ -164,7 +178,12 @@ class TestAutostart:
         )
         no_connect_error_resp = await self.analyzer.fetch_token_header()
         assert no_connect_error_resp is None
-        mock_logger.error.assert_called_with("Unable to fetch OIDC token: 503: IDP can't be reached")
+        mock_log_event.assert_any_call(
+            "autostart.token.error",
+            event_description="Unable to fetch OIDC token: 503: IDP can't be reached",
+            level=logging.ERROR,
+            service=ANY,
+        )
 
         mock_fetch_token.side_effect = HTTPStatusError(
             message="IDP exchange failed",
@@ -173,9 +192,14 @@ class TestAutostart:
         )
         exchange_error_resp = await self.analyzer.fetch_token_header()
         assert exchange_error_resp is None
-        mock_logger.error.assert_called_with("Unable to fetch OIDC token: IDP exchange failed")
+        mock_log_event.assert_any_call(
+            "autostart.token.error",
+            event_description="Unable to fetch OIDC token: IDP exchange failed",
+            level=logging.ERROR,
+            service=ANY,
+        )
 
-    @patch("hub_adapter.autostart.logger")
+    @patch("hub_adapter.autostart.log_event")
     @patch("hub_adapter.autostart.make_request")
     @patch("hub_adapter.autostart.GoGoAnalysis.fetch_token_header")
     @patch("hub_adapter.autostart.compile_analysis_pod_data")
@@ -183,10 +207,9 @@ class TestAutostart:
     @patch("hub_adapter.autostart.get_registry_metadata_for_url")
     @pytest.mark.asyncio
     async def test_send_start_request(
-        self, mock_registry_metadata, mock_node_metadata, mock_pod_data, mock_token_header, mock_request, mock_logger
+        self, mock_registry_metadata, mock_node_metadata, mock_pod_data, mock_token_header, mock_request, mock_log_event
     ):
         """Test starting an analysis pod."""
-        self.analyzer._log = mock_logger
         # These first methods are for feeding into one another
         mock_registry_metadata.return_value = {}  # Not needed
         mock_node_metadata.return_value = {}  # Not needed
@@ -202,8 +225,12 @@ class TestAutostart:
         # Working
         mock_request.return_value = {TEST_MOCK_ANALYSIS_ID: "executing"}, status.HTTP_201_CREATED
         pod_resp, status_code = await self.analyzer.send_start_request(sim_input, "fakeKongToken")
-        assert mock_logger.info.call_count == 2
-        mock_logger.info.assert_called_with(f"Analysis start response for {TEST_MOCK_ANALYSIS_ID}: executing")
+        mock_log_event.assert_any_call(
+            "autostart.analysis.start_response",
+            event_description=f"Analysis start response for {TEST_MOCK_ANALYSIS_ID}: executing",
+            level=logging.INFO,
+            service=ANY,
+        )
         assert pod_resp == {TEST_MOCK_ANALYSIS_ID: "executing"}
         assert status_code == status.HTTP_201_CREATED
 
@@ -211,19 +238,20 @@ class TestAutostart:
         po_err_msg = "she's dead jim"
         mock_request.side_effect = HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=po_err_msg)
         pod_failed_resp = await self.analyzer.send_start_request(sim_input, "fakeKongToken")
-        assert mock_logger.error.call_count == 1
-        mock_logger.error.assert_called_with(
-            f"Unable to start analysis {TEST_MOCK_ANALYSIS_ID} due to the following error: 503: she's dead jim"
+        mock_log_event.assert_any_call(
+            "autostart.analysis.start_error",
+            event_description=f"Unable to start analysis {TEST_MOCK_ANALYSIS_ID} due to the following error: 503: she's dead jim",
+            level=logging.ERROR,
+            service=ANY,
         )
         assert pod_failed_resp == (po_err_msg, status.HTTP_503_SERVICE_UNAVAILABLE)
 
     @pytest.mark.asyncio
-    @patch("hub_adapter.autostart.logger")
+    @patch("hub_adapter.autostart.log_event")
     @patch("hub_adapter.autostart.make_request")
     @patch("hub_adapter.autostart.GoGoAnalysis.fetch_token_header")
-    async def test_fetch_analysis_status(self, mock_header, mock_request, mock_logger):
+    async def test_fetch_analysis_status(self, mock_header, mock_request, mock_log_event):
         """Test fetching the status of an analysis."""
-        self.analyzer._log = mock_logger
         mock_header.return_value = {"foo"}  # Just need something
 
         # Success
@@ -236,25 +264,29 @@ class TestAutostart:
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="she's dead jim"
         )
         status_http_failed_resp = await self.analyzer.fetch_analysis_status(TEST_MOCK_ANALYSIS_ID)
-        assert mock_logger.error.call_count == 1
-        mock_logger.error.assert_called_with(
-            f"Unable to fetch the status of analysis {TEST_MOCK_ANALYSIS_ID} due "
-            f"to the following error: 503: she's dead jim"
+        mock_log_event.assert_any_call(
+            "autostart.analysis.status_error",
+            event_description=f"Unable to fetch the status of analysis {TEST_MOCK_ANALYSIS_ID} due to the following error: 503: she's dead jim",
+            level=logging.ERROR,
+            service=ANY,
         )
         assert status_http_failed_resp is None
 
         mock_request.side_effect = ConnectError(message="Connection failure")
         status_connect_failed_resp = await self.analyzer.fetch_analysis_status(TEST_MOCK_ANALYSIS_ID)
-        assert mock_logger.error.call_count == 2  # Includes the error above
-        mock_logger.error.assert_called_with("Unable to contact the PO: Connection failure")
+        mock_log_event.assert_any_call(
+            "autostart.podorc.unreachable",
+            event_description="Unable to contact the PO: Connection failure",
+            level=logging.ERROR,
+            service=ANY,
+        )
         assert status_connect_failed_resp is None
 
     @pytest.mark.asyncio
-    @patch("hub_adapter.autostart.logger")
+    @patch("hub_adapter.autostart.log_event")
     @patch("hub_adapter.autostart.list_projects")
-    async def test_get_valid_projects(self, mock_projects, mock_logger):
+    async def test_get_valid_projects(self, mock_projects, mock_log_event):
         """Test getting and parsing projects (routes) from kong."""
-        self.analyzer._log = mock_logger
         # Success
         mock_projects.return_value = ListRoute200Response(**KONG_GET_ROUTE_RESPONSE)
         projects = await self.analyzer.get_valid_projects()
@@ -265,7 +297,12 @@ class TestAutostart:
         mock_projects.side_effect = HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Kong off")
         no_projects = await self.analyzer.get_valid_projects()
         assert no_projects == set()
-        mock_logger.error.assert_called_with("Route retrieval failed, unable to contact Kong: 503: Kong off")
+        mock_log_event.assert_any_call(
+            "autostart.kong.route_error",
+            event_description="Route retrieval failed, unable to contact Kong: 503: Kong off",
+            level=logging.ERROR,
+            service=ANY,
+        )
 
     def test_parse_analyses(self):
         """Test parsing analyses choosing whether they should be started i.e. built but no run status."""
@@ -315,7 +352,7 @@ class TestAutostartErrorAndEvents:
         mock_get_node_id.assert_called_once()
         mock_node_type_cache.assert_called_once()
 
-    @patch("hub_adapter.autostart.logger")
+    @patch("hub_adapter.autostart.log_event")
     @patch("hub_adapter.autostart.make_request")
     @patch("hub_adapter.autostart.GoGoAnalysis.fetch_token_header")
     @patch("hub_adapter.autostart.compile_analysis_pod_data")
@@ -323,10 +360,15 @@ class TestAutostartErrorAndEvents:
     @patch("hub_adapter.autostart.get_registry_metadata_for_url")
     @pytest.mark.asyncio
     async def test_send_start_request_http_status_error(
-        self, mock_registry_metadata, mock_node_metadata, mock_pod_data, mock_token_header, mock_request, mock_logger
+        self,
+        mock_registry_metadata,
+        mock_node_metadata,
+        mock_pod_data,
+        mock_token_header,
+        mock_request,
+        mock_log_event,
     ):
         """Test send_start_request with HTTPStatusError."""
-        self.analyzer._log = mock_logger
         mock_registry_metadata.return_value = {}
         mock_node_metadata.return_value = {}
         mock_pod_data.return_value = {}
@@ -348,9 +390,9 @@ class TestAutostartErrorAndEvents:
 
         assert status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
         assert resp["message"] == "PodOrc encountered the following error: Internal error"
-        mock_logger.error.assert_called_once()
+        mock_log_event.assert_called()
 
-    @patch("hub_adapter.autostart.logger")
+    @patch("hub_adapter.autostart.log_event")
     @patch("hub_adapter.autostart.make_request")
     @patch("hub_adapter.autostart.GoGoAnalysis.fetch_token_header")
     @patch("hub_adapter.autostart.compile_analysis_pod_data")
@@ -358,10 +400,15 @@ class TestAutostartErrorAndEvents:
     @patch("hub_adapter.autostart.get_registry_metadata_for_url")
     @pytest.mark.asyncio
     async def test_send_start_request_connect_error(
-        self, mock_registry_metadata, mock_node_metadata, mock_pod_data, mock_token_header, mock_request, mock_logger
+        self,
+        mock_registry_metadata,
+        mock_node_metadata,
+        mock_pod_data,
+        mock_token_header,
+        mock_request,
+        mock_log_event,
     ):
         """Test send_start_request with ConnectError."""
-        self.analyzer._log = mock_logger
         mock_registry_metadata.return_value = {}
         mock_node_metadata.return_value = {}
         mock_pod_data.return_value = {}
@@ -379,16 +426,15 @@ class TestAutostartErrorAndEvents:
 
         assert status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
         assert resp is None
-        mock_logger.error.assert_called_once()
+        mock_log_event.assert_called()
 
-    @patch("hub_adapter.autostart.logger")
     @patch("hub_adapter.autostart.GoGoAnalysis.fetch_token_header")
     @patch("hub_adapter.autostart.compile_analysis_pod_data")
     @patch("hub_adapter.autostart.get_node_metadata_for_url")
     @patch("hub_adapter.autostart.get_registry_metadata_for_url")
     @pytest.mark.asyncio
     async def test_send_start_request_no_token(
-        self, mock_registry_metadata, mock_node_metadata, mock_pod_data, mock_token_header, mock_logger
+        self, mock_registry_metadata, mock_node_metadata, mock_pod_data, mock_token_header
     ):
         """Test send_start_request when token header is None."""
         mock_token_header.return_value = None
@@ -443,8 +489,7 @@ class TestAutostartErrorAndEvents:
         result = await self.analyzer.pod_running(TEST_MOCK_ANALYSIS_ID)
         assert result is False
 
-    @patch("hub_adapter.autostart.logger")
-    def test_parse_analyses_no_datastore_required(self, mock_logger):
+    def test_parse_analyses_no_datastore_required(self):
         """Test parse_analyses when datastore is not required."""
         formatted_analyses = [AnalysisNode(**analysis) for analysis in ANALYSIS_NODES_RESP]
         ready_analyses = self.analyzer.parse_analyses(
@@ -454,8 +499,7 @@ class TestAutostartErrorAndEvents:
         assert len(ready_analyses) >= 1
         assert isinstance(ready_analyses, set)
 
-    @patch("hub_adapter.autostart.logger")
-    def test_parse_analyses_without_time_check(self, mock_logger):
+    def test_parse_analyses_without_time_check(self):
         """Test parse_analyses when time and status check is disabled."""
         formatted_analyses = [AnalysisNode(**analysis) for analysis in ANALYSIS_NODES_RESP]
         ready_analyses = self.analyzer.parse_analyses(
@@ -465,15 +509,13 @@ class TestAutostartErrorAndEvents:
         # Should include analyses that are approved and executed regardless of time
         assert len(ready_analyses) >= 1
 
-    @patch("hub_adapter.autostart.logger")
-    def test_parse_analyses_empty_list(self, mock_logger):
+    def test_parse_analyses_empty_list(self):
         """Test parse_analyses with empty analysis list."""
         ready_analyses = self.analyzer.parse_analyses([], {TEST_MOCK_PROJECT_ID})
         assert len(ready_analyses) == 0
         assert isinstance(ready_analyses, set)
 
-    @patch("hub_adapter.autostart.logger")
-    def test_parse_analyses_no_valid_projects(self, mock_logger):
+    def test_parse_analyses_no_valid_projects(self):
         """Test parse_analyses with no valid projects."""
         formatted_analyses = [AnalysisNode(**analysis) for analysis in ANALYSIS_NODES_RESP]
         ready_analyses = self.analyzer.parse_analyses(formatted_analyses, set())
@@ -493,14 +535,13 @@ class TestAutostartManager:
         assert manager._enabled is False
 
     @patch("hub_adapter.autostart.load_persistent_settings")
-    @patch("hub_adapter.autostart.logger")
+    @patch("hub_adapter.autostart.log_event")
     @pytest.mark.asyncio
-    async def test_autostart_manager_update_start(self, mock_logger, mock_load_settings):
+    async def test_autostart_manager_update_start(self, mock_log_event, mock_load_settings):
         """Test AutostartManager starting autostart."""
         from hub_adapter.autostart import AutostartManager
 
         manager = AutostartManager()
-        manager._log = mock_logger
         mock_settings = MagicMock()
         mock_settings.autostart.enabled = True
         mock_settings.autostart.interval = 30
@@ -511,15 +552,15 @@ class TestAutostartManager:
 
             assert manager._enabled is True
             assert manager._task is not None
-            mock_logger.info.assert_called()
+            mock_log_event.assert_called()
 
         # Clean up
         await manager.stop()
 
     @patch("hub_adapter.autostart.load_persistent_settings")
-    @patch("hub_adapter.autostart.logger")
+    @patch("hub_adapter.autostart.log_event")
     @pytest.mark.asyncio
-    async def test_autostart_manager_update_stop(self, mock_logger, mock_load_settings):
+    async def test_autostart_manager_update_stop(self, mock_log_event, mock_load_settings):
         """Test AutostartManager stopping autostart."""
         from hub_adapter.autostart import AutostartManager
 
@@ -542,9 +583,9 @@ class TestAutostartManager:
             assert manager._enabled is False
 
     @patch("hub_adapter.autostart.load_persistent_settings")
-    @patch("hub_adapter.autostart.logger")
+    @patch("hub_adapter.autostart.log_event")
     @pytest.mark.asyncio
-    async def test_autostart_manager_update_restart(self, mock_logger, mock_load_settings):
+    async def test_autostart_manager_update_restart(self, mock_log_event, mock_load_settings):
         """Test AutostartManager restart with changed interval."""
         from hub_adapter.autostart import AutostartManager
 
@@ -571,9 +612,9 @@ class TestAutostartManager:
         # Clean up
         await manager.stop()
 
-    @patch("hub_adapter.autostart.logger")
+    @patch("hub_adapter.autostart.log_event")
     @pytest.mark.asyncio
-    async def test_autostart_manager_stop(self, mock_logger):
+    async def test_autostart_manager_stop(self, mock_log_event):
         """Test AutostartManager stop."""
         from hub_adapter.autostart import AutostartManager
 
@@ -586,14 +627,13 @@ class TestAutostartManager:
         assert manager._enabled is False
 
     @patch("hub_adapter.autostart.load_persistent_settings")
-    @patch("hub_adapter.autostart.logger")
+    @patch("hub_adapter.autostart.log_event")
     @pytest.mark.asyncio
-    async def test_autostart_manager_run_autostart_error_handling(self, mock_logger, mock_load_settings):
+    async def test_autostart_manager_run_autostart_error_handling(self, mock_log_event, mock_load_settings):
         """Test _run_autostart error handling."""
         from hub_adapter.autostart import AutostartManager
 
         manager = AutostartManager()
-        manager._log = mock_logger
         mock_settings = MagicMock()
         mock_settings.autostart.enabled = True
         mock_settings.autostart.interval = 1
@@ -614,7 +654,7 @@ class TestAutostartManager:
                 await task
 
             # Should have logged the error
-            mock_logger.error.assert_called()
+            mock_log_event.assert_called()
 
 
 class TestAutostartWithRemoteProtocolError:
@@ -632,7 +672,7 @@ class TestAutostartWithRemoteProtocolError:
         """Clean up patches."""
         self.gather_deps_patcher.stop()
 
-    @patch("hub_adapter.autostart.logger")
+    @patch("hub_adapter.autostart.log_event")
     @patch("hub_adapter.autostart.make_request")
     @patch("hub_adapter.autostart.GoGoAnalysis.fetch_token_header")
     @patch("hub_adapter.autostart.compile_analysis_pod_data")
@@ -640,7 +680,13 @@ class TestAutostartWithRemoteProtocolError:
     @patch("hub_adapter.autostart.get_registry_metadata_for_url")
     @pytest.mark.asyncio
     async def test_send_start_request_remote_protocol_error(
-        self, mock_registry_metadata, mock_node_metadata, mock_pod_data, mock_token_header, mock_request, mock_logger
+        self,
+        mock_registry_metadata,
+        mock_node_metadata,
+        mock_pod_data,
+        mock_token_header,
+        mock_request,
+        mock_log_event,
     ):
         """Test send_start_request with RemoteProtocolError."""
         mock_registry_metadata.return_value = {}

@@ -12,8 +12,9 @@ from httpx import ConnectError, DecodingError, HTTPStatusError, ReadTimeout
 from starlette.responses import FileResponse, Response
 
 from hub_adapter import post_processing, pre_processing
-from hub_adapter.constants import CONTENT_TYPE
+from hub_adapter.constants import CONTENT_TYPE, ServiceTag
 from hub_adapter.dependencies import get_settings
+from hub_adapter.dependencies import make_log_hook
 from hub_adapter.utils import (
     create_request_data,
     unzip_body_object,
@@ -33,7 +34,8 @@ async def make_request(
     data: dict | None = None,
     files: dict | None = None,
     file_response: bool = False,
-    service: str | None = None,
+    service: ServiceTag | None = None,
+    request_name: str | None = None,
 ) -> tuple[[JSONResponse | StreamingResponse], int] | tuple[FileResponse, int]:
     """Make an asynchronous request by creating a temporary session.
 
@@ -55,6 +57,8 @@ async def make_request(
         Whether a file or stream data is expected as the response. Defaults to False
     service : str | None
         Name of the service to include in the log.
+    request_name : str | None
+        Name of the request used to fetch its description in the case that it is an event.
 
     Returns
     -------
@@ -71,7 +75,8 @@ async def make_request(
     if not files:
         files = {}
 
-    async with httpx.AsyncClient(headers=headers, timeout=60.0, mounts=None) as client:
+    event_hooks = {"response": [make_log_hook(service, is_async=True, event_name=request_name)]} if service else {}
+    async with httpx.AsyncClient(headers=headers, timeout=60.0, mounts=None, event_hooks=event_hooks) as client:
         r = await client.request(
             url=url,
             method=method,
@@ -79,11 +84,6 @@ async def make_request(
             json=data,
             files=files,
             follow_redirects=True,
-        )
-
-        logger.info(
-            f'HTTP Request: {method.upper()} {r.url} "{r.http_version} {r.status_code}"',
-            extra={"service": service} if service else {},
         )
 
         r.raise_for_status()
@@ -111,6 +111,7 @@ def route(
     request_method,
     path: str,
     service_url: str,
+    name: str | None = None,
     status_code: int | None = None,
     query_params: list[str] | None = None,
     form_params: list[str] | None = None,
@@ -140,6 +141,8 @@ def route(
         HTTP status code.
     service_url : str
         Root endpoint of the microservice for the forwarded request.
+    name : str | None
+        Name of the process or method that will be used for event logging, ideally period separated
     query_params : list[str] | None
         Keys passed referencing query model parameters to be sent to downstream microservice
     form_params : list[str] | None
@@ -179,6 +182,7 @@ def route(
         status_code=status_code,
         response_model=response_model,
         tags=tags,
+        name=name,
         dependencies=dependencies,
         summary=summary,
         description=description,
@@ -244,6 +248,7 @@ def route(
                     files=request_files,
                     file_response=file_response,
                     service=svc,
+                    request_name=name,
                 )
 
             except ConnectError as ce:

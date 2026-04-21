@@ -40,7 +40,10 @@ class JsonFormatter(logging.Formatter):
             "msg": record.getMessage(),
             # Just for the Hub Adapter
             "service": getattr(record, "service", "Unknown"),
-            "user_id": getattr(record, "user_id", None),
+            "status_code": getattr(record, "status_code", None),
+            "user": getattr(record, "user", None),
+            "event_name": getattr(record, "event_name", None),
+            "event_description": getattr(record, "event_description", None),
         }
 
         if record.exc_info:
@@ -74,7 +77,7 @@ logging_config = {
     "handlers": {
         "file_handler": {
             "class": "logging.handlers.RotatingFileHandler",
-            "filename": str(log_dir.joinpath("node_hub_api_adapter.log")),
+            "filename": log_dir.joinpath("node_hub_api_adapter.log").absolute(),
             "encoding": "utf-8",
             "mode": "a",
             "maxBytes": 4098 * 10,  # 4MB file max
@@ -99,6 +102,9 @@ logging_config = {
         "fastapi": {
             "handlers": ["file_handler", "console_handler"],
             "level": "INFO",
+        },
+        "httpx": {
+            "level": "WARNING",
         },
     },
 }

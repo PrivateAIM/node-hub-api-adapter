@@ -19,9 +19,9 @@ from hub_adapter.auth import (
 )
 from hub_adapter.autostart import GoGoAnalysis
 from hub_adapter.conf import Settings
+from hub_adapter.constants import ServiceTag
 from hub_adapter.core import make_request
 from hub_adapter.dependencies import get_core_client, get_settings
-from hub_adapter.oidc import check_oidc_configs_match
 from hub_adapter.routers.kong import delete_analysis
 from hub_adapter.schemas.podorc import StatusOnlyResponse
 from hub_adapter.utils import _check_data_required
@@ -33,7 +33,7 @@ meta_router = APIRouter(
         Depends(_add_internal_token_if_missing),
         Depends(require_researcher_role),
     ],
-    tags=["Meta"],
+    tags=[ServiceTag.META],
     responses={404: {"description": "Not found"}},
 )
 
@@ -49,7 +49,7 @@ class InitializeAnalysis(BaseModel):
     "/analysis/initialize",
     response_model=StatusOnlyResponse,
     status_code=status.HTTP_201_CREATED,
-    
+    name="meta.initialize",
 )
 async def initialize_analysis(
     analysis_params: Annotated[InitializeAnalysis, Form(description="Required information to start analysis")],
@@ -122,7 +122,7 @@ async def initialize_analysis(
     "/analysis/terminate/{analysis_id}",
     response_model=StatusOnlyResponse,
     status_code=status.HTTP_200_OK,
-    
+    name="meta.terminate",
 )
 async def terminate_analysis(
     analysis_id: Annotated[str | uuid.UUID, Path(description="Analysis UUID that should be terminated")],
@@ -140,9 +140,7 @@ async def terminate_analysis(
 
     try:
         resp_data, status_code = await make_request(
-            url=microsvc_path,
-            method="delete",
-            headers=headers,
+            url=microsvc_path, method="delete", headers=headers, request_name="meta.terminate"
         )
 
     except httpx.ConnectError as e:

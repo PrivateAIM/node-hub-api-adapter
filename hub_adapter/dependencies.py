@@ -19,7 +19,9 @@ from starlette import status
 
 from hub_adapter import node_id_pickle_path
 from hub_adapter.conf import Settings
+from hub_adapter.constants import ServiceTag
 from hub_adapter.errors import HubConnectError, catch_hub_errors
+from hub_adapter.middleware import log_event
 
 _node_type_cache = None
 
@@ -79,9 +81,31 @@ def get_flame_hub_auth_flow(
         client=httpx.Client(
             base_url=settings.hub_auth_service_url,
             verify=ssl_ctx,
+            event_hooks={"response": [make_log_hook(ServiceTag.HUB)]},
         ),
     )
     return auth
+
+
+def make_log_hook(service: str, is_async: bool = False, event_name: str | None = None):
+    """Return an httpx response event hook that logs with the given service label."""
+
+    def log_response(response: httpx.Response) -> None:
+        request = response.request
+        log_level = logging.ERROR if response.status_code >= 400 else logging.INFO
+        event = f"{event_name}.response" if event_name else f"{service.lower()}.http.response"
+        log_event(
+            event,
+            event_description=f"HTTP {request.method} {request.url} {response.http_version} {response.status_code}",
+            level=log_level,
+            status_code=response.status_code,
+            service=service,
+        )
+
+    async def async_log_response(response: httpx.Response) -> None:
+        log_response(response)
+
+    return async_log_response if is_async else log_response
 
 
 def get_core_client(
@@ -93,7 +117,12 @@ def get_core_client(
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> flame_hub.CoreClient:
     return flame_hub.CoreClient(
-        client=httpx.Client(base_url=settings.hub_service_url, auth=hub_auth, verify=ssl_ctx)
+        client=httpx.Client(
+            base_url=settings.hub_service_url,
+            auth=hub_auth,
+            verify=ssl_ctx,
+            event_hooks={"response": [make_log_hook(ServiceTag.HUB)]},
+        )
     )
 
 

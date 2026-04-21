@@ -51,6 +51,7 @@ class Settings(BaseSettings):
     kong_admin_service_url: str = "http://localhost:8000"
     kong_proxy_service_url: str = "http://localhost:8000"
     podorc_service_url: str = "http://localhost:5000"
+    victoria_logs_url: str | None = None
 
     # User IDP client ID and secret for the hub adapter
     api_client_id: str = "hub-adapter"
