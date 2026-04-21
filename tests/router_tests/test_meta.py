@@ -105,12 +105,10 @@ class TestMeta:
     @patch("hub_adapter.routers.meta.logger")
     @patch("hub_adapter.routers.meta.make_request")
     @patch("hub_adapter.routers.meta._get_internal_token")
-    @patch("hub_adapter.routers.meta.check_oidc_configs_match")
     @patch("hub_adapter.routers.meta.delete_analysis")
     async def test_terminate_analysis(
         self,
         mock_deletion,
-        mock_oidc,
         mock_token,
         mock_po_request,
         mock_logger,
@@ -121,7 +119,6 @@ class TestMeta:
 
         # Mock values
         mock_deletion.return_value = None  # Don't need it
-        mock_oidc.return_value = None, None  # Don't need it
         mock_token.return_value = {}  # Don't need it
         mock_po_request.return_value = (
             valid_resp,

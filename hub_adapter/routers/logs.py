@@ -97,7 +97,7 @@ def query_logs(query: str, params: dict | None = None):
     name="logs.events.get",
 )
 async def get_events(
-    limit: Annotated[int | None, Query(description="Maximum number of events to return")] = None,
+    limit: Annotated[int | None, Query(description="Maximum number of events to return")] = 50,
     offset: Annotated[int | None, Query(description="Number of events to offset by")] = None,
     service_tag: Annotated[ServiceTag | None, Query(description="Filter events by service tag")] = None,
     username: Annotated[str | None, Query(description="Filter events by username")] = None,
@@ -112,8 +112,6 @@ async def get_events(
 ):
     """Retrieve a selection of logged events."""
     query_parts = ["log.event_name:*"]
-    if not start_date and not end_date:
-        query_parts.append("_time:1h")
 
     if service_tag:
         query_parts.append(f'log.service:"{service_tag}"')
