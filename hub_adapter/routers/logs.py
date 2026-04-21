@@ -11,6 +11,7 @@ from starlette import status
 
 from hub_adapter.constants import ServiceTag
 from hub_adapter.dependencies import get_settings, make_log_hook
+from hub_adapter.middleware import log_event
 from hub_adapter.schemas.logs import EventLogResponse
 
 logger = logging.getLogger(__name__)
@@ -146,6 +147,11 @@ async def get_events(
 )
 async def log_user_signin():
     """Create a log event that a user signed in. Username is extracted from the JWT required to call this endpoint."""
+    log_event(
+        "auth.user.signin",
+        level=logging.INFO,
+        service=ServiceTag.AUTH,
+    )
     return status.HTTP_201_CREATED
 
 
@@ -157,4 +163,9 @@ async def log_user_signin():
 )
 async def log_user_signout():
     """Create a log event that a user signed out. Username is extracted from the JWT required to call this endpoint."""
+    log_event(
+        "auth.user.signout",
+        level=logging.INFO,
+        service=ServiceTag.AUTH,
+    )
     return status.HTTP_201_CREATED
