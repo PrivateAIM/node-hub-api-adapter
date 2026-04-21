@@ -1,6 +1,6 @@
 [project]
 name = "hub-adapter"
-version = "0.5.1"
+version = "0.6.0"
 description = "API gateway interface for the Node UI to interact with the other node services and the hub."
 authors = [{ name = "Bruce Schultz", email = "bruce.schultz@uk-koeln.de" }]
 readme = "README.md"
