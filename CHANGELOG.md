@@ -1,5 +1,46 @@
 # Changelog
 
+## [0.6.0](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.5.1...v0.6.0) (2026-04-21)
+
+
+### ⚠ BREAKING CHANGES
+
+* finalize victoria log fetching
+
+### Features
+
+* **auth:** keep internal token fetch within cluster ([7f999e5](https://github.com/PrivateAIM/node-hub-api-adapter/commit/7f999e5fc7c07292af5f16ab2fb148e1fb99ad07))
+* finalize victoria log fetching ([3406253](https://github.com/PrivateAIM/node-hub-api-adapter/commit/340625380c430bbebb39faf6aad04ab9fcd730af))
+* **kong:** add kong ep to delete orphaned services ([e6efc2b](https://github.com/PrivateAIM/node-hub-api-adapter/commit/e6efc2b77055bbe193f4b6d54a95372ecb327285))
+* **logs:** add service name to logged events ([d906b22](https://github.com/PrivateAIM/node-hub-api-adapter/commit/d906b222df9817940bbdc9ef6325c5675c5f7085))
+* **logs:** add sign in out endpoint for event tracking ([f8cfd89](https://github.com/PrivateAIM/node-hub-api-adapter/commit/f8cfd89a4aeaf583a4bc1cd1df7e16c31059d133))
+* **logs:** add specialized event logging function with error events ([72a7539](https://github.com/PrivateAIM/node-hub-api-adapter/commit/72a7539f9c3cfb4ac43800e4236881e01c756ae3))
+* **logs:** remove fluentbit ([98435ab](https://github.com/PrivateAIM/node-hub-api-adapter/commit/98435ab8e625261cec8c3b5ee0065ee417b334b0))
+* **logs:** working event endpoint ([ccb44e6](https://github.com/PrivateAIM/node-hub-api-adapter/commit/ccb44e664c8272f8a2f57ca2e792a2188ef9102e))
+
+
+### Bug Fixes
+
+* **docker:** attach fluentbit logger ([8cb467a](https://github.com/PrivateAIM/node-hub-api-adapter/commit/8cb467a077bb82eac3aabc0b58e021576e770d9c))
+* **docker:** loki plugin fixes ([d5312ea](https://github.com/PrivateAIM/node-hub-api-adapter/commit/d5312ea37a5d0a4a7935c31c0db8072db3db9567))
+* **docker:** update victorialogs ep to current version ([f845b41](https://github.com/PrivateAIM/node-hub-api-adapter/commit/f845b41190e48847bb5a0343fb6ad90229277c3c))
+* **kong:** have kong delete service if route fails during initialize ([e13ad2e](https://github.com/PrivateAIM/node-hub-api-adapter/commit/e13ad2e0b87e1edf992cb47960a3141a8d045499))
+* **logs:** update log hook dep to allow async calls ([44b51c8](https://github.com/PrivateAIM/node-hub-api-adapter/commit/44b51c8521fccef5308cb9160953c00061234cac))
+* **po:** allow None response when terminating analysis via PO ([da448d4](https://github.com/PrivateAIM/node-hub-api-adapter/commit/da448d4ff557b8e002552a9e4cc912fe6001e29b))
+
+
+### Reverts
+
+* **logs:** bring back JSON ([2ef7ec0](https://github.com/PrivateAIM/node-hub-api-adapter/commit/2ef7ec0fba198f099282a0508f4eed51ab2b8e4f))
+* **logs:** remove manual sign in out events ([23f3a44](https://github.com/PrivateAIM/node-hub-api-adapter/commit/23f3a44ba479fe04724711780bf1c3884c75af4c))
+* **logs:** restore event logging midelware and names ([48aa1c6](https://github.com/PrivateAIM/node-hub-api-adapter/commit/48aa1c67d0a0eed9152d880f55c05515dd21ddda))
+
+
+### Documentation
+
+* **logs:** add comment ([16916ac](https://github.com/PrivateAIM/node-hub-api-adapter/commit/16916ac0475da4110051456e4c0ecf9cafd7eb6b))
+* update README ([25e7445](https://github.com/PrivateAIM/node-hub-api-adapter/commit/25e7445411184770984fda226d17bc6cdc9696fc))
+
 ## [0.5.1](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.5.0...v0.5.1) (2026-03-18)
 
 
