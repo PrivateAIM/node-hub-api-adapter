@@ -387,4 +387,32 @@ EXPECTED_PO_ROUTE_CONFIG = (
         "response_model": CleanupPodResponse,
         "status_code": 200,
     },
+    {
+        "name": "podorc.logs.get",
+        "path": "/po/logs",
+        "methods": {"GET"},
+        "response_model": LogResponse,
+        "status_code": 200,
+    },
+    {
+        "name": "podorc.logs.get",
+        "path": "/po/logs/{analysis_id}",
+        "methods": {"GET"},
+        "response_model": LogResponse,
+        "status_code": 200,
+    },
+    {
+        "name": "podorc.history.get",
+        "path": "/po/history",
+        "methods": {"GET"},
+        "response_model": LogResponse,
+        "status_code": 200,
+    },
+    {
+        "name": "podorc.history.get",
+        "path": "/po/history/{analysis_id}",
+        "methods": {"GET"},
+        "response_model": LogResponse,
+        "status_code": 200,
+    },
 )

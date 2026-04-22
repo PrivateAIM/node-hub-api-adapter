@@ -66,6 +66,8 @@ TRACKED_EVENTS = {
     "podorc.pods.get": "A user requested a list of analysis pods from the Pod Orchestrator",
     "podorc.pods.stop": "A user sent a request to stop an analysis pod to the Pod Orchestrator",
     "podorc.pods.delete": "A user sent a request to delete an analysis pod to the Pod Orchestrator",
+    "podorc.logs.get": "A user requested the logs for an analysis from the Pod Orchestrator",
+    "podorc.history.get": "A user requested the log history for an analysis from the Pod Orchestrator",
     "podorc.cleanup": "A user sent a cleanup request to the Pod Orchestrator",
     "kong.datastore.get": "A user requested a list of datastores (services) from Kong",
     "kong.datastore.create": "A user sent a request to create a datastore to Kong",
