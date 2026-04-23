@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.2](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.6.1...v0.6.2) (2026-04-23)
+
+
+### Features
+
+* **logs:** add log level to queried and returned logs ([0e99bd0](https://github.com/PrivateAIM/node-hub-api-adapter/commit/0e99bd0f9f975a2ef128fb65469aac0a0da89200))
+* **logs:** add stacktrace to queried and returned logs ([0400ffd](https://github.com/PrivateAIM/node-hub-api-adapter/commit/0400ffd38aec1283a39dd0cf58005ff8ed920478))
+
 ## [0.6.1](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.6.0...v0.6.1) (2026-04-23)
 
 
