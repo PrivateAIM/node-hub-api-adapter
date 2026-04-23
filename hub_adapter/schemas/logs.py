@@ -1,4 +1,5 @@
 import datetime
+import uuid
 
 from pydantic import BaseModel, field_validator
 
@@ -42,6 +43,39 @@ class EventLogResponse(BaseModel):
     meta: Meta
 
 
+class PodLog(BaseModel):
+    """A single log line from a pod container."""
+
+    timestamp: str
+    message: str
+    # container_name: str
+    # pod_name: str | None = None
+
+
+class AnalysisLogsResponse(BaseModel):
+    """Latest logs for an analysis (most recent run)."""
+
+    analysis_id: uuid.UUID
+    run_number: int
+    nginx_logs: list[PodLog]
+    analysis_logs: list[PodLog]
+
+
+class RunLogs(BaseModel):
+    """Logs for a single analysis run."""
+
+    run_number: int
+    nginx_logs: list[PodLog]
+    analysis_logs: list[PodLog]
+
+
+class AnalysisLogHistoryResponse(BaseModel):
+    """Logs for all runs of an analysis."""
+
+    analysis_id: uuid.UUID
+    runs: list[RunLogs]
+
+
 # Events
 ## Keys are the event name and the value is a human-readable description of the event
 TRACKED_EVENTS = {
@@ -66,8 +100,6 @@ TRACKED_EVENTS = {
     "podorc.pods.get": "A user requested a list of analysis pods from the Pod Orchestrator",
     "podorc.pods.stop": "A user sent a request to stop an analysis pod to the Pod Orchestrator",
     "podorc.pods.delete": "A user sent a request to delete an analysis pod to the Pod Orchestrator",
-    "podorc.logs.get": "A user requested the logs for an analysis from the Pod Orchestrator",
-    "podorc.history.get": "A user requested the log history for an analysis from the Pod Orchestrator",
     "podorc.cleanup": "A user sent a cleanup request to the Pod Orchestrator",
     "kong.datastore.get": "A user requested a list of datastores (services) from Kong",
     "kong.datastore.create": "A user sent a request to create a datastore to Kong",
@@ -89,6 +121,8 @@ TRACKED_EVENTS = {
     "health.status.services.get": "An API health check for downstream services was requested from the Hub Adapter API",
     "storage.local.delete": "A user sent a request to delete local results to the Storage Service",
     "logs.events.get": "A user requested a list of events from the event log",
+    "logs.analysis.live.get": "A user requested the logs for an analysis",
+    "logs.analysis.history.get": "A user requested the log history for an analysis",
     "autostart.analysis.create": "The Hub Adapter automatically sent a request to start an analysis to the Pod Orchestrator",
     "api.ui.access": "The API Swagger UI was accessed",
     "unknown": "An unknown event has occurred",

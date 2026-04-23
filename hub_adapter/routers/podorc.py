@@ -25,7 +25,6 @@ from hub_adapter.schemas.podorc import (
     PodProgressResponse,
     PodResponse,
     StatusOnlyResponse,
-    LogResponse,
 )
 
 po_router = APIRouter(
@@ -101,72 +100,6 @@ async def get_analysis_status(
 ):
     """Get a specific analysis pod run status."""
 
-    pass
-
-
-@route(
-    request_method=po_router.get,
-    path="/logs",
-    status_code=status.HTTP_200_OK,
-    service_url=get_settings().podorc_service_url,
-    response_model=LogResponse,
-    name="podorc.logs.get",
-)
-async def get_all_analysis_logs(
-    request: Request,
-    response: Response,
-):
-    """Get all analysis pod logs."""
-    pass
-
-
-@route(
-    request_method=po_router.get,
-    path="/logs/{analysis_id}",
-    status_code=status.HTTP_200_OK,
-    service_url=get_settings().podorc_service_url,
-    response_model=LogResponse,
-    name="podorc.logs.get",
-)
-async def get_analysis_logs(
-    request: Request,
-    response: Response,
-    analysis_id: Annotated[uuid.UUID, Path(description="UUID of the analysis.")],
-):
-    """Get the analysis pod logs."""
-    pass
-
-
-@route(
-    request_method=po_router.get,
-    path="/history",
-    status_code=status.HTTP_200_OK,
-    service_url=get_settings().podorc_service_url,
-    response_model=LogResponse,
-    name="podorc.history.get",
-)
-async def get_all_analysis_log_history(
-    request: Request,
-    response: Response,
-):
-    """Get all previous analysis pod logs."""
-    pass
-
-
-@route(
-    request_method=po_router.get,
-    path="/history/{analysis_id}",
-    status_code=status.HTTP_200_OK,
-    service_url=get_settings().podorc_service_url,
-    response_model=LogResponse,
-    name="podorc.history.get",
-)
-async def get_analysis_log_history(
-    request: Request,
-    response: Response,
-    analysis_id: Annotated[uuid.UUID | None, Path(description="UUID of the analysis.")],
-):
-    """Get the previous analysis pod logs."""
     pass
 
 
