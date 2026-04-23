@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.6.1](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.6.0...v0.6.1) (2026-04-23)
+
+
+### Features
+
+* **logs:** fetch analysis logs from victorialogs ([e29e7b6](https://github.com/PrivateAIM/node-hub-api-adapter/commit/e29e7b6aec86b6156a4f1a2b812502355e0d5bf8))
+
+
+### Reverts
+
+* **logs:** set service to any string for now ([ffcbb55](https://github.com/PrivateAIM/node-hub-api-adapter/commit/ffcbb558b7c0205f4776b1ba03fb0a2358de3ac9))
+* **po:** restore missing endpoints ([1756fbb](https://github.com/PrivateAIM/node-hub-api-adapter/commit/1756fbb281a367859d3240b9325353288ae775f4))
+
 ## [0.6.0](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.5.1...v0.6.0) (2026-04-21)
 
 
