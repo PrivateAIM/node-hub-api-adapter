@@ -123,7 +123,7 @@ def _query_pod_logs(container_name: str) -> list[dict]:
     settings = get_settings()
     query = f'kubernetes.container_name:"{container_name}"'
     query_data = {
-        "query": (f"{query} | fields _time, _msg, log.error | sort by (_time)"),
+        "query": (f"{query} | fields _time, _msg, level, log.error | sort by (_time)"),
         "limit": 1000,
     }
     with httpx.Client(event_hooks={"response": [make_log_hook(ServiceTag.LOGS)]}) as client:
@@ -140,6 +140,7 @@ def _query_pod_logs(container_name: str) -> list[dict]:
             log_entry = {
                 "timestamp": entry.get("_time", ""),
                 "message": entry.get("_msg", ""),
+                "level": entry.get("level") or None,
             }
             if stacktrace := entry.get("log.error"):
                 log_entry["stacktrace"] = stacktrace

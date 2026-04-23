@@ -48,6 +48,7 @@ class PodLog(BaseModel):
 
     timestamp: str
     message: str
+    level: str | None = None
     stacktrace: str | None = None
     # container_name: str
     # pod_name: str | None = None
