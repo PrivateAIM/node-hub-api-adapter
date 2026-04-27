@@ -15,6 +15,7 @@ from hub_adapter.auth import (
     _add_internal_token_if_missing,
     _get_internal_token,
     get_hub_public_key,
+    require_admin_role,
     require_researcher_role,
     require_steward_role,
     verify_idp_token,
@@ -24,6 +25,7 @@ from tests.constants import (
     ADMIN_ROLE,
     RESEARCHER_ROLE,
     STEWARD_ROLE,
+    TEST_ADMIN_DECRYPTED_JWT,
     TEST_JWKS_RESPONSE,
     TEST_JWT,
     TEST_OIDC,
@@ -202,3 +204,32 @@ class TestAuth:
                 steward_error.value.detail["message"]
                 == f"Insufficient permissions, admin or {STEWARD_ROLE} role not found in token."
             )
+
+    @pytest.mark.asyncio
+    async def test_require_admin_role_passes_for_admin(self):
+        """require_admin_role returns the token when the admin role is present."""
+        settings = Settings(
+            role_claim_name="resource_access.node-ui.roles",
+            admin_role=ADMIN_ROLE,
+        )
+        result = await require_admin_role(TEST_ADMIN_DECRYPTED_JWT, settings)
+        assert result == TEST_ADMIN_DECRYPTED_JWT
+
+    @pytest.mark.asyncio
+    async def test_require_admin_role_raises_403_for_non_admin(self):
+        """require_admin_role raises 403 when the admin role is absent."""
+        settings = Settings(
+            role_claim_name="resource_access.node-ui.roles",
+            admin_role=ADMIN_ROLE,
+        )
+        with pytest.raises(HTTPException) as exc_info:
+            await require_admin_role(TEST_STEWARD_DECRYPTED_JWT, settings)
+        assert exc_info.value.status_code == status.HTTP_403_FORBIDDEN
+        assert "admin role not found in token" in exc_info.value.detail["message"]
+
+    @pytest.mark.asyncio
+    async def test_require_admin_role_passes_when_role_claim_not_configured(self):
+        """require_admin_role bypasses the check when role_claim_name is not set."""
+        settings = Settings(role_claim_name=None, admin_role=ADMIN_ROLE)
+        result = await require_admin_role(TEST_STEWARD_DECRYPTED_JWT, settings)
+        assert result == TEST_STEWARD_DECRYPTED_JWT

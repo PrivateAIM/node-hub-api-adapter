@@ -13,7 +13,9 @@ from hub_adapter.routers.logs import (
     get_analysis_logs,
     get_events,
     logs_router,
+    raw_log_query,
 )
+from hub_adapter.schemas.logs import LogQLQueryRequest
 from tests.conftest import check_routes
 from tests.router_tests.routes import EXPECTED_LOGS_ROUTE_CONFIG
 
@@ -224,3 +226,45 @@ class TestGetAnalysisLogHistory:
 
         assert result["analysis_id"] == analysis_id
         assert result["runs"] == []
+
+
+class TestRawLogQuery:
+    """Tests for the POST /logs/query endpoint."""
+
+    def test_route_configs(self, test_client):
+        """Test endpoint configurations for the logs router."""
+        check_routes(logs_router, EXPECTED_LOGS_ROUTE_CONFIG, test_client)
+
+    @pytest.mark.asyncio
+    @patch("hub_adapter.routers.logs.get_settings")
+    async def test_raises_503_when_victoria_logs_url_not_set(self, mock_get_settings):
+        """raw_log_query raises 503 when victoria_logs_url is None."""
+        mock_get_settings.return_value.victoria_logs_url = None
+
+        with pytest.raises(HTTPException) as exc_info:
+            await raw_log_query(LogQLQueryRequest(query="*"))
+
+        assert exc_info.value.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+        assert exc_info.value.detail == "Log service is not configured"
+
+    @pytest.mark.asyncio
+    @patch("hub_adapter.routers.logs.count_logs")
+    @patch("hub_adapter.routers.logs._execute_raw_query")
+    @patch("hub_adapter.routers.logs.get_settings")
+    async def test_returns_paginated_data_when_configured(
+        self, mock_get_settings, mock_execute, mock_count
+    ):
+        """raw_log_query returns data and meta envelope when configured."""
+        mock_get_settings.return_value.victoria_logs_url = "http://victoria:9428"
+        mock_execute.return_value = [{"_msg": "hello", "level": "info"}]
+        mock_count.return_value = 1
+
+        body = LogQLQueryRequest(query="*", limit=10, offset=0)
+        result = await raw_log_query(body)
+
+        assert result["meta"]["total"] == 1
+        assert result["meta"]["count"] == 1
+        assert result["meta"]["limit"] == 10
+        assert result["meta"]["offset"] == 0
+        assert len(result["data"]) == 1
+        assert result["data"][0] == {"_msg": "hello", "level": "info"}

@@ -13,7 +13,7 @@ from hub_adapter.schemas.kong import (
     ListRoutes,
     ListServices,
 )
-from hub_adapter.schemas.logs import AnalysisLogHistoryResponse, AnalysisLogsResponse, EventLogResponse
+from hub_adapter.schemas.logs import AnalysisLogHistoryResponse, AnalysisLogsResponse, EventLogResponse, LogQLQueryResponse
 from hub_adapter.schemas.podorc import (
     CleanupPodResponse,
     LogResponse,
@@ -57,6 +57,13 @@ EXPECTED_LOGS_ROUTE_CONFIG = (
         "methods": {"GET"},
         "status_code": 200,
         "response_model": AnalysisLogHistoryResponse,
+    },
+    {
+        "path": "/logs/query",
+        "name": "logs.query.raw",
+        "methods": {"POST"},
+        "status_code": 200,
+        "response_model": LogQLQueryResponse,
     },
 )
 

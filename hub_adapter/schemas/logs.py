@@ -78,6 +78,23 @@ class AnalysisLogHistoryResponse(BaseModel):
     runs: list[RunLogs]
 
 
+class LogQLQueryRequest(BaseModel):
+    """Request body for a raw LogQL query."""
+
+    query: str
+    limit: int = 50
+    offset: int = 0
+    start: datetime.datetime | None = None
+    end: datetime.datetime | None = None
+
+
+class LogQLQueryResponse(BaseModel):
+    """Response for a raw LogQL query."""
+
+    data: list[dict]
+    meta: Meta
+
+
 # Events
 ## Keys are the event name and the value is a human-readable description of the event
 TRACKED_EVENTS = {
@@ -125,6 +142,7 @@ TRACKED_EVENTS = {
     "logs.events.get": "A user requested a list of events from the event log",
     "logs.analysis.live.get": "A user requested the logs for an analysis",
     "logs.analysis.history.get": "A user requested the log history for an analysis",
+    "logs.query.raw": "An admin sent a raw LogQL query to VictoriaLogs",
     "autostart.analysis.create": "The Hub Adapter automatically sent a request to start an analysis to the Pod Orchestrator",
     "api.ui.access": "The API Swagger UI was accessed",
     "unknown": "An unknown event has occurred",

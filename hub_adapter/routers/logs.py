@@ -8,13 +8,13 @@ import uuid
 from typing import Annotated
 
 import httpx
-from fastapi import APIRouter, HTTPException, Query, Security, Path
+from fastapi import APIRouter, Depends, HTTPException, Query, Security, Path
 from starlette import status
 
-from hub_adapter.auth import verify_idp_token, jwtbearer
+from hub_adapter.auth import verify_idp_token, jwtbearer, require_admin_role
 from hub_adapter.constants import ServiceTag
 from hub_adapter.dependencies import get_settings, make_log_hook
-from hub_adapter.schemas.logs import AnalysisLogHistoryResponse, AnalysisLogsResponse, EventLogResponse
+from hub_adapter.schemas.logs import AnalysisLogHistoryResponse, AnalysisLogsResponse, EventLogResponse, LogQLQueryRequest, LogQLQueryResponse
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +46,23 @@ def count_logs(query: str, params: dict | None = None) -> int:
             return int(json.loads(line).get("total", 0))
 
     return 0
+
+
+def _execute_raw_query(query: str, params: dict | None = None) -> list[dict]:
+    """Execute a LogQL query against VictoriaLogs and return raw parsed results."""
+    settings = get_settings()
+    query_data = {"query": query, **(params or {})}
+    with httpx.Client(event_hooks={"response": [make_log_hook(ServiceTag.LOGS)]}) as client:
+        resp = client.post(
+            f"{settings.victoria_logs_url}/select/logsql/query",
+            data=query_data,
+        )
+        resp.raise_for_status()
+    logs = []
+    for line in resp.text.strip().splitlines():
+        if line:
+            logs.append(json.loads(line))
+    return logs
 
 
 def query_logs(query: str, params: dict | None = None):
@@ -308,3 +325,32 @@ async def get_analysis_log_history(
         )
 
     return {"analysis_id": analysis_id, "runs": result_runs}
+
+
+@logs_router.post(
+    "/logs/query",
+    status_code=status.HTTP_200_OK,
+    name="logs.query.raw",
+    response_model=LogQLQueryResponse,
+    dependencies=[Depends(require_admin_role)],
+)
+async def raw_log_query(body: LogQLQueryRequest):
+    """Execute a raw LogQL query against VictoriaLogs. Admin only."""
+    settings = get_settings()
+    if not settings.victoria_logs_url:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Log service is not configured",
+        )
+
+    params: dict = {"limit": body.limit, "offset": body.offset}
+    if body.start:
+        params["start"] = body.start.isoformat()
+    if body.end:
+        params["end"] = body.end.isoformat()
+
+    data = _execute_raw_query(body.query, params)
+    total = count_logs(body.query, params)
+
+    meta = {"total": total, "limit": body.limit, "offset": body.offset, "count": len(data)}
+    return {"data": data, "meta": meta}
