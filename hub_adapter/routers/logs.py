@@ -17,6 +17,7 @@ from hub_adapter.dependencies import get_settings, make_log_hook
 from hub_adapter.schemas.logs import (
     AnalysisLogHistoryResponse,
     AnalysisLogsResponse,
+    ApiRequestCountResponse,
     EventLogResponse,
     LogQLQueryRequest,
     LogQLQueryResponse,
@@ -452,3 +453,67 @@ async def raw_log_query(body: LogQLQueryRequest):
 
     meta = {"total": total, "limit": body.limit, "offset": body.offset, "count": len(data)}
     return {"data": data, "meta": meta}
+
+
+@logs_router.get(
+    "/requests",
+    status_code=status.HTTP_200_OK,
+    response_model=ApiRequestCountResponse,
+    name="logs.requests.get",
+)
+async def get_api_requests(
+    start_date: Annotated[
+        datetime.datetime | None,
+        Query(description="Filter requests from this timestamp using ISO8601 format"),
+    ] = None,
+    end_date: Annotated[
+        datetime.datetime | None,
+        Query(description="Filter requests up to this timestamp using ISO8601 format"),
+    ] = None,
+    endpoint: Annotated[
+        str | None,
+        Query(description="Filter breakdown to paths starting with this prefix"),
+    ] = None,
+    method: Annotated[
+        str | None,
+        Query(description="Filter breakdown to a specific HTTP method (e.g. GET, POST, DELETE)"),
+    ] = None,
+):
+    """Get total API request count and a per-endpoint breakdown grouped by HTTP method and path."""
+    settings = get_settings()
+    if not settings.victoria_logs_url:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Event log service is not configured",
+        )
+
+    logsql_query = r"""log.logger:"uvicorn.access" | extract '<_> "<method> <path> HTTP/<_>" <status>' | stats by (method, path) count() as requests"""
+    params: dict = {}
+    if start_date:
+        params["start"] = start_date.isoformat()
+    if end_date:
+        params["end"] = end_date.isoformat()
+
+    raw = _execute_raw_query(logsql_query, params)
+    method_filter = method.upper() if method else None
+
+    by_path: dict[str, dict[str, int]] = {}
+    for entry in raw:
+        req_method = entry.get("method", "")
+        base_path = entry.get("path", "").split("?")[0]
+        count = int(entry.get("requests", 0))
+        by_path.setdefault(base_path, {})
+        by_path[base_path][req_method] = by_path[base_path].get(req_method, 0) + count
+
+    data: dict[str, dict[str, int]] = {}
+    for path in sorted(by_path):
+        if endpoint is not None and not path.startswith(endpoint):
+            continue
+        methods = by_path[path]
+        if method_filter is not None:
+            if method_filter not in methods:
+                continue
+            methods = {method_filter: methods[method_filter]}
+        data[path] = {**methods, "total": sum(methods.values())}
+
+    return {"total": sum(v["total"] for v in data.values()), "data": data}

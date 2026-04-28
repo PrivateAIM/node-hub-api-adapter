@@ -117,6 +117,16 @@ class LogQLQueryResponse(BaseModel):
     meta: Meta
 
 
+class ApiRequestCountResponse(BaseModel):
+    """Response for the API request count endpoint.
+
+    data maps endpoint path → {method: count, ..., "total": count}.
+    """
+
+    total: int
+    data: dict[str, dict[str, int]]
+
+
 # Events
 ## Keys are the event name and the value is a human-readable description of the event
 TRACKED_EVENTS = {
@@ -166,6 +176,7 @@ TRACKED_EVENTS = {
     "logs.analysis.history.get": "A user requested the log history for an analysis",
     "logs.query.raw": "An admin sent a raw LogQL query to VictoriaLogs",
     "logs.netstats.get": "A user requested network traffic statistics",
+    "logs.requests.get": "A user requested API request counts from the event log",
     "netstats.analysis.traffic": "A network traffic statistics event was recorded",
     "autostart.analysis.create": "The Hub Adapter automatically sent a request to start an analysis to the Pod Orchestrator",
     "api.ui.access": "The API Swagger UI was accessed",

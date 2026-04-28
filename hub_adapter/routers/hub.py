@@ -195,10 +195,11 @@ async def list_analysis_nodes(
 @catch_hub_errors
 async def list_specific_analysis_node(
     analysis_node_id: Annotated[uuid.UUID | str, Path(description="Analysis Node UUID.")],
+    query_params: Annotated[dict, Depends(_parse_query_params)],
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     """List a specific analysis node."""
-    return core_client.get_analysis_node(analysis_node_id=analysis_node_id)
+    return core_client.get_analysis_node(analysis_node_id=analysis_node_id, **query_params)
 
 
 @hub_router.post(
