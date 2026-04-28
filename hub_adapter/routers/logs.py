@@ -14,7 +14,16 @@ from starlette import status
 from hub_adapter.auth import verify_idp_token, jwtbearer, require_admin_role
 from hub_adapter.constants import ServiceTag
 from hub_adapter.dependencies import get_settings, make_log_hook
-from hub_adapter.schemas.logs import AnalysisLogHistoryResponse, AnalysisLogsResponse, EventLogResponse, LogQLQueryRequest, LogQLQueryResponse
+from hub_adapter.schemas.logs import (
+    AnalysisLogHistoryResponse,
+    AnalysisLogsResponse,
+    EventLogResponse,
+    LogQLQueryRequest,
+    LogQLQueryResponse,
+    NetStatResponse,
+    NetStatRun,
+    NetStatTotal,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -325,6 +334,95 @@ async def get_analysis_log_history(
         )
 
     return {"analysis_id": analysis_id, "runs": result_runs}
+
+
+def _parse_netstats_container(container_name: str) -> tuple[str, int]:
+    """Strip the 'net-stats-analysis-' prefix and split on the last dash to get (analysis_id_str, run_number)."""
+    prefix = "net-stats-analysis-"
+    if not container_name.startswith(prefix):
+        raise ValueError(f"Unexpected container name format: {container_name!r}")
+    remainder = container_name[len(prefix) :]
+    analysis_id_str, _, run_str = remainder.rpartition("-")
+    if not analysis_id_str or not run_str.isdigit():
+        raise ValueError(f"Cannot parse run number from container name: {container_name!r}")
+    return analysis_id_str, int(run_str)
+
+
+@logs_router.get(
+    "/netstats",
+    status_code=status.HTTP_200_OK,
+    response_model=NetStatResponse,
+    name="logs.netstats.get",
+)
+async def get_netstats(
+    analysis_id: Annotated[uuid.UUID | None, Query(description="Filter by analysis UUID")] = None,
+    start_date: Annotated[
+        datetime.datetime | None,
+        Query(description="Filter by start date using ISO8601 format"),
+    ] = None,
+    end_date: Annotated[
+        datetime.datetime | None,
+        Query(description="Filter by end date using ISO8601 format"),
+    ] = None,
+    limit: Annotated[int, Query(description="Maximum number of raw log entries to return")] = 1000,
+):
+    """Retrieve network traffic statistics from netstats log events."""
+    settings = get_settings()
+    if not settings.victoria_logs_url:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Log service is not configured",
+        )
+
+    query_parts = ['log.event_name:"netstats.analysis.traffic"']
+    if analysis_id is not None:
+        query_parts.append(f'kubernetes.container_name:~"net-stats-analysis-{str(analysis_id)}-"')
+    base_query = " AND ".join(query_parts)
+
+    fields = "_time, kubernetes.container_name, kubernetes.pod_name, log.bytes_in, log.bytes_out"
+    logsql_query = f"{base_query} | fields {fields}"
+
+    params: dict = {"limit": limit}
+    if start_date:
+        params["start"] = start_date.isoformat()
+    if end_date:
+        params["end"] = end_date.isoformat()
+
+    raw_logs = _execute_raw_query(logsql_query, params)
+    total = count_logs(base_query, params)
+
+    totals: dict[str, NetStatTotal] = {}
+    for entry in raw_logs:
+        container_name = entry.get("kubernetes.container_name", "")
+        try:
+            analysis_id_str, run_number = _parse_netstats_container(container_name)
+            entry_analysis_id = uuid.UUID(analysis_id_str)
+
+        except (ValueError, AttributeError):
+            logger.warning(f"Skipping netstats entry with unparseable container name: {container_name}")
+            continue
+
+        raw_time = entry.get("_time", "")
+        run = NetStatRun(
+            timestamp=datetime.datetime.fromisoformat(raw_time) if raw_time else datetime.datetime.min,
+            container=container_name,
+            analysis_id=entry_analysis_id,
+            run_number=run_number,
+            pod=entry.get("kubernetes.pod_name", ""),
+            bytes_in=int(entry.get("log.bytes_in") or 0),
+            bytes_out=int(entry.get("log.bytes_out") or 0),
+        )
+
+        key = str(entry_analysis_id)
+        if key not in totals:
+            totals[key] = NetStatTotal(analysis_id=entry_analysis_id, bytes_in=0, bytes_out=0, runs=[])
+        totals[key].runs.append(run)
+        totals[key].bytes_in += run.bytes_in
+        totals[key].bytes_out += run.bytes_out
+
+    data = list(totals.values())
+    meta = {"total": total, "limit": limit, "offset": 0, "count": len(data)}
+    return {"data": data, "meta": meta}
 
 
 @logs_router.post(

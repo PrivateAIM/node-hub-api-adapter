@@ -33,13 +33,35 @@ class Meta(BaseModel):
     count: int
     total: int
     limit: int
-    offset: int
+    offset: int | None = None
 
 
 class EventLogResponse(BaseModel):
     """Event log response model."""
 
     data: list[EventLog]
+    meta: Meta
+
+
+class NetStatRun(BaseModel):
+    timestamp: datetime.datetime
+    container: str
+    analysis_id: uuid.UUID
+    run_number: int
+    pod: str
+    bytes_in: int
+    bytes_out: int
+
+
+class NetStatTotal(BaseModel):
+    analysis_id: uuid.UUID
+    bytes_in: int
+    bytes_out: int
+    runs: list[NetStatRun]
+
+
+class NetStatResponse(BaseModel):
+    data: list[NetStatTotal]
     meta: Meta
 
 
@@ -143,6 +165,8 @@ TRACKED_EVENTS = {
     "logs.analysis.live.get": "A user requested the logs for an analysis",
     "logs.analysis.history.get": "A user requested the log history for an analysis",
     "logs.query.raw": "An admin sent a raw LogQL query to VictoriaLogs",
+    "logs.netstats.get": "A user requested network traffic statistics",
+    "netstats.analysis.traffic": "A network traffic statistics event was recorded",
     "autostart.analysis.create": "The Hub Adapter automatically sent a request to start an analysis to the Pod Orchestrator",
     "api.ui.access": "The API Swagger UI was accessed",
     "unknown": "An unknown event has occurred",
