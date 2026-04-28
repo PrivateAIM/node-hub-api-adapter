@@ -407,7 +407,6 @@ async def get_netstats(
         run = NetStatRun(
             timestamp=datetime.datetime.fromisoformat(raw_time) if raw_time else datetime.datetime.min,
             container=container_name,
-            analysis_id=entry_analysis_id,
             run_number=run_number,
             pod=entry.get("kubernetes.pod_name", ""),
             bytes_in=int(entry.get("log.bytes_in") or 0),

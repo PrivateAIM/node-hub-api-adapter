@@ -46,7 +46,6 @@ class EventLogResponse(BaseModel):
 class NetStatRun(BaseModel):
     timestamp: datetime.datetime
     container: str
-    analysis_id: uuid.UUID
     run_number: int
     pod: str
     bytes_in: int
