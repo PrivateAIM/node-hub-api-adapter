@@ -152,6 +152,23 @@ class KongConsumerApiKeyError(KongError):
         )
 
 
+def require_victoria_logs(f):
+    """Raise HTTP 503 if VictoriaLogs is not configured."""
+
+    @functools.wraps(f)
+    async def inner(*args, **kwargs):
+        from hub_adapter.dependencies import get_settings  # avoid circular import
+
+        if not get_settings().victoria_logs_url:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Log service is not configured",
+            )
+        return await f(*args, **kwargs)
+
+    return inner
+
+
 def catch_hub_errors(f):
     """Custom error handling decorator for flame_hub_client."""
 

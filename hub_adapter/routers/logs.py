@@ -14,6 +14,7 @@ from starlette import status
 from hub_adapter.auth import verify_idp_token, jwtbearer, require_admin_role
 from hub_adapter.constants import ServiceTag
 from hub_adapter.dependencies import get_settings, make_log_hook
+from hub_adapter.errors import require_victoria_logs
 from hub_adapter.schemas.logs import (
     AnalysisLogHistoryResponse,
     AnalysisLogsResponse,
@@ -145,14 +146,36 @@ def _get_analysis_container_names(analysis_id_str: str) -> list[str]:
     return names
 
 
-def _query_pod_logs(container_name: str) -> list[dict]:
-    """Return log lines for a specific container, sorted oldest-first."""
+def _query_pod_logs(
+    container_name: str,
+    start_date: datetime.datetime | None = None,
+    end_date: datetime.datetime | None = None,
+    limit: int | None = None,
+    offset: int = 0,
+) -> list[dict]:
+    """Return log lines for a specific container, sorted oldest-first. If no start_date or end_date provided, then set
+    limit to 1000."""
     settings = get_settings()
     query = f'kubernetes.container_name:"{container_name}"'
-    query_data = {
+    query_data: dict = {
         "query": (f"{query} | fields _time, _msg, level, log.error | sort by (_time)"),
-        "limit": 1000,
     }
+    if not limit:
+        if not start_date and not end_date:
+            query_data["limit"] = 1000
+
+    else:
+        query_data["limit"] = limit
+
+    if offset:
+        query_data["offset"] = offset
+
+    if start_date:
+        query_data["start"] = start_date.isoformat()
+
+    if end_date:
+        query_data["end"] = end_date.isoformat()
+
     with httpx.Client(event_hooks={"response": [make_log_hook(ServiceTag.LOGS)]}) as client:
         resp = client.post(
             f"{settings.victoria_logs_url}/select/logsql/query",
@@ -197,6 +220,7 @@ def _group_by_run(container_names: list[str]) -> dict[int, dict[str, str]]:
     response_model=EventLogResponse,
     name="logs.events.get",
 )
+@require_victoria_logs
 async def get_events(
     limit: Annotated[int | None, Query(description="Maximum number of events to return")] = 50,
     offset: Annotated[int | None, Query(description="Number of events to offset by")] = None,
@@ -212,13 +236,6 @@ async def get_events(
     ] = None,
 ):
     """Retrieve a selection of logged events."""
-    settings = get_settings()
-    if not settings.victoria_logs_url:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Event log service is not configured",
-        )
-
     query_parts = ["log.event_name:*"]
 
     if service_tag:
@@ -272,17 +289,21 @@ async def log_user_signout():
     name="logs.analysis.live.get",
     response_model=AnalysisLogsResponse,
 )
+@require_victoria_logs
 async def get_analysis_logs(
     analysis_id: Annotated[uuid.UUID, Path(description="UUID of the analysis.")],
+    start_date: Annotated[
+        datetime.datetime | None,
+        Query(description="Filter logs from this timestamp using ISO8601 format"),
+    ] = None,
+    end_date: Annotated[
+        datetime.datetime | None,
+        Query(description="Filter logs up to this timestamp using ISO8601 format"),
+    ] = None,
+    limit: Annotated[int | None, Query(description="Maximum number of log lines to return per container")] = 1000,
+    offset: Annotated[int | None, Query(description="Number of log lines to skip per container")] = 0,
 ):
     """Get the latest logs for both containers of an analysis (highest run number)."""
-    settings = get_settings()
-    if not settings.victoria_logs_url:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Log service is not configured",
-        )
-
     container_names = _get_analysis_container_names(str(analysis_id))
     runs = _group_by_run(container_names)
 
@@ -295,11 +316,12 @@ async def get_analysis_logs(
     latest_run_num = max(runs)
     latest = runs[latest_run_num]
 
+    pod_args = (start_date, end_date, limit, offset)
     return {
         "analysis_id": analysis_id,
         "run_number": latest_run_num,
-        "nginx_logs": _query_pod_logs(latest["nginx"]) if "nginx" in latest else [],
-        "analysis_logs": _query_pod_logs(latest["analysis"]) if "analysis" in latest else [],
+        "nginx_logs": _query_pod_logs(latest["nginx"], *pod_args) if "nginx" in latest else [],
+        "analysis_logs": _query_pod_logs(latest["analysis"], *pod_args) if "analysis" in latest else [],
     }
 
 
@@ -309,28 +331,33 @@ async def get_analysis_logs(
     name="logs.analysis.history.get",
     response_model=AnalysisLogHistoryResponse,
 )
+@require_victoria_logs
 async def get_analysis_log_history(
     analysis_id: Annotated[uuid.UUID, Path(description="UUID of the analysis.")],
+    start_date: Annotated[
+        datetime.datetime | None,
+        Query(description="Filter logs from this timestamp using ISO8601 format"),
+    ] = None,
+    end_date: Annotated[
+        datetime.datetime | None,
+        Query(description="Filter logs up to this timestamp using ISO8601 format"),
+    ] = None,
+    limit: Annotated[int, Query(description="Maximum number of log lines to return per container")] = 1000,
+    offset: Annotated[int, Query(description="Number of log lines to skip per container")] = 0,
 ):
     """Get logs for all runs of an analysis, sorted by run number ascending."""
-    settings = get_settings()
-    if not settings.victoria_logs_url:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Log service is not configured",
-        )
-
     container_names = _get_analysis_container_names(str(analysis_id))
     runs = _group_by_run(container_names)
 
+    pod_args = (start_date, end_date, limit, offset)
     result_runs = []
     for run_num in sorted(runs):
         run = runs[run_num]
         result_runs.append(
             {
                 "run_number": run_num,
-                "nginx_logs": _query_pod_logs(run["nginx"]) if "nginx" in run else [],
-                "analysis_logs": _query_pod_logs(run["analysis"]) if "analysis" in run else [],
+                "nginx_logs": _query_pod_logs(run["nginx"], *pod_args) if "nginx" in run else [],
+                "analysis_logs": _query_pod_logs(run["analysis"], *pod_args) if "analysis" in run else [],
             }
         )
 
@@ -355,6 +382,7 @@ def _parse_netstats_container(container_name: str) -> tuple[str, int]:
     response_model=NetStatResponse,
     name="logs.netstats.get",
 )
+@require_victoria_logs
 async def get_netstats(
     analysis_id: Annotated[uuid.UUID | None, Query(description="Filter by analysis UUID")] = None,
     start_date: Annotated[
@@ -368,13 +396,6 @@ async def get_netstats(
     limit: Annotated[int, Query(description="Maximum number of raw log entries to return")] = 1000,
 ):
     """Retrieve network traffic statistics from netstats log events."""
-    settings = get_settings()
-    if not settings.victoria_logs_url:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Log service is not configured",
-        )
-
     query_parts = ['log.event_name:"netstats.analysis.traffic"']
     if analysis_id is not None:
         query_parts.append(f'kubernetes.container_name:~"net-stats-analysis-{str(analysis_id)}-"')
@@ -432,15 +453,9 @@ async def get_netstats(
     response_model=LogQLQueryResponse,
     dependencies=[Depends(require_admin_role)],
 )
+@require_victoria_logs
 async def raw_log_query(body: LogQLQueryRequest):
     """Execute a raw LogQL query against VictoriaLogs. Admin only."""
-    settings = get_settings()
-    if not settings.victoria_logs_url:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Log service is not configured",
-        )
-
     params: dict = {"limit": body.limit, "offset": body.offset}
     if body.start:
         params["start"] = body.start.isoformat()
@@ -460,6 +475,7 @@ async def raw_log_query(body: LogQLQueryRequest):
     response_model=ApiRequestCountResponse,
     name="logs.requests.get",
 )
+@require_victoria_logs
 async def get_api_requests(
     start_date: Annotated[
         datetime.datetime | None,
@@ -479,13 +495,6 @@ async def get_api_requests(
     ] = None,
 ):
     """Get total API request count and a per-endpoint breakdown grouped by HTTP method and path."""
-    settings = get_settings()
-    if not settings.victoria_logs_url:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Event log service is not configured",
-        )
-
     logsql_query = r"""log.logger:"uvicorn.access" | extract '<_> "<method> <path> HTTP/<_>" <status>' | stats by (method, path) count() as requests"""
     params: dict = {}
     if start_date:
