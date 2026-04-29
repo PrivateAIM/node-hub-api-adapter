@@ -150,23 +150,16 @@ def _query_pod_logs(
     container_name: str,
     start_date: datetime.datetime | None = None,
     end_date: datetime.datetime | None = None,
-    limit: int | None = None,
+    limit: int | None = 1000,
     offset: int = 0,
 ) -> list[dict]:
-    """Return log lines for a specific container, sorted oldest-first. If no start_date or end_date provided, then set
-    limit to 1000."""
+    """Return log lines for a specific container, sorted oldest-first."""
     settings = get_settings()
     query = f'kubernetes.container_name:"{container_name}"'
     query_data: dict = {
         "query": (f"{query} | fields _time, _msg, level, log.error | sort by (_time)"),
+        "limit": limit,
     }
-    if not limit:
-        if not start_date and not end_date:
-            query_data["limit"] = 1000
-
-    else:
-        query_data["limit"] = limit
-
     if offset:
         query_data["offset"] = offset
 
