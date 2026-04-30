@@ -44,7 +44,7 @@ class TestLogs:
         check_routes(logs_router, EXPECTED_LOGS_ROUTE_CONFIG, test_client)
 
     @pytest.mark.asyncio
-    @patch("hub_adapter.routers.logs.get_settings")
+    @patch("hub_adapter.dependencies.get_settings")
     async def test_get_events_503_when_victoria_logs_url_not_set(self, mock_get_settings):
         """get_events raises 503 when victoria_logs_url is None."""
         mock_get_settings.return_value.victoria_logs_url = None
@@ -53,7 +53,7 @@ class TestLogs:
             await get_events()
 
         assert exc_info.value.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
-        assert exc_info.value.detail == "Event log service is not configured"
+        assert exc_info.value.detail == "Log service is not configured"
 
     @pytest.mark.asyncio
     @patch("hub_adapter.routers.logs.count_logs")
@@ -114,7 +114,7 @@ class TestGetAnalysisLogs:
     """Tests for the get_analysis_logs endpoint."""
 
     @pytest.mark.asyncio
-    @patch("hub_adapter.routers.logs.get_settings")
+    @patch("hub_adapter.dependencies.get_settings")
     async def test_raises_503_when_victoria_logs_url_not_set(self, mock_get_settings):
         """get_analysis_logs raises 503 when victoria_logs_url is None."""
         mock_get_settings.return_value.victoria_logs_url = None
@@ -157,7 +157,7 @@ class TestGetAnalysisLogs:
         ]
         nginx_logs = [{"timestamp": "2024-01-01T00:00:00Z", "message": "nginx log"}]
         analysis_logs = [{"timestamp": "2024-01-01T00:00:01Z", "message": "analysis log"}]
-        mock_query_logs.side_effect = lambda name: nginx_logs if "nginx" in name else analysis_logs
+        mock_query_logs.side_effect = lambda name, *args, **kwargs: nginx_logs if "nginx" in name else analysis_logs
 
         result = await get_analysis_logs(analysis_id)
 
@@ -189,7 +189,7 @@ class TestGetAnalysisLogHistory:
     """Tests for the get_analysis_log_history endpoint."""
 
     @pytest.mark.asyncio
-    @patch("hub_adapter.routers.logs.get_settings")
+    @patch("hub_adapter.dependencies.get_settings")
     async def test_raises_503_when_victoria_logs_url_not_set(self, mock_get_settings):
         """get_analysis_log_history raises 503 when victoria_logs_url is None."""
         mock_get_settings.return_value.victoria_logs_url = None
@@ -246,7 +246,7 @@ class TestRawLogQuery:
         check_routes(logs_router, EXPECTED_LOGS_ROUTE_CONFIG, test_client)
 
     @pytest.mark.asyncio
-    @patch("hub_adapter.routers.logs.get_settings")
+    @patch("hub_adapter.dependencies.get_settings")
     async def test_raises_503_when_victoria_logs_url_not_set(self, mock_get_settings):
         """raw_log_query raises 503 when victoria_logs_url is None."""
         mock_get_settings.return_value.victoria_logs_url = None
@@ -282,7 +282,7 @@ class TestGetApiRequests:
     """Tests for the GET /requests endpoint."""
 
     @pytest.mark.asyncio
-    @patch("hub_adapter.routers.logs.get_settings")
+    @patch("hub_adapter.dependencies.get_settings")
     async def test_raises_503_when_victoria_logs_url_not_set(self, mock_get_settings):
         """get_api_requests raises 503 when victoria_logs_url is None."""
         mock_get_settings.return_value.victoria_logs_url = None
@@ -291,7 +291,7 @@ class TestGetApiRequests:
             await get_api_requests()
 
         assert exc_info.value.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
-        assert exc_info.value.detail == "Event log service is not configured"
+        assert exc_info.value.detail == "Log service is not configured"
 
     @pytest.mark.asyncio
     @patch("hub_adapter.routers.logs._execute_raw_query")

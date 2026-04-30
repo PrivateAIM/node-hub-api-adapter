@@ -184,10 +184,9 @@ class TestLoadFromDatabase:
     @patch("hub_adapter.user_settings.node_database")
     def test_load_from_database_operational_error(self, mock_db):
         """Test that function returns an empty dict on OperationalError."""
-        mock_db.side_effect = pw.OperationalError("Connection failed")
-
-        with patch("hub_adapter.user_settings.logger"):
-            result = _load_from_database()
+        with patch("hub_adapter.user_settings.bind_user_settings", side_effect=pw.OperationalError("Connection failed")):
+            with patch("hub_adapter.user_settings.logger"):
+                result = _load_from_database()
 
         assert result == {}
 
@@ -286,10 +285,9 @@ class TestSaveToDatabase:
     @patch("hub_adapter.user_settings.node_database")
     def test_save_to_database_operational_error(self, mock_db):
         """Test that function returns False on OperationalError."""
-        mock_db.side_effect = pw.OperationalError("Connection failed")
-
-        with patch("hub_adapter.user_settings.logger"):
-            result = _save_to_database({"key": "value"})
+        with patch("hub_adapter.user_settings.bind_user_settings", side_effect=pw.OperationalError("Connection failed")):
+            with patch("hub_adapter.user_settings.logger"):
+                result = _save_to_database({"key": "value"})
 
         assert result is False
 
