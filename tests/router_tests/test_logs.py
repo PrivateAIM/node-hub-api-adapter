@@ -58,7 +58,7 @@ class TestLogs:
     @pytest.mark.asyncio
     @patch("hub_adapter.routers.logs.count_logs")
     @patch("hub_adapter.routers.logs.query_logs")
-    @patch("hub_adapter.routers.logs.get_settings")
+    @patch("hub_adapter.dependencies.get_settings")
     async def test_get_events_returns_data_when_configured(self, mock_get_settings, mock_query_logs, mock_count_logs):
         """get_events returns paginated data when victoria_logs_url is configured."""
         mock_get_settings.return_value.victoria_logs_url = "http://victoria:9428"
@@ -128,7 +128,7 @@ class TestGetAnalysisLogs:
 
     @pytest.mark.asyncio
     @patch("hub_adapter.routers.logs._get_analysis_container_names")
-    @patch("hub_adapter.routers.logs.get_settings")
+    @patch("hub_adapter.dependencies.get_settings")
     async def test_raises_404_when_no_containers_found(self, mock_get_settings, mock_get_names):
         """get_analysis_logs raises 404 when no matching containers exist."""
         mock_get_settings.return_value.victoria_logs_url = "http://victoria:9428"
@@ -143,7 +143,7 @@ class TestGetAnalysisLogs:
     @pytest.mark.asyncio
     @patch("hub_adapter.routers.logs._query_pod_logs")
     @patch("hub_adapter.routers.logs._get_analysis_container_names")
-    @patch("hub_adapter.routers.logs.get_settings")
+    @patch("hub_adapter.dependencies.get_settings")
     async def test_returns_latest_run_logs(self, mock_get_settings, mock_get_names, mock_query_logs):
         """get_analysis_logs returns logs for the highest run number only."""
         analysis_id = uuid.uuid4()
@@ -169,7 +169,7 @@ class TestGetAnalysisLogs:
     @pytest.mark.asyncio
     @patch("hub_adapter.routers.logs._query_pod_logs")
     @patch("hub_adapter.routers.logs._get_analysis_container_names")
-    @patch("hub_adapter.routers.logs.get_settings")
+    @patch("hub_adapter.dependencies.get_settings")
     async def test_returns_empty_lists_when_container_type_absent(
         self, mock_get_settings, mock_get_names, mock_query_logs
     ):
@@ -204,7 +204,7 @@ class TestGetAnalysisLogHistory:
     @pytest.mark.asyncio
     @patch("hub_adapter.routers.logs._query_pod_logs")
     @patch("hub_adapter.routers.logs._get_analysis_container_names")
-    @patch("hub_adapter.routers.logs.get_settings")
+    @patch("hub_adapter.dependencies.get_settings")
     async def test_returns_all_runs_sorted_ascending(self, mock_get_settings, mock_get_names, mock_query_logs):
         """get_analysis_log_history returns every run ordered by run number ascending."""
         analysis_id = uuid.uuid4()
@@ -225,7 +225,7 @@ class TestGetAnalysisLogHistory:
 
     @pytest.mark.asyncio
     @patch("hub_adapter.routers.logs._get_analysis_container_names")
-    @patch("hub_adapter.routers.logs.get_settings")
+    @patch("hub_adapter.dependencies.get_settings")
     async def test_returns_empty_runs_list_when_no_containers_found(self, mock_get_settings, mock_get_names):
         """get_analysis_log_history returns an empty runs list when no containers exist."""
         mock_get_settings.return_value.victoria_logs_url = "http://victoria:9428"
@@ -260,7 +260,7 @@ class TestRawLogQuery:
     @pytest.mark.asyncio
     @patch("hub_adapter.routers.logs.count_logs")
     @patch("hub_adapter.routers.logs._execute_raw_query")
-    @patch("hub_adapter.routers.logs.get_settings")
+    @patch("hub_adapter.dependencies.get_settings")
     async def test_returns_paginated_data_when_configured(self, mock_get_settings, mock_execute, mock_count):
         """raw_log_query returns data and meta envelope when configured."""
         mock_get_settings.return_value.victoria_logs_url = "http://victoria:9428"
@@ -295,7 +295,7 @@ class TestGetApiRequests:
 
     @pytest.mark.asyncio
     @patch("hub_adapter.routers.logs._execute_raw_query")
-    @patch("hub_adapter.routers.logs.get_settings")
+    @patch("hub_adapter.dependencies.get_settings")
     async def test_returns_total_and_per_endpoint_breakdown(self, mock_get_settings, mock_execute):
         """get_api_requests returns the sum total and one dict entry per endpoint."""
         mock_get_settings.return_value.victoria_logs_url = "http://victoria:9428"
@@ -313,7 +313,7 @@ class TestGetApiRequests:
 
     @pytest.mark.asyncio
     @patch("hub_adapter.routers.logs._execute_raw_query")
-    @patch("hub_adapter.routers.logs.get_settings")
+    @patch("hub_adapter.dependencies.get_settings")
     async def test_strips_query_params_and_reaggregates(self, mock_get_settings, mock_execute):
         """get_api_requests strips query strings and merges counts for the same base path."""
         mock_get_settings.return_value.victoria_logs_url = "http://victoria:9428"
@@ -330,7 +330,7 @@ class TestGetApiRequests:
 
     @pytest.mark.asyncio
     @patch("hub_adapter.routers.logs._execute_raw_query")
-    @patch("hub_adapter.routers.logs.get_settings")
+    @patch("hub_adapter.dependencies.get_settings")
     async def test_multiple_methods_per_endpoint(self, mock_get_settings, mock_execute):
         """get_api_requests groups multiple methods under the same endpoint key."""
         mock_get_settings.return_value.victoria_logs_url = "http://victoria:9428"
@@ -348,7 +348,7 @@ class TestGetApiRequests:
 
     @pytest.mark.asyncio
     @patch("hub_adapter.routers.logs._execute_raw_query")
-    @patch("hub_adapter.routers.logs.get_settings")
+    @patch("hub_adapter.dependencies.get_settings")
     async def test_filters_by_endpoint_prefix(self, mock_get_settings, mock_execute):
         """get_api_requests filters the breakdown and total to paths starting with the given prefix."""
         mock_get_settings.return_value.victoria_logs_url = "http://victoria:9428"
@@ -364,7 +364,7 @@ class TestGetApiRequests:
 
     @pytest.mark.asyncio
     @patch("hub_adapter.routers.logs._execute_raw_query")
-    @patch("hub_adapter.routers.logs.get_settings")
+    @patch("hub_adapter.dependencies.get_settings")
     async def test_returns_zero_total_when_no_paths_match_prefix(self, mock_get_settings, mock_execute):
         """get_api_requests returns total 0 and empty dict when no paths match the given prefix."""
         mock_get_settings.return_value.victoria_logs_url = "http://victoria:9428"
@@ -379,7 +379,7 @@ class TestGetApiRequests:
 
     @pytest.mark.asyncio
     @patch("hub_adapter.routers.logs._execute_raw_query")
-    @patch("hub_adapter.routers.logs.get_settings")
+    @patch("hub_adapter.dependencies.get_settings")
     async def test_passes_date_range_params_to_query(self, mock_get_settings, mock_execute):
         """get_api_requests forwards start_date and end_date to _execute_raw_query."""
         mock_get_settings.return_value.victoria_logs_url = "http://victoria:9428"
@@ -395,7 +395,7 @@ class TestGetApiRequests:
 
     @pytest.mark.asyncio
     @patch("hub_adapter.routers.logs._execute_raw_query")
-    @patch("hub_adapter.routers.logs.get_settings")
+    @patch("hub_adapter.dependencies.get_settings")
     async def test_filters_by_method(self, mock_get_settings, mock_execute):
         """get_api_requests only returns endpoints that have the given method."""
         mock_get_settings.return_value.victoria_logs_url = "http://victoria:9428"
@@ -413,7 +413,7 @@ class TestGetApiRequests:
 
     @pytest.mark.asyncio
     @patch("hub_adapter.routers.logs._execute_raw_query")
-    @patch("hub_adapter.routers.logs.get_settings")
+    @patch("hub_adapter.dependencies.get_settings")
     async def test_method_filter_is_case_insensitive(self, mock_get_settings, mock_execute):
         """get_api_requests uppercases the method filter before comparing."""
         mock_get_settings.return_value.victoria_logs_url = "http://victoria:9428"
@@ -428,7 +428,7 @@ class TestGetApiRequests:
 
     @pytest.mark.asyncio
     @patch("hub_adapter.routers.logs._execute_raw_query")
-    @patch("hub_adapter.routers.logs.get_settings")
+    @patch("hub_adapter.dependencies.get_settings")
     async def test_filters_by_method_and_endpoint(self, mock_get_settings, mock_execute):
         """get_api_requests applies both method and endpoint filters together."""
         mock_get_settings.return_value.victoria_logs_url = "http://victoria:9428"
