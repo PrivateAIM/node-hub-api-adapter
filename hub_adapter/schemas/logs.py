@@ -33,13 +33,34 @@ class Meta(BaseModel):
     count: int
     total: int
     limit: int
-    offset: int
+    offset: int | None = None
 
 
 class EventLogResponse(BaseModel):
     """Event log response model."""
 
     data: list[EventLog]
+    meta: Meta
+
+
+class NetStatRun(BaseModel):
+    timestamp: datetime.datetime
+    container: str
+    run_number: int
+    pod: str
+    bytes_in: int
+    bytes_out: int
+
+
+class NetStatTotal(BaseModel):
+    analysis_id: uuid.UUID
+    bytes_in: int
+    bytes_out: int
+    runs: list[NetStatRun]
+
+
+class NetStatResponse(BaseModel):
+    data: list[NetStatTotal]
     meta: Meta
 
 
@@ -76,6 +97,33 @@ class AnalysisLogHistoryResponse(BaseModel):
 
     analysis_id: uuid.UUID
     runs: list[RunLogs]
+
+
+class LogQLQueryRequest(BaseModel):
+    """Request body for a raw LogQL query."""
+
+    query: str
+    limit: int = 50
+    offset: int = 0
+    start: datetime.datetime | None = None
+    end: datetime.datetime | None = None
+
+
+class LogQLQueryResponse(BaseModel):
+    """Response for a raw LogQL query."""
+
+    data: list[dict]
+    meta: Meta
+
+
+class ApiRequestCountResponse(BaseModel):
+    """Response for the API request count endpoint.
+
+    data maps endpoint path → {method: count, ..., "total": count}.
+    """
+
+    total: int
+    data: dict[str, dict[str, int]]
 
 
 # Events
@@ -125,6 +173,10 @@ TRACKED_EVENTS = {
     "logs.events.get": "A user requested a list of events from the event log",
     "logs.analysis.live.get": "A user requested the logs for an analysis",
     "logs.analysis.history.get": "A user requested the log history for an analysis",
+    "logs.query.raw": "An admin sent a raw LogQL query to VictoriaLogs",
+    "logs.netstats.get": "A user requested network traffic statistics",
+    "logs.requests.get": "A user requested API request counts from the event log",
+    "netstats.analysis.traffic": "A network traffic statistics event was recorded",
     "autostart.analysis.create": "The Hub Adapter automatically sent a request to start an analysis to the Pod Orchestrator",
     "api.ui.access": "The API Swagger UI was accessed",
     "unknown": "An unknown event has occurred",
