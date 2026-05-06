@@ -39,14 +39,14 @@ logs_router = APIRouter(
 )
 
 
-def count_logs(query: str, params: dict | None = None) -> int:
+async def count_logs(query: str, params: dict | None = None) -> int:
     """Return the total number of logs matching a query, ignoring limit/offset."""
     settings = get_settings()
     count_params = {k: v for k, v in (params or {}).items() if k not in ("limit", "offset")}
     query_data = {"query": f"{query} | count() as total", **count_params}
 
-    with httpx.Client(event_hooks={"response": [make_log_hook(ServiceTag.LOGS)]}) as client:
-        resp = client.post(
+    async with httpx.AsyncClient(event_hooks={"response": [make_log_hook(ServiceTag.LOGS, is_async=True)]}) as client:
+        resp = await client.post(
             f"{settings.victoria_logs_url}/select/logsql/query",
             data=query_data,
         )
@@ -59,12 +59,12 @@ def count_logs(query: str, params: dict | None = None) -> int:
     return 0
 
 
-def _execute_raw_query(query: str, params: dict | None = None) -> list[dict]:
+async def _execute_raw_query(query: str, params: dict | None = None) -> list[dict]:
     """Execute a LogQL query against VictoriaLogs and return raw parsed results."""
     settings = get_settings()
     query_data = {"query": query, **(params or {})}
-    with httpx.Client(event_hooks={"response": [make_log_hook(ServiceTag.LOGS)]}) as client:
-        resp = client.post(
+    async with httpx.AsyncClient(event_hooks={"response": [make_log_hook(ServiceTag.LOGS, is_async=True)]}) as client:
+        resp = await client.post(
             f"{settings.victoria_logs_url}/select/logsql/query",
             data=query_data,
         )
@@ -76,7 +76,7 @@ def _execute_raw_query(query: str, params: dict | None = None) -> list[dict]:
     return logs
 
 
-def query_logs(query: str, params: dict | None = None):
+async def query_logs(query: str, params: dict | None = None):
     """Retrieve a selection of logs."""
     _fields = (
         "_msg",
@@ -105,8 +105,8 @@ def query_logs(query: str, params: dict | None = None):
 
     _output_fields = {_rename.get(f, f) for f in _fields}
 
-    with httpx.Client(event_hooks={"response": [make_log_hook(ServiceTag.LOGS)]}) as client:
-        resp = client.post(
+    async with httpx.AsyncClient(event_hooks={"response": [make_log_hook(ServiceTag.LOGS, is_async=True)]}) as client:
+        resp = await client.post(
             f"{settings.victoria_logs_url}/select/logsql/query",
             data=query_data,
         )
@@ -121,7 +121,7 @@ def query_logs(query: str, params: dict | None = None):
     return logs
 
 
-def _get_analysis_container_names(analysis_id_str: str) -> list[str]:
+async def _get_analysis_container_names(analysis_id_str: str) -> list[str]:
     """Return all unique container names matching the analysis ID pattern."""
     settings = get_settings()
     pattern = f"^(nginx-analysis|analysis)-{analysis_id_str}-[0-9]+$"
@@ -130,8 +130,8 @@ def _get_analysis_container_names(analysis_id_str: str) -> list[str]:
         "query": f"{query} | uniq by (kubernetes.container_name)",
         "limit": 100,
     }
-    with httpx.Client(event_hooks={"response": [make_log_hook(ServiceTag.LOGS)]}) as client:
-        resp = client.post(
+    async with httpx.AsyncClient(event_hooks={"response": [make_log_hook(ServiceTag.LOGS, is_async=True)]}) as client:
+        resp = await client.post(
             f"{settings.victoria_logs_url}/select/logsql/query",
             data=query_data,
         )
@@ -146,7 +146,7 @@ def _get_analysis_container_names(analysis_id_str: str) -> list[str]:
     return names
 
 
-def _query_pod_logs(
+async def _query_pod_logs(
     container_name: str,
     start_date: datetime.datetime | None = None,
     end_date: datetime.datetime | None = None,
@@ -169,8 +169,8 @@ def _query_pod_logs(
     if end_date:
         query_data["end"] = end_date.isoformat()
 
-    with httpx.Client(event_hooks={"response": [make_log_hook(ServiceTag.LOGS)]}) as client:
-        resp = client.post(
+    async with httpx.AsyncClient(event_hooks={"response": [make_log_hook(ServiceTag.LOGS, is_async=True)]}) as client:
+        resp = await client.post(
             f"{settings.victoria_logs_url}/select/logsql/query",
             data=query_data,
         )
@@ -246,8 +246,8 @@ async def get_events(
     if end_date:
         params["end"] = end_date.isoformat()
 
-    data = query_logs(query, params)
-    total = count_logs(query, params)
+    data = await query_logs(query, params)
+    total = await count_logs(query, params)
 
     meta = {"total": total, "limit": params["limit"], "offset": params["offset"], "count": len(data)}
 
@@ -297,7 +297,7 @@ async def get_analysis_logs(
     offset: Annotated[int | None, Query(description="Number of log lines to skip per container")] = 0,
 ):
     """Get the latest logs for both containers of an analysis (highest run number)."""
-    container_names = _get_analysis_container_names(str(analysis_id))
+    container_names = await _get_analysis_container_names(str(analysis_id))
     runs = _group_by_run(container_names)
 
     if not runs:
@@ -313,8 +313,8 @@ async def get_analysis_logs(
     return {
         "analysis_id": analysis_id,
         "run_number": latest_run_num,
-        "nginx_logs": _query_pod_logs(latest["nginx"], *pod_args) if "nginx" in latest else [],
-        "analysis_logs": _query_pod_logs(latest["analysis"], *pod_args) if "analysis" in latest else [],
+        "nginx_logs": await _query_pod_logs(latest["nginx"], *pod_args) if "nginx" in latest else [],
+        "analysis_logs": await _query_pod_logs(latest["analysis"], *pod_args) if "analysis" in latest else [],
     }
 
 
@@ -339,7 +339,7 @@ async def get_analysis_log_history(
     offset: Annotated[int, Query(description="Number of log lines to skip per container")] = 0,
 ):
     """Get logs for all runs of an analysis, sorted by run number ascending."""
-    container_names = _get_analysis_container_names(str(analysis_id))
+    container_names = await _get_analysis_container_names(str(analysis_id))
     runs = _group_by_run(container_names)
 
     pod_args = (start_date, end_date, limit, offset)
@@ -349,8 +349,8 @@ async def get_analysis_log_history(
         result_runs.append(
             {
                 "run_number": run_num,
-                "nginx_logs": _query_pod_logs(run["nginx"], *pod_args) if "nginx" in run else [],
-                "analysis_logs": _query_pod_logs(run["analysis"], *pod_args) if "analysis" in run else [],
+                "nginx_logs": await _query_pod_logs(run["nginx"], *pod_args) if "nginx" in run else [],
+                "analysis_logs": await _query_pod_logs(run["analysis"], *pod_args) if "analysis" in run else [],
             }
         )
 
@@ -386,7 +386,7 @@ async def get_netstats(
         datetime.datetime | None,
         Query(description="Filter by end date using ISO8601 format"),
     ] = None,
-    limit: Annotated[int, Query(description="Maximum number of raw log entries to return")] = 1000,
+    limit: Annotated[int, Query(description="Maximum number of analysis groups to return")] = 1000,
 ):
     """Retrieve network traffic statistics from netstats log events."""
     query_parts = ['log.event_name:"netstats.analysis.traffic"']
@@ -397,14 +397,13 @@ async def get_netstats(
     fields = "_time, kubernetes.container_name, kubernetes.pod_name, log.bytes_in, log.bytes_out"
     logsql_query = f"{base_query} | fields {fields}"
 
-    params: dict = {"limit": limit}
+    params: dict = {}
     if start_date:
         params["start"] = start_date.isoformat()
     if end_date:
         params["end"] = end_date.isoformat()
 
-    raw_logs = _execute_raw_query(logsql_query, params)
-    total = count_logs(base_query, params)
+    raw_logs = await _execute_raw_query(logsql_query, params)
 
     totals: dict[str, NetStatTotal] = {}
     for entry in raw_logs:
@@ -435,8 +434,9 @@ async def get_netstats(
         totals[key].bytes_out += run.bytes_out
 
     data = list(totals.values())
-    meta = {"total": total, "limit": limit, "offset": 0, "count": len(data)}
-    return {"data": data, "meta": meta}
+    total = len(data)
+    meta = {"total": total, "limit": limit, "offset": 0, "count": len(data[:limit])}
+    return {"data": data[:limit], "meta": meta}
 
 
 @logs_router.post(
@@ -455,8 +455,8 @@ async def raw_log_query(body: LogQLQueryRequest):
     if body.end:
         params["end"] = body.end.isoformat()
 
-    data = _execute_raw_query(body.query, params)
-    total = count_logs(body.query, params)
+    data = await _execute_raw_query(body.query, params)
+    total = await count_logs(body.query, params)
 
     meta = {"total": total, "limit": body.limit, "offset": body.offset, "count": len(data)}
     return {"data": data, "meta": meta}
@@ -495,7 +495,7 @@ async def get_api_requests(
     if end_date:
         params["end"] = end_date.isoformat()
 
-    raw = _execute_raw_query(logsql_query, params)
+    raw = await _execute_raw_query(logsql_query, params)
     method_filter = method.upper() if method else None
 
     by_path: dict[str, dict[str, int]] = {}

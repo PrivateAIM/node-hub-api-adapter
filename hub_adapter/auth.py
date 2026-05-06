@@ -267,7 +267,21 @@ async def require_admin_role(
     """Dependency to check if the user has the ADMIN_ROLE."""
     role_claim_name = settings.role_claim_name
     admin_role = settings.admin_role
-    if role_claim_name and admin_role:
+
+    if not role_claim_name:
+        return verified_token
+
+    if not admin_role:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "message": "Insufficient permissions, admin role not found in token or not configured.",
+                "service": "Auth",
+                "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
+            },
+        )
+
+    if role_claim_name:
         role_claim_keys = role_claim_name.split(".")
         parsed_claim = verified_token
         for key in role_claim_keys:
