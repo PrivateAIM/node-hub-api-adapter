@@ -258,3 +258,45 @@ async def require_researcher_role(
     """Dependency to check if the user has the ADMIN_ROLE or RESEARCHER_ROLE."""
     researcher_role = settings.researcher_role
     return _require_role(researcher_role, verified_token, settings)
+
+
+async def require_admin_role(
+    verified_token: Annotated[dict, Depends(verify_idp_token)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> dict:
+    """Dependency to check if the user has the ADMIN_ROLE."""
+    role_claim_name = settings.role_claim_name
+    admin_role = settings.admin_role
+
+    if not role_claim_name:
+        return verified_token
+
+    if not admin_role:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "message": "Insufficient permissions, admin role not found in token or not configured.",
+                "service": "Auth",
+                "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
+            },
+        )
+
+    if role_claim_name:
+        role_claim_keys = role_claim_name.split(".")
+        parsed_claim = verified_token
+        for key in role_claim_keys:
+            parsed_claim = parsed_claim.get(key, {})
+        if not parsed_claim:
+            logger.warning(f"No roles found in token using {role_claim_name}")
+        if isinstance(parsed_claim, str):
+            parsed_claim = [parsed_claim]
+        if admin_role not in parsed_claim:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "message": "Insufficient permissions, admin role not found in token.",
+                    "service": "Auth",
+                    "status_code": status.HTTP_403_FORBIDDEN,
+                },
+            )
+    return verified_token
