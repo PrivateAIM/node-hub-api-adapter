@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.6.2](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.6.1...v0.6.2) (2026-05-06)
+
+
+### Features
+
+* **logs:** add customer log endpoint and admin security ([0415f48](https://github.com/PrivateAIM/node-hub-api-adapter/commit/0415f483911a84b0aee15609fb0c2266bc3e944c))
+* **logs:** add log level to queried and returned logs ([0e99bd0](https://github.com/PrivateAIM/node-hub-api-adapter/commit/0e99bd0f9f975a2ef128fb65469aac0a0da89200))
+* **logs:** add network requests summation endpoints to logs ([fb2175e](https://github.com/PrivateAIM/node-hub-api-adapter/commit/fb2175e072ac4291bf6fe7d1ce614b5555859c8e))
+* **logs:** add network traffic log fetching ([ffa654d](https://github.com/PrivateAIM/node-hub-api-adapter/commit/ffa654dc3c78246f79289d1c0ce7f40c97128e62))
+* **logs:** add stacktrace to queried and returned logs ([0400ffd](https://github.com/PrivateAIM/node-hub-api-adapter/commit/0400ffd38aec1283a39dd0cf58005ff8ed920478))
+* **logs:** allow more params for pod log queries ([a03cf97](https://github.com/PrivateAIM/node-hub-api-adapter/commit/a03cf9737dbfd20901a617b33e655fc026db61e1))
+
+
+### Bug Fixes
+
+* **logs:** make log queries async to avoid IO blocking ([445c86d](https://github.com/PrivateAIM/node-hub-api-adapter/commit/445c86dde275872b9e4b7ef984141d61d839ac0f))
+
 ## [0.6.1](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.6.0...v0.6.1) (2026-04-23)
 
 
