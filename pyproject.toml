@@ -1,6 +1,6 @@
 [project]
 name = "hub-adapter"
-version = "0.6.1"
+version = "0.6.2"
 description = "API gateway interface for the Node UI to interact with the other node services and the hub."
 authors = [{ name = "Bruce Schultz", email = "bruce.schultz@uk-koeln.de" }]
 readme = "README.md"
@@ -11,7 +11,7 @@ dependencies = [
     "fastapi>=0.120.1",
     "flame-hub-client==0.2.15",
     "click>=8.1.7",
-    "python-multipart>=0.0.26",
+    "python-multipart>=0.0.27",
     "httpx>=0.28.0",
     "kongadminclient @ git+https://github.com/PrivateAIM/kong-admin-python-client.git",
     "python-dotenv>=1.0.1",
