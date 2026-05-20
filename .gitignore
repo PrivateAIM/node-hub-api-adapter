@@ -267,3 +267,7 @@ docs/
 
 # Synth Data
 dummy-data/
+
+# Project
+hub_adapter/cache/
+hub_adapter/logs/
