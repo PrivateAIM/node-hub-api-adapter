@@ -26,6 +26,18 @@ class UserContextFilter(logging.Filter):
         return True
 
 
+class HealthCheckFilter(logging.Filter):
+    """Suppress uvicorn access log entries for the /healthz endpoint."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        # uvicorn.access args: (client_addr, method, full_path, http_version, status_code)
+        args = record.args
+        if isinstance(args, tuple) and len(args) >= 3:
+            path = str(args[2]).split("?")[0]
+            return path != "/healthz"
+        return True
+
+
 class JsonFormatter(logging.Formatter):
     """Emit each log record as a single JSON line for structured log ingestion."""
 
@@ -61,6 +73,9 @@ logging_config = {
     "filters": {
         "user_context": {
             "()": UserContextFilter,
+        },
+        "no_health_checks": {
+            "()": HealthCheckFilter,
         },
     },
     "formatters": {
@@ -105,6 +120,11 @@ logging_config = {
         },
         "httpx": {
             "level": "WARNING",
+        },
+        "uvicorn.access": {
+            "handlers": ["file_handler", "console_handler"],
+            "filters": ["no_health_checks"],
+            "propagate": False,
         },
     },
 }
