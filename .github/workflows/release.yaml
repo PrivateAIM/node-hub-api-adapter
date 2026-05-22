@@ -38,7 +38,7 @@ jobs:
       packages: write
     steps:
       - name: Checkout  # required for finding action
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Build production image
         uses: ./.github/actions/build-docker-image
@@ -58,7 +58,7 @@ jobs:
       packages: write
     steps:
       - name: Checkout  # required for finding action
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Build canary image
         uses: ./.github/actions/build-docker-image
