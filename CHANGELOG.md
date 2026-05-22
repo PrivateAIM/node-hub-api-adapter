@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.3](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.6.2...v0.6.3) (2026-05-22)
+
+
+### Bug Fixes
+
+* **logs:** filter health messages from logs ([cc27474](https://github.com/PrivateAIM/node-hub-api-adapter/commit/cc27474557c60e8d641335df144902eddc96e8a8))
+
 ## [0.6.2](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.6.1...v0.6.2) (2026-05-06)
 
 
