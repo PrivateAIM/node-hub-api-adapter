@@ -158,8 +158,10 @@ async def _query_pod_logs(
     query = f'kubernetes.container_name:"{container_name}"'
     query_data: dict = {
         "query": (f"{query} | fields _time, _msg, level, log.error | sort by (_time)"),
-        "limit": limit,
     }
+    if limit:
+        query_data["limit"] = limit
+
     if offset:
         query_data["offset"] = offset
 
@@ -293,7 +295,7 @@ async def get_analysis_logs(
         datetime.datetime | None,
         Query(description="Filter logs up to this timestamp using ISO8601 format"),
     ] = None,
-    limit: Annotated[int | None, Query(description="Maximum number of log lines to return per container")] = 1000,
+    limit: Annotated[int | None, Query(description="Maximum number of log lines to return per container")] = None,
     offset: Annotated[int | None, Query(description="Number of log lines to skip per container")] = 0,
 ):
     """Get the latest logs for both containers of an analysis (highest run number)."""
@@ -335,7 +337,7 @@ async def get_analysis_log_history(
         datetime.datetime | None,
         Query(description="Filter logs up to this timestamp using ISO8601 format"),
     ] = None,
-    limit: Annotated[int, Query(description="Maximum number of log lines to return per container")] = 1000,
+    limit: Annotated[int | None, Query(description="Maximum number of log lines to return per container")] = None,
     offset: Annotated[int, Query(description="Number of log lines to skip per container")] = 0,
 ):
     """Get logs for all runs of an analysis, sorted by run number ascending."""
