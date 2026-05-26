@@ -1,11 +1,12 @@
 """EPs for Hub provided information."""
 
+import json
 import logging
 import uuid
 from typing import Annotated
 
 import flame_hub
-from fastapi import APIRouter, Body, Depends, Form, Path, Security
+from fastapi import APIRouter, Body, Depends, Form, Path, Query, Security
 from flame_hub.models import (
     Analysis,
     AnalysisBucket,
@@ -17,7 +18,6 @@ from flame_hub.models import (
     RegistryProject,
 )
 from starlette import status
-from starlette.requests import Request
 
 from hub_adapter.auth import jwtbearer, verify_idp_token
 from hub_adapter.constants import ServiceTag
@@ -41,38 +41,31 @@ hub_router = APIRouter(
 logger = logging.getLogger(__name__)
 
 
-def _parse_query_params(request: Request) -> dict:
-    """Extract and format the query params for the hub client."""
-    query_params = dict(request.query_params)
-    return _format_query_params(query_params)
+def _parse_query_params(
+    page: Annotated[str | None, Query(description='Pagination as JSON, e.g. {"limit": 50, "offset": 0}')] = None,
+    sort: Annotated[str | None, Query(description="Sort field; prefix with - for descending, + for ascending")] = None,
+    fields: Annotated[str | None, Query(description="Comma-separated list of fields to return")] = None,
+) -> dict:
+    """Format query params for the hub client."""
+    formatted: dict = {}
 
+    if fields:
+        formatted["fields"] = fields.split(",")
 
-def _format_query_params(query_params: dict) -> dict:
-    """Format the query params for the hub client."""
-    formatted_query_params = {}
-
-    page_params: str = query_params.get("page")
-    # filter_params: str = query_params.get("filter")  # TODO: Add filter support
-    sort_params: str = query_params.get("sort")
-    fields_params: str = query_params.get("fields")
-
-    if fields_params:
-        formatted_query_params["fields"] = fields_params.split(",")
-
-    if sort_params:
-        sort_order = "descending" if sort_params.startswith("-") else "ascending"
-        formatted_query_params["sort"] = {
-            "by": sort_params.lstrip("+-"),
-            "order": sort_order,
+    if sort:
+        formatted["sort"] = {
+            "by": sort.lstrip("+-"),
+            "order": "descending" if sort.startswith("-") else "ascending",
         }
 
-    if page_params:
-        page_param_dict: dict = eval(page_params)
-        limit = page_param_dict.get("limit") or 50
-        offset = page_param_dict.get("offset") or 0
-        formatted_query_params["page"] = {"limit": limit, "offset": offset}
+    if page:
+        page_dict: dict = json.loads(page)
+        formatted["page"] = {
+            "limit": page_dict.get("limit") or 50,
+            "offset": page_dict.get("offset") or 0,
+        }
 
-    return formatted_query_params
+    return formatted
 
 
 @hub_router.get(
