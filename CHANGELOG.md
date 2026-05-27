@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.6.4](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.6.3...v0.6.4) (2026-05-27)
+
+
+### Bug Fixes
+
+* **hub:** remove sensitive information from client-facing response model ([c772633](https://github.com/PrivateAIM/node-hub-api-adapter/commit/c77263337b8eedbd4e3262e08e505c21082b1355))
+* **hub:** sanitize query params ([1ff9c17](https://github.com/PrivateAIM/node-hub-api-adapter/commit/1ff9c1773abcf66027d71bbd992a21f0a971dfd7))
+* **ssl:** add missing SSL context for OIDC ([3fe6d9c](https://github.com/PrivateAIM/node-hub-api-adapter/commit/3fe6d9cc8d0dc061ff5527decd6a83fc0276887c))
+
 ## [0.6.3](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.6.2...v0.6.3) (2026-05-22)
 
 
