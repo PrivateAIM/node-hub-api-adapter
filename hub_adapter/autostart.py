@@ -29,7 +29,7 @@ from hub_adapter.dependencies import (
 from hub_adapter.errors import KongConflictError, KongConnectError
 from hub_adapter.middleware import log_event
 from hub_adapter.routers.hub import (
-    _format_query_params,
+    _parse_query_params,
     list_analysis_nodes,
 )
 from hub_adapter.routers.kong import (
@@ -75,7 +75,7 @@ class GoGoAnalysis:
             )
             return None
 
-        formatted_query_params = _format_query_params({"sort": "-updated_at", "include": "analysis"})
+        formatted_query_params = _parse_query_params(sort="-updated_at")
 
         try:
             analyses = await list_analysis_nodes(
