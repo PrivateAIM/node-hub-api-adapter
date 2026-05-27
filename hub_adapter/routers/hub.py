@@ -6,7 +6,7 @@ import uuid
 from typing import Annotated
 
 import flame_hub
-from fastapi import APIRouter, Body, Depends, Form, Path, Query, Security
+from fastapi import APIRouter, Body, Depends, Form, HTTPException, Path, Query, Security
 from flame_hub.models import (
     Analysis,
     AnalysisBucket,
@@ -59,7 +59,16 @@ def _parse_query_params(
         }
 
     if page:
-        page_dict: dict = json.loads(page)
+        try:
+            page_dict = json.loads(page)
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="page must be valid JSON")
+
+        if not isinstance(page_dict, dict):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="page must be a JSON object"
+            )
+
         formatted["page"] = {
             "limit": page_dict.get("limit") or 50,
             "offset": page_dict.get("offset") or 0,
