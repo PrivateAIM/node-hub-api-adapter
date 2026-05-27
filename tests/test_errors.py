@@ -325,6 +325,8 @@ class TestCatchHubErrorsHubAPIError:
 
         assert exc_info.value.status_code == status.HTTP_403_FORBIDDEN
         assert exc_info.value.detail["message"] == "Forbidden by hub"
+        assert exc_info.value.detail["service"] == "Hub"
+        assert exc_info.value.detail["status_code"] == status.HTTP_403_FORBIDDEN
         mock_log_event.assert_called_once_with(
             "hub.auth.error",
             event_description="Failed to retrieve JWT from Hub",

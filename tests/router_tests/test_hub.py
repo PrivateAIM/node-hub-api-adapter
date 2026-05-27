@@ -1,5 +1,8 @@
 """Test the Hub eps."""
 
+import pytest
+from fastapi import HTTPException
+
 from hub_adapter.routers.hub import _parse_query_params, hub_router
 from tests.conftest import check_routes
 from tests.router_tests.routes import EXPECTED_HUB_ROUTE_CONFIG
@@ -27,3 +30,16 @@ class TestHub:
             "fields": ["foo", "ninja"],
             "sort": {"by": "ninja", "order": "ascending"},
         }
+
+    def test_parse_query_params_invalid_json_raises_422(self):
+        """Malformed JSON in the page param must raise 422, not a raw JSONDecodeError."""
+        with pytest.raises(HTTPException) as exc_info:
+            _parse_query_params(page="not-valid-json")
+        assert exc_info.value.status_code == 422
+
+    def test_parse_query_params_non_object_json_raises_422(self):
+        """A valid JSON value that is not an object (array, string, number) must raise 422."""
+        for non_object in ('[1, 2, 3]', '"a string"', '42', 'true'):
+            with pytest.raises(HTTPException) as exc_info:
+                _parse_query_params(page=non_object)
+            assert exc_info.value.status_code == 422, f"Expected 422 for page={non_object!r}"
