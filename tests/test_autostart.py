@@ -521,6 +521,20 @@ class TestAutostartErrorAndEvents:
         ready_analyses = self.analyzer.parse_analyses(formatted_analyses, set())
         assert len(ready_analyses) == 0
 
+    @patch("hub_adapter.autostart.log_event")
+    def test_parse_analyses_missing_nested_analysis(self, mock_log_event):
+        """Entries where entry.analysis is None must be skipped without raising AttributeError."""
+        node_without_analysis = {k: v for k, v in ANALYSIS_NODES_RESP[1].items() if k != "analysis"}
+        formatted_analyses = [AnalysisNode(**node_without_analysis)]
+        ready_analyses = self.analyzer.parse_analyses(formatted_analyses, {TEST_MOCK_PROJECT_ID})
+        assert len(ready_analyses) == 0
+        mock_log_event.assert_any_call(
+            "autostart.analysis.missing_analysis",
+            event_description=f"Skipping analysis node {formatted_analyses[0].id}: nested analysis object is missing",
+            level=logging.WARNING,
+            service=ANY,
+        )
+
 
 class TestAutostartManager:
     """Unit tests for AutostartManager."""

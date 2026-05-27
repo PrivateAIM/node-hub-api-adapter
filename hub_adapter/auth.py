@@ -52,7 +52,8 @@ async def get_hub_public_key(
 ) -> dict:
     """Get the central hub service public key."""
     hub_jwks_ep = settings.hub_auth_service_url.rstrip("/") + "/jwks"
-    with httpx.Client(event_hooks={"response": [make_log_hook(ServiceTag.HUB)]}) as client:
+    ssl_ctx = get_ssl_context(settings)
+    with httpx.Client(verify=ssl_ctx, event_hooks={"response": [make_log_hook(ServiceTag.HUB)]}) as client:
         return client.get(hub_jwks_ep).json()
 
 

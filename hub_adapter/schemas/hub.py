@@ -19,7 +19,6 @@ class AnalysisImageUrl(BaseModel):
     analysis_id: str
     registry_url: str
     registry_user: str | None = None
-    registry_password: str | None = None
 
 
 class NodeTypeResponse(BaseModel):

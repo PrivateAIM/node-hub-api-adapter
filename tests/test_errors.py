@@ -1,17 +1,24 @@
 """Unit tests for errors.py log_event integration."""
 
 import logging
-from unittest.mock import ANY, patch
+from unittest.mock import ANY, MagicMock, patch
 
+import httpx
 import pytest
+from fastapi import HTTPException
+from flame_hub import HubAPIError
 from starlette import status
 
 from hub_adapter.errors import (
     BucketError,
     FhirEndpointError,
+    HubConnectError,
+    HubTimeoutError,
     KongConsumerApiKeyError,
+    KongError,
     KongGatewayError,
     KongServiceError,
+    KongTimeoutError,
     catch_hub_errors,
     catch_kong_errors,
 )
@@ -249,3 +256,125 @@ class TestCatchKongErrorsLogging:
 
         assert mock_log_event.call_count == 1
         assert mock_log_event.call_args[0][0] == "storage.bucket.forbidden"
+
+
+class TestCatchHubErrorsHubAPIError:
+    """Tests for HubAPIError branches inside catch_hub_errors."""
+
+    @patch("hub_adapter.errors.log_event")
+    @pytest.mark.asyncio
+    async def test_hub_api_error_connect_timeout_raises_hub_timeout_error(self, mock_log_event):
+        """HubAPIError with ConnectTimeout error_response raises HubTimeoutError."""
+        fake_request = httpx.Request("GET", "http://hub")
+        connect_timeout = httpx.ConnectTimeout("timed out", request=fake_request)
+
+        @catch_hub_errors
+        async def raise_hub_error():
+            raise HubAPIError("timeout", request=fake_request, error=connect_timeout)
+
+        with pytest.raises(HubTimeoutError) as exc_info:
+            await raise_hub_error()
+
+        assert exc_info.value.status_code == status.HTTP_408_REQUEST_TIMEOUT
+        mock_log_event.assert_called_once_with(
+            "hub.connection.timeout",
+            event_description="Connection Timeout - Hub is currently unreachable",
+            level=logging.ERROR,
+            status_code=status.HTTP_408_REQUEST_TIMEOUT,
+            service="Hub",
+        )
+
+    @patch("hub_adapter.errors.log_event")
+    @pytest.mark.asyncio
+    async def test_hub_api_error_connect_error_raises_hub_connect_error(self, mock_log_event):
+        """HubAPIError with ConnectError error_response raises HubConnectError."""
+        fake_request = httpx.Request("GET", "http://hub")
+        connect_error = httpx.ConnectError("refused")
+
+        @catch_hub_errors
+        async def raise_hub_error():
+            raise HubAPIError("connect error", request=fake_request, error=connect_error)
+
+        with pytest.raises(HubConnectError) as exc_info:
+            await raise_hub_error()
+
+        assert exc_info.value.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+        mock_log_event.assert_called_once_with(
+            "hub.connection.error",
+            event_description="Connection Error - Hub is currently unreachable",
+            level=logging.ERROR,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            service="Hub",
+        )
+
+    @patch("hub_adapter.errors.log_event")
+    @pytest.mark.asyncio
+    async def test_hub_api_error_other_raises_http_exception(self, mock_log_event):
+        """HubAPIError with any other error_response raises a plain HTTPException."""
+        fake_request = httpx.Request("GET", "http://hub")
+        error_resp = MagicMock()
+        error_resp.status_code = status.HTTP_403_FORBIDDEN
+        error_resp.message = "Forbidden by hub"
+
+        @catch_hub_errors
+        async def raise_hub_error():
+            raise HubAPIError("auth error", request=fake_request, error=error_resp)
+
+        with pytest.raises(HTTPException) as exc_info:
+            await raise_hub_error()
+
+        assert exc_info.value.status_code == status.HTTP_403_FORBIDDEN
+        assert exc_info.value.detail["message"] == "Forbidden by hub"
+        mock_log_event.assert_called_once_with(
+            "hub.auth.error",
+            event_description="Failed to retrieve JWT from Hub",
+            level=logging.ERROR,
+            status_code=status.HTTP_403_FORBIDDEN,
+            service="Hub",
+        )
+
+
+class TestCatchKongErrorsMissingBranches:
+    """Tests for catch_kong_errors branches not yet covered."""
+
+    @patch("hub_adapter.errors.log_event")
+    @pytest.mark.asyncio
+    async def test_api_exception_other_status_raises_kong_error(self, mock_log_event):
+        """catch_kong_errors raises KongError for ApiException with status != 409 and != 404."""
+        from kong_admin_client.exceptions import ApiException
+
+        @catch_kong_errors
+        async def raise_other():
+            raise ApiException(status=500, reason="Internal Server Error")
+
+        with pytest.raises(KongError) as exc_info:
+            await raise_other()
+
+        assert exc_info.value.status_code == 500
+        mock_log_event.assert_called_once_with(
+            "kong.api.error",
+            event_description=ANY,
+            level=logging.ERROR,
+            status_code=500,
+            service="Kong",
+        )
+
+    @patch("hub_adapter.errors.log_event")
+    @pytest.mark.asyncio
+    async def test_generic_exception_raises_http_500(self, mock_log_event):
+        """catch_kong_errors wraps any unexpected Exception into HTTP 500."""
+        @catch_kong_errors
+        async def raise_generic():
+            raise RuntimeError("something unexpected")
+
+        with pytest.raises(HTTPException) as exc_info:
+            await raise_generic()
+
+        assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        mock_log_event.assert_called_once_with(
+            "kong.service.error",
+            event_description=ANY,
+            level=logging.ERROR,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            service="Kong",
+        )
