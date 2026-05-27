@@ -429,6 +429,15 @@ class GoGoAnalysis:
         """Iterate through analyses and check whether they are approved, built, and have a run status."""
         ready_analyses = set()
         for entry in analyses:
+            if entry.analysis is None:
+                log_event(
+                    "autostart.analysis.missing_analysis",
+                    event_description=f"Skipping analysis node {entry.id}: nested analysis object is missing",
+                    level=logging.WARNING,
+                    service=ServiceTag.AUTOSTART,
+                )
+                continue
+
             (analysis_id, project_id, node_id, build_status, run_status, approved, created_at, distribution_status) = (
                 str(entry.analysis_id),
                 str(entry.analysis.project_id),
