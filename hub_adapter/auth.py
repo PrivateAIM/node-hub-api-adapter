@@ -176,7 +176,9 @@ async def _get_internal_token(settings: Annotated[Settings, Depends(get_settings
     svc_oidc_config = get_svc_oidc_config()
     int_token_ep = svc_oidc_config.token_endpoint
 
-    with httpx.Client(event_hooks={"response": [make_log_hook(ServiceTag.IDP)]}) as client:
+    ssl_ctx = get_ssl_context(settings)
+
+    with httpx.Client(verify=ssl_ctx, event_hooks={"response": [make_log_hook(ServiceTag.IDP)]}) as client:
         resp = client.post(int_token_ep, data=payload)
     resp.raise_for_status()
     token_data = resp.json()
