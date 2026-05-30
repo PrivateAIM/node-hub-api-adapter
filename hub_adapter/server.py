@@ -63,6 +63,7 @@ async def lifespan(app: FastAPI):
     await autostart_manager.stop()
 
 
+settings = get_settings()
 app = FastAPI(
     openapi_tags=tags_metadata,
     title="FLAME Hub Adapter API",
@@ -73,7 +74,7 @@ app = FastAPI(
         "url": "https://docs.privateaim.net/about/team.html",
     },
     swagger_ui_init_oauth={
-        "clientId": get_settings().api_client_id,  # default client-id is Keycloak
+        "clientId": settings.api_client_id,
     },
     servers=[
         {"url": "http://localhost:5000", "description": "api"},
@@ -82,7 +83,7 @@ app = FastAPI(
         "name": "Apache 2.0",
         "url": "https://www.apache.org/licenses/LICENSE-2.0.html",
     },
-    root_path=get_settings().api_root_path,
+    root_path=settings.api_root_path,
     lifespan=lifespan,
 )
 
@@ -117,6 +118,8 @@ async def deploy(host: str = "127.0.0.1", port: int = 5000, reload: bool = False
     """Start the hub adapter API server with autostart management."""
     config = uvicorn.Config(app, host=host, port=port, reload=reload, log_config=logging_config)
     server = uvicorn.Server(config)
+    if settings.no_proxy:
+        logger.info(f"NO_PROXY='{settings.no_proxy}'")
     await server.serve()
 
 

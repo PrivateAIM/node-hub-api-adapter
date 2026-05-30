@@ -36,6 +36,7 @@ class Settings(BaseSettings):
 
     http_proxy: str | None = None
     https_proxy: str | None = None
+    no_proxy: str | None = None
     extra_ca_certs: str | None = None
 
     # IDP Settings
