@@ -28,8 +28,8 @@ auth_router = APIRouter(
 )
 def get_token(
     settings: Annotated[Settings, Depends(get_settings)],
-    username: Annotated[str, Form(description="Keycloak username")],
-    password: Annotated[str, Form(description="Keycloak password")],
+    username: Annotated[str, Form(description="IDP username")],
+    password: Annotated[str, Form(description="IDP password")],
     ssl_ctx: Annotated[ssl.SSLContext, Depends(get_ssl_context)],
 ) -> Token:
     """Get a JWT from the IDP by passing a valid username and password.
