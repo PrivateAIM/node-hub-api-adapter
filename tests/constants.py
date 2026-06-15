@@ -55,6 +55,7 @@ TEST_MOCK_NODE = Node(
 
 MOCK_ANALYSIS = {
     "name": None,
+    "display_name": "mock-analysis",
     "project_id": TEST_MOCK_PROJECT_ID,
     "build_status": "executed",
     "created_at": 1756790836,
