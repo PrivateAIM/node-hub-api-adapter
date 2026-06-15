@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.5](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.6.4...v0.6.5) (2026-06-15)
+
+
+### Bug Fixes
+
+* **ssl:** for some reason pass SSL to internal token fetch ([9bef884](https://github.com/PrivateAIM/node-hub-api-adapter/commit/9bef884d6d4e20872fe4ab98c7320015317d5ba1))
+
 ## [0.6.4](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.6.3...v0.6.4) (2026-05-27)
 
 
