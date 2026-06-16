@@ -156,14 +156,21 @@ async def _query_pod_logs(
     """Return log lines for a specific container, sorted oldest-first."""
     settings = get_settings()
     query = f'kubernetes.container_name:"{container_name}"'
-    query_data: dict = {
-        "query": (f"{query} | fields _time, _msg, level, log.error | sort by (_time)"),
-    }
-    if limit:
-        query_data["limit"] = limit
 
-    if offset:
-        query_data["offset"] = offset
+    # HTTP `limit` query param is evil, need to sort first, then limit within the query, DON'T USE QUERY PARAMS!
+    select = f"{query} | fields _time, _msg, level, log.error"
+    if limit:
+        select += " | sort by (_time) desc"
+        if offset:
+            select += f" offset {offset}"
+        select += f" limit {limit} | sort by (_time)"
+
+    else:
+        select += " | sort by (_time)"
+        if offset:
+            select += f" offset {offset}"
+
+    query_data: dict = {"query": select}
 
     if start_date:
         query_data["start"] = start_date.isoformat()
