@@ -18,7 +18,7 @@ dependencies = [
     "pyjwt>=2.10.1",
     "cryptography>=46.0.3",
     "truststore>=0.10.4",
-    "pydantic-settings>=2.13.1",
+    "pydantic-settings>=2.14.2",
     "peewee>=4.0.2",
     "psycopg2-binary>=2.9.11",
 ]
