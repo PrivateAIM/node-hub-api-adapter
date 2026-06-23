@@ -51,7 +51,7 @@ class TestSetUserContext:
 
         from hub_adapter import current_user_id
 
-        token = pyjwt.encode({"preferred_username": "testuser", "sub": "abc123"}, key="", algorithm="HS256")
+        token = pyjwt.encode({"preferred_username": "testuser", "sub": "abc123"}, key="x" * 32, algorithm="HS256")
         request = _make_request(auth_header=f"Bearer {token}")
         _set_user_context(request)
 
@@ -63,7 +63,7 @@ class TestSetUserContext:
 
         from hub_adapter import current_user_id
 
-        token = pyjwt.encode({"sub": "user-uuid-123"}, key="", algorithm="HS256")
+        token = pyjwt.encode({"sub": "user-uuid-123"}, key="x" * 32, algorithm="HS256")
         request = _make_request(auth_header=f"Bearer {token}")
         _set_user_context(request)
 
