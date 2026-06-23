@@ -8,15 +8,15 @@ license = { text = "Apache 2.0" }
 requires-python = ">=3.12"
 dependencies = [
     "uvicorn>=0.38.0",
-    "fastapi>=0.120.1",
+    "fastapi>=0.138.0",
     "flame-hub-client==0.2.16",
     "click>=8.1.7",
     "python-multipart>=0.0.31",
     "httpx>=0.28.0",
     "kongadminclient @ git+https://github.com/PrivateAIM/kong-admin-python-client.git",
     "python-dotenv>=1.0.1",
-    "pyjwt>=2.10.1",
     "cryptography>=48.0.1",
+    "pyjwt>=2.13.0",
     "truststore>=0.10.4",
     "pydantic-settings>=2.14.2",
     "peewee>=4.0.2",

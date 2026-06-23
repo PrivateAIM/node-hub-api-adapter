@@ -78,7 +78,6 @@ class TestNodeSettings:
     @patch("hub_adapter.routers.node.update_settings")
     async def test_update_node_settings_validation_error_raises_422(self, mock_update_settings):
         """update_node_settings raises HTTP 422 when update_settings raises ValidationError."""
-        from pydantic import ValidationError as PydanticValidationError
 
         class _Bad:
             x: int
@@ -97,4 +96,4 @@ class TestNodeSettings:
         with pytest.raises(HTTPException) as exc_info:
             await update_node_settings(node_settings=UserSettings())
 
-        assert exc_info.value.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert exc_info.value.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
