@@ -1,7 +1,9 @@
 """Adapter API Settings."""
 
-from pydantic import BaseModel, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Annotated
+
+from pydantic import BaseModel, field_validator, model_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class AutostartSettings(BaseModel):
@@ -33,7 +35,7 @@ class Settings(BaseSettings):
     """Settings for Hub Adapter API."""
 
     api_root_path: str = ""
-    cors_allowed_origins: list[str] = ["*"]
+    cors_allowed_origins: Annotated[tuple[str, ...], NoDecode] = ("*",)
 
     http_proxy: str | None = None
     https_proxy: str | None = None
@@ -92,6 +94,7 @@ class Settings(BaseSettings):
             object.__setattr__(self, "node_svc_oidc_url", self.idp_url)
         return self
 
+    @field_validator("cors_allowed_origins", mode="before")
     @classmethod
     def parse_origins(cls, v):
         if isinstance(v, str):
