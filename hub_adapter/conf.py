@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     """Settings for Hub Adapter API."""
 
     api_root_path: str = ""
+    cors_allowed_origins: list[str] = ["*"]
 
     http_proxy: str | None = None
     https_proxy: str | None = None
@@ -90,3 +91,9 @@ class Settings(BaseSettings):
         if self.node_svc_oidc_url is None:
             object.__setattr__(self, "node_svc_oidc_url", self.idp_url)
         return self
+
+    @classmethod
+    def parse_origins(cls, v):
+        if isinstance(v, str):
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        return v
