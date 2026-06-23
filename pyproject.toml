@@ -16,7 +16,7 @@ dependencies = [
     "kongadminclient @ git+https://github.com/PrivateAIM/kong-admin-python-client.git",
     "python-dotenv>=1.0.1",
     "pyjwt>=2.10.1",
-    "cryptography>=46.0.3",
+    "cryptography>=48.0.1",
     "truststore>=0.10.4",
     "pydantic-settings>=2.14.2",
     "peewee>=4.0.2",
