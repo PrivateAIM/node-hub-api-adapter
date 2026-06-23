@@ -98,5 +98,8 @@ class Settings(BaseSettings):
     @classmethod
     def parse_origins(cls, v):
         if isinstance(v, str):
-            return [origin.strip() for origin in v.split(",") if origin.strip()]
+            origins = [origin.strip() for origin in v.split(",") if origin.strip()]
+            if not origins:
+                raise ValueError("cors_allowed_origins must contain at least one origin")
+            return origins
         return v
