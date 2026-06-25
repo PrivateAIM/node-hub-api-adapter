@@ -236,7 +236,6 @@ class GoGoAnalysis:
                 PodStatus.STARTING,
                 PodStatus.EXECUTING,
                 PodStatus.STOPPING,
-                PodStatus.RUNNING,  # Deprecated
             )
             return bool(analysis_id in pod_status and pod_status[analysis_id] in existing_pod_statuses)
 

@@ -462,7 +462,6 @@ class TestAutostartErrorAndEvents:
             PodStatus.STARTING,
             PodStatus.EXECUTING,
             PodStatus.STOPPING,
-            PodStatus.RUNNING,
         ]
 
         for status_val in running_statuses:
