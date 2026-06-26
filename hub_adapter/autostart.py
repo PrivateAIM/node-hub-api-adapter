@@ -44,12 +44,12 @@ from hub_adapter.utils import _check_data_required
 
 
 class _RegistrationLocks:
-    """Per-analysis_id async locks, evicted as soon as the last waiter releases.
+    """Analysis ID specific async locks, evicted as soon as the last waiter releases.
 
-    Serializes the register-and-start sequence for a given analysis so that concurrent
+    Serializes the register/start sequence for a given analysis so that concurrent
     callers in this process (the autostart loop and manual initialize requests) cannot
     race on Kong consumer creation or double-start the same analysis. The lock entry is
-    short-lived: it only exists while at least one coroutine is registering that analysis.
+    short-lived since it only exists while at least one coroutine is registering that analysis.
     """
 
     def __init__(self):
@@ -62,9 +62,11 @@ class _RegistrationLocks:
         async with self._guard:
             lock = self._locks.setdefault(key, asyncio.Lock())
             self._refcounts[key] = self._refcounts.get(key, 0) + 1
+
         try:
             async with lock:
                 yield
+
         finally:
             async with self._guard:
                 self._refcounts[key] -= 1
@@ -73,8 +75,7 @@ class _RegistrationLocks:
                     del self._locks[key]
 
 
-# Process-wide registry shared by every GoGoAnalysis instance (each request and the
-# autostart loop construct their own instance, so the registry must live at module scope).
+# Process registry shared by every GoGoAnalysis instance
 _registration_locks = _RegistrationLocks()
 
 
