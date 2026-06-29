@@ -269,7 +269,25 @@ class GoGoAnalysis:
                 level=logging.INFO,
                 service=ServiceTag.AUTOSTART,
             )
-            await delete_analysis(settings=self.settings, analysis_id=analysis_id)
+            try:
+                await delete_analysis(settings=self.settings, analysis_id=analysis_id)
+
+            except Exception as cleanup_error:
+                log_event(
+                    "autostart.analysis.orphan_cleanup_error",
+                    event_description=f"Failed to delete orphan kong consumer for {analysis_id}: {cleanup_error}",
+                    level=logging.ERROR,
+                    service=ServiceTag.AUTOSTART,
+                )
+
+                return (
+                    {
+                        "message": f"Unable to clean up existing Kong consumer for {analysis_id}, please retry",
+                        "service": "Kong",
+                        "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
+                    },
+                    status.HTTP_503_SERVICE_UNAVAILABLE,
+                )
 
             if attempt < max_attempts:
                 return await self.register_analysis(analysis_id, project_id, attempt + 1, max_attempts)

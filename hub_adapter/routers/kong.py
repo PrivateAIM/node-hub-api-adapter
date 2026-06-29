@@ -618,7 +618,10 @@ def get_analysis_keyauth(settings: Settings, analysis_id: str | uuid.UUID):
 
     except ApiException as e:
         logger.warning(f"Unable to fetch existing key-auth for {username}: {e}")
-        return None
+        if getattr(e, "status", None) == status.HTTP_404_NOT_FOUND:
+            return None
+
+        raise
 
     if api_response and api_response.data:
         return api_response.data[0]
