@@ -603,6 +603,32 @@ async def list_specific_analysis(
     return get_analyses(settings, analysis_id=analysis_id, tag=tag)
 
 
+def get_analysis_keyauth(settings: Settings, analysis_id: str | uuid.UUID):
+    """Return the existing key-auth credential for an analysis consumer, or None if absent/unreachable.
+
+    Used to reuse an already registered consumer's credential instead of deleting and recreating it.
+    """
+    configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
+    username = consumer_username(analysis_id)
+
+    try:
+        with kong_admin_client.ApiClient(configuration) as api_client:
+            keyauth_api = kong_admin_client.KeyAuthsApi(api_client)
+            api_response = keyauth_api.list_key_auths_for_consumer(username)
+
+    except ApiException as e:
+        logger.warning(f"Unable to fetch existing key-auth for {username}: {e}")
+        if getattr(e, "status", None) == status.HTTP_404_NOT_FOUND:
+            return None
+
+        raise
+
+    if api_response and api_response.data:
+        return api_response.data[0]
+
+    return None
+
+
 @kong_router.post(
     "/analysis",
     response_model=LinkProjectAnalysis,
