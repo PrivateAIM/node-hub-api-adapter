@@ -61,13 +61,14 @@ def _parse_query_params(
     if page:
         try:
             page_dict = json.loads(page)
-        except json.JSONDecodeError:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="page must be valid JSON")
+
+        except json.JSONDecodeError as e:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Page must be valid JSON"
+            ) from e
 
         if not isinstance(page_dict, dict):
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="page must be a JSON object"
-            )
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="page must be a JSON object")
 
         formatted["page"] = {
             "limit": page_dict.get("limit") or 50,
