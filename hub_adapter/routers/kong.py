@@ -809,7 +809,7 @@ def probe_data_service(url: str, apikey: str, is_fhir: bool, attempt: int = 1, m
     if svc_resp.status_code != 200:
         # Sometimes it takes a bit for kong to finish creating a route/service
         if svc_resp.status_code == status.HTTP_404_NOT_FOUND and attempt <= max_attempts:
-            time.sleep(attempt)  # Wait a little longer each attempt
+            time.sleep(attempt * 2)  # Wait a little longer each attempt
             return probe_data_service(url=url, apikey=apikey, is_fhir=is_fhir, attempt=attempt + 1)
 
         if svc_resp.status_code == status.HTTP_403_FORBIDDEN and not is_fhir:
