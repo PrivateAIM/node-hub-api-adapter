@@ -285,6 +285,41 @@ class TestKong:
             }
         }
 
+    @patch("hub_adapter.routers.kong.kong_admin_client.KeyAuthsApi.list_key_auths_for_consumer")
+    def test_get_analysis_keyauth_returns_existing(self, mock_list_keyauths, test_settings):
+        """get_analysis_keyauth returns the first existing key-auth credential for the consumer."""
+        from hub_adapter.routers.kong import get_analysis_keyauth
+
+        existing = KeyAuth(key="existingKongKey")
+        mock_list_keyauths.return_value = ListKeyAuthsForConsumer200Response(data=[existing])
+
+        result = get_analysis_keyauth(settings=test_settings, analysis_id=TEST_MOCK_ANALYSIS_ID)
+
+        assert result.key == "existingKongKey"
+        mock_list_keyauths.assert_called_once_with(f"{TEST_MOCK_ANALYSIS_ID}-flame")
+
+    @patch("hub_adapter.routers.kong.kong_admin_client.KeyAuthsApi.list_key_auths_for_consumer")
+    def test_get_analysis_keyauth_returns_none_when_empty(self, mock_list_keyauths, test_settings):
+        """get_analysis_keyauth returns None when the consumer has no key-auth credentials."""
+        from hub_adapter.routers.kong import get_analysis_keyauth
+
+        mock_list_keyauths.return_value = ListKeyAuthsForConsumer200Response(data=[])
+
+        result = get_analysis_keyauth(settings=test_settings, analysis_id=TEST_MOCK_ANALYSIS_ID)
+
+        assert result is None
+
+    @patch("hub_adapter.routers.kong.kong_admin_client.KeyAuthsApi.list_key_auths_for_consumer")
+    def test_get_analysis_keyauth_returns_none_on_api_error(self, mock_list_keyauths, test_settings):
+        """get_analysis_keyauth swallows Kong API errors and returns None so the caller can fall back."""
+        from hub_adapter.routers.kong import get_analysis_keyauth
+
+        mock_list_keyauths.side_effect = ApiException(status=status.HTTP_404_NOT_FOUND, reason="Not found")
+
+        result = get_analysis_keyauth(settings=test_settings, analysis_id=TEST_MOCK_ANALYSIS_ID)
+
+        assert result is None
+
     @patch("hub_adapter.routers.kong.logger")
     @patch("hub_adapter.routers.kong.kong_admin_client.ServicesApi.delete_service")
     @patch("hub_adapter.routers.kong.kong_admin_client.RoutesApi.list_route")

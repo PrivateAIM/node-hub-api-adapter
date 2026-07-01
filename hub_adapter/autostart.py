@@ -4,7 +4,7 @@ import asyncio
 import logging
 import time
 import uuid
-from contextlib import suppress
+from contextlib import asynccontextmanager, suppress
 from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException
@@ -35,11 +35,48 @@ from hub_adapter.routers.hub import (
 from hub_adapter.routers.kong import (
     create_and_connect_analysis_to_project,
     delete_analysis,
+    get_analysis_keyauth,
     list_projects,
 )
 from hub_adapter.schemas.podorc import PodStatus
 from hub_adapter.user_settings import load_persistent_settings
 from hub_adapter.utils import _check_data_required
+
+
+class _RegistrationLocks:
+    """Analysis ID specific async locks, evicted as soon as the last waiter releases.
+
+    Serializes the register/start sequence for a given analysis so that concurrent
+    callers in this process (the autostart loop and manual initialize requests) cannot
+    race on Kong consumer creation or double-start the same analysis. The lock entry is
+    short-lived since it only exists while at least one coroutine is registering that analysis.
+    """
+
+    def __init__(self):
+        self._locks: dict[str, asyncio.Lock] = {}
+        self._refcounts: dict[str, int] = {}
+        self._guard = asyncio.Lock()  # serializes mutations of the registry itself
+
+    @asynccontextmanager
+    async def acquire(self, key: str):
+        async with self._guard:
+            lock = self._locks.setdefault(key, asyncio.Lock())
+            self._refcounts[key] = self._refcounts.get(key, 0) + 1
+
+        try:
+            async with lock:
+                yield
+
+        finally:
+            async with self._guard:
+                self._refcounts[key] -= 1
+                if self._refcounts[key] == 0:
+                    del self._refcounts[key]
+                    del self._locks[key]
+
+
+# Process registry shared by every GoGoAnalysis instance
+_registration_locks = _RegistrationLocks()
 
 
 class GoGoAnalysis:
@@ -114,26 +151,31 @@ class GoGoAnalysis:
     async def register_and_start_analysis(
         self, analysis_id: str, project_id: str, node_id: str, node_type: str
     ) -> tuple | None:
-        """Return node information."""
-        datastore_required = _check_data_required(node_type)
-        if datastore_required:
-            kong_resp, status_code = await self.register_analysis(analysis_id, project_id)
-            if status_code != status.HTTP_201_CREATED:
-                return kong_resp, status_code
+        """Register an analysis with kong (if required) and start its pod.
 
-            kong_token = kong_resp["keyauth"].key
+        The whole register-and-start sequence is serialized per analysis_id so concurrent
+        callers cannot race on consumer creation or double-start the same analysis.
+        """
+        async with _registration_locks.acquire(str(analysis_id)):
+            datastore_required = _check_data_required(node_type)
+            if datastore_required:
+                kong_resp, status_code = await self.register_analysis(analysis_id, project_id)
+                if status_code != status.HTTP_201_CREATED:
+                    return kong_resp, status_code
 
-        else:  # Aggregator nodes don't need a kong store nor if the data requirement is disabled
-            kong_token = "none_needed"
+                kong_token = kong_resp["keyauth"].key
 
-        props = {
-            "analysis_id": analysis_id,
-            "project_id": project_id,
-            "node_id": node_id,
-            "kong_token": kong_token,
-        }
-        start_resp, status_code = await self.send_start_request(analysis_props=props, kong_token=kong_token)
-        return start_resp, status_code
+            else:  # Aggregator nodes don't need a kong store nor if the data requirement is disabled
+                kong_token = "none_needed"
+
+            props = {
+                "analysis_id": analysis_id,
+                "project_id": project_id,
+                "node_id": node_id,
+                "kong_token": kong_token,
+            }
+            start_resp, status_code = await self.send_start_request(analysis_props=props, kong_token=kong_token)
+            return start_resp, status_code
 
     async def describe_node(self) -> tuple[str | None, str] | None:
         """Get node information from cache, and if not present, get from Hub and set cache."""
@@ -176,44 +218,87 @@ class GoGoAnalysis:
                 service=ServiceTag.AUTOSTART,
             )
             pod_exists = await self.pod_running(analysis_id)
-            if pod_exists is None:  # Status could not be obtained, skip and try later
-                log_event(
-                    "autostart.analysis.status_unknown",
-                    event_description=f"Status for analysis {analysis_id} could not be obtained, will try again",
-                    level=logging.WARNING,
-                    service=ServiceTag.AUTOSTART,
-                )
-                pass
-
-            elif not pod_exists:  # Status obtained and if not running, delete kong consumer
-                log_event(
-                    "autostart.analysis.orphan_cleanup",
-                    event_description=f"No pod found for {analysis_id}, will delete kong consumer and retry",
-                    level=logging.INFO,
-                    service=ServiceTag.AUTOSTART,
-                )
-                await delete_analysis(settings=self.settings, analysis_id=analysis_id)
-
-                if attempt < max_attempts:
-                    return await self.register_analysis(analysis_id, project_id, attempt + 1, max_attempts)
-
-                else:
-                    log_event(
-                        "autostart.analysis.max_retries",
-                        event_description=f"Failed to start analysis {analysis_id} after {max_attempts} attempts",
-                        level=logging.ERROR,
-                        service=ServiceTag.AUTOSTART,
-                    )
-                    return None, e.status_code
-
-            else:
+            if pod_exists:  # Pod is running so leave it alone
                 log_event(
                     "autostart.analysis.already_running",
                     event_description=f"Pod already exists for analysis {analysis_id}, skipping start sequence",
                     level=logging.INFO,
                     service=ServiceTag.AUTOSTART,
                 )
-                return None, e.status_code
+                return (
+                    {
+                        "message": f"Analysis {analysis_id} already registered and running",
+                        "service": "Kong",
+                        "status_code": status.HTTP_409_CONFLICT,
+                    },
+                    status.HTTP_409_CONFLICT,
+                )
+
+            if pod_exists is None:  # Status could not be obtained, report a retryable error
+                log_event(
+                    "autostart.analysis.status_unknown",
+                    event_description=f"Status for analysis {analysis_id} could not be obtained, will try again",
+                    level=logging.WARNING,
+                    service=ServiceTag.AUTOSTART,
+                )
+                return (
+                    {
+                        "message": f"Analysis {analysis_id} already registered but its status could not be verified, "
+                        f"please retry",
+                        "service": "PO",
+                        "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
+                    },
+                    status.HTTP_503_SERVICE_UNAVAILABLE,
+                )
+
+            # Status obtained and no pod is running, the consumer already exists, so reuse its credential
+            existing_keyauth = get_analysis_keyauth(settings=self.settings, analysis_id=analysis_id)
+            if existing_keyauth is not None:
+                log_event(
+                    "autostart.analysis.reuse",
+                    event_description=f"Reusing existing kong consumer for analysis {analysis_id}",
+                    level=logging.INFO,
+                    service=ServiceTag.AUTOSTART,
+                )
+                return {"keyauth": existing_keyauth}, status.HTTP_201_CREATED
+
+            # Consumer exists but has no usable key-auth: a genuinely broken orphan, so recreate it.
+            log_event(
+                "autostart.analysis.orphan_cleanup",
+                event_description=f"No pod found for {analysis_id}, will delete kong consumer and retry",
+                level=logging.INFO,
+                service=ServiceTag.AUTOSTART,
+            )
+            try:
+                await delete_analysis(settings=self.settings, analysis_id=analysis_id)
+
+            except Exception as cleanup_error:
+                log_event(
+                    "autostart.analysis.orphan_cleanup_error",
+                    event_description=f"Failed to delete orphan kong consumer for {analysis_id}: {cleanup_error}",
+                    level=logging.ERROR,
+                    service=ServiceTag.AUTOSTART,
+                )
+
+                return (
+                    {
+                        "message": f"Unable to clean up existing Kong consumer for {analysis_id}, please retry",
+                        "service": "Kong",
+                        "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
+                    },
+                    status.HTTP_503_SERVICE_UNAVAILABLE,
+                )
+
+            if attempt < max_attempts:
+                return await self.register_analysis(analysis_id, project_id, attempt + 1, max_attempts)
+
+            log_event(
+                "autostart.analysis.max_retries",
+                event_description=f"Failed to start analysis {analysis_id} after {max_attempts} attempts",
+                level=logging.ERROR,
+                service=ServiceTag.AUTOSTART,
+            )
+            return None, e.status_code
 
         except HTTPException as e:
             log_event(

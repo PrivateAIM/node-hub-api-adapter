@@ -29,6 +29,13 @@ class FakeKeycloak:
     key: str = "fakeKey"
 
 
+class FakeKeyAuth:
+    """Stand-in for a Kong key-auth credential object exposing a ``key`` attribute."""
+
+    def __init__(self, key: str = "reusedKongKey"):
+        self.key = key
+
+
 class TestAutostart:
     """Autostart unit tests."""
 
@@ -80,24 +87,79 @@ class TestAutostart:
             service=ANY,
         )
 
-        # Return None if pod already exists
-        assert pod_exists_resp == (None, 409)
+        # Surface an informative conflict attributed to Kong rather than a bare (None, 409)
+        detail, status_code = pod_exists_resp
+        assert status_code == status.HTTP_409_CONFLICT
+        assert detail["message"] == f"Analysis {TEST_MOCK_ANALYSIS_ID} already registered and running"
+        assert detail["service"] == "Kong"
 
     @pytest.mark.asyncio
     @patch("hub_adapter.autostart.log_event")
     @patch("hub_adapter.autostart.GoGoAnalysis.pod_running")
+    @patch("hub_adapter.autostart.create_and_connect_analysis_to_project")
+    async def test_register_analysis_conflict_status_unknown(
+        self, mock_create_and_connect, mock_pod_running, mock_log_event
+    ):
+        """Conflict where the pod status can't be verified should report a retryable 503, not a silent 500."""
+        mock_create_and_connect.side_effect = KongConflictError(
+            status_code=status.HTTP_409_CONFLICT, detail={"message": "Conflict"}
+        )
+        mock_pod_running.return_value = None  # PO unreachable, status unknown
+
+        unknown_resp = await self.analyzer.register_analysis(TEST_MOCK_ANALYSIS_ID, TEST_MOCK_PROJECT_ID)
+
+        mock_log_event.assert_any_call(
+            "autostart.analysis.status_unknown",
+            event_description=f"Status for analysis {TEST_MOCK_ANALYSIS_ID} could not be obtained, will try again",
+            level=logging.WARNING,
+            service=ANY,
+        )
+
+        detail, status_code = unknown_resp
+        assert status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+        assert detail["service"] == "PO"
+
+    @pytest.mark.asyncio
+    @patch("hub_adapter.autostart.log_event")
+    @patch("hub_adapter.autostart.get_analysis_keyauth")
+    @patch("hub_adapter.autostart.delete_analysis")
+    @patch("hub_adapter.autostart.GoGoAnalysis.pod_running")
+    @patch("hub_adapter.autostart.create_and_connect_analysis_to_project")
+    async def test_register_analysis_conflict_reuses_existing_consumer(
+        self, mock_create_and_connect, mock_pod_running, mock_delete_analysis, mock_get_keyauth, mock_log_event
+    ):
+        """Conflict with no running pod should reuse the existing consumer's key instead of deleting it."""
+        mock_create_and_connect.side_effect = KongConflictError(
+            status_code=status.HTTP_409_CONFLICT, detail={"message": "Conflict"}
+        )
+        mock_pod_running.return_value = False
+        mock_get_keyauth.return_value = FakeKeyAuth(key="reusedKongKey")
+
+        reuse_resp = await self.analyzer.register_analysis(TEST_MOCK_ANALYSIS_ID, TEST_MOCK_PROJECT_ID)
+
+        detail, status_code = reuse_resp
+        assert status_code == status.HTTP_201_CREATED
+        assert detail["keyauth"].key == "reusedKongKey"
+        # The existing consumer must not be destroyed, avoiding a race with concurrent registrations
+        mock_delete_analysis.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch("hub_adapter.autostart.log_event")
+    @patch("hub_adapter.autostart.get_analysis_keyauth")
+    @patch("hub_adapter.autostart.GoGoAnalysis.pod_running")
     @patch("hub_adapter.autostart.delete_analysis")
     @patch("hub_adapter.autostart.create_and_connect_analysis_to_project")
     async def test_register_analysis_conflict_no_pod(
-        self, mock_create_and_connect, mock_delete_analysis, mock_pod_running, mock_log_event
+        self, mock_create_and_connect, mock_delete_analysis, mock_pod_running, mock_get_keyauth, mock_log_event
     ):
-        """Test registering an analysis with kong and there is a conflict but no pod running."""
-        # No pod found, but consumer found, and delete was successful
+        """Conflict with no running pod and no reusable key falls back to delete + recreate, bounded by retries."""
+        # No pod found, consumer found but has no usable key-auth, and delete was successful
         mock_create_and_connect.side_effect = KongConflictError(
             status_code=status.HTTP_409_CONFLICT, detail={"message": "Conflict"}
         )
         mock_delete_analysis.return_value = 200
         mock_pod_running.return_value = False
+        mock_get_keyauth.return_value = None  # Broken orphan: no credential to reuse
 
         max_attempts = 5
         pod_exists_resp = await self.analyzer.register_analysis(
@@ -719,3 +781,110 @@ class TestAutostartWithRemoteProtocolError:
 
         assert status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
         assert resp is None
+
+
+class TestRegistrationLock:
+    """Tests for the per-analysis registration lock guarding register_and_start_analysis."""
+
+    def setup_method(self):
+        """Set up a fresh analyzer and clear the shared lock registry."""
+        from hub_adapter.autostart import _registration_locks
+
+        self.gather_deps_patcher = patch.object(GoGoAnalysis, "gather_deps")
+        self.mock_gather_deps = self.gather_deps_patcher.start()
+
+        self.analyzer = GoGoAnalysis()
+        self.analyzer.settings = Settings()
+        self.analyzer.core_client = None
+
+        _registration_locks._locks.clear()
+        _registration_locks._refcounts.clear()
+
+    def teardown_method(self):
+        """Clean up patches."""
+        self.gather_deps_patcher.stop()
+
+    @pytest.mark.asyncio
+    async def test_same_analysis_is_serialized(self):
+        """Two concurrent register_and_start calls for the same analysis must not interleave."""
+        events: list[str] = []
+
+        async def slow_register(analysis_id, project_id):
+            events.append("reg_enter")
+            await asyncio.sleep(0.02)
+            events.append("reg_exit")
+            return {"keyauth": FakeKeyAuth()}, status.HTTP_201_CREATED
+
+        async def record_start(analysis_props, kong_token):
+            events.append("start")
+            return {"ok": "executing"}, status.HTTP_201_CREATED
+
+        with (
+            patch.object(self.analyzer, "register_analysis", side_effect=slow_register),
+            patch.object(self.analyzer, "send_start_request", side_effect=record_start),
+        ):
+            await asyncio.gather(
+                self.analyzer.register_and_start_analysis(
+                    TEST_MOCK_ANALYSIS_ID, TEST_MOCK_PROJECT_ID, TEST_MOCK_NODE_ID, "default"
+                ),
+                self.analyzer.register_and_start_analysis(
+                    TEST_MOCK_ANALYSIS_ID, TEST_MOCK_PROJECT_ID, TEST_MOCK_NODE_ID, "default"
+                ),
+            )
+
+        # Fully serialized: the first cycle completes before the second register begins
+        assert events == ["reg_enter", "reg_exit", "start", "reg_enter", "reg_exit", "start"]
+
+    @pytest.mark.asyncio
+    async def test_different_analyses_run_concurrently(self):
+        """Different analysis IDs must not block one another."""
+        events: list[str] = []
+        other_analysis_id = "00000000-0000-0000-0000-000000000999"
+
+        async def slow_register(analysis_id, project_id):
+            events.append(f"enter:{analysis_id}")
+            await asyncio.sleep(0.02)
+            events.append(f"exit:{analysis_id}")
+            return {"keyauth": FakeKeyAuth()}, status.HTTP_201_CREATED
+
+        async def record_start(analysis_props, kong_token):
+            return {"ok": "executing"}, status.HTTP_201_CREATED
+
+        with (
+            patch.object(self.analyzer, "register_analysis", side_effect=slow_register),
+            patch.object(self.analyzer, "send_start_request", side_effect=record_start),
+        ):
+            await asyncio.gather(
+                self.analyzer.register_and_start_analysis(
+                    TEST_MOCK_ANALYSIS_ID, TEST_MOCK_PROJECT_ID, TEST_MOCK_NODE_ID, "default"
+                ),
+                self.analyzer.register_and_start_analysis(
+                    other_analysis_id, TEST_MOCK_PROJECT_ID, TEST_MOCK_NODE_ID, "default"
+                ),
+            )
+
+        # Concurrent: both enter before either exits
+        assert events[0].startswith("enter")
+        assert events[1].startswith("enter")
+
+    @pytest.mark.asyncio
+    async def test_lock_is_evicted_after_use(self):
+        """The lock registry must be empty after a registration completes (short-lived)."""
+        from hub_adapter.autostart import _registration_locks
+
+        async def quick_register(analysis_id, project_id):
+            return {"keyauth": FakeKeyAuth()}, status.HTTP_201_CREATED
+
+        async def record_start(analysis_props, kong_token):
+            return {"ok": "executing"}, status.HTTP_201_CREATED
+
+        with (
+            patch.object(self.analyzer, "register_analysis", side_effect=quick_register),
+            patch.object(self.analyzer, "send_start_request", side_effect=record_start),
+        ):
+            await self.analyzer.register_and_start_analysis(
+                TEST_MOCK_ANALYSIS_ID, TEST_MOCK_PROJECT_ID, TEST_MOCK_NODE_ID, "default"
+            )
+
+        assert _registration_locks._locks == {}
+        assert _registration_locks._refcounts == {}
