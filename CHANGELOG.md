@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.7.0](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.6.5...v0.7.0) (2026-07-01)
+
+
+### ⚠ BREAKING CHANGES
+
+* harden analysis start routines
+
+### Features
+
+* **conf:** enable allowed origins ([ae5f73c](https://github.com/PrivateAIM/node-hub-api-adapter/commit/ae5f73c6e43d75ad6534a0a536e74b71a29ce7c7))
+
+
+### Bug Fixes
+
+* **conf:** handle stupid hashable type in BaseSettings ([b5338b7](https://github.com/PrivateAIM/node-hub-api-adapter/commit/b5338b79e9d0b93e7a31fb5786a04ebc7b34dfb6))
+* harden analysis start routines ([114071e](https://github.com/PrivateAIM/node-hub-api-adapter/commit/114071e15d13a0834b3cefebab1430d3a1a44e1d))
+* **kong:** increase time allowed for kong to create a service and route ([73505af](https://github.com/PrivateAIM/node-hub-api-adapter/commit/73505af3d424ba1097ddf15d164e062ab689c668))
+* **logs:** handle limit query param bug ([7e9756d](https://github.com/PrivateAIM/node-hub-api-adapter/commit/7e9756d881f25895c80889d98c845acd9557c356))
+
+
+### Documentation
+
+* fix docstrings ([bb6e7c4](https://github.com/PrivateAIM/node-hub-api-adapter/commit/bb6e7c448e5167a54386d25599c54706d029d35e))
+
 ## [0.6.5](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.6.4...v0.6.5) (2026-06-15)
 
 
