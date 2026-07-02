@@ -385,6 +385,13 @@ KONG_LINK_ROUTE_DATA = {
     "service": {"id": TEST_KONG_SERVICE_ID},
 }
 
+KONG_ANALYSIS_CONSUMER_DATA = {
+    "id": "d0c1e6a1-33cf-4b43-a3d1-8e2b1c7a9f10",
+    "username": f"analysis-{TEST_MOCK_ANALYSIS_ID}",
+    "custom_id": f"analysis-{TEST_MOCK_ANALYSIS_ID}",
+    "tags": [f"project:{TEST_MOCK_PROJECT_ID}", f"analysis:{TEST_MOCK_ANALYSIS_ID}"],
+}
+
 TEST_MOCK_EVENTS = [
     {
         "id": 75,

@@ -36,9 +36,9 @@ from hub_adapter.errors import (
     catch_kong_errors,
 )
 from hub_adapter.kong_ident import (
-    HEALTH_TAG,  # noqa: F401  # unused until Task 5 (health probing)
-    analysis_tag,  # noqa: F401  # unused until Task 4 (analyses)
-    analysis_username,  # noqa: F401  # unused until Task 4 (analyses)
+    HEALTH_TAG,
+    analysis_tag,
+    analysis_username,
     datastore_tag,
     health_username,  # noqa: F401  # unused until Task 5 (health probing)
     link_path,
@@ -84,11 +84,6 @@ def datastore_name(project_id: str | uuid.UUID, ds_type: DataStoreType | str) ->
     """Canonical name for a Kong service (data store): '{project_uuid}-{ds_type}'."""
     ds = ds_type.value if isinstance(ds_type, DataStoreType) else ds_type
     return f"{project_id}-{ds}"
-
-
-def consumer_username(analysis_id: str | uuid.UUID) -> str:
-    """Canonical username for a Kong consumer (analysis): '{analysis_uuid}-flame'."""
-    return f"{analysis_id}-{FLAME}"
 
 
 def health_consumer_username(project_id: str | uuid.UUID, ds_type: DataStoreType | str) -> str:
@@ -593,25 +588,32 @@ async def unlink_project_from_datastore(
         return UnlinkResponse(removed_routes=routes.data, status=status.HTTP_200_OK)
 
 
+def _find_analysis_consumer(api_client, analysis_id: str | uuid.UUID):
+    """Resolve the Kong consumer for an analysis via its tag, or None."""
+    consumer_api = kong_admin_client.ConsumersApi(api_client)
+    consumers = consumer_api.list_consumer(tags=analysis_tag(analysis_id))
+    return consumers.data[0] if consumers.data else None
+
+
 def get_analyses(
     settings: Annotated[Settings, Depends(get_settings)],
     analysis_id: uuid.UUID | str | None = None,
-    tag: str | None = None,
+    project_id: uuid.UUID | str | None = None,
 ) -> ListConsumers | dict:
-    """Get either all or a single analysis (consumer)."""
+    """Get consumers via tags. Health consumers are excluded — they are not analyses."""
     configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
-    username = consumer_username(analysis_id) if analysis_id else None
+
+    tags = []
+    if analysis_id:
+        tags.append(analysis_tag(analysis_id))
+    if project_id:
+        tags.append(project_tag(project_id))
 
     with kong_admin_client.ApiClient(configuration) as api_client:
         consumer_api = kong_admin_client.ConsumersApi(api_client)
-        if username:
-            api_response = consumer_api.get_consumer(consumer_username_or_id=username)
-            api_response = {"data": [api_response]}
-
-        else:
-            api_response = consumer_api.list_consumer(tags=tag)
-
-        return api_response
+        api_response = consumer_api.list_consumer(tags=",".join(tags) if tags else None)
+        analyses = [c for c in api_response.data if HEALTH_TAG not in (c.tags or [])]
+        return {"data": analyses}
 
 
 @kong_router.get(
@@ -623,13 +625,13 @@ def get_analyses(
 @catch_kong_errors
 async def list_analyses(
     settings: Annotated[Settings, Depends(get_settings)],
-    tag: Annotated[
+    project_id: Annotated[
         str | None,
-        Query(description="Filter consumers by project using the project UUID"),
+        Query(description="Filter consumers by project UUID"),
     ] = None,
 ):
-    """List all analyses (referred to as consumers by kong) available. Can be filtered by project UUID using tag."""
-    return get_analyses(settings, analysis_id=None, tag=tag)
+    """List all analyses (referred to as consumers by kong) available. Can be filtered by project UUID."""
+    return get_analyses(settings, project_id=project_id)
 
 
 @kong_router.get(
@@ -642,13 +644,13 @@ async def list_analyses(
 async def list_specific_analysis(
     settings: Annotated[Settings, Depends(get_settings)],
     analysis_id: Annotated[uuid.UUID | str | None, Path(description="UUID of the analysis.")],
-    tag: Annotated[
+    project_id: Annotated[
         str | None,
-        Query(description="Filter consumers by project using the project UUID"),
+        Query(description="Filter consumers by project UUID"),
     ] = None,
 ):
     """List all analyses (referred to as consumers by kong) available."""
-    return get_analyses(settings, analysis_id=analysis_id, tag=tag)
+    return get_analyses(settings, analysis_id=analysis_id, project_id=project_id)
 
 
 def get_analysis_keyauth(settings: Settings, analysis_id: str | uuid.UUID):
@@ -657,15 +659,18 @@ def get_analysis_keyauth(settings: Settings, analysis_id: str | uuid.UUID):
     Used to reuse an already registered consumer's credential instead of deleting and recreating it.
     """
     configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
-    username = consumer_username(analysis_id)
 
     try:
         with kong_admin_client.ApiClient(configuration) as api_client:
+            consumer = _find_analysis_consumer(api_client, analysis_id)
+            if consumer is None:
+                return None
+
             keyauth_api = kong_admin_client.KeyAuthsApi(api_client)
-            api_response = keyauth_api.list_key_auths_for_consumer(username)
+            api_response = keyauth_api.list_key_auths_for_consumer(consumer.id)
 
     except ApiException as e:
-        logger.warning(f"Unable to fetch existing key-auth for {username}: {e}")
+        logger.warning(f"Unable to fetch existing key-auth for analysis {analysis_id}: {e}")
         if getattr(e, "status", None) == status.HTTP_404_NOT_FOUND:
             return None
 
@@ -692,14 +697,7 @@ async def create_and_connect_analysis_to_project(
 ):
     """Create a new analysis and link it to a project."""
     proj_resp = get_projects(settings=settings, project_id=project_id, detailed=False)
-
-    # Tags are used to annotate routes (projects) with datastore type and original project ID
-    route_tags = set()
-    for proj in proj_resp.data:
-        route_tags.update(proj.tags)
-
-    # UUID must be cast to str to check in set since tags are strings
-    if project_id not in route_tags:
+    if not proj_resp.data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={
@@ -712,7 +710,7 @@ async def create_and_connect_analysis_to_project(
 
     configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
     response = {}
-    username = consumer_username(analysis_id)
+    username = analysis_username(analysis_id)
 
     with kong_admin_client.ApiClient(configuration) as api_client:
         consumer_api = kong_admin_client.ConsumersApi(api_client)
@@ -720,7 +718,7 @@ async def create_and_connect_analysis_to_project(
             CreateConsumerRequest(
                 username=username,
                 custom_id=username,
-                tags=[str(project_id), str(analysis_id)],
+                tags=[project_tag(project_id), analysis_tag(analysis_id)],
             )
         )
         logger.info(f"Consumer added, id: {api_response.id}")
@@ -734,7 +732,7 @@ async def create_and_connect_analysis_to_project(
             consumer_id,
             CreateAclForConsumerRequest(
                 group=project_id,
-                tags=[str(project_id)],
+                tags=[project_tag(project_id)],
             ),
         )
         logger.info(f"ACL plugin configured for consumer, group: {api_response.group}")
@@ -745,7 +743,7 @@ async def create_and_connect_analysis_to_project(
         api_response = keyauth_api.create_key_auth_for_consumer(
             consumer_id,
             CreateKeyAuthForConsumerRequest(
-                tags=[str(project_id)],
+                tags=[project_tag(project_id)],
             ),
         )
         logger.info(f"Key authentication plugin configured for consumer, api_key: {api_response.key}")
@@ -763,16 +761,25 @@ async def create_and_connect_analysis_to_project(
 @catch_kong_errors
 async def delete_analysis(
     settings: Annotated[Settings, Depends(get_settings)],
-    analysis_id: Annotated[str | UUID, Path(description="UUID or unique name of the analysis.")],
+    analysis_id: Annotated[str | UUID, Path(description="UUID of the analysis.")],
 ):
-    """Delete the listed analysis."""
+    """Delete the listed analysis (consumer), resolved via its tag."""
     configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
-    username = consumer_username(analysis_id)
 
     with kong_admin_client.ApiClient(configuration) as api_client:
-        consumer_api = kong_admin_client.ConsumersApi(api_client)
+        consumer = _find_analysis_consumer(api_client, analysis_id)
+        if consumer is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "message": f"No consumer found for analysis {analysis_id}",
+                    "service": "Kong",
+                    "status_code": status.HTTP_404_NOT_FOUND,
+                },
+            )
 
-        consumer_api.delete_consumer(consumer_username_or_id=username)
+        consumer_api = kong_admin_client.ConsumersApi(api_client)
+        consumer_api.delete_consumer(consumer_username_or_id=consumer.id)
 
         logger.info(f"Analysis {analysis_id} deleted")
         return status.HTTP_200_OK

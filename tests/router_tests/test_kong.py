@@ -33,6 +33,7 @@ from hub_adapter.schemas.kong import (
 from tests.conftest import check_routes
 from tests.constants import (
     DS_TYPE,
+    KONG_ANALYSIS_CONSUMER_DATA,
     KONG_ANALYSIS_SUCCESS_RESP,
     KONG_DS_CREATE_REQUEST,
     KONG_DS_SERVICE_DATA,
@@ -41,7 +42,6 @@ from tests.constants import (
     TEST_JWT,
     TEST_KONG_CONSUMER_DATA,
     TEST_KONG_DS_NAME,
-    TEST_KONG_ROUTE_DATA,
     TEST_KONG_ROUTE_RESPONSE,
     TEST_KONG_SERVICE_DATA,
     TEST_KONG_SERVICE_ID,
@@ -261,28 +261,32 @@ class TestKong:
         assert resp.status_code == status.HTTP_404_NOT_FOUND
 
     @patch("hub_adapter.routers.kong.kong_admin_client.ConsumersApi.list_consumer")
-    @patch("hub_adapter.routers.kong.kong_admin_client.ConsumersApi.get_consumer")
-    def test_get_analyses(
-        self,
-        mock_get_consumer,
-        mock_list_consumer,
-        authorized_test_client,
-    ):
-        """Test consumer retrieval (GET /analysis/{analysis_id}) methods."""
-        mock_get_consumer.return_value = Consumer(**TEST_KONG_CONSUMER_DATA["consumer"])  # Not needed
+    def test_get_analyses(self, mock_list_consumer, authorized_test_client):
+        """GET /analysis[/{id}] resolves consumers via tags, filtering out health consumers."""
+        health_consumer = {
+            "id": "aaaaaaaa-1111-2222-3333-444444444444",
+            "username": f"health-{TEST_MOCK_PROJECT_ID}",
+            "tags": ["health", f"project:{TEST_MOCK_PROJECT_ID}"],
+        }
         mock_list_consumer.return_value = ListConsumer200Response(
-            data=[Consumer(**TEST_KONG_CONSUMER_DATA["consumer"])]
+            data=[Consumer(**KONG_ANALYSIS_CONSUMER_DATA), Consumer(**health_consumer)]
         )
 
-        all_consumers_resp = authorized_test_client.get("/kong/analysis", auth=BearerAuth(TEST_JWT))
-        assert all_consumers_resp.status_code == status.HTTP_200_OK
-        assert all_consumers_resp.json() == {"data": [TEST_KONG_CONSUMER_DATA["consumer"]], "offset": None}
+        all_resp = authorized_test_client.get("/kong/analysis", auth=BearerAuth(TEST_JWT))
+        assert all_resp.status_code == status.HTTP_200_OK
+        usernames = [c["username"] for c in all_resp.json()["data"]]
+        assert f"analysis-{TEST_MOCK_ANALYSIS_ID}" in usernames
+        assert health_consumer["username"] not in usernames  # health consumers are not analyses
+        mock_list_consumer.assert_called_with(tags=None)
 
-        one_analysis_resp = authorized_test_client.get(
-            f"/kong/analysis/{TEST_MOCK_ANALYSIS_ID}", auth=BearerAuth(TEST_JWT)
+        authorized_test_client.get(
+            "/kong/analysis", params={"project_id": TEST_MOCK_PROJECT_ID}, auth=BearerAuth(TEST_JWT)
         )
-        assert one_analysis_resp.status_code == status.HTTP_200_OK
-        assert one_analysis_resp.json() == {"data": [TEST_KONG_CONSUMER_DATA["consumer"]], "offset": None}
+        mock_list_consumer.assert_called_with(tags=f"project:{TEST_MOCK_PROJECT_ID}")
+
+        one_resp = authorized_test_client.get(f"/kong/analysis/{TEST_MOCK_ANALYSIS_ID}", auth=BearerAuth(TEST_JWT))
+        assert one_resp.status_code == status.HTTP_200_OK
+        mock_list_consumer.assert_called_with(tags=f"analysis:{TEST_MOCK_ANALYSIS_ID}")
 
     @patch("hub_adapter.routers.kong.logger")
     @patch("hub_adapter.routers.kong.kong_admin_client.KeyAuthsApi.create_key_auth_for_consumer")
@@ -290,94 +294,82 @@ class TestKong:
     @patch("hub_adapter.routers.kong.kong_admin_client.ConsumersApi.create_consumer")
     @patch("hub_adapter.routers.kong.get_projects")
     def test_create_and_connect_analysis_to_project(
-        self,
-        mock_projects,
-        mock_create_consumer,
-        mock_acl,
-        mock_keyauth,
-        mock_logger,
-        authorized_test_client,
+        self, mock_projects, mock_create_consumer, mock_acl, mock_keyauth, mock_logger, authorized_test_client
     ):
-        """Test the create_and_connect_analysis_to_project (POST /analysis) method."""
-        mock_projects.return_value = ListRoute200Response(data=[TEST_KONG_ROUTE_DATA])
-        mock_create_consumer.return_value = Consumer(**TEST_KONG_CONSUMER_DATA["consumer"])
-        mock_acl.return_value = ACL()
+        """POST /analysis creates a tagged consumer with prefixed username, ACL group and keyauth."""
+        mock_projects.return_value = ListRoute200Response(data=[Route(**KONG_LINK_ROUTE_DATA)])
+        mock_create_consumer.return_value = Consumer(**KONG_ANALYSIS_CONSUMER_DATA)
+        mock_acl.return_value = ACL(group=TEST_MOCK_PROJECT_ID)
         mock_keyauth.return_value = KeyAuth()
 
-        body_data = {
-            "project_id": TEST_MOCK_PROJECT_ID,
-            "analysis_id": TEST_MOCK_ANALYSIS_ID,
-        }
+        body_data = {"project_id": TEST_MOCK_PROJECT_ID, "analysis_id": TEST_MOCK_ANALYSIS_ID}
+        resp = authorized_test_client.post("/kong/analysis", json=body_data, auth=BearerAuth(TEST_JWT))
+        assert resp.status_code == status.HTTP_201_CREATED
 
-        working_consumer_resp = authorized_test_client.post("/kong/analysis", json=body_data, auth=BearerAuth(TEST_JWT))
-        assert working_consumer_resp.status_code == status.HTTP_201_CREATED
-        assert working_consumer_resp.json() == TEST_KONG_CONSUMER_DATA
+        consumer_request = mock_create_consumer.call_args.args[0]
+        assert consumer_request.username == f"analysis-{TEST_MOCK_ANALYSIS_ID}"
+        assert set(consumer_request.tags) == set(KONG_ANALYSIS_CONSUMER_DATA["tags"])
         assert mock_logger.info.call_count == 3
 
-        # Missing route for given project ID
+        # Project without any linked data store -> 404
         mock_projects.return_value = ListRoute200Response(data=[])
-        broken_consumer_resp = authorized_test_client.post("/kong/analysis", json=body_data, auth=BearerAuth(TEST_JWT))
-        assert broken_consumer_resp.status_code == status.HTTP_404_NOT_FOUND
-        assert broken_consumer_resp.json() == {
-            "detail": {
-                "message": "Associated project not mapped to a data store",
-                "service": "Kong",
-                "status_code": 404,
-            }
-        }
+        broken_resp = authorized_test_client.post("/kong/analysis", json=body_data, auth=BearerAuth(TEST_JWT))
+        assert broken_resp.status_code == status.HTTP_404_NOT_FOUND
+
+    @patch("hub_adapter.routers.kong.kong_admin_client.ConsumersApi.delete_consumer")
+    @patch("hub_adapter.routers.kong.kong_admin_client.ConsumersApi.list_consumer")
+    def test_delete_analysis(self, mock_list_consumer, mock_delete, authorized_test_client):
+        """DELETE /analysis/{id} resolves the consumer via tags and deletes by Kong ID."""
+        mock_list_consumer.return_value = ListConsumer200Response(data=[Consumer(**KONG_ANALYSIS_CONSUMER_DATA)])
+
+        resp = authorized_test_client.delete(f"/kong/analysis/{TEST_MOCK_ANALYSIS_ID}", auth=BearerAuth(TEST_JWT))
+        assert resp.status_code == status.HTTP_200_OK
+        mock_delete.assert_called_once_with(consumer_username_or_id=KONG_ANALYSIS_CONSUMER_DATA["id"])
+
+        # Unknown analysis -> 404
+        mock_list_consumer.return_value = ListConsumer200Response(data=[])
+        resp = authorized_test_client.delete(f"/kong/analysis/{TEST_MOCK_ANALYSIS_ID}", auth=BearerAuth(TEST_JWT))
+        assert resp.status_code == status.HTTP_404_NOT_FOUND
 
     @patch("hub_adapter.routers.kong.kong_admin_client.KeyAuthsApi.list_key_auths_for_consumer")
-    def test_get_analysis_keyauth_returns_existing(self, mock_list_keyauths, test_settings):
-        """get_analysis_keyauth returns the first existing key-auth credential for the consumer."""
+    @patch("hub_adapter.routers.kong.kong_admin_client.ConsumersApi.list_consumer")
+    def test_get_analysis_keyauth_returns_existing(self, mock_list_consumer, mock_list_keyauths, test_settings):
+        """get_analysis_keyauth resolves the consumer via tags then returns its first credential."""
         from hub_adapter.routers.kong import get_analysis_keyauth
 
-        existing = KeyAuth(key="existingKongKey")
-        mock_list_keyauths.return_value = ListKeyAuthsForConsumer200Response(data=[existing])
+        mock_list_consumer.return_value = ListConsumer200Response(data=[Consumer(**KONG_ANALYSIS_CONSUMER_DATA)])
+        mock_list_keyauths.return_value = ListKeyAuthsForConsumer200Response(data=[KeyAuth(key="existingKongKey")])
 
         result = get_analysis_keyauth(settings=test_settings, analysis_id=TEST_MOCK_ANALYSIS_ID)
 
         assert result.key == "existingKongKey"
-        mock_list_keyauths.assert_called_once_with(f"{TEST_MOCK_ANALYSIS_ID}-flame")
+        mock_list_keyauths.assert_called_once_with(KONG_ANALYSIS_CONSUMER_DATA["id"])
 
     @patch("hub_adapter.routers.kong.kong_admin_client.KeyAuthsApi.list_key_auths_for_consumer")
-    def test_get_analysis_keyauth_returns_none_when_empty(self, mock_list_keyauths, test_settings):
-        """get_analysis_keyauth returns None when the consumer has no key-auth credentials."""
-        from hub_adapter.routers.kong import get_analysis_keyauth
-
-        mock_list_keyauths.return_value = ListKeyAuthsForConsumer200Response(data=[])
-
-        result = get_analysis_keyauth(settings=test_settings, analysis_id=TEST_MOCK_ANALYSIS_ID)
-
-        assert result is None
-
-    @patch("hub_adapter.routers.kong.kong_admin_client.KeyAuthsApi.list_key_auths_for_consumer")
-    def test_get_analysis_keyauth_returns_none_on_api_error(self, mock_list_keyauths, test_settings):
-        """get_analysis_keyauth swallows Kong API errors and returns None so the caller can fall back."""
-        from hub_adapter.routers.kong import get_analysis_keyauth
-
-        mock_list_keyauths.side_effect = ApiException(status=status.HTTP_404_NOT_FOUND, reason="Not found")
-
-        result = get_analysis_keyauth(settings=test_settings, analysis_id=TEST_MOCK_ANALYSIS_ID)
-
-        assert result is None
-
-    @patch("hub_adapter.routers.kong.logger")
-    @patch("hub_adapter.routers.kong.kong_admin_client.ConsumersApi.delete_consumer")
-    def test_delete_analysis(
-        self,
-        mock_delete,
-        mock_logger,
-        authorized_test_client,
+    @patch("hub_adapter.routers.kong.kong_admin_client.ConsumersApi.list_consumer")
+    def test_get_analysis_keyauth_returns_none_when_missing(
+        self, mock_list_consumer, mock_list_keyauths, test_settings
     ):
-        """Test the delete_analysis (DELETE /analysis/{analysis_id}) method."""
-        mock_delete.return_value = None
+        """get_analysis_keyauth returns None when the consumer or its credential is absent."""
+        from hub_adapter.routers.kong import get_analysis_keyauth
 
-        delete_resp = authorized_test_client.delete(
-            f"/kong/analysis/{TEST_MOCK_ANALYSIS_ID}", auth=BearerAuth(TEST_JWT)
-        )
-        assert delete_resp.status_code == status.HTTP_200_OK
-        assert mock_logger.info.call_count == 1
-        mock_logger.info.assert_called_with(f"Analysis {TEST_MOCK_ANALYSIS_ID} deleted")
+        # No consumer at all
+        mock_list_consumer.return_value = ListConsumer200Response(data=[])
+        assert get_analysis_keyauth(settings=test_settings, analysis_id=TEST_MOCK_ANALYSIS_ID) is None
+
+        # Consumer exists but has no credentials
+        mock_list_consumer.return_value = ListConsumer200Response(data=[Consumer(**KONG_ANALYSIS_CONSUMER_DATA)])
+        mock_list_keyauths.return_value = ListKeyAuthsForConsumer200Response(data=[])
+        assert get_analysis_keyauth(settings=test_settings, analysis_id=TEST_MOCK_ANALYSIS_ID) is None
+
+    @patch("hub_adapter.routers.kong.kong_admin_client.ConsumersApi.list_consumer")
+    def test_get_analysis_keyauth_returns_none_on_api_error(self, mock_list_consumer, test_settings):
+        """get_analysis_keyauth swallows Kong 404s and returns None so the caller can fall back."""
+        from hub_adapter.routers.kong import get_analysis_keyauth
+
+        mock_list_consumer.side_effect = ApiException(status=status.HTTP_404_NOT_FOUND, reason="Not found")
+
+        assert get_analysis_keyauth(settings=test_settings, analysis_id=TEST_MOCK_ANALYSIS_ID) is None
 
 
 class TestConnection:
