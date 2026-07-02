@@ -41,15 +41,14 @@ from hub_adapter.kong_ident import (
     analysis_username,  # noqa: F401  # unused until Task 4 (analyses)
     datastore_tag,
     health_username,  # noqa: F401  # unused until Task 5 (health probing)
-    link_path,  # noqa: F401  # unused until Task 3 (project links)
+    link_path,
     parse_tags,
-    project_tag,  # noqa: F401  # unused until Task 3 (project links)
+    project_tag,
     type_tag,
     validate_datastore_name,
 )
 from hub_adapter.schemas.kong import (
     DataStoreType,
-    DeleteProject,
     HttpMethodCode,
     LinkDataStoreProject,
     LinkProjectAnalysis,
@@ -59,6 +58,7 @@ from hub_adapter.schemas.kong import (
     MinioConfig,
     ProtocolCode,
     ServiceRequest,
+    UnlinkResponse,
 )
 
 kong_router = APIRouter(
@@ -314,16 +314,16 @@ def get_projects(
     project_id: uuid.UUID | str | None = None,
     detailed: bool = False,
 ) -> ListRoutes | dict:
-    """Get either all or a single data store (service)."""
+    """Get the link routes for all projects or a single one, via tags."""
     configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
-    project = str(project_id) if project_id else None
+    tags = None if project_id is None else project_tag(project_id)
 
     with kong_admin_client.ApiClient(configuration) as api_client:
         api_instance = kong_admin_client.RoutesApi(api_client)
-        api_response = api_instance.list_route(tags=project)
+        api_response = api_instance.list_route(tags=tags)
 
         if len(api_response.data) == 0:
-            logger.debug("Kong: No routes (projects) found.")
+            logger.debug("Kong: No routes (project links) found.")
 
         if detailed:
             service_api_instance = kong_admin_client.ServicesApi(api_client)
@@ -388,60 +388,77 @@ async def list_specific_project(
 
 
 @kong_router.post(
-    "/project",
+    "/project/{project_id}/datastore/{datastore_id}",
     response_model=LinkDataStoreProject,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(require_steward_role)],
-    name="kong.project.create",
+    name="kong.project.link",
 )
 @catch_kong_errors
-async def create_route_to_datastore(
+async def link_project_to_datastore(
     settings: Annotated[Settings, Depends(get_settings)],
-    data_store_id: Annotated[uuid.UUID | str, Body(description="UUID of the data store or 'service'")],
-    project_id: Annotated[uuid.UUID | str, Body(description="UUID of the project")],
+    project_id: Annotated[uuid.UUID | str, Path(description="UUID of the project")],
+    datastore_id: Annotated[uuid.UUID | str, Path(description="Kong service ID of the data store")],
     methods: Annotated[list[HttpMethodCode] | None, Body(description="List of acceptable HTTP methods")] = None,
     protocols: Annotated[
         list[ProtocolCode] | None,
         Body(description="List of acceptable transfer protocols. A combo of 'http', 'grpc', 'grpcs', 'tls', 'tcp'"),
     ] = None,
-    ds_type: Annotated[DataStoreType, Body(description="Data store type. Either 's3' or 'fhir'")] = "fhir",
 ):
-    """Connect a project to a data store (referred to as a route by kong)."""
+    """Link a project to a data store by creating a route on the store's service.
+
+    The route carries all relationship data in its tags and has no name; the
+    project's analyses reach it automatically through their project-wide ACL group.
+    """
     configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
-    if methods is None:
-        methods = DEFAULT_METHODS
-    if protocols is None:
-        protocols = DEFAULT_PROTOCOLS
-
-    ds_type = ds_type.value if isinstance(ds_type, DataStoreType) else ds_type
-    methods = [method.value if isinstance(method, HttpMethodCode) else method for method in methods]
-    protocols = [protocol.value if isinstance(protocol, ProtocolCode) else protocol for protocol in protocols]
-
-    # Construct route name and path from project_id and ds_type
-    route_name = datastore_name(project_id, ds_type)
-    path = f"/{route_name}/{ds_type}"
+    methods = [HttpMethodCode(m).value for m in (methods or DEFAULT_METHODS)]
+    protocols = [ProtocolCode(p).value for p in (protocols or DEFAULT_PROTOCOLS)]
 
     with kong_admin_client.ApiClient(configuration) as api_client:
+        svc_api = kong_admin_client.ServicesApi(api_client)
         route_api = kong_admin_client.RoutesApi(api_client)
         plugin_api = kong_admin_client.PluginsApi(api_client)
 
-        # Create requests
+        svc = svc_api.get_service(service_id_or_name=str(datastore_id))
+        ds_type = parse_tags(svc.tags).get("type")
+
+        if ds_type is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "message": f"Service {datastore_id} is not a data store (missing type tag)",
+                    "service": "Kong",
+                    "status_code": status.HTTP_404_NOT_FOUND,
+                },
+            )
+
+        existing = route_api.list_route(tags=f"{project_tag(project_id)},{datastore_tag(svc.id)}")
+        if existing.data:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "message": f"Project {project_id} is already linked to data store {svc.id}",
+                    "service": "Kong",
+                    "status_code": status.HTTP_409_CONFLICT,
+                },
+            )
+
         create_route_request = CreateRouteRequest(
-            name=route_name,
             protocols=protocols,
             methods=methods,
-            paths=[path],
+            paths=[link_path(project_id, svc.id)],
             https_redirect_status_code=426,
             preserve_host=False,
             request_buffering=True,
             response_buffering=True,
-            tags=[str(project_id), ds_type],
+            tags=[project_tag(project_id), datastore_tag(svc.id), type_tag(ds_type)],
         )
+        route_response = route_api.create_route_for_service(str(svc.id), create_route_request)
 
         # Keyauth for authentication
         create_keyauth_request = CreatePluginForConsumerRequest(
             name="key-auth",
-            instance_name=f"{route_name}-keyauth",
+            instance_name=f"{route_response.id}-keyauth",
             config={
                 "hide_credentials": True,
                 "key_in_body": False,
@@ -456,13 +473,12 @@ async def create_route_to_datastore(
 
         create_acl_request = CreatePluginForConsumerRequest(
             name="acl",
-            instance_name=f"{route_name}-acl",
+            instance_name=f"{route_response.id}-acl",
             config={"allow": [str(project_id)], "hide_groups_header": True},
             enabled=True,
             protocols=protocols,
         )
 
-        route_response = route_api.create_route_for_service(str(data_store_id), create_route_request)
         keyauth_response = plugin_api.create_plugin_for_route(route_response.id, create_keyauth_request)
         acl_response = plugin_api.create_plugin_for_route(route_response.id, create_acl_request)
 
@@ -489,72 +505,92 @@ async def create_datastore_and_project_with_link(
 ):
     """Creates a new datastore (service) and a new project (route), then links them together with a health consumer."""
     try:
-        proj_response = await create_route_to_datastore(
+        proj_response = await link_project_to_datastore(
             settings=settings,
             project_id=project_id,
-            data_store_id=datastore.id,
+            datastore_id=datastore.id,
             protocols=protocols,
-            ds_type=ds_type,
         )
     except HTTPException as error:  # if route creation fails, delete the orphaned service
         logger.error("Failed to create route for datastore, deleting service")
         await delete_data_store(settings=settings, datastore_id_or_name=datastore.id, cascade=True)
         raise error
 
-    # Test connection
-    try:
-        await probe_connection(settings=settings, project_id=str(project_id), ds_type=ds_type)
-
-    except HTTPException as error:  # if connection fails, delete service and route, then raise error
-        logger.error("Failed to validate connection to datastore, deleting service and route")
-        await delete_data_store(settings=settings, datastore_id_or_name=datastore.id, cascade=True)
-        raise error
+    # NOTE: probe wired in after health endpoint rework
 
     return proj_response
 
 
 @kong_router.delete(
-    "/project/{project_route_id}",
+    "/project/{project_id}",
     status_code=status.HTTP_200_OK,
     dependencies=[Depends(require_steward_role)],
-    # response_model=DeleteProject,
+    response_model=UnlinkResponse,
     name="kong.project.delete",
 )
 @catch_kong_errors
-async def delete_route(
+async def delete_project(
     settings: Annotated[Settings, Depends(get_settings)],
-    project_route_id: Annotated[
-        str,
-        Path(
-            description="Unique identifier of the route to be deleted, "
-            "must include datastore type hyphenated at the end"
-        ),
-    ],
-) -> DeleteProject:
-    """Disconnect a project (route) from all data stores (services) and delete associated analyses (consumers)."""
+    project_id: Annotated[uuid.UUID | str, Path(description="UUID of the project")],
+) -> UnlinkResponse:
+    """Disconnect a project from all data stores and delete all its consumers (analyses + health)."""
     configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
+    tags = project_tag(project_id)
 
     with kong_admin_client.ApiClient(configuration) as api_client:
         route_api = kong_admin_client.RoutesApi(api_client)
         consumer_api = kong_admin_client.ConsumersApi(api_client)
 
-        route = route_api.get_route(route_id_or_name=project_route_id)
+        routes = route_api.list_route(tags=tags)
+        for route in routes.data:
+            route_api.delete_route(route.id)
 
-        # Extract project UUID from route tags (tags=[project_uuid, ds_type])
-        ds_type_values = {e.value for e in DataStoreType}
-        project_uuid = next((tag for tag in (route.tags or []) if tag not in ds_type_values), None)
-
-        # Get related analyses (consumers) and delete them first
-        consumer_response = consumer_api.list_consumer(tags=project_uuid)
-        for consumer in consumer_response.data:
+        consumers = consumer_api.list_consumer(tags=tags)
+        for consumer in consumers.data:
             consumer_api.delete_consumer(consumer_username_or_id=consumer.id)
 
-        # Delete route
-        route_api.delete_route(route.id)
+        logger.info(
+            f"Project {project_id} deleted: {len(routes.data)} link(s), {len(consumers.data)} consumer(s) removed"
+        )
 
-        logger.info(f"Project {route.id} disconnected from data store {route.service.id}")
+        return UnlinkResponse(removed_routes=routes.data, removed_consumers=consumers.data, status=status.HTTP_200_OK)
 
-        return DeleteProject(removed=route, status=status.HTTP_200_OK)
+
+@kong_router.delete(
+    "/project/{project_id}/datastore/{datastore_id}",
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(require_steward_role)],
+    response_model=UnlinkResponse,
+    name="kong.project.unlink",
+)
+@catch_kong_errors
+async def unlink_project_from_datastore(
+    settings: Annotated[Settings, Depends(get_settings)],
+    project_id: Annotated[uuid.UUID | str, Path(description="UUID of the project")],
+    datastore_id: Annotated[uuid.UUID | str, Path(description="Kong service ID of the data store")],
+) -> UnlinkResponse:
+    """Unlink a single data store from a project. Consumers (analyses) are kept."""
+    configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
+
+    with kong_admin_client.ApiClient(configuration) as api_client:
+        route_api = kong_admin_client.RoutesApi(api_client)
+        routes = route_api.list_route(tags=f"{project_tag(project_id)},{datastore_tag(datastore_id)}")
+
+        if not routes.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "message": f"Project {project_id} is not linked to data store {datastore_id}",
+                    "service": "Kong",
+                    "status_code": status.HTTP_404_NOT_FOUND,
+                },
+            )
+
+        for route in routes.data:
+            route_api.delete_route(route.id)
+            logger.info(f"Project {project_id} unlinked from data store {datastore_id} (route {route.id})")
+
+        return UnlinkResponse(removed_routes=routes.data, status=status.HTTP_200_OK)
 
 
 def get_analyses(

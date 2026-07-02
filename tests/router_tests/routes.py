@@ -5,12 +5,12 @@ from kong_admin_client import Service
 
 from hub_adapter.schemas.hub import AnalysisImageUrl, DetailedAnalysis, NodeTypeResponse
 from hub_adapter.schemas.kong import (
-    DeleteProject,
     LinkDataStoreProject,
     LinkProjectAnalysis,
     ListConsumers,
     ListRoutes,
     ListServices,
+    UnlinkResponse,
 )
 from hub_adapter.schemas.logs import (
     AnalysisLogHistoryResponse,
@@ -158,8 +158,8 @@ EXPECTED_KONG_ROUTE_CONFIG = (
         "status_code": 200,
     },
     {
-        "name": "kong.project.create",
-        "path": "/kong/project",
+        "name": "kong.project.link",
+        "path": "/kong/project/{project_id}/datastore/{datastore_id}",
         "methods": {"POST"},
         "response_model": LinkDataStoreProject,
         "status_code": 201,
@@ -173,9 +173,16 @@ EXPECTED_KONG_ROUTE_CONFIG = (
     },
     {
         "name": "kong.project.delete",
-        "path": "/kong/project/{project_route_id}",
+        "path": "/kong/project/{project_id}",
         "methods": {"DELETE"},
-        "response_model": DeleteProject,
+        "response_model": UnlinkResponse,
+        "status_code": 200,
+    },
+    {
+        "name": "kong.project.unlink",
+        "path": "/kong/project/{project_id}/datastore/{datastore_id}",
+        "methods": {"DELETE"},
+        "response_model": UnlinkResponse,
         "status_code": 200,
     },
     {

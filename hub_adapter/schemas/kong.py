@@ -139,8 +139,9 @@ class ListServices(ListService200Response):
     data: list[DetailedService] | None = None
 
 
-class DeleteProject(BaseModel):
-    """Response from disconnecting a project from a datastore."""
+class UnlinkResponse(BaseModel):
+    """Response for unlinking a data store from a project or deleting a whole project."""
 
-    removed: Route | None
+    removed_routes: list[Route]
+    removed_consumers: list[Consumer] = []
     status: int | None = None
