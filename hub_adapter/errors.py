@@ -152,6 +152,19 @@ class KongConsumerApiKeyError(KongError):
         )
 
 
+class KongDataStoreLinkedError(KongError):
+    def __init__(self, datastore: str, projects: list[str]):
+        super().__init__(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "message": f"Data store {datastore} is still linked to project(s): {', '.join(projects)}. "
+                "Pass cascade=true to delete it along with its links.",
+                "service": "Kong",
+                "status_code": status.HTTP_409_CONFLICT,
+            },
+        )
+
+
 def require_victoria_logs(f):
     """Raise HTTP 503 if VictoriaLogs is not configured."""
 

@@ -30,14 +30,26 @@ from hub_adapter.errors import (
     BucketError,
     FhirEndpointError,
     KongConsumerApiKeyError,
+    KongDataStoreLinkedError,
     KongGatewayError,
     KongServiceError,
     catch_kong_errors,
 )
+from hub_adapter.kong_ident import (
+    HEALTH_TAG,  # noqa: F401  # unused until Task 5 (health probing)
+    analysis_tag,  # noqa: F401  # unused until Task 4 (analyses)
+    analysis_username,  # noqa: F401  # unused until Task 4 (analyses)
+    datastore_tag,
+    health_username,  # noqa: F401  # unused until Task 5 (health probing)
+    link_path,  # noqa: F401  # unused until Task 3 (project links)
+    parse_tags,
+    project_tag,  # noqa: F401  # unused until Task 3 (project links)
+    type_tag,
+    validate_datastore_name,
+)
 from hub_adapter.schemas.kong import (
     DataStoreType,
     DeleteProject,
-    DeleteService,
     HttpMethodCode,
     LinkDataStoreProject,
     LinkProjectAnalysis,
@@ -117,14 +129,16 @@ def parse_project_info(services, client) -> dict:
 
 def get_data_stores(
     settings: Annotated[Settings, Depends(get_settings)],
-    project_id: uuid.UUID | str | None = None,
+    ds_type: DataStoreType | None = None,
     detailed: bool = False,
 ) -> ListService200Response | dict:
-    """Get either all or a single data store (service)."""
+    """Get all data stores (services), optionally filtered by type."""
     configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
+    tags = None if ds_type is None else type_tag(ds_type)
+
     with kong_admin_client.ApiClient(configuration) as api_client:
         service_api_instance = kong_admin_client.ServicesApi(api_client)
-        services = service_api_instance.list_service(tags=project_id)
+        services = service_api_instance.list_service(tags=tags)
 
         if detailed:
             services = parse_project_info(services, api_client)
@@ -141,30 +155,41 @@ def get_data_stores(
 @catch_kong_errors
 async def list_data_stores(
     settings: Annotated[Settings, Depends(get_settings)],
-    detailed: Annotated[bool, Query(description="Whether to include detailed information on projects")] = False,
+    ds_type: Annotated[DataStoreType | None, Query(description="Filter by data store type")] = None,
+    detailed: Annotated[bool, Query(description="Whether to include linked projects (routes)")] = False,
 ):
     """List all available data stores (referred to as services by kong)."""
-    return get_data_stores(settings, project_id=None, detailed=detailed)
+    return get_data_stores(settings, ds_type=ds_type, detailed=detailed)
 
 
 @kong_router.get(
-    "/datastore/{project_id}",
+    "/datastore/{datastore_id_or_name}",
     response_model=ListServices,
     status_code=status.HTTP_200_OK,
     name="kong.datastore.get",
 )
 @catch_kong_errors
-async def list_specific_data_store(
+async def get_data_store(
     settings: Annotated[Settings, Depends(get_settings)],
-    project_id: Annotated[uuid.UUID | str, Path(description="UUID of the associated project.")],
-    detailed: Annotated[bool, Query(description="Whether to include detailed information on projects")] = False,
+    datastore_id_or_name: Annotated[str, Path(description="Kong service ID or display name of the data store.")],
+    detailed: Annotated[bool, Query(description="Whether to include linked projects (routes)")] = False,
 ):
-    """Retrieve a specific data store using the project UUID"""
-    return get_data_stores(settings, project_id=project_id, detailed=detailed)
+    """Retrieve a specific data store by its Kong service ID or display name."""
+    configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
+
+    with kong_admin_client.ApiClient(configuration) as api_client:
+        svc_api = kong_admin_client.ServicesApi(api_client)
+        svc = svc_api.get_service(service_id_or_name=datastore_id_or_name)
+        services = ListService200Response(data=[svc])
+
+        if detailed:
+            return parse_project_info(services, api_client)
+
+        return services
 
 
 @kong_router.delete(
-    "/datastore/{data_store_name}",
+    "/datastore/{datastore_id_or_name}",
     status_code=status.HTTP_200_OK,
     dependencies=[Depends(require_steward_role)],
     name="kong.datastore.delete",
@@ -172,62 +197,34 @@ async def list_specific_data_store(
 @catch_kong_errors
 async def delete_data_store(
     settings: Annotated[Settings, Depends(get_settings)],
-    data_store_name: Annotated[str, Path(description="Unique name of the data store.")],
+    datastore_id_or_name: Annotated[str, Path(description="Kong service ID or display name of the data store.")],
+    cascade: Annotated[bool, Query(description="Also delete existing project links (routes)")] = False,
 ):
-    """Delete the listed data store (referred to as services by kong)."""
-    configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
+    """Delete a data store (service). Refused with 409 while projects link it, unless cascade=true.
 
-    # Delete related projects and analyses first, data_store_name is same as associated project in kong (route)
-    # {ProjectUUID}-{datastore type}
-    try:
-        await delete_route(settings=settings, project_route_id=data_store_name)
-
-    except HTTPException:
-        logger.info(f"No routes for service {data_store_name} found")
-
-    # Delete data store
-    with kong_admin_client.ApiClient(configuration) as api_client:
-        svc_api = kong_admin_client.ServicesApi(api_client)
-
-        svc = svc_api.get_service(service_id_or_name=data_store_name)
-        svc_api.delete_service(service_id_or_name=svc.id)
-
-        logger.info(f"Data store {svc.id} deleted")
-
-        return status.HTTP_200_OK
-
-
-@kong_router.delete(
-    "/datastore",
-    status_code=status.HTTP_200_OK,
-    dependencies=[Depends(require_steward_role)],
-    response_model=DeleteService,
-    name="kong.datastore.delete_orphaned",
-)
-@catch_kong_errors
-async def delete_orphaned_data_stores(
-    settings: Annotated[Settings, Depends(get_settings)],
-) -> dict:
-    """Delete all data stores (services) that have no associated project (route)."""
+    Cascading removes the link routes only — consumers (analyses) belong to projects and are untouched.
+    """
     configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
 
     with kong_admin_client.ApiClient(configuration) as api_client:
         svc_api = kong_admin_client.ServicesApi(api_client)
         route_api = kong_admin_client.RoutesApi(api_client)
 
-        services = svc_api.list_service()
-        routes = route_api.list_route()
+        svc = svc_api.get_service(service_id_or_name=datastore_id_or_name)
+        routes = route_api.list_route(tags=datastore_tag(svc.id))
 
-        routed_service_ids = {route.service.id for route in routes.data if route.service}
-        orphaned = [svc for svc in services.data if svc.id not in routed_service_ids]
+        if routes.data and not cascade:
+            linked_projects = sorted({parse_tags(route.tags).get("project", "unknown") for route in routes.data})
+            raise KongDataStoreLinkedError(str(svc.name or svc.id), linked_projects)
 
-        deleted = []
-        for svc in orphaned:
-            svc_api.delete_service(service_id_or_name=svc.id)
-            logger.info(f"Deleted orphaned data store {svc.id} ({svc.name})")
-            deleted.append({"id": svc.id, "name": svc.name})
+        for route in routes.data:
+            route_api.delete_route(route.id)
+            logger.info(f"Deleted link (route) {route.id} for data store {svc.id}")
 
-    return {"deleted": deleted, "count": len(deleted)}
+        svc_api.delete_service(service_id_or_name=svc.id)
+        logger.info(f"Data store {svc.id} deleted")
+
+        return status.HTTP_200_OK
 
 
 @kong_router.post(
@@ -238,7 +235,7 @@ async def delete_orphaned_data_stores(
     name="kong.datastore.create",
 )
 @catch_kong_errors
-async def create_service(
+async def create_data_store(
     settings: Annotated[Settings, Depends(get_settings)],
     datastore: Annotated[
         ServiceRequest,
@@ -250,10 +247,25 @@ async def create_service(
     ds_type: Annotated[DataStoreType, Body(description="Data store type. Either 's3' or 'fhir'")],
     minio_config: Annotated[MinioConfig | None, Body(description="Minio configuration")] = None,
 ) -> Service | None:
-    """Create a datastore (referred to as services by kong) by providing necessary metadata."""
-    configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
+    """Create a data store (service), independent of any project.
 
-    svc_name = datastore_name(datastore.name, ds_type)
+    The admin-chosen display name must not be a bare UUID; the Kong service ID
+    returned in the response is the canonical identifier.
+    """
+    try:
+        validate_datastore_name(datastore.name)
+
+    except ValueError as err:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "message": str(err),
+                "service": "Kong",
+                "status_code": status.HTTP_422_UNPROCESSABLE_ENTITY,
+            },
+        ) from err
+
+    configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
 
     with kong_admin_client.ApiClient(configuration) as api_client:
         api_instance = kong_admin_client.ServicesApi(api_client)
@@ -262,10 +274,10 @@ async def create_service(
             path=datastore.path,
             port=datastore.port,
             protocol=datastore.protocol,
-            name=svc_name,
+            name=datastore.name,
             enabled=datastore.enabled,
             tls_verify=datastore.tls_verify,
-            tags=[datastore.name, svc_name],
+            tags=[type_tag(ds_type)],
         )
         service_create_response = api_instance.create_service(create_service_request)
 
@@ -273,7 +285,7 @@ async def create_service(
         if minio_config:
             create_minio_gateway_request = CreatePluginForConsumerRequest(  # Also works for services
                 name="minio-gateway",
-                instance_name=f"{svc_name}-minio-gateway",
+                instance_name=f"{service_create_response.id}-minio-gateway",
                 config={  # Can't use .model_dump() because of SecretStr
                     "minio_access_key": minio_config.minio_access_key.get_secret_value(),
                     "minio_secret_key": minio_config.minio_secret_key.get_secret_value(),
@@ -289,9 +301,9 @@ async def create_service(
                 plugin_api.create_plugin_for_service(service_create_response.id, create_minio_gateway_request)
 
             except HTTPException as error:  # Delete service if minio fails
-                msg = f"Unable to create minio gateway for {svc_name}"
-                logger.error(msg)
-                await delete_data_store(settings, service_create_response.id)
+                logger.error(f"Unable to create minio gateway for {datastore.name}")
+                svc_api = kong_admin_client.ServicesApi(api_client)
+                svc_api.delete_service(service_id_or_name=service_create_response.id)
                 raise error
 
         return service_create_response
@@ -467,7 +479,7 @@ async def create_route_to_datastore(
 @catch_kong_errors
 async def create_datastore_and_project_with_link(
     settings: Annotated[Settings, Depends(get_settings)],
-    datastore: Annotated[Service, Depends(create_service)],
+    datastore: Annotated[Service, Depends(create_data_store)],
     project_id: Annotated[str | uuid.UUID, Body(description="UUID of the project")],
     protocols: Annotated[
         list[ProtocolCode],
@@ -486,7 +498,7 @@ async def create_datastore_and_project_with_link(
         )
     except HTTPException as error:  # if route creation fails, delete the orphaned service
         logger.error("Failed to create route for datastore, deleting service")
-        await delete_data_store(settings=settings, data_store_name=datastore.id)
+        await delete_data_store(settings=settings, datastore_id_or_name=datastore.id, cascade=True)
         raise error
 
     # Test connection
@@ -495,7 +507,7 @@ async def create_datastore_and_project_with_link(
 
     except HTTPException as error:  # if connection fails, delete service and route, then raise error
         logger.error("Failed to validate connection to datastore, deleting service and route")
-        await delete_data_store(settings=settings, data_store_name=datastore_name(project_id, ds_type))
+        await delete_data_store(settings=settings, datastore_id_or_name=datastore.id, cascade=True)
         raise error
 
     return proj_response

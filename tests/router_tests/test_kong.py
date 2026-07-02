@@ -34,15 +34,18 @@ from tests.conftest import check_routes
 from tests.constants import (
     DS_TYPE,
     KONG_ANALYSIS_SUCCESS_RESP,
+    KONG_DS_CREATE_REQUEST,
+    KONG_DS_SERVICE_DATA,
     KONG_GET_ROUTE_RESPONSE,
+    KONG_LINK_ROUTE_DATA,
     TEST_JWT,
     TEST_KONG_CONSUMER_DATA,
     TEST_KONG_CREATE_SERVICE_REQUEST,
+    TEST_KONG_DS_NAME,
     TEST_KONG_ROUTE_DATA,
     TEST_KONG_ROUTE_RESPONSE,
     TEST_KONG_SERVICE_DATA,
     TEST_KONG_SERVICE_ID,
-    TEST_KONG_SERVICE_RESPONSE,
     TEST_MOCK_ANALYSIS_ID,
     TEST_MOCK_PROJECT_ID,
 )
@@ -63,64 +66,84 @@ class TestKong:
 
     @patch("hub_adapter.routers.kong.kong_admin_client.ServicesApi.list_service")
     def test_get_data_stores(self, mock_svc, authorized_test_client):
-        """Test the service retrieval (GET /datastore/{project_id}) methods."""
-        # TODO add testing for "detailed" parameter
-        mock_svc.return_value = TEST_KONG_SERVICE_RESPONSE
-        # test_client.dependency_overrides[verify_idp_token] = {"user_id": "test_user", "email": "test@example.com"}
-        all_services_resp = authorized_test_client.get("/kong/datastore", auth=BearerAuth(TEST_JWT))
-        assert all_services_resp.status_code == status.HTTP_200_OK
+        """GET /datastore lists all services, optionally filtered by type."""
+        mock_svc.return_value = ListService200Response(data=[Service(**KONG_DS_SERVICE_DATA)])
 
-        json_data = all_services_resp.json()
-        data = json_data["data"]
+        all_resp = authorized_test_client.get("/kong/datastore", auth=BearerAuth(TEST_JWT))
+        assert all_resp.status_code == status.HTTP_200_OK
+        assert all_resp.json()["data"][0]["name"] == TEST_KONG_DS_NAME
+        mock_svc.assert_called_with(tags=None)
 
-        assert isinstance(data, list)
-        assert len(data) == 1
+        authorized_test_client.get("/kong/datastore", params={"ds_type": "fhir"}, auth=BearerAuth(TEST_JWT))
+        mock_svc.assert_called_with(tags="type:fhir")
 
-        assert data[0]["name"] == TEST_SVC_NAME
-
-        single_service_resp = authorized_test_client.get(f"/kong/datastore/{TEST_SVC_NAME}", auth=BearerAuth(TEST_JWT))
-        assert single_service_resp.status_code == status.HTTP_200_OK
-
-        json_data = single_service_resp.json()
-        one_store = json_data["data"]
-
-        assert isinstance(one_store, list)
-        assert len(one_store) == 1
-
-        assert one_store[0]["name"] == TEST_SVC_NAME
-
-    @patch("hub_adapter.routers.kong.logger")
-    @patch("hub_adapter.routers.kong.delete_route")
     @patch("hub_adapter.routers.kong.kong_admin_client.ServicesApi.get_service")
-    @patch("hub_adapter.routers.kong.kong_admin_client.ServicesApi.delete_service")
-    def test_delete_data_store(
-        self, mock_svc_delete, mock_svc_get, mock_route_delete, mock_logger, authorized_test_client
-    ):
-        """Test the delete_data_store method."""
-        # Mock values
-        mock_svc_delete.return_value = None
-        mock_svc_get.return_value = Service(id=TEST_SVC_NAME)  # Needed for the subsequent `delete_service` method
+    def test_get_single_data_store(self, mock_get_svc, authorized_test_client):
+        """GET /datastore/{id_or_name} wraps the single service in a list response."""
+        mock_get_svc.return_value = Service(**KONG_DS_SERVICE_DATA)
 
-        # No routes found
-        mock_route_delete.side_effect = HTTPException(status.HTTP_404_NOT_FOUND)
-
-        authorized_test_client.delete(f"/kong/datastore/{TEST_SVC_NAME}", auth=BearerAuth(TEST_JWT))
-        assert mock_logger.info.call_count == 2
-        mock_logger.info.assert_any_call(f"No routes for service {TEST_SVC_NAME} found")
-        mock_logger.info.assert_any_call(f"Data store {TEST_SVC_NAME} deleted")
+        resp = authorized_test_client.get(f"/kong/datastore/{TEST_KONG_DS_NAME}", auth=BearerAuth(TEST_JWT))
+        assert resp.status_code == status.HTTP_200_OK
+        data = resp.json()["data"]
+        assert len(data) == 1
+        assert data[0]["id"] == TEST_KONG_SERVICE_ID
+        mock_get_svc.assert_called_once_with(service_id_or_name=TEST_KONG_DS_NAME)
 
     @patch("hub_adapter.routers.kong.kong_admin_client.ServicesApi.create_service")
-    def test_create_service(self, mock_create_service, authorized_test_client):
-        """Test the create_service methods."""
-        # Mock values
-        mock_create_service.return_value = TEST_KONG_SERVICE_DATA
+    def test_create_data_store(self, mock_create_service, authorized_test_client):
+        """POST /datastore creates a service with a type tag and no project coupling."""
+        mock_create_service.return_value = Service(**KONG_DS_SERVICE_DATA)
 
         create_resp = authorized_test_client.post(
-            "/kong/datastore", json=TEST_KONG_CREATE_SERVICE_REQUEST, auth=BearerAuth(TEST_JWT)
+            "/kong/datastore", json=KONG_DS_CREATE_REQUEST, auth=BearerAuth(TEST_JWT)
         )
-
         assert create_resp.status_code == status.HTTP_201_CREATED
-        assert create_resp.json() == TEST_KONG_SERVICE_DATA
+        assert create_resp.json()["name"] == TEST_KONG_DS_NAME
+
+        request_arg = mock_create_service.call_args.args[0]
+        assert request_arg.name == TEST_KONG_DS_NAME
+        assert request_arg.tags == ["type:fhir"]
+
+    def test_create_data_store_rejects_uuid_name(self, authorized_test_client):
+        """POST /datastore rejects UUID-shaped display names with 422."""
+        bad_request = {
+            "datastore": {**KONG_DS_CREATE_REQUEST["datastore"], "name": TEST_MOCK_PROJECT_ID},
+            "ds_type": DS_TYPE,
+        }
+        resp = authorized_test_client.post("/kong/datastore", json=bad_request, auth=BearerAuth(TEST_JWT))
+        assert resp.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    @patch("hub_adapter.routers.kong.kong_admin_client.RoutesApi.delete_route")
+    @patch("hub_adapter.routers.kong.kong_admin_client.RoutesApi.list_route")
+    @patch("hub_adapter.routers.kong.kong_admin_client.ServicesApi.delete_service")
+    @patch("hub_adapter.routers.kong.kong_admin_client.ServicesApi.get_service")
+    def test_delete_data_store(
+        self, mock_get_svc, mock_del_svc, mock_list_route, mock_del_route, authorized_test_client
+    ):
+        """DELETE /datastore is refused (409) while linked unless cascade=true."""
+        mock_get_svc.return_value = Service(**KONG_DS_SERVICE_DATA)
+        mock_list_route.return_value = ListRoute200Response(data=[Route(**KONG_LINK_ROUTE_DATA)])
+
+        # Still linked, no cascade -> 409, nothing deleted
+        resp = authorized_test_client.delete(f"/kong/datastore/{TEST_KONG_DS_NAME}", auth=BearerAuth(TEST_JWT))
+        assert resp.status_code == status.HTTP_409_CONFLICT
+        mock_del_svc.assert_not_called()
+        mock_del_route.assert_not_called()
+
+        # Cascade -> routes then service deleted
+        resp = authorized_test_client.delete(
+            f"/kong/datastore/{TEST_KONG_DS_NAME}", params={"cascade": True}, auth=BearerAuth(TEST_JWT)
+        )
+        assert resp.status_code == status.HTTP_200_OK
+        mock_del_route.assert_called_once_with(KONG_LINK_ROUTE_DATA["id"])
+        mock_del_svc.assert_called_once_with(service_id_or_name=TEST_KONG_SERVICE_ID)
+
+        # Unlinked -> plain delete works without cascade
+        mock_list_route.return_value = ListRoute200Response(data=[])
+        mock_del_svc.reset_mock()
+        resp = authorized_test_client.delete(f"/kong/datastore/{TEST_KONG_DS_NAME}", auth=BearerAuth(TEST_JWT))
+        assert resp.status_code == status.HTTP_200_OK
+        mock_del_svc.assert_called_once_with(service_id_or_name=TEST_KONG_SERVICE_ID)
 
     @patch("hub_adapter.routers.kong.kong_admin_client.RoutesApi.list_route")
     @patch("hub_adapter.routers.kong.kong_admin_client.ServicesApi.list_service")
@@ -176,8 +199,11 @@ class TestKong:
         mock_conn.return_value = None  # Not needed
         mock_delete.return_value = None  # Not needed
 
-        body_data = TEST_KONG_CREATE_SERVICE_REQUEST  # Has "datastore" and "ds_type"
-        body_data["project_id"] = TEST_MOCK_PROJECT_ID
+        body_data = {
+            **TEST_KONG_CREATE_SERVICE_REQUEST,  # Has "datastore" and "ds_type"
+            "datastore": {**TEST_KONG_CREATE_SERVICE_REQUEST["datastore"], "name": TEST_KONG_DS_NAME},
+            "project_id": TEST_MOCK_PROJECT_ID,
+        }
 
         initialize_resp = authorized_test_client.post("/kong/initialize", json=body_data, auth=BearerAuth(TEST_JWT))
 
@@ -319,47 +345,6 @@ class TestKong:
         result = get_analysis_keyauth(settings=test_settings, analysis_id=TEST_MOCK_ANALYSIS_ID)
 
         assert result is None
-
-    @patch("hub_adapter.routers.kong.logger")
-    @patch("hub_adapter.routers.kong.kong_admin_client.ServicesApi.delete_service")
-    @patch("hub_adapter.routers.kong.kong_admin_client.RoutesApi.list_route")
-    @patch("hub_adapter.routers.kong.kong_admin_client.ServicesApi.list_service")
-    def test_delete_orphaned_data_stores(
-        self, mock_list_svc, mock_list_route, mock_delete_svc, mock_logger, authorized_test_client
-    ):
-        """Test delete_orphaned_data_stores (DELETE /datastore).
-
-        Verifies that only services without a route are deleted, and that services
-        with an associated route are left untouched.
-        """
-        orphaned_svc_id = "foo-bar-baz"
-        orphaned_svc_name = "orphaned-svc"
-
-        # One service is referenced by an existing route, one is not
-        mock_list_svc.return_value = ListService200Response(
-            data=[
-                Service(**TEST_KONG_SERVICE_DATA),  # routed — must not be deleted
-                Service(id=orphaned_svc_id, name=orphaned_svc_name),  # orphaned — must be deleted
-            ]
-        )
-        mock_list_route.return_value = ListRoute200Response(data=[Route(**TEST_KONG_ROUTE_DATA)])
-        mock_delete_svc.return_value = None
-
-        resp = authorized_test_client.delete("/kong/datastore", auth=BearerAuth(TEST_JWT))
-        assert resp.status_code == status.HTTP_200_OK
-        assert resp.json() == {"deleted": [{"id": orphaned_svc_id, "name": orphaned_svc_name}], "count": 1}
-        mock_delete_svc.assert_called_once_with(service_id_or_name=orphaned_svc_id)
-        mock_logger.info.assert_called_once_with(f"Deleted orphaned data store {orphaned_svc_id} ({orphaned_svc_name})")
-
-        # When all services have routes, nothing should be deleted
-        mock_list_svc.return_value = ListService200Response(data=[Service(**TEST_KONG_SERVICE_DATA)])
-        mock_delete_svc.reset_mock()
-        mock_logger.reset_mock()
-
-        resp = authorized_test_client.delete("/kong/datastore", auth=BearerAuth(TEST_JWT))
-        assert resp.status_code == status.HTTP_200_OK
-        assert resp.json() == {"deleted": [], "count": 0}
-        mock_delete_svc.assert_not_called()
 
     @patch("hub_adapter.routers.kong.logger")
     @patch("hub_adapter.routers.kong.kong_admin_client.ConsumersApi.delete_consumer")

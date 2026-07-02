@@ -341,6 +341,50 @@ FAKE_USER = {
     "typ": "Bearer",
 }
 
+# --- New tag-based Kong scheme (multi-datastore) ---
+TEST_KONG_DS_NAME = "test-fhir-store"
+KONG_DS_SERVICE_DATA = {
+    "connect_timeout": 6000,
+    "enabled": True,
+    "host": "node-datastore-blaze",
+    "id": TEST_KONG_SERVICE_ID,
+    "name": TEST_KONG_DS_NAME,
+    "path": f"/{DS_TYPE}",
+    "port": 80,
+    "protocol": "http",
+    "read_timeout": 6000,
+    "retries": 5,
+    "write_timeout": 6000,
+    "tags": [f"type:{DS_TYPE}"],
+}
+KONG_DS_CREATE_REQUEST = {
+    "datastore": {
+        "name": TEST_KONG_DS_NAME,
+        "host": "node-datastore-blaze",
+        "port": 80,
+        "protocol": "http",
+        "path": f"/{DS_TYPE}",
+    },
+    "ds_type": DS_TYPE,
+}
+KONG_LINK_ROUTE_DATA = {
+    "id": "0f8a44eb-2647-4fd8-8b45-b0f92e5477a5",
+    "name": None,
+    "paths": [f"/{TEST_MOCK_PROJECT_ID}/{TEST_KONG_SERVICE_ID}"],
+    "protocols": ["http"],
+    "methods": ["GET"],
+    "https_redirect_status_code": 426,
+    "preserve_host": False,
+    "request_buffering": True,
+    "response_buffering": True,
+    "tags": [
+        f"project:{TEST_MOCK_PROJECT_ID}",
+        f"datastore:{TEST_KONG_SERVICE_ID}",
+        f"type:{DS_TYPE}",
+    ],
+    "service": {"id": TEST_KONG_SERVICE_ID},
+}
+
 TEST_MOCK_EVENTS = [
     {
         "id": 75,
