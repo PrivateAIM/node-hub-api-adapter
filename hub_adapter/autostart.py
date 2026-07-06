@@ -40,7 +40,7 @@ from hub_adapter.routers.kong import (
 )
 from hub_adapter.schemas.podorc import PodStatus
 from hub_adapter.user_settings import load_persistent_settings
-from hub_adapter.utils import _check_data_required
+from hub_adapter.utils import _check_data_required, parse_tags
 
 
 class _RegistrationLocks:
@@ -497,9 +497,9 @@ class GoGoAnalysis:
 
         if kong_routes:
             for route in kong_routes.data:
-                proj_uuid_chunks = route.name.split("-")[:-1]
-                proj_uuid = "-".join(proj_uuid_chunks)
-                valid_projects.add(proj_uuid)
+                proj_uuid = parse_tags(route.tags).get("project")
+                if proj_uuid:
+                    valid_projects.add(proj_uuid)
 
         return valid_projects
 

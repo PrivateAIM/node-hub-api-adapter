@@ -54,7 +54,7 @@ class BucketError(KongError):
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
                 "message": message,
-                SERVICE: "MinIO",
+                SERVICE: "S3",
                 "status_code": status.HTTP_403_FORBIDDEN,
             },
             headers={"WWW-Authenticate": "Bearer"},
@@ -64,7 +64,7 @@ class BucketError(KongError):
             event_description=message,
             level=logging.ERROR,
             status_code=status.HTTP_403_FORBIDDEN,
-            service="MinIO",
+            service="S3",
         )
 
 
@@ -162,6 +162,116 @@ class KongDataStoreLinkedError(KongError):
                 "service": "Kong",
                 "status_code": status.HTTP_409_CONFLICT,
             },
+        )
+
+
+class KongValidationError(KongError):
+    def __init__(self, message: str):
+        super().__init__(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "message": message,
+                "service": "Kong",
+                "status_code": status.HTTP_422_UNPROCESSABLE_ENTITY,
+            },
+        )
+
+
+class KongDatastoreMissingTypeError(KongError):
+    def __init__(self, datastore_id: str):
+        super().__init__(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "message": f"Service {datastore_id} is not a data store (missing type tag)",
+                "service": "Kong",
+                "status_code": status.HTTP_404_NOT_FOUND,
+            },
+        )
+
+
+class KongProjectDatastoreLinkConflictError(KongError):
+    def __init__(self, project_id: str, datastore_id: str):
+        super().__init__(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "message": f"Project {project_id} is already linked to data store {datastore_id}",
+                "service": "Kong",
+                "status_code": status.HTTP_409_CONFLICT,
+            },
+        )
+
+
+class KongProjectDatastoreUnlinkedError(KongError):
+    def __init__(self, project_id: str, datastore_id: str):
+        super().__init__(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "message": f"Project {project_id} is not linked to data store {datastore_id}",
+                "service": "Kong",
+                "status_code": status.HTTP_404_NOT_FOUND,
+            },
+        )
+
+
+class KongProjectEmptyError(KongError):
+    def __init__(self, project_id: str):
+        super().__init__(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "message": f"Project {project_id} has no linked data stores or consumers",
+                "service": "Kong",
+                "status_code": status.HTTP_404_NOT_FOUND,
+            },
+        )
+
+
+class KongProjectNotMappedError(KongError):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "message": "Associated project not mapped to a data store",
+                "service": "Kong",
+                "status_code": status.HTTP_404_NOT_FOUND,
+            },
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+class KongAnalysisConsumerNotFoundError(KongError):
+    def __init__(self, analysis_id: str):
+        super().__init__(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "message": f"No consumer found for analysis {analysis_id}",
+                "service": "Kong",
+                "status_code": status.HTTP_404_NOT_FOUND,
+            },
+        )
+
+
+class KongProxyNotConfiguredError(KongError):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "message": "Kong proxy service URL not configured",
+                "service": "Kong",
+                "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+            },
+        )
+
+
+class KongUpstreamError(KongError):
+    def __init__(self, status_code: int, message: str):
+        super().__init__(
+            status_code=status_code,
+            detail={
+                "message": message,
+                "service": "Kong",
+                "status_code": status_code,
+            },
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
 

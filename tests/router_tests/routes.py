@@ -215,7 +215,7 @@ EXPECTED_KONG_ROUTE_CONFIG = (
     },
     {
         "name": "kong.probe",
-        "path": "/kong/project/{project_id}/{ds_type}/health",
+        "path": "/kong/project/{project_id}/datastore/{datastore_id}/health",
         "methods": {"GET"},
         "response_model": None,
         "status_code": 200,

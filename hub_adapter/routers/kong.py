@@ -29,23 +29,20 @@ from hub_adapter.dependencies import get_settings
 from hub_adapter.errors import (
     BucketError,
     FhirEndpointError,
+    KongAnalysisConsumerNotFoundError,
     KongConsumerApiKeyError,
     KongDataStoreLinkedError,
+    KongDatastoreMissingTypeError,
     KongGatewayError,
+    KongProjectDatastoreLinkConflictError,
+    KongProjectDatastoreUnlinkedError,
+    KongProjectEmptyError,
+    KongProjectNotMappedError,
+    KongProxyNotConfiguredError,
     KongServiceError,
+    KongUpstreamError,
+    KongValidationError,
     catch_kong_errors,
-)
-from hub_adapter.kong_ident import (
-    HEALTH_TAG,
-    analysis_tag,
-    analysis_username,
-    datastore_tag,
-    health_username,  # noqa: F401  # unused until Task 5 (health probing)
-    link_path,
-    parse_tags,
-    project_tag,
-    type_tag,
-    validate_datastore_name,
 )
 from hub_adapter.schemas.kong import (
     DataStoreType,
@@ -55,10 +52,23 @@ from hub_adapter.schemas.kong import (
     ListConsumers,
     ListRoutes,
     ListServices,
-    MinioConfig,
     ProtocolCode,
+    S3Config,
     ServiceRequest,
     UnlinkResponse,
+)
+from hub_adapter.utils import (
+    HEALTH_TAG,
+    analysis_tag,
+    analysis_username,
+    datastore_tag,
+    health_username,
+    is_uuid,
+    link_path,
+    parse_tags,
+    project_tag,
+    type_tag,
+    validate_datastore_name,
 )
 
 kong_router = APIRouter(
@@ -73,27 +83,25 @@ kong_router = APIRouter(
 
 logger = logging.getLogger(__name__)
 
-FLAME = "flame"
 DEFAULT_METHODS: list[HttpMethodCode] = [HttpMethodCode.GET]
 DEFAULT_PROTOCOLS: list[ProtocolCode] = [ProtocolCode.HTTP]
 
 
-# For consistent naming between methods
-# Use of general UUIDs causes logic problems in kong so need the suffixes
-def datastore_name(project_id: str | uuid.UUID, ds_type: DataStoreType | str) -> str:
-    """Canonical name for a Kong service (data store): '{project_uuid}-{ds_type}'."""
-    ds = ds_type.value if isinstance(ds_type, DataStoreType) else ds_type
-    return f"{project_id}-{ds}"
+def _require_uuid_link_ids(project_id: str | uuid.UUID, datastore_id: str | uuid.UUID) -> None:
+    """Validate that project_id and datastore_id are UUID-shaped before building a Kong tags filter.
+
+    Kong treats ',' in a tags filter as an AND separator between whole tag values. A project/datastore id containing
+    a comma would corrupt the filter built from it.
+    """
+    for name, value in (("project_id", project_id), ("datastore_id", datastore_id)):
+        if not is_uuid(value):
+            raise KongValidationError(f"{name} must be a valid UUID, got {value!r}")
 
 
-def health_consumer_username(project_id: str | uuid.UUID, ds_type: DataStoreType | str) -> str:
-    """Canonical username for a health-check consumer: '{project_uuid}-{ds_type}-health-flame'."""
-    return f"{datastore_name(project_id, ds_type)}-health-{FLAME}"
-
-
-def health_analysis_id(project_id: str | uuid.UUID, ds_type: DataStoreType | str) -> str:
-    """Analysis ID used when creating a health-check consumer: '{project_uuid}-{ds_type}-health'."""
-    return f"{datastore_name(project_id, ds_type)}-health"
+def _find_project_datastore_route(api_client, project_id: str | uuid.UUID, datastore_id: str | uuid.UUID):
+    """List the link routes between a project and a data store via tags."""
+    route_api = kong_admin_client.RoutesApi(api_client)
+    return route_api.list_route(tags=f"{project_tag(project_id)},{datastore_tag(datastore_id)}")
 
 
 def parse_project_info(services, client) -> dict:
@@ -197,7 +205,7 @@ async def delete_data_store(
 ):
     """Delete a data store (service). Refused with 409 while projects link it, unless cascade=true.
 
-    Cascading removes the link routes only — consumers (analyses) belong to projects and are untouched.
+    Cascading removes the link routes only, consumers (analyses) belong to projects and are untouched.
     """
     configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
 
@@ -240,25 +248,18 @@ async def create_data_store(
         ),
     ],
     ds_type: Annotated[DataStoreType, Body(description="Data store type. Either 's3' or 'fhir'")],
-    minio_config: Annotated[MinioConfig | None, Body(description="Minio configuration")] = None,
+    s3_config: Annotated[S3Config | None, Body(description="S3 configuration")] = None,
 ) -> Service | None:
     """Create a data store (service), independent of any project.
 
-    The admin-chosen display name must not be a bare UUID; the Kong service ID
-    returned in the response is the canonical identifier.
+    The admin chosen display name must not be a bare UUID, the Kong service ID returned in the response is the main
+    identifier.
     """
     try:
         validate_datastore_name(datastore.name)
 
     except ValueError as err:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail={
-                "message": str(err),
-                "service": "Kong",
-                "status_code": status.HTTP_422_UNPROCESSABLE_ENTITY,
-            },
-        ) from err
+        raise KongValidationError(str(err)) from err
 
     configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
 
@@ -277,26 +278,26 @@ async def create_data_store(
         service_create_response = api_instance.create_service(create_service_request)
 
         plugin_api = kong_admin_client.PluginsApi(api_client)
-        if minio_config:
-            create_minio_gateway_request = CreatePluginForConsumerRequest(  # Also works for services
-                name="minio-gateway",
-                instance_name=f"{service_create_response.id}-minio-gateway",
+        if s3_config:
+            create_s3_gateway_request = CreatePluginForConsumerRequest(  # Also works for services
+                name="minio-gateway",  # Still called minio gateway plugin
+                instance_name=f"{service_create_response.id}-s3-gateway",
                 config={  # Can't use .model_dump() because of SecretStr
-                    "minio_access_key": minio_config.minio_access_key.get_secret_value(),
-                    "minio_secret_key": minio_config.minio_secret_key.get_secret_value(),
-                    "minio_region": minio_config.minio_region,
-                    "bucket_name": minio_config.bucket_name,
-                    "timeout": minio_config.timeout,
-                    "strip_path_pattern": minio_config.strip_path_pattern,
+                    "minio_access_key": s3_config.s3_access_key.get_secret_value(),
+                    "minio_secret_key": s3_config.s3_secret_key.get_secret_value(),
+                    "minio_region": s3_config.s3_region,
+                    "bucket_name": s3_config.bucket_name,
+                    "timeout": s3_config.timeout,
+                    "strip_path_pattern": s3_config.strip_path_pattern,
                 },
                 enabled=True,
                 protocols=[datastore.protocol],
             )
             try:
-                plugin_api.create_plugin_for_service(service_create_response.id, create_minio_gateway_request)
+                plugin_api.create_plugin_for_service(service_create_response.id, create_s3_gateway_request)
 
-            except HTTPException as error:  # Delete service if minio fails
-                logger.error(f"Unable to create minio gateway for {datastore.name}")
+            except (HTTPException, ApiException) as error:  # Delete service if s3 fails
+                logger.error(f"Unable to create s3 gateway for {datastore.name}")
                 svc_api = kong_admin_client.ServicesApi(api_client)
                 svc_api.delete_service(service_id_or_name=service_create_response.id)
                 raise error
@@ -402,9 +403,11 @@ async def link_project_to_datastore(
 ):
     """Link a project to a data store by creating a route on the store's service.
 
-    The route carries all relationship data in its tags and has no name; the
-    project's analyses reach it automatically through their project-wide ACL group.
+    The route carries all relationship data in its tags and has no name, the project's analyses reach it automatically
+    through their project ACL group.
     """
+    _require_uuid_link_ids(project_id, datastore_id)
+
     configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
     methods = [HttpMethodCode(m).value for m in (methods or DEFAULT_METHODS)]
     protocols = [ProtocolCode(p).value for p in (protocols or DEFAULT_PROTOCOLS)]
@@ -418,25 +421,11 @@ async def link_project_to_datastore(
         ds_type = parse_tags(svc.tags).get("type")
 
         if ds_type is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail={
-                    "message": f"Service {datastore_id} is not a data store (missing type tag)",
-                    "service": "Kong",
-                    "status_code": status.HTTP_404_NOT_FOUND,
-                },
-            )
+            raise KongDatastoreMissingTypeError(str(datastore_id))
 
-        existing = route_api.list_route(tags=f"{project_tag(project_id)},{datastore_tag(svc.id)}")
+        existing = _find_project_datastore_route(api_client, project_id, svc.id)
         if existing.data:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail={
-                    "message": f"Project {project_id} is already linked to data store {svc.id}",
-                    "service": "Kong",
-                    "status_code": status.HTTP_409_CONFLICT,
-                },
-            )
+            raise KongProjectDatastoreLinkConflictError(str(project_id), str(svc.id))
 
         create_route_request = CreateRouteRequest(
             protocols=protocols,
@@ -477,6 +466,15 @@ async def link_project_to_datastore(
         keyauth_response = plugin_api.create_plugin_for_route(route_response.id, create_keyauth_request)
         acl_response = plugin_api.create_plugin_for_route(route_response.id, create_acl_request)
 
+    try:
+        await probe_connection(settings=settings, project_id=project_id, datastore_id=svc.id)
+
+    except HTTPException as error:  # roll back the just-created link so no broken route lingers
+        logger.error(f"Probe failed for new link {project_id} -> {svc.id}, deleting route")
+        with kong_admin_client.ApiClient(configuration) as api_client:
+            kong_admin_client.RoutesApi(api_client).delete_route(route_response.id)
+        raise error
+
     return {"route": route_response, "keyauth": keyauth_response, "acl": acl_response}
 
 
@@ -496,24 +494,21 @@ async def create_datastore_and_project_with_link(
         list[ProtocolCode],
         Body(description="List of acceptable transfer protocols. A combo of 'http', 'grpc', 'grpcs', 'tls', 'tcp'"),
     ] = ["http"],
-    ds_type: Annotated[DataStoreType, Body(description="Data store type. Either 's3' or 'fhir'")] = DataStoreType.FHIR,
+    methods: Annotated[list[HttpMethodCode] | None, Body(description="List of acceptable HTTP methods")] = None,
 ):
     """Creates a new datastore (service) and a new project (route), then links them together with a health consumer."""
     try:
-        proj_response = await link_project_to_datastore(
+        return await link_project_to_datastore(
             settings=settings,
             project_id=project_id,
             datastore_id=datastore.id,
+            methods=methods,
             protocols=protocols,
         )
-    except HTTPException as error:  # if route creation fails, delete the orphaned service
-        logger.error("Failed to create route for datastore, deleting service")
+    except HTTPException as error:  # link or probe failed: remove the freshly created service
+        logger.error("Failed to link project to new datastore, deleting service")
         await delete_data_store(settings=settings, datastore_id_or_name=datastore.id, cascade=True)
         raise error
-
-    # NOTE: probe wired in after health endpoint rework
-
-    return proj_response
 
 
 @kong_router.delete(
@@ -537,10 +532,14 @@ async def delete_project(
         consumer_api = kong_admin_client.ConsumersApi(api_client)
 
         routes = route_api.list_route(tags=tags)
+        consumers = consumer_api.list_consumer(tags=tags)
+
+        if not routes.data and not consumers.data:
+            raise KongProjectEmptyError(str(project_id))
+
         for route in routes.data:
             route_api.delete_route(route.id)
 
-        consumers = consumer_api.list_consumer(tags=tags)
         for consumer in consumers.data:
             consumer_api.delete_consumer(consumer_username_or_id=consumer.id)
 
@@ -565,21 +564,16 @@ async def unlink_project_from_datastore(
     datastore_id: Annotated[uuid.UUID | str, Path(description="Kong service ID of the data store")],
 ) -> UnlinkResponse:
     """Unlink a single data store from a project. Consumers (analyses) are kept."""
+    _require_uuid_link_ids(project_id, datastore_id)
+
     configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
 
     with kong_admin_client.ApiClient(configuration) as api_client:
         route_api = kong_admin_client.RoutesApi(api_client)
-        routes = route_api.list_route(tags=f"{project_tag(project_id)},{datastore_tag(datastore_id)}")
+        routes = _find_project_datastore_route(api_client, project_id, datastore_id)
 
         if not routes.data:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail={
-                    "message": f"Project {project_id} is not linked to data store {datastore_id}",
-                    "service": "Kong",
-                    "status_code": status.HTTP_404_NOT_FOUND,
-                },
-            )
+            raise KongProjectDatastoreUnlinkedError(str(project_id), str(datastore_id))
 
         for route in routes.data:
             route_api.delete_route(route.id)
@@ -698,15 +692,7 @@ async def create_and_connect_analysis_to_project(
     """Create a new analysis and link it to a project."""
     proj_resp = get_projects(settings=settings, project_id=project_id, detailed=False)
     if not proj_resp.data:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "message": "Associated project not mapped to a data store",
-                "service": "Kong",
-                "status_code": status.HTTP_404_NOT_FOUND,
-            },
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise KongProjectNotMappedError()
 
     configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
     response = {}
@@ -769,14 +755,7 @@ async def delete_analysis(
     with kong_admin_client.ApiClient(configuration) as api_client:
         consumer = _find_analysis_consumer(api_client, analysis_id)
         if consumer is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail={
-                    "message": f"No consumer found for analysis {analysis_id}",
-                    "service": "Kong",
-                    "status_code": status.HTTP_404_NOT_FOUND,
-                },
-            )
+            raise KongAnalysisConsumerNotFoundError(str(analysis_id))
 
         consumer_api = kong_admin_client.ConsumersApi(api_client)
         consumer_api.delete_consumer(consumer_username_or_id=consumer.id)
@@ -785,76 +764,92 @@ async def delete_analysis(
         return status.HTTP_200_OK
 
 
+def ensure_health_consumer(settings: Settings, project_id: str | uuid.UUID) -> str:
+    """Return an apikey for the project's health consumer, creating consumer/ACL/key-auth on demand.
+
+    One health consumer exists per project, its project ACL group lets it probe every linked store.
+    """
+    configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
+    username = health_username(project_id)
+
+    with kong_admin_client.ApiClient(configuration) as api_client:
+        consumer_api = kong_admin_client.ConsumersApi(api_client)
+        keyauth_api = kong_admin_client.KeyAuthsApi(api_client)
+
+        consumers = consumer_api.list_consumer(tags=f"{HEALTH_TAG},{project_tag(project_id)}")
+        consumer = consumers.data[0] if consumers.data else None
+
+        if consumer is None:
+            logger.info(f"No health consumer found for project {project_id}, creating one now")
+            consumer = consumer_api.create_consumer(
+                CreateConsumerRequest(
+                    username=username,
+                    custom_id=username,
+                    tags=[HEALTH_TAG, project_tag(project_id)],
+                )
+            )
+            acl_api = kong_admin_client.ACLsApi(api_client)
+            acl_api.create_acl_for_consumer(
+                consumer.id,
+                CreateAclForConsumerRequest(group=str(project_id), tags=[project_tag(project_id)]),
+            )
+
+        keyauths = keyauth_api.list_key_auths_for_consumer(consumer.id)
+        if keyauths and keyauths.data:
+            return keyauths.data[0].key
+
+        keyauth = keyauth_api.create_key_auth_for_consumer(
+            consumer.id, CreateKeyAuthForConsumerRequest(tags=[project_tag(project_id)])
+        )
+        return keyauth.key
+
+
 @kong_router.get(
-    "/project/{project_id}/{ds_type}/health",
+    "/project/{project_id}/datastore/{datastore_id}/health",
     status_code=status.HTTP_200_OK,
     name="kong.probe",
 )
 @catch_kong_errors
 async def probe_connection(
     settings: Annotated[Settings, Depends(get_settings)],
-    project_id: Annotated[str | uuid.UUID, Path(description="UUID or unique name of the project.")],
-    ds_type: Annotated[DataStoreType, Path(description='Either "fhir" or "s3"')],
+    project_id: Annotated[str | uuid.UUID, Path(description="UUID of the project.")],
+    datastore_id: Annotated[str | uuid.UUID, Path(description="Kong service ID of the data store.")],
 ):
-    """Test whether Kong can read the requested data source.
+    """Test whether Kong can read the given data store through the project's link.
 
     Because we use the key-auth plugin, a consumer is required for pinging the data service.
     """
+    _require_uuid_link_ids(project_id, datastore_id)
+
     if not settings.kong_proxy_service_url:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "message": "Kong proxy service URL not configured",
-                "service": "Kong",
-                "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
-            },
-        )
+        raise KongProxyNotConfiguredError()
 
     configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
-    route_id = datastore_name(project_id, ds_type)
-    health_consumer_id = health_consumer_username(project_id, ds_type)
-    apikey = None
 
-    # Get API key for project (route) health consumer and route info
     with kong_admin_client.ApiClient(configuration) as api_client:
-        consumer_api = kong_admin_client.ConsumersApi(api_client)
+        routes = _find_project_datastore_route(api_client, project_id, datastore_id)
 
-        try:
-            consumer_api.get_consumer(health_consumer_id)
+        if not routes.data:
+            raise KongProjectDatastoreUnlinkedError(str(project_id), str(datastore_id))
 
-        except ApiException:
-            logger.info(f"No health consumer found for {project_id}, creating one now")
-            await create_and_connect_analysis_to_project(
-                settings=settings,
-                project_id=str(project_id),
-                analysis_id=health_analysis_id(project_id, ds_type),
-            )
+        route = routes.data[0]
+        ds_type = parse_tags(route.tags).get("type")
+        route_path = route.paths[0]
 
-        # Parse project/route info
-        route_api = kong_admin_client.RoutesApi(api_client)
-        route_resp = route_api.get_route(route_id)
-        route_path = route_resp.paths[0]
-
-        # Get API key to query service
-        keyauth_api = kong_admin_client.KeyAuthsApi(api_client)
-        api_response = keyauth_api.list_key_auths_for_consumer(health_consumer_id)
-        if api_response:
-            apikey = api_response.data[0].key
-
-    if apikey:
-        url = f"{settings.kong_proxy_service_url}{route_path}"
-        is_fhir = ds_type == DataStoreType.FHIR
-
-        if is_fhir:
-            url = f"{url}/metadata"
-
-        return probe_data_service(url=url, apikey=apikey, is_fhir=is_fhir)
-
-    else:
+    apikey = ensure_health_consumer(settings, project_id)
+    if not apikey:
         raise KongConsumerApiKeyError()
 
+    url = f"{settings.kong_proxy_service_url}{route_path}"
+    is_fhir = ds_type == DataStoreType.FHIR.value
 
-def probe_data_service(url: str, apikey: str, is_fhir: bool, attempt: int = 1, max_attempts: int = 4) -> int:
+    if is_fhir:
+        url = f"{url}/metadata"
+
+    return probe_data_service(url=url, apikey=apikey, is_fhir=is_fhir)
+
+
+def probe_data_service(url: str, apikey: str, is_fhir: bool, attempt: int = 1, max_attempts: int = 5) -> int:
     """Use httpx to probe the data service."""
     svc_resp = httpx.get(
         url,
@@ -880,15 +875,7 @@ def probe_data_service(url: str, apikey: str, is_fhir: bool, attempt: int = 1, m
             raise KongGatewayError(server_type=svc)
 
         else:
-            raise HTTPException(
-                status_code=svc_resp.status_code,
-                detail={
-                    "message": svc_resp.text,
-                    "service": "Kong",
-                    "status_code": svc_resp.status_code,
-                },
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+            raise KongUpstreamError(status_code=svc_resp.status_code, message=svc_resp.text)
 
     logger.info(f"Successfully able to reach data service after {attempt} attempt(s)")
     return status.HTTP_200_OK

@@ -21,29 +21,22 @@ from starlette import status
 from hub_adapter.errors import (
     BucketError,
     FhirEndpointError,
-    KongConsumerApiKeyError,
     KongError,
     KongGatewayError,
     KongServiceError,
+    KongUpstreamError,
 )
 from hub_adapter.routers.kong import kong_router, probe_connection, probe_data_service
-from hub_adapter.schemas.kong import (
-    DataStoreType,
-)
+from hub_adapter.schemas.kong import LinkDataStoreProject
 from tests.conftest import check_routes
 from tests.constants import (
     DS_TYPE,
     KONG_ANALYSIS_CONSUMER_DATA,
-    KONG_ANALYSIS_SUCCESS_RESP,
     KONG_DS_CREATE_REQUEST,
     KONG_DS_SERVICE_DATA,
-    KONG_GET_ROUTE_RESPONSE,
     KONG_LINK_ROUTE_DATA,
     TEST_JWT,
-    TEST_KONG_CONSUMER_DATA,
     TEST_KONG_DS_NAME,
-    TEST_KONG_ROUTE_RESPONSE,
-    TEST_KONG_SERVICE_DATA,
     TEST_KONG_SERVICE_ID,
     TEST_MOCK_ANALYSIS_ID,
     TEST_MOCK_PROJECT_ID,
@@ -98,6 +91,29 @@ class TestKong:
         request_arg = mock_create_service.call_args.args[0]
         assert request_arg.name == TEST_KONG_DS_NAME
         assert request_arg.tags == ["type:fhir"]
+
+    @patch("hub_adapter.routers.kong.kong_admin_client.ServicesApi.delete_service")
+    @patch("hub_adapter.routers.kong.kong_admin_client.PluginsApi.create_plugin_for_service")
+    @patch("hub_adapter.routers.kong.kong_admin_client.ServicesApi.create_service")
+    def test_create_data_store_rolls_back_on_s3_api_exception(
+        self, mock_create_service, mock_create_plugin, mock_delete_service, authorized_test_client
+    ):
+        """A real s3-gateway failure (ApiException from the SDK) rolls back the just-created service."""
+        mock_create_service.return_value = Service(**KONG_DS_SERVICE_DATA)
+        mock_create_plugin.side_effect = ApiException(status=status.HTTP_400_BAD_REQUEST, reason="bad s3 config")
+
+        body_data = {
+            **KONG_DS_CREATE_REQUEST,
+            "s3_config": {
+                "s3_access_key": "access",
+                "s3_secret_key": "secret",
+                "bucket_name": "my-bucket",
+            },
+        }
+        resp = authorized_test_client.post("/kong/datastore", json=body_data, auth=BearerAuth(TEST_JWT))
+
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        mock_delete_service.assert_called_once_with(service_id_or_name=KONG_DS_SERVICE_DATA["id"])
 
     def test_create_data_store_rejects_uuid_name(self, authorized_test_client):
         """POST /datastore rejects UUID-shaped display names with 422."""
@@ -154,18 +170,20 @@ class TestKong:
         assert one_resp.status_code == status.HTTP_200_OK
         mock_route.assert_called_with(tags=f"project:{TEST_MOCK_PROJECT_ID}")
 
+    @patch("hub_adapter.routers.kong.probe_connection")
     @patch("hub_adapter.routers.kong.kong_admin_client.PluginsApi.create_plugin_for_route")
     @patch("hub_adapter.routers.kong.kong_admin_client.RoutesApi.create_route_for_service")
     @patch("hub_adapter.routers.kong.kong_admin_client.RoutesApi.list_route")
     @patch("hub_adapter.routers.kong.kong_admin_client.ServicesApi.get_service")
     def test_link_project_to_datastore(
-        self, mock_get_svc, mock_list_route, mock_create_route, mock_plugin, authorized_test_client
+        self, mock_get_svc, mock_list_route, mock_create_route, mock_plugin, mock_probe, authorized_test_client
     ):
         """POST /project/{pid}/datastore/{dsid} creates a nameless tagged route with plugins."""
         mock_get_svc.return_value = Service(**KONG_DS_SERVICE_DATA)
         mock_list_route.return_value = ListRoute200Response(data=[])  # not yet linked
         mock_create_route.return_value = Route(**KONG_LINK_ROUTE_DATA)
         mock_plugin.side_effect = [KeyAuth(), ACL()]
+        mock_probe.return_value = status.HTTP_200_OK
 
         resp = authorized_test_client.post(
             f"/kong/project/{TEST_MOCK_PROJECT_ID}/datastore/{TEST_KONG_SERVICE_ID}",
@@ -189,6 +207,59 @@ class TestKong:
         )
         assert dup_resp.status_code == status.HTTP_409_CONFLICT
 
+    def test_link_project_to_datastore_rejects_non_uuid_ids(self, authorized_test_client):
+        """A comma-bearing (or otherwise non-UUID) project_id/datastore_id is rejected with 422.
+
+        A comma would otherwise corrupt the Kong tags filter (Kong ANDs comma-separated tag values),
+        letting the pre-existing-link check spuriously find nothing and create a duplicate link.
+        """
+        malicious_project_id = f"{TEST_MOCK_PROJECT_ID},health"
+        resp = authorized_test_client.post(
+            f"/kong/project/{malicious_project_id}/datastore/{TEST_KONG_SERVICE_ID}",
+            json={},
+            auth=BearerAuth(TEST_JWT),
+        )
+        assert resp.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+        malicious_datastore_id = f"{TEST_KONG_SERVICE_ID},health"
+        resp = authorized_test_client.post(
+            f"/kong/project/{TEST_MOCK_PROJECT_ID}/datastore/{malicious_datastore_id}",
+            json={},
+            auth=BearerAuth(TEST_JWT),
+        )
+        assert resp.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    @patch("hub_adapter.routers.kong.kong_admin_client.RoutesApi.delete_route")
+    @patch("hub_adapter.routers.kong.probe_connection")
+    @patch("hub_adapter.routers.kong.kong_admin_client.PluginsApi.create_plugin_for_route")
+    @patch("hub_adapter.routers.kong.kong_admin_client.RoutesApi.create_route_for_service")
+    @patch("hub_adapter.routers.kong.kong_admin_client.RoutesApi.list_route")
+    @patch("hub_adapter.routers.kong.kong_admin_client.ServicesApi.get_service")
+    def test_link_rolls_back_route_on_probe_failure(
+        self,
+        mock_get_svc,
+        mock_list_route,
+        mock_create_route,
+        mock_plugin,
+        mock_probe,
+        mock_del_route,
+        authorized_test_client,
+    ):
+        """A failed connection probe deletes the just-created route and propagates the error."""
+        mock_get_svc.return_value = Service(**KONG_DS_SERVICE_DATA)
+        mock_list_route.return_value = ListRoute200Response(data=[])
+        mock_create_route.return_value = Route(**KONG_LINK_ROUTE_DATA)
+        mock_plugin.side_effect = [KeyAuth(), ACL()]
+        mock_probe.side_effect = HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+        resp = authorized_test_client.post(
+            f"/kong/project/{TEST_MOCK_PROJECT_ID}/datastore/{TEST_KONG_SERVICE_ID}",
+            json={},
+            auth=BearerAuth(TEST_JWT),
+        )
+        assert resp.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+        mock_del_route.assert_called_once_with(KONG_LINK_ROUTE_DATA["id"])
+
     @patch("hub_adapter.routers.kong.link_project_to_datastore")
     @patch("hub_adapter.routers.kong.kong_admin_client.ServicesApi.create_service")
     @patch("hub_adapter.routers.kong.delete_data_store")
@@ -197,11 +268,15 @@ class TestKong:
     ):
         """Test create_datastore_and_project_with_link (POST /initialize), specifically the error handling.
 
-        NOTE: probe wiring is removed until Task 5 restores it inside link_project_to_datastore, so the only
-        error path exercised here is the route-creation (link) failure, which still deletes the orphaned service.
+        link_project_to_datastore is mocked (it now probes internally), so the only error path exercised
+        here is a link/probe failure, which rolls back by deleting the freshly created service (cascade).
         """
-        mock_link.return_value = TEST_KONG_ROUTE_RESPONSE
-        mock_create_svc.return_value = Service(**TEST_KONG_SERVICE_DATA)
+        # The mocked link_project_to_datastore return value is re-validated by FastAPI against
+        # response_model=LinkDataStoreProject, so build the expectation via the same model to get
+        # matching defaults for fields absent from KONG_LINK_ROUTE_DATA.
+        link_response = LinkDataStoreProject(route=Route(**KONG_LINK_ROUTE_DATA), keyauth=KeyAuth(), acl=ACL())
+        mock_link.return_value = link_response.model_dump(mode="json")
+        mock_create_svc.return_value = Service(**KONG_DS_SERVICE_DATA)
         mock_delete.return_value = None  # Not needed
 
         body_data = {
@@ -212,7 +287,7 @@ class TestKong:
         initialize_resp = authorized_test_client.post("/kong/initialize", json=body_data, auth=BearerAuth(TEST_JWT))
 
         assert initialize_resp.status_code == status.HTTP_201_CREATED
-        assert initialize_resp.json() == TEST_KONG_ROUTE_RESPONSE
+        assert initialize_resp.json() == link_response.model_dump(mode="json")
 
         # Link fails -> orphaned service is deleted (cascade)
         mock_link.side_effect = HTTPException(status_code=status.HTTP_408_REQUEST_TIMEOUT)
@@ -229,9 +304,7 @@ class TestKong:
     ):
         """DELETE /project/{pid} removes all its routes and consumers."""
         mock_list_route.return_value = ListRoute200Response(data=[Route(**KONG_LINK_ROUTE_DATA)])
-        mock_list_consumer.return_value = ListConsumer200Response(
-            data=[Consumer(**TEST_KONG_CONSUMER_DATA["consumer"])]
-        )
+        mock_list_consumer.return_value = ListConsumer200Response(data=[Consumer(**KONG_ANALYSIS_CONSUMER_DATA)])
 
         resp = authorized_test_client.delete(f"/kong/project/{TEST_MOCK_PROJECT_ID}", auth=BearerAuth(TEST_JWT))
         assert resp.status_code == status.HTTP_200_OK
@@ -239,6 +312,17 @@ class TestKong:
         mock_del_consumer.assert_called_once()
         mock_list_route.assert_called_with(tags=f"project:{TEST_MOCK_PROJECT_ID}")
         mock_list_consumer.assert_called_with(tags=f"project:{TEST_MOCK_PROJECT_ID}")
+
+        # Nothing found (routes and consumers both empty) -> 404, nothing deleted
+        mock_list_route.return_value = ListRoute200Response(data=[])
+        mock_list_consumer.return_value = ListConsumer200Response(data=[])
+        mock_del_route.reset_mock()
+        mock_del_consumer.reset_mock()
+
+        resp = authorized_test_client.delete(f"/kong/project/{TEST_MOCK_PROJECT_ID}", auth=BearerAuth(TEST_JWT))
+        assert resp.status_code == status.HTTP_404_NOT_FOUND
+        mock_del_route.assert_not_called()
+        mock_del_consumer.assert_not_called()
 
     @patch("hub_adapter.routers.kong.kong_admin_client.RoutesApi.delete_route")
     @patch("hub_adapter.routers.kong.kong_admin_client.RoutesApi.list_route")
@@ -259,6 +343,14 @@ class TestKong:
             f"/kong/project/{TEST_MOCK_PROJECT_ID}/datastore/{TEST_KONG_SERVICE_ID}", auth=BearerAuth(TEST_JWT)
         )
         assert resp.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_unlink_project_from_datastore_rejects_non_uuid_ids(self, authorized_test_client):
+        """A comma-bearing project_id/datastore_id is rejected with 422 before hitting Kong."""
+        malicious_project_id = f"{TEST_MOCK_PROJECT_ID},health"
+        resp = authorized_test_client.delete(
+            f"/kong/project/{malicious_project_id}/datastore/{TEST_KONG_SERVICE_ID}", auth=BearerAuth(TEST_JWT)
+        )
+        assert resp.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
     @patch("hub_adapter.routers.kong.kong_admin_client.ConsumersApi.list_consumer")
     def test_get_analyses(self, mock_list_consumer, authorized_test_client):
@@ -376,61 +468,99 @@ class TestConnection:
     """Tests for methods related to probing the connection via Kong."""
 
     @pytest.mark.asyncio
-    async def test_test_connection_missing_proxy_url(self, test_settings):
-        """Unit test for test_connection in which the proxy URL is not set."""
-
+    async def test_probe_connection_missing_proxy_url(self, test_settings):
+        """probe_connection fails with 500 when the proxy URL is not set."""
         removed_kong_url_settings = test_settings.model_copy(update={"kong_proxy_service_url": ""})
 
         with pytest.raises(HTTPException) as err:
             await probe_connection(
                 settings=removed_kong_url_settings,
                 project_id=TEST_MOCK_PROJECT_ID,
-                ds_type=DataStoreType.FHIR,
+                datastore_id=TEST_KONG_SERVICE_ID,
             )
 
-        assert err.value.detail["service"] == "Kong"
         assert err.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
     @pytest.mark.asyncio
-    @patch("hub_adapter.routers.kong.logger")
-    @patch("kong_admin_client.ConsumersApi.get_consumer")
-    @patch("hub_adapter.routers.kong.create_and_connect_analysis_to_project")
-    @patch("kong_admin_client.RoutesApi.get_route")
-    @patch("kong_admin_client.KeyAuthsApi.list_key_auths_for_consumer")
+    async def test_probe_connection_rejects_non_uuid_ids(self, test_settings):
+        """probe_connection fails with 422 when project_id/datastore_id are not UUID-shaped."""
+        with pytest.raises(HTTPException) as err:
+            await probe_connection(
+                settings=test_settings,
+                project_id=f"{TEST_MOCK_PROJECT_ID},health",
+                datastore_id=TEST_KONG_SERVICE_ID,
+            )
+
+        assert err.value.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    @pytest.mark.asyncio
     @patch("hub_adapter.routers.kong.probe_data_service")
-    async def test_test_connection(
-        self,
-        mock_probe_data_service,
-        mock_list_key_auths_for_consumer,
-        mock_get_route,
-        mock_analysis_connect,
-        mock_get_consumer,
-        mock_logger,
-        test_settings,
-    ):
-        """Unit test for test_connection checking if the health consumer exists."""
-        # Health consumer not made yet but should be made if an ApiException occurs
-        mock_get_consumer.side_effect = ApiException(status=status.HTTP_503_SERVICE_UNAVAILABLE)
-        mock_analysis_connect.return_value = {}  # Just needs to be not None
-        mock_get_route.return_value = Route(**KONG_GET_ROUTE_RESPONSE["data"][0])
+    @patch("hub_adapter.routers.kong.ensure_health_consumer")
+    @patch("kong_admin_client.RoutesApi.list_route")
+    async def test_probe_connection(self, mock_list_route, mock_ensure_health, mock_probe, test_settings):
+        """probe_connection resolves the link route via tags and probes with the health consumer key."""
+        mock_list_route.return_value = ListRoute200Response(data=[Route(**KONG_LINK_ROUTE_DATA)])
+        mock_ensure_health.return_value = "healthApiKey"
+        mock_probe.return_value = status.HTTP_200_OK
 
-        # Successful health retrieval
-        mock_list_key_auths_for_consumer.return_value = ListKeyAuthsForConsumer200Response(
-            data=[KONG_ANALYSIS_SUCCESS_RESP["keyauth"]]
+        resp = await probe_connection(
+            settings=test_settings, project_id=TEST_MOCK_PROJECT_ID, datastore_id=TEST_KONG_SERVICE_ID
         )
-        mock_probe_data_service.return_value = status.HTTP_200_OK
-        success_resp = await probe_connection(
-            settings=test_settings, project_id=TEST_MOCK_PROJECT_ID, ds_type=DataStoreType.FHIR
-        )
-        mock_logger.info.assert_called_with(f"No health consumer found for {TEST_MOCK_PROJECT_ID}, creating one now")
-        assert success_resp == status.HTTP_200_OK
+        assert resp == status.HTTP_200_OK
 
-        # Failed health retrieval
-        mock_list_key_auths_for_consumer.return_value = {}
-        with pytest.raises(KongConsumerApiKeyError) as err:
-            await probe_connection(settings=test_settings, project_id=TEST_MOCK_PROJECT_ID, ds_type=DataStoreType.FHIR)
+        probe_kwargs = mock_probe.call_args.kwargs
+        assert probe_kwargs["is_fhir"] is True  # KONG_LINK_ROUTE_DATA carries type:fhir
+        assert probe_kwargs["url"].endswith(f"/{TEST_MOCK_PROJECT_ID}/{TEST_KONG_SERVICE_ID}/metadata")
+        assert probe_kwargs["apikey"] == "healthApiKey"
 
+        # Unlinked pair -> 404
+        mock_list_route.return_value = ListRoute200Response(data=[])
+        with pytest.raises(HTTPException) as err:
+            await probe_connection(
+                settings=test_settings, project_id=TEST_MOCK_PROJECT_ID, datastore_id=TEST_KONG_SERVICE_ID
+            )
         assert err.value.status_code == status.HTTP_404_NOT_FOUND
+
+    @patch("kong_admin_client.KeyAuthsApi.create_key_auth_for_consumer")
+    @patch("kong_admin_client.KeyAuthsApi.list_key_auths_for_consumer")
+    @patch("kong_admin_client.ACLsApi.create_acl_for_consumer")
+    @patch("kong_admin_client.ConsumersApi.create_consumer")
+    @patch("kong_admin_client.ConsumersApi.list_consumer")
+    def test_ensure_health_consumer_creates_when_missing(
+        self, mock_list_consumer, mock_create, mock_acl, mock_list_keyauth, mock_create_keyauth, test_settings
+    ):
+        """ensure_health_consumer creates consumer + ACL + keyauth when none exists."""
+        from hub_adapter.routers.kong import ensure_health_consumer
+
+        health_id = "bbbbbbbb-1111-2222-3333-444444444444"
+        mock_list_consumer.return_value = ListConsumer200Response(data=[])
+        mock_create.return_value = Consumer(id=health_id, username=f"health-{TEST_MOCK_PROJECT_ID}")
+        mock_acl.return_value = ACL(group=TEST_MOCK_PROJECT_ID)
+        mock_list_keyauth.return_value = ListKeyAuthsForConsumer200Response(data=[])
+        mock_create_keyauth.return_value = KeyAuth(key="freshKey")
+
+        key = ensure_health_consumer(settings=test_settings, project_id=TEST_MOCK_PROJECT_ID)
+
+        assert key == "freshKey"
+        mock_list_consumer.assert_called_once_with(tags=f"health,project:{TEST_MOCK_PROJECT_ID}")
+        consumer_request = mock_create.call_args.args[0]
+        assert consumer_request.username == f"health-{TEST_MOCK_PROJECT_ID}"
+        assert "health" in consumer_request.tags
+
+    @patch("kong_admin_client.KeyAuthsApi.list_key_auths_for_consumer")
+    @patch("kong_admin_client.ConsumersApi.list_consumer")
+    def test_ensure_health_consumer_reuses_existing(self, mock_list_consumer, mock_list_keyauth, test_settings):
+        """ensure_health_consumer resolves an existing consumer via tags and reuses its credential."""
+        from hub_adapter.routers.kong import ensure_health_consumer
+
+        health_id = "bbbbbbbb-1111-2222-3333-444444444444"
+        mock_list_consumer.return_value = ListConsumer200Response(
+            data=[Consumer(id=health_id, username=f"health-{TEST_MOCK_PROJECT_ID}")]
+        )
+        mock_list_keyauth.return_value = ListKeyAuthsForConsumer200Response(data=[KeyAuth(key="existingKey")])
+
+        assert ensure_health_consumer(settings=test_settings, project_id=TEST_MOCK_PROJECT_ID) == "existingKey"
+        mock_list_consumer.assert_called_once_with(tags=f"health,project:{TEST_MOCK_PROJECT_ID}")
 
     @staticmethod
     def probe_data_service_test(
@@ -458,7 +588,7 @@ class TestConnection:
         self.probe_data_service_test(status.HTTP_404_NOT_FOUND, FhirEndpointError, is_fhir=True)
 
         # Unable to contact storage service
-        self.probe_data_service_test(status.HTTP_404_NOT_FOUND, HTTPException)
+        self.probe_data_service_test(status.HTTP_404_NOT_FOUND, KongUpstreamError)
 
         # Bad URL
         self.probe_data_service_test(status.HTTP_502_BAD_GATEWAY, KongGatewayError)

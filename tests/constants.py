@@ -5,7 +5,6 @@ from datetime import datetime, timezone
 
 from dateutil.tz import UTC
 from flame_hub.models import Node
-from kong_admin_client import ACL, KeyAuth
 
 from hub_adapter.schemas.conf import OIDCConfiguration
 from hub_adapter.schemas.podorc import PodStatus
@@ -34,6 +33,8 @@ TEST_MOCK_PROJECT_ID = "9cbefefe-2420-4b8e-8ac1-f48148a9fd40"
 TEST_MOCK_NODE_ID = "9c521144-364d-4cdc-8ec4-cb62a537f10c"
 
 TEST_MOCK_NODE_CLIENT_ID = "096434d8-1e26-4594-9883-64ca1d55e129"
+
+TEST_KONG_SERVICE_ID = "c2bfa0be-e8ff-4c82-be50-734432dd4579"  # fake uuid
 
 TEST_MOCK_NODE = Node(
     id=uuid.UUID(TEST_MOCK_NODE_ID),
@@ -83,6 +84,33 @@ MOCK_ANALYSIS = {
     "distribution_progress": None,
     "execution_status": None,
     "execution_progress": 0,
+}
+
+MOCK_PROJECT = {
+    "id": TEST_MOCK_PROJECT_ID,
+    "name": "mock-project",
+    "display_name": "mock-project",
+    "description": None,
+    "master_image_id": None,
+    "analyses": 1,
+    "nodes": MOCK_ANALYSIS["nodes"],
+    "created_at": MOCK_ANALYSIS["created_at"],
+    "updated_at": MOCK_ANALYSIS["updated_at"],
+    "realm_id": MOCK_ANALYSIS["realm_id"],
+    "user_id": MOCK_ANALYSIS["user_id"],
+    "robot_id": None,
+}
+
+MOCK_PROJECT_NODE = {
+    "id": "ac776c7f-c39d-4484-9a37-fa7109017192",
+    "created_at": MOCK_ANALYSIS["created_at"],
+    "updated_at": MOCK_ANALYSIS["updated_at"],
+    "project_realm_id": MOCK_ANALYSIS["realm_id"],
+    "node_realm_id": MOCK_ANALYSIS["realm_id"],
+    "comment": None,
+    "project_id": TEST_MOCK_PROJECT_ID,
+    "node_id": TEST_MOCK_NODE_ID,
+    "approval_status": "approved",
 }
 
 MOCK_ANALYSIS_NODE = {
@@ -143,7 +171,7 @@ KONG_GET_ROUTE_RESPONSE = {
             "updated_at": 1756790836,
             "response_buffering": True,
             "headers": None,
-            "paths": [f"/{TEST_MOCK_PROJECT_ID}-fhir/fhir"],
+            "paths": [f"/{TEST_MOCK_PROJECT_ID}/{TEST_KONG_SERVICE_ID}"],
             "hosts": None,
             "path_handling": "v0",
             "https_redirect_status_code": 426,
@@ -155,8 +183,8 @@ KONG_GET_ROUTE_RESPONSE = {
             "snis": None,
             "destinations": None,
             "protocols": ["http"],
-            "tags": [TEST_MOCK_PROJECT_ID, "fhir"],
-            "name": f"{TEST_MOCK_PROJECT_ID}-fhir",
+            "tags": [f"project:{TEST_MOCK_PROJECT_ID}", f"datastore:{TEST_KONG_SERVICE_ID}", "type:fhir"],
+            "name": None,
             "methods": ["GET"],
             "request_buffering": True,
             "regex_priority": 0,
@@ -168,24 +196,24 @@ KONG_GET_ROUTE_RESPONSE = {
 KONG_ANALYSIS_SUCCESS_RESP = {
     "consumer": {
         "created_at": 1756891221,
-        "custom_id": f"{TEST_MOCK_ANALYSIS_ID}-flame",
+        "custom_id": f"analysis-{TEST_MOCK_ANALYSIS_ID}",
         "id": "6544a9a6-19af-4bfe-a6c2-a88c7d0dc12c",
-        "tags": [TEST_MOCK_PROJECT_ID, TEST_MOCK_ANALYSIS_ID],
-        "username": f"{TEST_MOCK_ANALYSIS_ID}-flame",
+        "tags": [f"project:{TEST_MOCK_PROJECT_ID}", f"analysis:{TEST_MOCK_ANALYSIS_ID}"],
+        "username": f"analysis-{TEST_MOCK_ANALYSIS_ID}",
     },
     "keyauth": {
         "consumer": {"id": "6544a9a6-19af-4bfe-a6c2-a88c7d0dc12c"},
         "created_at": 1756891221,
         "id": "9c3f6705-f06d-4164-b828-62714f2ddce7",
         "key": "bdgTKiDd2J1XNzgrK8K6QQYtVjNx9Nyo",
-        "tags": [TEST_MOCK_PROJECT_ID],
+        "tags": [f"project:{TEST_MOCK_PROJECT_ID}"],
     },
     "acl": {
         "consumer": {"id": "6544a9a6-19af-4bfe-a6c2-a88c7d0dc12c"},
         "created_at": 1756891221,
         "id": "3075a2ca-8760-4db7-a81b-6a963a03e0aa",
         "group": TEST_MOCK_PROJECT_ID,
-        "tags": [TEST_MOCK_PROJECT_ID],
+        "tags": [f"project:{TEST_MOCK_PROJECT_ID}"],
     },
 }
 
@@ -229,95 +257,6 @@ RESEARCHER_ROLE = "researcher"
 TEST_ADMIN_DECRYPTED_JWT = {"resource_access": {"node-ui": {"roles": [ADMIN_ROLE]}}}
 TEST_STEWARD_DECRYPTED_JWT = {"resource_access": {"node-ui": {"roles": [STEWARD_ROLE]}}}
 TEST_RESEARCHER_DECRYPTED_JWT = {"resource_access": {"node-ui": {"roles": [RESEARCHER_ROLE]}}}
-
-TEST_KONG_CREATE_SERVICE_REQUEST = {
-    "datastore": {
-        "name": TEST_MOCK_PROJECT_ID,
-        "protocol": "http",
-        "host": "test.server",
-        "port": 80,
-        "path": f"/{DS_TYPE}",
-    },
-    "ds_type": DS_TYPE,
-}
-
-TEST_KONG_SERVICE_ID = "c2bfa0be-e8ff-4c82-be50-734432dd4579"  # fake uuid
-TEST_KONG_SERVICE_DATA = {
-    "ca_certificates": None,
-    "client_certificate": None,
-    "connect_timeout": 6000,
-    "created_at": 1761803230,
-    "enabled": True,
-    "host": "node-datastore-blaze",
-    "id": TEST_KONG_SERVICE_ID,
-    "name": f"{TEST_MOCK_PROJECT_ID}-{DS_TYPE}",
-    "path": f"/{DS_TYPE}",
-    "port": 80,
-    "protocol": "http",
-    "read_timeout": 6000,
-    "retries": 5,
-    "tags": [f"{TEST_MOCK_PROJECT_ID}-{DS_TYPE}", f"{TEST_MOCK_PROJECT_ID}"],
-    "tls_verify": None,
-    "tls_verify_depth": None,
-    "updated_at": 1761803230,
-    "url": None,
-    "write_timeout": 6000,
-}
-
-TEST_KONG_SERVICE_RESPONSE = {
-    "data": [TEST_KONG_SERVICE_DATA],
-    "offset": None,
-}
-
-TEST_KONG_CREATE_ROUTE_REQUEST = {
-    "data_store_id": f"{TEST_MOCK_PROJECT_ID}-{DS_TYPE}",
-    "project_id": TEST_MOCK_PROJECT_ID,
-    "methods": ["GET", "POST", "PUT", "DELETE"],
-    "ds_type": DS_TYPE,
-    "protocols": ["http"],
-}
-
-TEST_KONG_ROUTE_DATA = {
-    "created_at": 0,
-    "destinations": [{"default": "string"}],
-    "headers": {},
-    "hosts": ["string"],
-    "https_redirect_status_code": 426,
-    "id": TEST_MOCK_PROJECT_ID,
-    "methods": ["string"],
-    "name": f"{TEST_MOCK_PROJECT_ID}-{DS_TYPE}",
-    "path_handling": "v0",
-    "paths": [f"/{DS_TYPE}"],
-    "preserve_host": False,
-    "protocols": ["GET"],
-    "regex_priority": 0,
-    "request_buffering": True,
-    "response_buffering": True,
-    "service": {"id": TEST_KONG_SERVICE_ID},
-    "snis": ["string"],
-    "sources": [{"default": "string"}],
-    "strip_path": True,
-    "tags": [f"{TEST_MOCK_PROJECT_ID}-{DS_TYPE}", f"{TEST_MOCK_PROJECT_ID}"],
-    "updated_at": 0,
-}
-
-TEST_KONG_ROUTE_RESPONSE = {
-    "route": TEST_KONG_ROUTE_DATA,
-    "keyauth": KeyAuth().__dict__,
-    "acl": ACL().__dict__,
-}
-
-TEST_KONG_CONSUMER_DATA = {
-    "consumer": {
-        "created_at": 0,
-        "custom_id": f"{TEST_MOCK_ANALYSIS_ID}-flame",
-        "id": "string",
-        "username": f"{TEST_MOCK_ANALYSIS_ID}-flame",
-        "tags": [TEST_MOCK_PROJECT_ID, TEST_MOCK_ANALYSIS_ID],
-    },
-    "keyauth": KeyAuth().__dict__,
-    "acl": ACL().__dict__,
-}
 
 FAKE_USER = {
     "acr": "1",

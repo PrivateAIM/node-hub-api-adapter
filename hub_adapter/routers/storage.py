@@ -33,7 +33,7 @@ async def delete_local_results(
     request: Request,
     response: Response,
 ):
-    """Delete all objects in MinIO and all Postgres database entries related to the specified project.
+    """Delete all objects in S3 and all Postgres database entries related to the specified project.
 
     Returns a 200 on success, a 400 if the project is still available on the Hub and a 403 if it is not the
     Hub Adapter client that sends the request. In both error cases nothing is deleted at all.

@@ -9,7 +9,7 @@ import pytest
 from fastapi import HTTPException
 from flame_hub.models import AnalysisNode
 from httpx import ConnectError, HTTPStatusError, RemoteProtocolError, Request, Response
-from kong_admin_client import ListRoute200Response
+from kong_admin_client import ListRoute200Response, Route
 from starlette import status
 
 from hub_adapter.autostart import GoGoAnalysis
@@ -354,6 +354,13 @@ class TestAutostart:
         projects = await self.analyzer.get_valid_projects()
         assert projects == {TEST_MOCK_PROJECT_ID}
         assert isinstance(projects, set)
+
+        # Routes without a project tag (e.g. foreign/untagged routes) are ignored
+        untagged = ListRoute200Response(
+            data=[Route(id="e37c1b0a-64a1-4c70-a3a3-cf6e04ee1cfa", tags=["type:fhir"], paths=["/x"])]
+        )
+        mock_projects.return_value = untagged
+        assert await self.analyzer.get_valid_projects() == set()
 
         # Failure
         mock_projects.side_effect = HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Kong off")

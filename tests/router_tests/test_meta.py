@@ -154,3 +154,60 @@ class TestMeta:
             assert mock_logger.error.call_count == 1
 
         # assert mock_logger.info.call_args_list[0] == f"Analysis {TEST_MOCK_ANALYSIS_ID} had no pods running that could be terminated"
+
+    @pytest.mark.asyncio
+    @patch("hub_adapter.routers.meta.make_request")
+    @patch("hub_adapter.routers.meta._get_internal_token")
+    @patch("hub_adapter.routers.meta.delete_analysis")
+    async def test_terminate_analysis_tolerates_missing_kong_consumer(
+        self,
+        mock_deletion,
+        mock_token,
+        mock_po_request,
+        test_settings,
+    ):
+        """A 404 from delete_analysis (no Kong consumer, e.g. aggregator analyses) must not abort pod deletion."""
+        valid_resp = {TEST_MOCK_ANALYSIS_ID: "stopped"}
+        mock_token.return_value = {}
+        mock_po_request.return_value = (valid_resp, status.HTTP_200_OK)
+        mock_deletion.side_effect = HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "message": f"No consumer found for analysis {TEST_MOCK_ANALYSIS_ID}",
+                "service": "Kong",
+                "status_code": status.HTTP_404_NOT_FOUND,
+            },
+        )
+
+        returned_data = await terminate_analysis(TEST_MOCK_ANALYSIS_ID, test_settings)
+
+        assert returned_data == valid_resp
+        mock_po_request.assert_called_once()
+
+    @pytest.mark.asyncio
+    @patch("hub_adapter.routers.meta.make_request")
+    @patch("hub_adapter.routers.meta._get_internal_token")
+    @patch("hub_adapter.routers.meta.delete_analysis")
+    async def test_terminate_analysis_reraises_non_404_kong_errors(
+        self,
+        mock_deletion,
+        mock_token,
+        mock_po_request,
+        test_settings,
+    ):
+        """A non-404 error from delete_analysis must abort before the PodOrc delete call."""
+        mock_token.return_value = {}
+        mock_deletion.side_effect = HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "message": "Kong service unavailable",
+                "service": "Kong",
+                "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
+            },
+        )
+
+        with pytest.raises(HTTPException) as error:
+            await terminate_analysis(TEST_MOCK_ANALYSIS_ID, test_settings)
+
+        assert error.value.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+        mock_po_request.assert_not_called()

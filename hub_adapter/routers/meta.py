@@ -132,7 +132,14 @@ async def terminate_analysis(
 
     This method will first delete the kong consumer and then send the delete command to the PO.
     """
-    await delete_analysis(analysis_id=analysis_id, settings=settings)
+    try:
+        await delete_analysis(analysis_id=analysis_id, settings=settings)
+
+    except HTTPException as e:
+        if e.status_code != status.HTTP_404_NOT_FOUND:
+            raise
+
+        logger.info(f"No Kong consumer found for analysis {analysis_id}, continuing with pod deletion")
 
     headers = await _get_internal_token(settings)
 
