@@ -2,7 +2,6 @@
 
 import asyncio
 import logging
-import time
 import uuid
 from contextlib import asynccontextmanager, suppress
 from datetime import UTC, datetime, timedelta
@@ -426,7 +425,7 @@ class GoGoAnalysis:
                     level=logging.WARNING,
                     service=ServiceTag.AUTOSTART,
                 )
-                time.sleep(60)
+                await asyncio.sleep(60)
                 resp = {
                     "message": "PodOrc failed to respond in time likely due to an image pull taking too long",
                     "service": "PO",
