@@ -1,5 +1,6 @@
 """Dependency methods for endpoints."""
 
+import asyncio
 import logging
 import pickle
 import ssl
@@ -155,7 +156,9 @@ async def get_node_id(
         logger.info("NODE_ID not set for HUB_NODE_CLIENT_ID, retrieving from Hub")
 
         try:
-            node_id_resp = core_client.find_nodes(filter={"client_id": node_client_id}, fields="id")
+            node_id_resp = await asyncio.to_thread(
+                core_client.find_nodes, filter={"client_id": node_client_id}, fields="id"
+            )
 
         except httpx.ConnectError as e:
             err = "Connection Error - Hub is currently unreachable"
@@ -191,7 +194,7 @@ async def get_node_type_cache(
         node_id = await get_node_id(core_client=core_client, settings=settings)
 
         try:
-            node_resp = core_client.get_node(node_id=node_id)
+            node_resp = await asyncio.to_thread(core_client.get_node, node_id=node_id)
             _node_type_cache = {"type": node_resp.type}
 
         except httpx.ConnectError as e:

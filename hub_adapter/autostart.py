@@ -2,7 +2,6 @@
 
 import asyncio
 import logging
-import time
 import uuid
 from contextlib import asynccontextmanager, suppress
 from datetime import UTC, datetime, timedelta
@@ -252,7 +251,9 @@ class GoGoAnalysis:
                 )
 
             # Status obtained and no pod is running, the consumer already exists, so reuse its credential
-            existing_keyauth = get_analysis_keyauth(settings=self.settings, analysis_id=analysis_id)
+            existing_keyauth = await asyncio.to_thread(
+                get_analysis_keyauth, settings=self.settings, analysis_id=analysis_id
+            )
             if existing_keyauth is not None:
                 log_event(
                     "autostart.analysis.reuse",
@@ -331,8 +332,12 @@ class GoGoAnalysis:
             service=ServiceTag.AUTOSTART,
         )
 
-        node_metadata = get_node_metadata_for_url(analysis_props["node_id"], core_client=self.core_client)
-        analysis_info = get_registry_metadata_for_url(node_metadata, core_client=self.core_client)
+        node_metadata = await asyncio.to_thread(
+            get_node_metadata_for_url, analysis_props["node_id"], core_client=self.core_client
+        )
+        analysis_info = await asyncio.to_thread(
+            get_registry_metadata_for_url, node_metadata, core_client=self.core_client
+        )
 
         analysis_id = analysis_props["analysis_id"]
         project_id = analysis_props["project_id"]
@@ -408,7 +413,7 @@ class GoGoAnalysis:
                     level=logging.WARNING,
                     service=ServiceTag.AUTOSTART,
                 )
-                time.sleep(60)
+                await asyncio.sleep(60)
                 resp = {
                     "message": "PodOrc failed to respond in time likely due to an image pull taking too long",
                     "service": "PO",

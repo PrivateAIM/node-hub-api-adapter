@@ -1,5 +1,6 @@
 """EPs for the kong service."""
 
+import asyncio
 import logging
 import time
 import uuid
@@ -144,7 +145,7 @@ async def list_data_stores(
     detailed: Annotated[bool, Query(description="Whether to include detailed information on projects")] = False,
 ):
     """List all available data stores (referred to as services by kong)."""
-    return get_data_stores(settings, project_id=None, detailed=detailed)
+    return await asyncio.to_thread(get_data_stores, settings, project_id=None, detailed=detailed)
 
 
 @kong_router.get(
@@ -160,7 +161,7 @@ async def list_specific_data_store(
     detailed: Annotated[bool, Query(description="Whether to include detailed information on projects")] = False,
 ):
     """Retrieve a specific data store using the project UUID"""
-    return get_data_stores(settings, project_id=project_id, detailed=detailed)
+    return await asyncio.to_thread(get_data_stores, settings, project_id=project_id, detailed=detailed)
 
 
 @kong_router.delete(
@@ -186,15 +187,19 @@ async def delete_data_store(
         logger.info(f"No routes for service {data_store_name} found")
 
     # Delete data store
-    with kong_admin_client.ApiClient(configuration) as api_client:
-        svc_api = kong_admin_client.ServicesApi(api_client)
+    def _delete_service() -> int:
+        """Synchronous kong client work, offloaded to a worker thread."""
+        with kong_admin_client.ApiClient(configuration) as api_client:
+            svc_api = kong_admin_client.ServicesApi(api_client)
 
-        svc = svc_api.get_service(service_id_or_name=data_store_name)
-        svc_api.delete_service(service_id_or_name=svc.id)
+            svc = svc_api.get_service(service_id_or_name=data_store_name)
+            svc_api.delete_service(service_id_or_name=svc.id)
 
-        logger.info(f"Data store {svc.id} deleted")
+            logger.info(f"Data store {svc.id} deleted")
 
-        return status.HTTP_200_OK
+            return status.HTTP_200_OK
+
+    return await asyncio.to_thread(_delete_service)
 
 
 @kong_router.delete(
@@ -211,23 +216,27 @@ async def delete_orphaned_data_stores(
     """Delete all data stores (services) that have no associated project (route)."""
     configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
 
-    with kong_admin_client.ApiClient(configuration) as api_client:
-        svc_api = kong_admin_client.ServicesApi(api_client)
-        route_api = kong_admin_client.RoutesApi(api_client)
+    def _delete_orphaned() -> dict:
+        """Synchronous kong client work, offloaded to a worker thread."""
+        with kong_admin_client.ApiClient(configuration) as api_client:
+            svc_api = kong_admin_client.ServicesApi(api_client)
+            route_api = kong_admin_client.RoutesApi(api_client)
 
-        services = svc_api.list_service()
-        routes = route_api.list_route()
+            services = svc_api.list_service()
+            routes = route_api.list_route()
 
-        routed_service_ids = {route.service.id for route in routes.data if route.service}
-        orphaned = [svc for svc in services.data if svc.id not in routed_service_ids]
+            routed_service_ids = {route.service.id for route in routes.data if route.service}
+            orphaned = [svc for svc in services.data if svc.id not in routed_service_ids]
 
-        deleted = []
-        for svc in orphaned:
-            svc_api.delete_service(service_id_or_name=svc.id)
-            logger.info(f"Deleted orphaned data store {svc.id} ({svc.name})")
-            deleted.append({"id": svc.id, "name": svc.name})
+            deleted = []
+            for svc in orphaned:
+                svc_api.delete_service(service_id_or_name=svc.id)
+                logger.info(f"Deleted orphaned data store {svc.id} ({svc.name})")
+                deleted.append({"id": svc.id, "name": svc.name})
 
-    return {"deleted": deleted, "count": len(deleted)}
+        return {"deleted": deleted, "count": len(deleted)}
+
+    return await asyncio.to_thread(_delete_orphaned)
 
 
 @kong_router.post(
@@ -267,7 +276,7 @@ async def create_service(
             tls_verify=datastore.tls_verify,
             tags=[datastore.name, svc_name],
         )
-        service_create_response = api_instance.create_service(create_service_request)
+        service_create_response = await asyncio.to_thread(api_instance.create_service, create_service_request)
 
         plugin_api = kong_admin_client.PluginsApi(api_client)
         if minio_config:
@@ -286,7 +295,9 @@ async def create_service(
                 protocols=[datastore.protocol],
             )
             try:
-                plugin_api.create_plugin_for_service(service_create_response.id, create_minio_gateway_request)
+                await asyncio.to_thread(
+                    plugin_api.create_plugin_for_service, service_create_response.id, create_minio_gateway_request
+                )
 
             except HTTPException as error:  # Delete service if minio fails
                 msg = f"Unable to create minio gateway for {svc_name}"
@@ -350,7 +361,7 @@ async def list_projects(
 
     Set "detailed" to True to include detailed information on the linked kong service.
     """
-    return get_projects(settings, project_id=None, detailed=detailed)
+    return await asyncio.to_thread(get_projects, settings, project_id=None, detailed=detailed)
 
 
 @kong_router.get(
@@ -372,7 +383,7 @@ async def list_specific_project(
 
     Set "detailed" to True to include detailed information on the linked kong service.
     """
-    return get_projects(settings, project_id=project_id, detailed=detailed)
+    return await asyncio.to_thread(get_projects, settings, project_id=project_id, detailed=detailed)
 
 
 @kong_router.post(
@@ -409,52 +420,56 @@ async def create_route_to_datastore(
     route_name = datastore_name(project_id, ds_type)
     path = f"/{route_name}/{ds_type}"
 
-    with kong_admin_client.ApiClient(configuration) as api_client:
-        route_api = kong_admin_client.RoutesApi(api_client)
-        plugin_api = kong_admin_client.PluginsApi(api_client)
+    def _create_route() -> dict:
+        """Synchronous kong client work, offloaded to a worker thread."""
+        with kong_admin_client.ApiClient(configuration) as api_client:
+            route_api = kong_admin_client.RoutesApi(api_client)
+            plugin_api = kong_admin_client.PluginsApi(api_client)
 
-        # Create requests
-        create_route_request = CreateRouteRequest(
-            name=route_name,
-            protocols=protocols,
-            methods=methods,
-            paths=[path],
-            https_redirect_status_code=426,
-            preserve_host=False,
-            request_buffering=True,
-            response_buffering=True,
-            tags=[str(project_id), ds_type],
-        )
+            # Create requests
+            create_route_request = CreateRouteRequest(
+                name=route_name,
+                protocols=protocols,
+                methods=methods,
+                paths=[path],
+                https_redirect_status_code=426,
+                preserve_host=False,
+                request_buffering=True,
+                response_buffering=True,
+                tags=[str(project_id), ds_type],
+            )
 
-        # Keyauth for authentication
-        create_keyauth_request = CreatePluginForConsumerRequest(
-            name="key-auth",
-            instance_name=f"{route_name}-keyauth",
-            config={
-                "hide_credentials": True,
-                "key_in_body": False,
-                "key_in_header": True,
-                "key_in_query": False,
-                "key_names": ["apikey"],
-                "run_on_preflight": True,
-            },
-            enabled=True,
-            protocols=protocols,
-        )
+            # Keyauth for authentication
+            create_keyauth_request = CreatePluginForConsumerRequest(
+                name="key-auth",
+                instance_name=f"{route_name}-keyauth",
+                config={
+                    "hide_credentials": True,
+                    "key_in_body": False,
+                    "key_in_header": True,
+                    "key_in_query": False,
+                    "key_names": ["apikey"],
+                    "run_on_preflight": True,
+                },
+                enabled=True,
+                protocols=protocols,
+            )
 
-        create_acl_request = CreatePluginForConsumerRequest(
-            name="acl",
-            instance_name=f"{route_name}-acl",
-            config={"allow": [str(project_id)], "hide_groups_header": True},
-            enabled=True,
-            protocols=protocols,
-        )
+            create_acl_request = CreatePluginForConsumerRequest(
+                name="acl",
+                instance_name=f"{route_name}-acl",
+                config={"allow": [str(project_id)], "hide_groups_header": True},
+                enabled=True,
+                protocols=protocols,
+            )
 
-        route_response = route_api.create_route_for_service(str(data_store_id), create_route_request)
-        keyauth_response = plugin_api.create_plugin_for_route(route_response.id, create_keyauth_request)
-        acl_response = plugin_api.create_plugin_for_route(route_response.id, create_acl_request)
+            route_response = route_api.create_route_for_service(str(data_store_id), create_route_request)
+            keyauth_response = plugin_api.create_plugin_for_route(route_response.id, create_keyauth_request)
+            acl_response = plugin_api.create_plugin_for_route(route_response.id, create_acl_request)
 
-    return {"route": route_response, "keyauth": keyauth_response, "acl": acl_response}
+        return {"route": route_response, "keyauth": keyauth_response, "acl": acl_response}
+
+    return await asyncio.to_thread(_create_route)
 
 
 @kong_router.post(
@@ -522,27 +537,31 @@ async def delete_route(
     """Disconnect a project (route) from all data stores (services) and delete associated analyses (consumers)."""
     configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
 
-    with kong_admin_client.ApiClient(configuration) as api_client:
-        route_api = kong_admin_client.RoutesApi(api_client)
-        consumer_api = kong_admin_client.ConsumersApi(api_client)
+    def _delete_route() -> DeleteProject:
+        """Synchronous kong client work, offloaded to a worker thread."""
+        with kong_admin_client.ApiClient(configuration) as api_client:
+            route_api = kong_admin_client.RoutesApi(api_client)
+            consumer_api = kong_admin_client.ConsumersApi(api_client)
 
-        route = route_api.get_route(route_id_or_name=project_route_id)
+            route = route_api.get_route(route_id_or_name=project_route_id)
 
-        # Extract project UUID from route tags (tags=[project_uuid, ds_type])
-        ds_type_values = {e.value for e in DataStoreType}
-        project_uuid = next((tag for tag in (route.tags or []) if tag not in ds_type_values), None)
+            # Extract project UUID from route tags (tags=[project_uuid, ds_type])
+            ds_type_values = {e.value for e in DataStoreType}
+            project_uuid = next((tag for tag in (route.tags or []) if tag not in ds_type_values), None)
 
-        # Get related analyses (consumers) and delete them first
-        consumer_response = consumer_api.list_consumer(tags=project_uuid)
-        for consumer in consumer_response.data:
-            consumer_api.delete_consumer(consumer_username_or_id=consumer.id)
+            # Get related analyses (consumers) and delete them first
+            consumer_response = consumer_api.list_consumer(tags=project_uuid)
+            for consumer in consumer_response.data:
+                consumer_api.delete_consumer(consumer_username_or_id=consumer.id)
 
-        # Delete route
-        route_api.delete_route(route.id)
+            # Delete route
+            route_api.delete_route(route.id)
 
-        logger.info(f"Project {route.id} disconnected from data store {route.service.id}")
+            logger.info(f"Project {route.id} disconnected from data store {route.service.id}")
 
-        return DeleteProject(removed=route, status=status.HTTP_200_OK)
+            return DeleteProject(removed=route, status=status.HTTP_200_OK)
+
+    return await asyncio.to_thread(_delete_route)
 
 
 def get_analyses(
@@ -581,7 +600,7 @@ async def list_analyses(
     ] = None,
 ):
     """List all analyses (referred to as consumers by kong) available. Can be filtered by project UUID using tag."""
-    return get_analyses(settings, analysis_id=None, tag=tag)
+    return await asyncio.to_thread(get_analyses, settings, analysis_id=None, tag=tag)
 
 
 @kong_router.get(
@@ -600,7 +619,7 @@ async def list_specific_analysis(
     ] = None,
 ):
     """List all analyses (referred to as consumers by kong) available."""
-    return get_analyses(settings, analysis_id=analysis_id, tag=tag)
+    return await asyncio.to_thread(get_analyses, settings, analysis_id=analysis_id, tag=tag)
 
 
 def get_analysis_keyauth(settings: Settings, analysis_id: str | uuid.UUID):
@@ -640,7 +659,7 @@ async def create_and_connect_analysis_to_project(
     analysis_id: Annotated[str | uuid.UUID, Body(description="UUID or name of the analysis")],
 ):
     """Create a new analysis and link it to a project."""
-    proj_resp = get_projects(settings=settings, project_id=project_id, detailed=False)
+    proj_resp = await asyncio.to_thread(get_projects, settings=settings, project_id=project_id, detailed=False)
 
     # Tags are used to annotate routes (projects) with datastore type and original project ID
     route_tags = set()
@@ -660,47 +679,51 @@ async def create_and_connect_analysis_to_project(
         )
 
     configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
-    response = {}
     username = consumer_username(analysis_id)
 
-    with kong_admin_client.ApiClient(configuration) as api_client:
-        consumer_api = kong_admin_client.ConsumersApi(api_client)
-        api_response = consumer_api.create_consumer(
-            CreateConsumerRequest(
-                username=username,
-                custom_id=username,
-                tags=[str(project_id), str(analysis_id)],
+    def _create_consumer() -> dict:
+        """Synchronous kong client work, offloaded to a worker thread."""
+        response = {}
+        with kong_admin_client.ApiClient(configuration) as api_client:
+            consumer_api = kong_admin_client.ConsumersApi(api_client)
+            api_response = consumer_api.create_consumer(
+                CreateConsumerRequest(
+                    username=username,
+                    custom_id=username,
+                    tags=[str(project_id), str(analysis_id)],
+                )
             )
-        )
-        logger.info(f"Consumer added, id: {api_response.id}")
+            logger.info(f"Consumer added, id: {api_response.id}")
 
-        consumer_id = api_response.id
-        response["consumer"] = api_response
+            consumer_id = api_response.id
+            response["consumer"] = api_response
 
-        # Configure acl plugin for consumer
-        acl_api = kong_admin_client.ACLsApi(api_client)
-        api_response = acl_api.create_acl_for_consumer(
-            consumer_id,
-            CreateAclForConsumerRequest(
-                group=project_id,
-                tags=[str(project_id)],
-            ),
-        )
-        logger.info(f"ACL plugin configured for consumer, group: {api_response.group}")
-        response["acl"] = api_response
+            # Configure acl plugin for consumer
+            acl_api = kong_admin_client.ACLsApi(api_client)
+            api_response = acl_api.create_acl_for_consumer(
+                consumer_id,
+                CreateAclForConsumerRequest(
+                    group=project_id,
+                    tags=[str(project_id)],
+                ),
+            )
+            logger.info(f"ACL plugin configured for consumer, group: {api_response.group}")
+            response["acl"] = api_response
 
-        # Configure key-auth plugin for consumer
-        keyauth_api = kong_admin_client.KeyAuthsApi(api_client)
-        api_response = keyauth_api.create_key_auth_for_consumer(
-            consumer_id,
-            CreateKeyAuthForConsumerRequest(
-                tags=[str(project_id)],
-            ),
-        )
-        logger.info(f"Key authentication plugin configured for consumer, api_key: {api_response.key}")
-        response["keyauth"] = api_response
+            # Configure key-auth plugin for consumer
+            keyauth_api = kong_admin_client.KeyAuthsApi(api_client)
+            api_response = keyauth_api.create_key_auth_for_consumer(
+                consumer_id,
+                CreateKeyAuthForConsumerRequest(
+                    tags=[str(project_id)],
+                ),
+            )
+            logger.info(f"Key authentication plugin configured for consumer, api_key: {api_response.key}")
+            response["keyauth"] = api_response
 
-    return response
+        return response
+
+    return await asyncio.to_thread(_create_consumer)
 
 
 @kong_router.delete(
@@ -718,13 +741,17 @@ async def delete_analysis(
     configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
     username = consumer_username(analysis_id)
 
-    with kong_admin_client.ApiClient(configuration) as api_client:
-        consumer_api = kong_admin_client.ConsumersApi(api_client)
+    def _delete_consumer() -> int:
+        """Synchronous kong client work, offloaded to a worker thread."""
+        with kong_admin_client.ApiClient(configuration) as api_client:
+            consumer_api = kong_admin_client.ConsumersApi(api_client)
 
-        consumer_api.delete_consumer(consumer_username_or_id=username)
+            consumer_api.delete_consumer(consumer_username_or_id=username)
 
-        logger.info(f"Analysis {analysis_id} deleted")
-        return status.HTTP_200_OK
+            logger.info(f"Analysis {analysis_id} deleted")
+            return status.HTTP_200_OK
+
+    return await asyncio.to_thread(_delete_consumer)
 
 
 @kong_router.get(
@@ -757,12 +784,13 @@ async def probe_connection(
     health_consumer_id = health_consumer_username(project_id, ds_type)
     apikey = None
 
-    # Get API key for project (route) health consumer and route info
+    # Get API key for project (route) health consumer and route info.
+    # Calls are offloaded because the missing-consumer path must wait so this logic has to stay on the event loop.
     with kong_admin_client.ApiClient(configuration) as api_client:
         consumer_api = kong_admin_client.ConsumersApi(api_client)
 
         try:
-            consumer_api.get_consumer(health_consumer_id)
+            await asyncio.to_thread(consumer_api.get_consumer, health_consumer_id)
 
         except ApiException:
             logger.info(f"No health consumer found for {project_id}, creating one now")
@@ -774,12 +802,12 @@ async def probe_connection(
 
         # Parse project/route info
         route_api = kong_admin_client.RoutesApi(api_client)
-        route_resp = route_api.get_route(route_id)
+        route_resp = await asyncio.to_thread(route_api.get_route, route_id)
         route_path = route_resp.paths[0]
 
         # Get API key to query service
         keyauth_api = kong_admin_client.KeyAuthsApi(api_client)
-        api_response = keyauth_api.list_key_auths_for_consumer(health_consumer_id)
+        api_response = await asyncio.to_thread(keyauth_api.list_key_auths_for_consumer, health_consumer_id)
         if api_response:
             apikey = api_response.data[0].key
 
@@ -790,7 +818,7 @@ async def probe_connection(
         if is_fhir:
             url = f"{url}/metadata"
 
-        return probe_data_service(url=url, apikey=apikey, is_fhir=is_fhir)
+        return await asyncio.to_thread(probe_data_service, url=url, apikey=apikey, is_fhir=is_fhir)
 
     else:
         raise KongConsumerApiKeyError()

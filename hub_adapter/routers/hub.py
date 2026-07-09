@@ -1,5 +1,6 @@
 """EPs for Hub provided information."""
 
+import asyncio
 import json
 import logging
 import uuid
@@ -90,7 +91,7 @@ async def list_all_projects(
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     """List all projects."""
-    return core_client.find_projects(**query_params)
+    return await asyncio.to_thread(core_client.find_projects, **query_params)
 
 
 @hub_router.get(
@@ -106,7 +107,7 @@ async def list_specific_project(
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     """List project for a given UUID."""
-    return core_client.get_project(project_id=project_id)
+    return await asyncio.to_thread(core_client.get_project, project_id=project_id)
 
 
 @hub_router.get(
@@ -124,10 +125,10 @@ async def list_project_proposals(
 ):
     """List project proposals."""
     if node_id:
-        return core_client.find_project_nodes(filter={"node_id": node_id}, **query_params)
+        return await asyncio.to_thread(core_client.find_project_nodes, filter={"node_id": node_id}, **query_params)
 
     else:
-        return core_client.get_project_nodes(**query_params)
+        return await asyncio.to_thread(core_client.get_project_nodes, **query_params)
 
 
 @hub_router.get(
@@ -143,7 +144,7 @@ async def list_project_proposal(
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     """Set the approval status of a project proposal."""
-    return core_client.get_project_node(project_node_id=project_node_id)
+    return await asyncio.to_thread(core_client.get_project_node, project_node_id=project_node_id)
 
 
 @hub_router.post(
@@ -163,7 +164,9 @@ async def accept_reject_project_proposal(
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     """Set the approval status of a project proposal."""
-    return core_client.update_project_node(project_node_id=project_node_id, approval_status=approval_status)
+    return await asyncio.to_thread(
+        core_client.update_project_node, project_node_id=project_node_id, approval_status=approval_status
+    )
 
 
 @hub_router.get(
@@ -181,10 +184,10 @@ async def list_analysis_nodes(
 ):
     """List all analysis nodes for give node."""
     if node_id:
-        return core_client.find_analysis_nodes(filter={"node_id": node_id}, **query_params)
+        return await asyncio.to_thread(core_client.find_analysis_nodes, filter={"node_id": node_id}, **query_params)
 
     else:
-        return core_client.find_analysis_nodes(**query_params)
+        return await asyncio.to_thread(core_client.find_analysis_nodes, **query_params)
 
 
 @hub_router.get(
@@ -201,7 +204,7 @@ async def list_specific_analysis_node(
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     """List a specific analysis node."""
-    return core_client.get_analysis_node(analysis_node_id=analysis_node_id, **query_params)
+    return await asyncio.to_thread(core_client.get_analysis_node, analysis_node_id=analysis_node_id, **query_params)
 
 
 @hub_router.post(
@@ -221,7 +224,9 @@ async def accept_reject_analysis_node(
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     """Set the approval status of an analysis proposal."""
-    return core_client.update_analysis_node(analysis_node_id=analysis_node_id, approval_status=approval_status)
+    return await asyncio.to_thread(
+        core_client.update_analysis_node, analysis_node_id=analysis_node_id, approval_status=approval_status
+    )
 
 
 @hub_router.get(
@@ -237,7 +242,7 @@ async def list_all_analyses(
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     """List all registered analyses."""
-    return core_client.get_analyses(**query_params)
+    return await asyncio.to_thread(core_client.get_analyses, **query_params)
 
 
 @hub_router.get(
@@ -253,7 +258,7 @@ async def list_specific_analysis(
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     """List a specific analysis."""
-    return core_client.get_analysis(analysis_id=analysis_id)
+    return await asyncio.to_thread(core_client.get_analysis, analysis_id=analysis_id)
 
 
 @hub_router.get(
@@ -269,7 +274,7 @@ async def list_all_nodes(
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     """List all nodes."""
-    return core_client.get_nodes(**query_params)
+    return await asyncio.to_thread(core_client.get_nodes, **query_params)
 
 
 @hub_router.get(
@@ -285,7 +290,7 @@ async def list_specific_node(
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     """List a specific node."""
-    return core_client.get_node(node_id=node_id)
+    return await asyncio.to_thread(core_client.get_node, node_id=node_id)
 
 
 @hub_router.get(
@@ -315,7 +320,7 @@ async def update_specific_analysis(
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     """Update analysis with a given UUID."""
-    return core_client.update_analysis(analysis_id=analysis_id, name=name)
+    return await asyncio.to_thread(core_client.update_analysis, analysis_id=analysis_id, name=name)
 
 
 @hub_router.get(
@@ -331,7 +336,7 @@ async def get_registry_metadata_for_project(
 ):
     """List registry data for a project."""
 
-    return core_client.get_registry_project(registry_project_id=registry_project_id)
+    return await asyncio.to_thread(core_client.get_registry_project, registry_project_id=registry_project_id)
 
 
 @hub_router.post("/analysis/image", response_model=AnalysisImageUrl, name="hub.analysis.image.get")
@@ -356,7 +361,7 @@ async def list_all_analysis_buckets(
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     """List all analysis buckets."""
-    return core_client.find_analysis_buckets(**query_params)
+    return await asyncio.to_thread(core_client.find_analysis_buckets, **query_params)
 
 
 @hub_router.get(
@@ -372,7 +377,7 @@ async def list_specific_analysis_buckets(
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     """List a specific analysis bucket."""
-    return core_client.get_analysis_bucket(analysis_bucket_id=analysis_bucket_id)
+    return await asyncio.to_thread(core_client.get_analysis_bucket, analysis_bucket_id=analysis_bucket_id)
 
 
 @hub_router.get(
@@ -388,7 +393,7 @@ async def list_all_analysis_bucket_files(
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     """List partial analysis bucket files."""
-    return core_client.get_analysis_bucket_files(**query_params)
+    return await asyncio.to_thread(core_client.get_analysis_bucket_files, **query_params)
 
 
 @hub_router.get(
@@ -404,4 +409,6 @@ async def list_specific_analysis_bucket_file(
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     """List specific partial analysis bucket file."""
-    return core_client.get_analysis_bucket_file(analysis_bucket_file_id=analysis_bucket_file_id)
+    return await asyncio.to_thread(
+        core_client.get_analysis_bucket_file, analysis_bucket_file_id=analysis_bucket_file_id
+    )

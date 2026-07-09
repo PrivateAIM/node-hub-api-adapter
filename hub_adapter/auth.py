@@ -1,5 +1,6 @@
 """Handle the authorization and authentication of services."""
 
+import asyncio
 import logging
 from typing import Annotated
 
@@ -178,10 +179,14 @@ async def _get_internal_token(settings: Annotated[Settings, Depends(get_settings
 
     ssl_ctx = get_ssl_context(settings)
 
-    with httpx.Client(verify=ssl_ctx, event_hooks={"response": [make_log_hook(ServiceTag.IDP)]}) as client:
-        resp = client.post(int_token_ep, data=payload)
-    resp.raise_for_status()
-    token_data = resp.json()
+    def _post_token() -> dict:
+        """Synchronous httpx token request, offloaded to a worker thread."""
+        with httpx.Client(verify=ssl_ctx, event_hooks={"response": [make_log_hook(ServiceTag.IDP)]}) as client:
+            resp = client.post(int_token_ep, data=payload)
+        resp.raise_for_status()
+        return resp.json()
+
+    token_data = await asyncio.to_thread(_post_token)
 
     token = Token(**token_data)
     return {"Authorization": f"Bearer {token.access_token}"}
