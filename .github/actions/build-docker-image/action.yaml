@@ -25,6 +25,10 @@ inputs:
     default: ""
     description: "Suffix to append to the image tags"
     required: false
+  extra_tag:
+    default: ""
+    description: "An extra raw tag to apply to the image (e.g. edge, canary)"
+    required: false
 
 runs:
   using: composite
@@ -65,6 +69,7 @@ runs:
           type=raw,value=canary,enable=${{ github.event_name == 'workflow_dispatch' }}
           type=raw,event=workflow_dispatch,value=${{ github.event.inputs.dispatch-tag }}
           type=semver,pattern={{version}},value=${{ inputs.image_tags }},branch=main
+          type=raw,value=${{ inputs.extra_tag }},enable=${{ inputs.extra_tag != '' }}
 
     - name: Clean variables
       id: clean
