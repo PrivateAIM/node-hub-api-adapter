@@ -36,6 +36,8 @@ runs:
   steps:
     - name: Checkout
       uses: actions/checkout@v6
+      with:
+        persist-credentials: false
 
     - name: Set up QEMU
       uses: docker/setup-qemu-action@49b3bc8e6bdd4a60e6116a5414239cba5943d3cf  # tag=v3.2.0
