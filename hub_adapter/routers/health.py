@@ -1,11 +1,12 @@
 """EPs for checking the API health and the health of the downstream microservices."""
 
 import logging
+import time
 from typing import Annotated
 
 import httpx
 from fastapi import APIRouter, Depends
-from httpx import ConnectError
+from httpx import ConnectError, RemoteProtocolError
 from starlette import status
 
 from hub_adapter.conf import Settings
@@ -56,23 +57,54 @@ def get_health_downstream_services(
     health_eps = {
         "po": settings.podorc_service_url.rstrip("/") + "/po/healthz",
         "storage": settings.storage_service_url.rstrip("/") + "/healthz",
-        # "hub": settings.HUB_SERVICE_URL,
+        "hub_core": settings.hub_service_url,
+        "hub_auth": settings.hub_auth_service_url,
         "kong": settings.kong_admin_service_url.rstrip("/") + "/status",
+        "idp": settings.idp_url.rstrip("/") + "/.well-known/openid-configuration",
     }
+
+    if settings.victoria_logs_url:
+        health_eps.update({"victoria_logs": settings.victoria_logs_url.rstrip("/" + "/health")})
+
+    if settings.message_broker_url:
+        health_eps.update({"message_broker": settings.message_broker_url.rstrip("/" + "/health")})
+
+    if settings.s3_url:
+        health_eps.update({"s3": settings.s3_url.rstrip("/" + "/healthz")})
+
+    if settings.fhir_url:
+        health_eps.update({"fhir": settings.fhir_url.rstrip("/" + "/health")})
 
     health_checks = {}
     for service, ep in health_eps.items():
+        status_code, svc_status, message = None, None, None
         try:
-            resp = httpx.get(ep).json()
+            resp = httpx.get(ep)
+            status_code = resp.status_code
+            if resp.status_code == httpx.codes.OK:
+                svc_status = "OK"
 
-        except ConnectError as e:
+            else:
+                svc_status = "ERROR"
+                message = resp.text
+
+        except (ConnectError, RemoteProtocolError) as e:
             logger.error(f"Error connecting to {service} service: {e}")
-            resp = str(e)
+            status_code = 503
+            svc_status = "ERROR"
+            message = repr(e)
+            resp = None
 
         if service == "kong" and isinstance(resp, dict) and "database" in resp:
-            kong_status: bool = resp.get("database").get("reachable")
-            resp = {"status": "ok" if kong_status else "fail"}
+            kong_status: bool = resp.json().get("database").get("reachable")
+            if not kong_status:
+                svc_status = "ERROR"
+                status_code = 503
 
-        health_checks[service] = resp
+        health_checks[service] = {
+            "status": svc_status,
+            "message": message,
+            "status_code": status_code,
+        }
 
     return health_checks
