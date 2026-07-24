@@ -29,10 +29,12 @@ from hub_adapter.dependencies import get_settings
 from hub_adapter.errors import (
     BucketError,
     FhirEndpointError,
+    KongAmbiguousProjectDatastoreError,
     KongAnalysisConsumerNotFoundError,
     KongConsumerApiKeyError,
     KongDataStoreLinkedError,
     KongDatastoreMissingTypeError,
+    KongDatastoreOrProjectNotFoundError,
     KongGatewayError,
     KongProjectDatastoreLinkConflictError,
     KongProjectDatastoreUnlinkedError,
@@ -102,6 +104,31 @@ def _find_project_datastore_route(api_client, project_id: str | uuid.UUID, datas
     """List the link routes between a project and a data store via tags."""
     route_api = kong_admin_client.RoutesApi(api_client)
     return route_api.list_route(tags=f"{project_tag(project_id)},{datastore_tag(datastore_id)}")
+
+
+def _resolve_datastore_services(api_client, datastore_id_or_name: str) -> list[Service]:
+    """Resolve a path value to one or more Kong services.
+
+    Tries a direct service id/name lookup first. For backwards compatibility, if that 404s and the value is a UUID,
+    it's treated as a project id and resolved via the project's linked data stores instead
+    """
+    svc_api = kong_admin_client.ServicesApi(api_client)
+
+    try:
+        return [svc_api.get_service(service_id_or_name=datastore_id_or_name)]
+
+    except ApiException as e:
+        if e.status != status.HTTP_404_NOT_FOUND or not is_uuid(datastore_id_or_name):
+            raise
+
+        route_api = kong_admin_client.RoutesApi(api_client)
+        routes = route_api.list_route(tags=project_tag(datastore_id_or_name))
+        linked_service_ids = {route.service.id for route in routes.data if route.service}
+
+        if not linked_service_ids:
+            raise KongDatastoreOrProjectNotFoundError(datastore_id_or_name) from e
+
+        return [svc_api.get_service(service_id_or_name=svc_id) for svc_id in linked_service_ids]
 
 
 def parse_project_info(services, client) -> dict:
@@ -177,13 +204,16 @@ async def get_data_store(
     datastore_id_or_name: Annotated[str, Path(description="Kong service ID or display name of the data store.")],
     detailed: Annotated[bool, Query(description="Whether to include linked projects (routes)")] = False,
 ):
-    """Retrieve a specific data store by its Kong service ID or display name."""
+    """Retrieve a specific data store by its Kong service ID or display name.
+
+    For backwards compatibility, a project ID is also accepted. If no service matches directly,
+    all data stores currently linked to that project are returned instead.
+    """
     configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
 
     with kong_admin_client.ApiClient(configuration) as api_client:
-        svc_api = kong_admin_client.ServicesApi(api_client)
-        svc = svc_api.get_service(service_id_or_name=datastore_id_or_name)
-        services = ListService200Response(data=[svc])
+        svcs = _resolve_datastore_services(api_client, datastore_id_or_name)
+        services = ListService200Response(data=svcs)
 
         if detailed:
             return parse_project_info(services, api_client)
@@ -206,6 +236,9 @@ async def delete_data_store(
     """Delete a data store (service). Refused with 409 while projects link it, unless cascade=true.
 
     Cascading removes the link routes only, consumers (analyses) belong to projects and are untouched.
+
+    For backwards compatibility, a project ID is also accepted in place of the data store id/name, but only if
+    it resolves to exactly one linked data store, otherwise refused with 409 if the project is linked to more than 1
     """
     configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
 
@@ -213,7 +246,11 @@ async def delete_data_store(
         svc_api = kong_admin_client.ServicesApi(api_client)
         route_api = kong_admin_client.RoutesApi(api_client)
 
-        svc = svc_api.get_service(service_id_or_name=datastore_id_or_name)
+        svcs = _resolve_datastore_services(api_client, datastore_id_or_name)
+        if len(svcs) > 1:
+            raise KongAmbiguousProjectDatastoreError(datastore_id_or_name, [str(svc.id) for svc in svcs])
+
+        svc = svcs[0]
         routes = route_api.list_route(tags=datastore_tag(svc.id))
 
         if routes.data and not cascade:
@@ -282,6 +319,7 @@ async def create_data_store(
             create_s3_gateway_request = CreatePluginForConsumerRequest(  # Also works for services
                 name="minio-gateway",  # Still called minio gateway plugin
                 instance_name=f"{service_create_response.id}-s3-gateway",
+                # TODO change minio_* to s3_* once plugin is updated
                 config={  # Can't use .model_dump() because of SecretStr
                     "minio_access_key": s3_config.s3_access_key.get_secret_value(),
                     "minio_secret_key": s3_config.s3_secret_key.get_secret_value(),

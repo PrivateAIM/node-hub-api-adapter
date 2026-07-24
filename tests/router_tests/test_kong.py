@@ -124,6 +124,64 @@ class TestKong:
         resp = authorized_test_client.post("/kong/datastore", json=bad_request, auth=BearerAuth(TEST_JWT))
         assert resp.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
+    @patch("hub_adapter.routers.kong.kong_admin_client.RoutesApi.list_route")
+    @patch("hub_adapter.routers.kong.kong_admin_client.ServicesApi.get_service")
+    def test_get_data_store_falls_back_to_project_id(self, mock_get_svc, mock_route, authorized_test_client):
+        """GET /datastore/{id} treats a UUID as a project id if no service matches it directly."""
+        mock_get_svc.side_effect = [
+            ApiException(status=status.HTTP_404_NOT_FOUND, reason="not found"),
+            Service(**KONG_DS_SERVICE_DATA),
+        ]
+        mock_route.return_value = ListRoute200Response(data=[Route(**KONG_LINK_ROUTE_DATA)])
+
+        resp = authorized_test_client.get(f"/kong/datastore/{TEST_MOCK_PROJECT_ID}", auth=BearerAuth(TEST_JWT))
+        assert resp.status_code == status.HTTP_200_OK
+        data = resp.json()["data"]
+        assert len(data) == 1
+        assert data[0]["id"] == TEST_KONG_SERVICE_ID
+        mock_route.assert_called_once_with(tags=f"project:{TEST_MOCK_PROJECT_ID}")
+
+    @patch("hub_adapter.routers.kong.kong_admin_client.RoutesApi.list_route")
+    @patch("hub_adapter.routers.kong.kong_admin_client.ServicesApi.get_service")
+    def test_get_data_store_project_fallback_multiple_stores(self, mock_get_svc, mock_route, authorized_test_client):
+        """GET /datastore/{project_id} returns every store linked to the project when there's more than one."""
+        other_service_id = "d3bfa0be-e8ff-4c82-be50-734432dd4580"
+        other_route = {**KONG_LINK_ROUTE_DATA, "id": "other-route-id", "service": {"id": other_service_id}}
+
+        mock_get_svc.side_effect = [
+            ApiException(status=status.HTTP_404_NOT_FOUND, reason="not found"),
+            Service(**KONG_DS_SERVICE_DATA),
+            Service(**{**KONG_DS_SERVICE_DATA, "id": other_service_id, "name": "other-store"}),
+        ]
+        mock_route.return_value = ListRoute200Response(data=[Route(**KONG_LINK_ROUTE_DATA), Route(**other_route)])
+
+        resp = authorized_test_client.get(f"/kong/datastore/{TEST_MOCK_PROJECT_ID}", auth=BearerAuth(TEST_JWT))
+        assert resp.status_code == status.HTTP_200_OK
+        returned_ids = {svc["id"] for svc in resp.json()["data"]}
+        assert returned_ids == {TEST_KONG_SERVICE_ID, other_service_id}
+
+    @patch("hub_adapter.routers.kong.kong_admin_client.RoutesApi.list_route")
+    @patch("hub_adapter.routers.kong.kong_admin_client.ServicesApi.get_service")
+    def test_get_data_store_neither_service_nor_project_found(self, mock_get_svc, mock_route, authorized_test_client):
+        """GET /datastore/{id} 404s when a UUID matches no service and no project with linked stores."""
+        mock_get_svc.side_effect = ApiException(status=status.HTTP_404_NOT_FOUND, reason="not found")
+        mock_route.return_value = ListRoute200Response(data=[])
+
+        resp = authorized_test_client.get(f"/kong/datastore/{TEST_MOCK_PROJECT_ID}", auth=BearerAuth(TEST_JWT))
+        assert resp.status_code == status.HTTP_404_NOT_FOUND
+
+    @patch("hub_adapter.routers.kong.kong_admin_client.RoutesApi.list_route")
+    @patch("hub_adapter.routers.kong.kong_admin_client.ServicesApi.get_service")
+    def test_get_data_store_non_uuid_miss_skips_project_fallback(
+        self, mock_get_svc, mock_route, authorized_test_client
+    ):
+        """A non-UUID name that isn't a known service 404s directly, without attempting a project lookup."""
+        mock_get_svc.side_effect = ApiException(status=status.HTTP_404_NOT_FOUND, reason="not found")
+
+        resp = authorized_test_client.get("/kong/datastore/not-a-real-store", auth=BearerAuth(TEST_JWT))
+        assert resp.status_code == status.HTTP_404_NOT_FOUND
+        mock_route.assert_not_called()
+
     @patch("hub_adapter.routers.kong.kong_admin_client.RoutesApi.delete_route")
     @patch("hub_adapter.routers.kong.kong_admin_client.RoutesApi.list_route")
     @patch("hub_adapter.routers.kong.kong_admin_client.ServicesApi.delete_service")
@@ -155,6 +213,50 @@ class TestKong:
         resp = authorized_test_client.delete(f"/kong/datastore/{TEST_KONG_DS_NAME}", auth=BearerAuth(TEST_JWT))
         assert resp.status_code == status.HTTP_200_OK
         mock_del_svc.assert_called_once_with(service_id_or_name=TEST_KONG_SERVICE_ID)
+
+    @patch("hub_adapter.routers.kong.kong_admin_client.RoutesApi.delete_route")
+    @patch("hub_adapter.routers.kong.kong_admin_client.RoutesApi.list_route")
+    @patch("hub_adapter.routers.kong.kong_admin_client.ServicesApi.delete_service")
+    @patch("hub_adapter.routers.kong.kong_admin_client.ServicesApi.get_service")
+    def test_delete_data_store_project_fallback(
+        self, mock_get_svc, mock_del_svc, mock_list_route, mock_del_route, authorized_test_client
+    ):
+        """DELETE /datastore/{project_id} resolves the single linked store and deletes it (cascade)."""
+        mock_get_svc.side_effect = [
+            ApiException(status=status.HTTP_404_NOT_FOUND, reason="not found"),
+            Service(**KONG_DS_SERVICE_DATA),
+        ]
+        mock_list_route.return_value = ListRoute200Response(data=[Route(**KONG_LINK_ROUTE_DATA)])
+
+        resp = authorized_test_client.delete(
+            f"/kong/datastore/{TEST_MOCK_PROJECT_ID}", params={"cascade": True}, auth=BearerAuth(TEST_JWT)
+        )
+        assert resp.status_code == status.HTTP_200_OK
+        mock_del_route.assert_called_once_with(KONG_LINK_ROUTE_DATA["id"])
+        mock_del_svc.assert_called_once_with(service_id_or_name=TEST_KONG_SERVICE_ID)
+
+    @patch("hub_adapter.routers.kong.kong_admin_client.RoutesApi.delete_route")
+    @patch("hub_adapter.routers.kong.kong_admin_client.RoutesApi.list_route")
+    @patch("hub_adapter.routers.kong.kong_admin_client.ServicesApi.delete_service")
+    @patch("hub_adapter.routers.kong.kong_admin_client.ServicesApi.get_service")
+    def test_delete_data_store_ambiguous_project_fallback(
+        self, mock_get_svc, mock_del_svc, mock_list_route, mock_del_route, authorized_test_client
+    ):
+        """DELETE /datastore/{project_id} refuses (409) when the project resolves to multiple stores."""
+        other_service_id = "d3bfa0be-e8ff-4c82-be50-734432dd4580"
+        other_route = {**KONG_LINK_ROUTE_DATA, "id": "other-route-id", "service": {"id": other_service_id}}
+
+        mock_get_svc.side_effect = [
+            ApiException(status=status.HTTP_404_NOT_FOUND, reason="not found"),
+            Service(**KONG_DS_SERVICE_DATA),
+            Service(**{**KONG_DS_SERVICE_DATA, "id": other_service_id, "name": "other-store"}),
+        ]
+        mock_list_route.return_value = ListRoute200Response(data=[Route(**KONG_LINK_ROUTE_DATA), Route(**other_route)])
+
+        resp = authorized_test_client.delete(f"/kong/datastore/{TEST_MOCK_PROJECT_ID}", auth=BearerAuth(TEST_JWT))
+        assert resp.status_code == status.HTTP_409_CONFLICT
+        mock_del_route.assert_not_called()
+        mock_del_svc.assert_not_called()
 
     @patch("hub_adapter.routers.kong.kong_admin_client.RoutesApi.list_route")
     def test_get_projects(self, mock_route, authorized_test_client):

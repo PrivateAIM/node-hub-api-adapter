@@ -225,6 +225,31 @@ class KongProjectEmptyError(KongError):
         )
 
 
+class KongDatastoreOrProjectNotFoundError(KongError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "message": f"No data store or project found matching {identifier!r}",
+                "service": "Kong",
+                "status_code": status.HTTP_404_NOT_FOUND,
+            },
+        )
+
+
+class KongAmbiguousProjectDatastoreError(KongError):
+    def __init__(self, project_id: str, datastore_ids: list[str]):
+        super().__init__(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "message": f"Project {project_id} is linked to multiple data stores "
+                f"({', '.join(datastore_ids)}); specify one directly.",
+                "service": "Kong",
+                "status_code": status.HTTP_409_CONFLICT,
+            },
+        )
+
+
 class KongProjectNotMappedError(KongError):
     def __init__(self):
         super().__init__(

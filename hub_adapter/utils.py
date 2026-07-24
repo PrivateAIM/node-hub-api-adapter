@@ -154,10 +154,11 @@ _NAME_PATTERN = re.compile(r"^[a-zA-Z0-9._~-]+$")
 
 
 def is_uuid(value: str) -> bool:
-    """Return True if the value parses as a UUID."""
+    """Return True if the value parses as a UUID. This is oddly the best way to safely check UUID validity."""
     try:
         uuid.UUID(str(value))
         return True
+
     except (ValueError, AttributeError, TypeError):
         return False
 
