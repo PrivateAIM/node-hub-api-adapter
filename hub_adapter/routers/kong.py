@@ -89,13 +89,13 @@ DEFAULT_METHODS: list[HttpMethodCode] = [HttpMethodCode.GET]
 DEFAULT_PROTOCOLS: list[ProtocolCode] = [ProtocolCode.HTTP]
 
 
-def _require_uuid_link_ids(project_id: str | uuid.UUID, datastore_id: str | uuid.UUID) -> None:
-    """Validate that project_id and datastore_id are UUID-shaped before building a Kong tags filter.
+def _require_uuid_ids(**ids: str | uuid.UUID) -> None:
+    """Validate that the given ids are UUID-shaped before using them in Kong tags filters or ACL groups.
 
-    Kong treats ',' in a tags filter as an AND separator between whole tag values. A project/datastore id containing
-    a comma would corrupt the filter built from it.
+    Kong treats ',' in a tags filter as an AND separator between whole tag values. An id containing a comma would
+    corrupt the filter built from it.
     """
-    for name, value in (("project_id", project_id), ("datastore_id", datastore_id)):
+    for name, value in ids.items():
         if not is_uuid(value):
             raise KongValidationError(f"{name} must be a valid UUID, got {value!r}")
 
@@ -444,7 +444,7 @@ async def link_project_to_datastore(
     The route carries all relationship data in its tags and has no name, the project's analyses reach it automatically
     through their project ACL group.
     """
-    _require_uuid_link_ids(project_id, datastore_id)
+    _require_uuid_ids(project_id=project_id, datastore_id=datastore_id)
 
     configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
     methods = [HttpMethodCode(m).value for m in (methods or DEFAULT_METHODS)]
@@ -602,7 +602,7 @@ async def unlink_project_from_datastore(
     datastore_id: Annotated[uuid.UUID | str, Path(description="Kong service ID of the data store")],
 ) -> UnlinkResponse:
     """Unlink a single data store from a project. Consumers (analyses) are kept."""
-    _require_uuid_link_ids(project_id, datastore_id)
+    _require_uuid_ids(project_id=project_id, datastore_id=datastore_id)
 
     configuration = kong_admin_client.Configuration(host=settings.kong_admin_service_url)
 
@@ -728,6 +728,8 @@ async def create_and_connect_analysis_to_project(
     analysis_id: Annotated[str | uuid.UUID, Body(description="UUID or name of the analysis")],
 ):
     """Create a new analysis and link it to a project."""
+    _require_uuid_ids(project_id=project_id, analysis_id=analysis_id)
+
     proj_resp = get_projects(settings=settings, project_id=project_id, detailed=False)
     if not proj_resp.data:
         raise KongProjectNotMappedError()
@@ -857,7 +859,7 @@ async def probe_connection(
 
     Because we use the key-auth plugin, a consumer is required for pinging the data service.
     """
-    _require_uuid_link_ids(project_id, datastore_id)
+    _require_uuid_ids(project_id=project_id, datastore_id=datastore_id)
 
     if not settings.kong_proxy_service_url:
         raise KongProxyNotConfiguredError()

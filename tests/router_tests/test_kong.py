@@ -510,6 +510,22 @@ class TestKong:
         broken_resp = authorized_test_client.post("/kong/analysis", json=body_data, auth=BearerAuth(TEST_JWT))
         assert broken_resp.status_code == status.HTTP_404_NOT_FOUND
 
+    @patch("hub_adapter.routers.kong.get_projects")
+    def test_create_analysis_rejects_non_uuid_ids(self, mock_projects, authorized_test_client):
+        """A non-UUID project_id/analysis_id is rejected with 422 before any Kong lookup.
+
+        Both ids end up in Kong tags and the consumer's ACL group; a comma would corrupt tag filters
+        and a malformed id would produce an ACL group that never matches any link route.
+        """
+        for body_data in (
+            {"project_id": f"{TEST_MOCK_PROJECT_ID},health", "analysis_id": TEST_MOCK_ANALYSIS_ID},
+            {"project_id": TEST_MOCK_PROJECT_ID, "analysis_id": f"{TEST_MOCK_ANALYSIS_ID},health"},
+        ):
+            resp = authorized_test_client.post("/kong/analysis", json=body_data, auth=BearerAuth(TEST_JWT))
+            assert resp.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+        mock_projects.assert_not_called()
+
     @patch("hub_adapter.routers.kong.kong_admin_client.ConsumersApi.delete_consumer")
     @patch("hub_adapter.routers.kong.kong_admin_client.ConsumersApi.list_consumer")
     def test_delete_analysis(self, mock_list_consumer, mock_delete, authorized_test_client):
