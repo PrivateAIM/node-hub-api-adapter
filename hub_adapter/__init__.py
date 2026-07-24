@@ -84,7 +84,7 @@ logging_config = {
             "datefmt": "%Y-%m-%d %H:%M:%S",
         },
         "console_formatter": {
-            # "()": JsonFormatter,
+            "()": JsonFormatter,
             "format": "%(asctime)s [%(levelname)s] %(message)s",
             "datefmt": "%Y-%m-%d %H:%M:%S",
         },
