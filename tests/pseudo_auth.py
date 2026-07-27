@@ -1,9 +1,9 @@
 """Create fake credentials for testing methods."""
-import httpx
-from httpx import Request
+import httpx2
+from httpx2 import Request
 
 
-class BearerAuth(httpx.Auth):
+class BearerAuth(httpx2.Auth):
     def __init__(self, token: str):
         self.__token = token
 

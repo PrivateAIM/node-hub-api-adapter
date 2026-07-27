@@ -70,6 +70,11 @@ def test_settings() -> Settings:
             http_proxy="http://squid.proxy:3128",
             https_proxy="http://squid.proxy:3128",
             node_svc_oidc_url=TEST_SVC_URL,
+            # Pinned so a developer's local .env cannot switch the optional services on
+            victoria_logs_url=None,
+            message_broker_url=None,
+            s3_url=None,
+            fhir_url=None,
         )
 
 

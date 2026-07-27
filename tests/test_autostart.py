@@ -8,7 +8,7 @@ from unittest.mock import ANY, MagicMock, patch
 import pytest
 from fastapi import HTTPException
 from flame_hub.models import AnalysisNode
-from httpx import ConnectError, HTTPStatusError, RemoteProtocolError, Request, Response
+from httpx2 import ConnectError, HTTPStatusError, RemoteProtocolError, Request, Response
 from kong_admin_client import ListRoute200Response
 from starlette import status
 

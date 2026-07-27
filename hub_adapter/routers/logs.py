@@ -7,7 +7,7 @@ import re
 import uuid
 from typing import Annotated
 
-import httpx
+import httpx2
 from fastapi import APIRouter, Depends, HTTPException, Query, Security, Path
 from starlette import status
 
@@ -45,7 +45,7 @@ async def count_logs(query: str, params: dict | None = None) -> int:
     count_params = {k: v for k, v in (params or {}).items() if k not in ("limit", "offset")}
     query_data = {"query": f"{query} | count() as total", **count_params}
 
-    async with httpx.AsyncClient(event_hooks={"response": [make_log_hook(ServiceTag.LOGS, is_async=True)]}) as client:
+    async with httpx2.AsyncClient(event_hooks={"response": [make_log_hook(ServiceTag.LOGS, is_async=True)]}) as client:
         resp = await client.post(
             f"{settings.victoria_logs_url}/select/logsql/query",
             data=query_data,
@@ -63,7 +63,7 @@ async def _execute_raw_query(query: str, params: dict | None = None) -> list[dic
     """Execute a LogQL query against VictoriaLogs and return raw parsed results."""
     settings = get_settings()
     query_data = {"query": query, **(params or {})}
-    async with httpx.AsyncClient(event_hooks={"response": [make_log_hook(ServiceTag.LOGS, is_async=True)]}) as client:
+    async with httpx2.AsyncClient(event_hooks={"response": [make_log_hook(ServiceTag.LOGS, is_async=True)]}) as client:
         resp = await client.post(
             f"{settings.victoria_logs_url}/select/logsql/query",
             data=query_data,
@@ -105,7 +105,7 @@ async def query_logs(query: str, params: dict | None = None):
 
     _output_fields = {_rename.get(f, f) for f in _fields}
 
-    async with httpx.AsyncClient(event_hooks={"response": [make_log_hook(ServiceTag.LOGS, is_async=True)]}) as client:
+    async with httpx2.AsyncClient(event_hooks={"response": [make_log_hook(ServiceTag.LOGS, is_async=True)]}) as client:
         resp = await client.post(
             f"{settings.victoria_logs_url}/select/logsql/query",
             data=query_data,
@@ -130,7 +130,7 @@ async def _get_analysis_container_names(analysis_id_str: str) -> list[str]:
         "query": f"{query} | uniq by (kubernetes.container_name)",
         "limit": 100,
     }
-    async with httpx.AsyncClient(event_hooks={"response": [make_log_hook(ServiceTag.LOGS, is_async=True)]}) as client:
+    async with httpx2.AsyncClient(event_hooks={"response": [make_log_hook(ServiceTag.LOGS, is_async=True)]}) as client:
         resp = await client.post(
             f"{settings.victoria_logs_url}/select/logsql/query",
             data=query_data,
@@ -178,7 +178,7 @@ async def _query_pod_logs(
     if end_date:
         query_data["end"] = end_date.isoformat()
 
-    async with httpx.AsyncClient(event_hooks={"response": [make_log_hook(ServiceTag.LOGS, is_async=True)]}) as client:
+    async with httpx2.AsyncClient(event_hooks={"response": [make_log_hook(ServiceTag.LOGS, is_async=True)]}) as client:
         resp = await client.post(
             f"{settings.victoria_logs_url}/select/logsql/query",
             data=query_data,

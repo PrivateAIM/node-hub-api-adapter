@@ -5,7 +5,7 @@ import time
 from functools import lru_cache
 from urllib.parse import urlparse, urlunparse
 
-import httpx
+import httpx2
 from fastapi import HTTPException
 from starlette import status
 
@@ -49,7 +49,7 @@ def fetch_openid_config(
     ssl_ctx = get_ssl_context(get_settings())
     while attempt_num <= max_retries:
         try:
-            with httpx.Client(verify=ssl_ctx, event_hooks={"response": [make_log_hook(ServiceTag.IDP)]}) as client:
+            with httpx2.Client(verify=ssl_ctx, event_hooks={"response": [make_log_hook(ServiceTag.IDP)]}) as client:
                 response = client.get(oidc_url)
 
             response.raise_for_status()
@@ -62,13 +62,13 @@ def fetch_openid_config(
 
             return OIDCConfiguration(**oidc_config)
 
-        except (httpx.ConnectError, httpx.ReadTimeout):  # OIDC Service is not up yet
+        except (httpx2.ConnectError, httpx2.ReadTimeout):  # OIDC Service is not up yet
             attempt_num += 1
             wait_time = wait_interval * (2 ** (attempt_num - 1))  # 10s, 20s, 40s, 80s, 160s, 320s
             logger.warning(f"Unable to contact the IDP at {oidc_url}, retrying in {wait_time} seconds")
             time.sleep(wait_time)
 
-        except httpx.HTTPStatusError as e:
+        except httpx2.HTTPStatusError as e:
             err_msg = (
                 f"HTTP error occurred while trying to contact the IDP: {provided_url}, is this the correct issuer URL? "
                 f"If behind a proxy, check if '.cluster.local' is in your noProxy values."
@@ -84,7 +84,7 @@ def fetch_openid_config(
             ) from e
 
     logger.error(f"Unable to contact the IDP at {oidc_url} after {max_retries} retries")
-    raise httpx.ConnectError(f"Unable to contact the IDP at {oidc_url} after {max_retries} retries")
+    raise httpx2.ConnectError(f"Unable to contact the IDP at {oidc_url} after {max_retries} retries")
 
 
 def get_user_oidc_config() -> OIDCConfiguration:

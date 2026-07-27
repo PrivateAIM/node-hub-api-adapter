@@ -2,7 +2,7 @@
 
 from unittest.mock import patch
 
-import httpx
+import httpx2
 import jwt
 import pytest
 from fastapi import HTTPException
@@ -37,10 +37,10 @@ from tests.constants import (
 
 class TestAuth:
     @pytest.mark.asyncio
-    async def test_get_hub_public_key(self, httpx_mock, test_settings):
+    async def test_get_hub_public_key(self, httpx2_mock, test_settings):
         """Test that the public key is returned."""
         fake_key_ep = test_settings.hub_auth_service_url.rstrip("/") + "/jwks"
-        httpx_mock.add_response(url=fake_key_ep, json=TEST_JWKS_RESPONSE, status_code=200)
+        httpx2_mock.get(fake_key_ep).respond(status_code=200, json=TEST_JWKS_RESPONSE)
 
         data = await get_hub_public_key(test_settings)
         assert isinstance(data, dict)
@@ -64,7 +64,7 @@ class TestAuth:
         mock_user_oidc.return_value = ""
         mock_svc_oidc.return_value = ""
 
-        mock_decode.side_effect = httpx.ConnectError("Can't connect to server")
+        mock_decode.side_effect = httpx2.ConnectError("Can't connect to server")
         with pytest.raises(HTTPException) as connect_error:
             await verify_idp_token(test_settings, token=fake_token)
             assert connect_error.value.status_code == status.HTTP_404_NOT_FOUND
@@ -94,7 +94,7 @@ class TestAuth:
 
     @patch("hub_adapter.auth.get_svc_oidc_config")
     @pytest.mark.asyncio
-    async def test_get_internal_token(self, mock_svc_oidc, httpx_mock, test_settings):
+    async def test_get_internal_token(self, mock_svc_oidc, httpx2_mock, test_settings):
         """Test the get_internal_token method."""
         mock_svc_oidc.return_value = TEST_SVC_OIDC
         fake_token_resp = {
@@ -104,7 +104,7 @@ class TestAuth:
             "refresh_token": TEST_JWT,
             "refresh_expires_in": 1800,
         }
-        httpx_mock.add_response(url=TEST_SVC_OIDC.token_endpoint, json=fake_token_resp, status_code=200)
+        httpx2_mock.post(TEST_SVC_OIDC.token_endpoint).respond(status_code=200, json=fake_token_resp)
         assert await _get_internal_token(test_settings) == {"Authorization": f"Bearer {TEST_JWT}"}
 
     @patch("hub_adapter.auth._get_internal_token")
