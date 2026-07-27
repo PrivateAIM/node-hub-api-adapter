@@ -70,7 +70,7 @@ class IntegrationTestRunner:
         health_checks = resp.json()
 
         for service, status_resp in health_checks.items():
-            if not isinstance(status_resp, dict) or status_resp["status"] != "ok":
+            if not isinstance(status_resp, dict) or status_resp["status"] != "OK":
                 err_msg = f"{service} health endpoint returned {status_resp}"
                 logger.error(err_msg)
                 raise HTTPException(

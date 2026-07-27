@@ -5,7 +5,7 @@ from typing import Annotated
 
 import httpx2
 from fastapi import APIRouter, Depends
-from httpx2 import ConnectError, RemoteProtocolError
+from httpx2 import ConnectError, RemoteProtocolError, TimeoutException
 from starlette import status
 
 from hub_adapter.conf import Settings
@@ -87,7 +87,7 @@ def get_health_downstream_services(
                 svc_status = "ERROR"
                 message = resp.text
 
-        except (ConnectError, RemoteProtocolError) as e:
+        except (TimeoutException, RemoteProtocolError, ConnectError) as e:
             logger.error(f"Error connecting to {service} service: {e}")
             status_code = 503
             svc_status = "ERROR"

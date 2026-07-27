@@ -53,8 +53,11 @@ async def get_hub_public_key(
     """Get the central hub service public key."""
     hub_jwks_ep = settings.hub_auth_service_url.rstrip("/") + "/jwks"
     ssl_ctx = get_ssl_context(settings)
-    with httpx2.Client(verify=ssl_ctx, event_hooks={"response": [make_log_hook(ServiceTag.HUB)]}) as client:
-        return client.get(hub_jwks_ep).json()
+    async with httpx2.AsyncClient(
+        verify=ssl_ctx, event_hooks={"response": [make_log_hook(ServiceTag.HUB, is_async=True)]}
+    ) as client:
+        resp = await client.get(hub_jwks_ep)
+    return resp.json()
 
 
 async def verify_idp_token(
