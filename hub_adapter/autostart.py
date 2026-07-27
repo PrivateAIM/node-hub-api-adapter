@@ -8,7 +8,7 @@ from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException
 from flame_hub import HubAPIError
-from httpx import ConnectError, HTTPStatusError, ReadTimeout, RemoteProtocolError
+from httpx2 import ConnectError, HTTPStatusError, ReadTimeout, RemoteProtocolError
 from starlette import status
 
 from hub_adapter.auth import _get_internal_token

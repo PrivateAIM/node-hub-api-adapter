@@ -5,7 +5,7 @@ import uuid
 from typing import Annotated
 
 import flame_hub
-import httpx
+import httpx2
 from fastapi import APIRouter, Depends, Form, HTTPException, Path, Security
 from pydantic import BaseModel
 from starlette import status
@@ -143,7 +143,7 @@ async def terminate_analysis(
             url=microsvc_path, method="delete", headers=headers, request_name="meta.terminate"
         )
 
-    except httpx.ConnectError as e:
+    except httpx2.ConnectError as e:
         msg = "Connection Error - PO is currently unreachable"
         logger.error(msg)
         raise HTTPException(

@@ -3,7 +3,7 @@
 import functools
 import logging
 
-import httpx
+import httpx2
 import pydantic
 from fastapi import HTTPException
 from flame_hub import HubAPIError
@@ -178,7 +178,7 @@ def catch_hub_errors(f):
         try:
             return await f(*args, **kwargs)
 
-        except httpx.ProxyError as e:
+        except httpx2.ProxyError as e:
             err = "Proxy Error - Unable to contact the Hub"
             log_event(
                 "hub.proxy.error",
@@ -197,7 +197,7 @@ def catch_hub_errors(f):
                 headers={"WWW-Authenticate": "Bearer"},
             ) from e
 
-        except httpx.ReadTimeout as e:
+        except httpx2.ReadTimeout as e:
             err = "ReadTimeout Error - Hub is offline or undergoing maintenance"
             log_event(
                 "hub.read.timeout",
@@ -216,7 +216,7 @@ def catch_hub_errors(f):
                 headers={"WWW-Authenticate": "Bearer"},
             ) from e
 
-        except httpx.ConnectError as e:
+        except httpx2.ConnectError as e:
             err = "ConnectError - CoreClient is unable to get token from Hub"
             log_event(
                 "hub.connect.error",
@@ -256,7 +256,7 @@ def catch_hub_errors(f):
         except HubAPIError as err:
             resp_error = err.error_response
 
-            if type(resp_error) is httpx.ConnectTimeout:
+            if type(resp_error) is httpx2.ConnectTimeout:
                 err_msg = "Connection Timeout - Hub is currently unreachable"
                 log_event(
                     "hub.connection.timeout",
@@ -275,7 +275,7 @@ def catch_hub_errors(f):
                     headers={"WWW-Authenticate": "Bearer"},
                 ) from err
 
-            elif type(resp_error) is httpx.ConnectError:
+            elif type(resp_error) is httpx2.ConnectError:
                 err_msg = "Connection Error - Hub is currently unreachable"
                 log_event(
                     "hub.connection.error",

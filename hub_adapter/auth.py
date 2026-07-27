@@ -3,7 +3,7 @@
 import logging
 from typing import Annotated
 
-import httpx
+import httpx2
 import jwt
 from fastapi import Depends, HTTPException, Security
 from fastapi.security import (
@@ -41,7 +41,7 @@ class ProxiedPyJWKClient(PyJWKClient):
         self._ssl_ctx = get_ssl_context(get_settings())
 
     def fetch_data(self):
-        with httpx.Client(verify=self._ssl_ctx, event_hooks={"response": [make_log_hook(ServiceTag.IDP)]}) as client:
+        with httpx2.Client(verify=self._ssl_ctx, event_hooks={"response": [make_log_hook(ServiceTag.IDP)]}) as client:
             response = client.get(self.uri)
             response.raise_for_status()
             return response.json()
@@ -53,7 +53,7 @@ async def get_hub_public_key(
     """Get the central hub service public key."""
     hub_jwks_ep = settings.hub_auth_service_url.rstrip("/") + "/jwks"
     ssl_ctx = get_ssl_context(settings)
-    with httpx.Client(verify=ssl_ctx, event_hooks={"response": [make_log_hook(ServiceTag.HUB)]}) as client:
+    with httpx2.Client(verify=ssl_ctx, event_hooks={"response": [make_log_hook(ServiceTag.HUB)]}) as client:
         return client.get(hub_jwks_ep).json()
 
 
@@ -99,7 +99,7 @@ async def verify_idp_token(
             options={"verify_signature": True, "verify_aud": False, "exp": True},
         )
 
-    except httpx.ConnectError as e:
+    except httpx2.ConnectError as e:
         err_msg = f"{status.HTTP_404_NOT_FOUND} - {e}"
         if settings.http_proxy or settings.https_proxy:
             err_msg += f" - Possibly an issue with the forward proxy: {settings.http_proxy}"
@@ -178,7 +178,7 @@ async def _get_internal_token(settings: Annotated[Settings, Depends(get_settings
 
     ssl_ctx = get_ssl_context(settings)
 
-    with httpx.Client(verify=ssl_ctx, event_hooks={"response": [make_log_hook(ServiceTag.IDP)]}) as client:
+    with httpx2.Client(verify=ssl_ctx, event_hooks={"response": [make_log_hook(ServiceTag.IDP)]}) as client:
         resp = client.post(int_token_ep, data=payload)
     resp.raise_for_status()
     token_data = resp.json()

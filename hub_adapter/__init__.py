@@ -118,7 +118,7 @@ logging_config = {
             "handlers": ["file_handler", "console_handler"],
             "level": "INFO",
         },
-        "httpx": {
+        "httpx2": {
             "level": "WARNING",
         },
         "uvicorn.access": {

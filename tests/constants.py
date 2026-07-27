@@ -83,6 +83,7 @@ MOCK_ANALYSIS = {
     "distribution_progress": None,
     "execution_status": None,
     "execution_progress": 0,
+    "client_id": "9cdbb3eb-ea20-45e5-9b5b-ba18b760e4db",
 }
 
 MOCK_ANALYSIS_NODE = {
