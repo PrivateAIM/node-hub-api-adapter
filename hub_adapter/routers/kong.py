@@ -800,7 +800,7 @@ async def probe_connection(
 
 
 def probe_data_service(url: str, apikey: str, is_fhir: bool, attempt: int = 1, max_attempts: int = 4) -> int:
-    """Use httpx to probe the data service."""
+    """Use httpx2 to probe the data service."""
     svc_resp = httpx2.get(
         url,
         headers={"apikey": apikey},

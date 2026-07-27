@@ -153,4 +153,34 @@ class TestMeta:
             assert unknown_error.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
             assert mock_logger.error.call_count == 1
 
+    @pytest.mark.asyncio
+    @patch("hub_adapter.routers.meta.logger")
+    @patch("hub_adapter.routers.meta.make_request")
+    @patch("hub_adapter.routers.meta._get_internal_token")
+    @patch("hub_adapter.routers.meta.delete_analysis")
+    async def test_terminate_analysis_idp_unreachable(
+        self,
+        mock_deletion,
+        mock_token,
+        mock_po_request,
+        mock_logger,
+        test_settings,
+    ):
+        """An unreachable IDP is reported as a retryable 503 rather than escaping as a 500."""
+        mock_deletion.return_value = None
+        mock_token.side_effect = ConnectError(message="")
+
+        with pytest.raises(HTTPException) as idp_connection_error:
+            await terminate_analysis(TEST_MOCK_ANALYSIS_ID, test_settings)
+
+        err_msg = "Connection Error - IDP is currently unreachable"
+        assert idp_connection_error.value.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+        assert idp_connection_error.value.detail == {
+            "message": err_msg,
+            "service": "IDP",
+            "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
+        }
+        mock_logger.error.assert_called_once_with(err_msg)
+        mock_po_request.assert_not_called()  # The PO is never contacted without a token
+
         # assert mock_logger.info.call_args_list[0] == f"Analysis {TEST_MOCK_ANALYSIS_ID} had no pods running that could be terminated"
