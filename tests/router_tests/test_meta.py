@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 from fastapi import HTTPException
-from httpx import ConnectError
+from httpx2 import ConnectError
 from starlette import status
 
 from hub_adapter.dependencies import get_core_client, get_flame_hub_auth_flow, get_ssl_context

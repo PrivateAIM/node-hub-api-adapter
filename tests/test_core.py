@@ -1,6 +1,6 @@
 """Test the key functions that govern the gateway."""
 
-import httpx
+import httpx2
 import pytest
 from starlette.responses import FileResponse
 
@@ -12,11 +12,11 @@ class TestCore:
     """Test the core module methods."""
 
     @pytest.mark.asyncio
-    async def test_working_make_request(self, httpx_mock):
+    async def test_working_make_request(self, httpx2_mock):
         """Test the make_request method."""
         ep = f"{TEST_URL}/nodes"
         resp = {"foo": "bar"}
-        httpx_mock.add_response(url=ep, json=resp, status_code=200)
+        httpx2_mock.get(ep).respond(status_code=200, json=resp)
 
         working_resp, working_code = await make_request(ep, method="get", headers={})
 
@@ -25,21 +25,21 @@ class TestCore:
         assert working_resp == resp
 
     @pytest.mark.asyncio
-    async def test_broken_make_request(self, httpx_mock):
+    async def test_broken_make_request(self, httpx2_mock):
         """Test the make_request method and it raises an error."""
         ep = f"{TEST_URL}/nodes/broken"
-        httpx_mock.add_exception(httpx.ConnectError(message="No bueno"), url=ep)
+        httpx2_mock.get(ep).mock(side_effect=httpx2.ConnectError("No bueno"))
 
-        with pytest.raises(httpx.ConnectError) as respError:
+        with pytest.raises(httpx2.ConnectError) as respError:
             await make_request(ep, method="get", headers={})
 
         assert respError.value.args[0] == "No bueno"
 
     @pytest.mark.asyncio
-    async def test_working_make_request_file_response(self, httpx_mock):
+    async def test_working_make_request_file_response(self, httpx2_mock):
         """Test the make_request method and if it can return a FileResponse object."""
         ep = f"{TEST_URL}/nodes/file"
-        httpx_mock.add_response(url=ep, json={"foo": "bar"}, status_code=200)
+        httpx2_mock.get(ep).respond(status_code=200, json={"foo": "bar"})
 
         file_resp, working_code = await make_request(ep, method="get", headers={}, file_response=True)
 
@@ -47,14 +47,14 @@ class TestCore:
         assert isinstance(file_resp, FileResponse)
 
     # TODO write unit tests for route decorator
-    # def test_route_decorator(self, httpx_mock):
+    # def test_route_decorator(self, httpx2_mock):
     #     """Test the route decorator function."""
     #     ep_url = f"{TEST_URL}"
     #     ep_path = "/nodes"
     #     expected_status_code = status.HTTP_200_OK
     #     expected_response = {"foo": "bar"}
     #
-    #     httpx_mock.add_response(url=f"{ep_url}{ep_path}", json=expected_response, status_code=expected_status_code)
+    #     httpx2_mock.add_response(url=f"{ep_url}{ep_path}", json=expected_response, status_code=expected_status_code)
     #     test_request = Request(method="get", url=f"{ep_url}{ep_path}")
     #
     #     @route(

@@ -2,7 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
-import httpx
+import httpx2
 import pytest
 from fastapi import HTTPException
 from starlette import status
@@ -31,7 +31,7 @@ class TestAuthRouter:
         check_routes(auth_router, EXPECTED_AUTH_ROUTE_CONFIG, test_client)
 
     @patch("hub_adapter.routers.auth.get_svc_oidc_config")
-    @patch("hub_adapter.routers.auth.httpx.Client")
+    @patch("hub_adapter.routers.auth.httpx2.Client")
     def test_get_token_success(self, mock_client_cls, mock_oidc_config, test_settings):
         """get_token returns a Token when the IDP responds with 200."""
         mock_oidc_config.return_value = TEST_OIDC
@@ -45,7 +45,7 @@ class TestAuthRouter:
             "scope": "openid",
         }
         mock_resp = MagicMock()
-        mock_resp.status_code = httpx.codes.OK
+        mock_resp.status_code = httpx2.codes.OK
         mock_resp.json.return_value = token_payload
 
         mock_client = MagicMock()
@@ -61,7 +61,7 @@ class TestAuthRouter:
         assert result.access_token == "abc123"
 
     @patch("hub_adapter.routers.auth.get_svc_oidc_config")
-    @patch("hub_adapter.routers.auth.httpx.Client")
+    @patch("hub_adapter.routers.auth.httpx2.Client")
     def test_get_token_raises_on_non_200(self, mock_client_cls, mock_oidc_config, test_settings):
         """get_token raises HTTPException when the IDP returns a non-200 status."""
         mock_oidc_config.return_value = TEST_OIDC

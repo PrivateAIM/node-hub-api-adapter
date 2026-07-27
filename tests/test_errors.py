@@ -3,7 +3,7 @@
 import logging
 from unittest.mock import ANY, MagicMock, patch
 
-import httpx
+import httpx2
 import pytest
 from fastapi import HTTPException
 from flame_hub import HubAPIError
@@ -96,12 +96,12 @@ class TestCatchHubErrorsLogging:
     @patch("hub_adapter.errors.log_event")
     @pytest.mark.asyncio
     async def test_proxy_error_logs(self, mock_log_event):
-        """catch_hub_errors logs hub.proxy.error on httpx.ProxyError."""
-        import httpx
+        """catch_hub_errors logs hub.proxy.error on httpx2.ProxyError."""
+        import httpx2
 
         @catch_hub_errors
         async def raise_proxy():
-            raise httpx.ProxyError("proxy down")
+            raise httpx2.ProxyError("proxy down")
 
         with pytest.raises(Exception):
             await raise_proxy()
@@ -117,12 +117,12 @@ class TestCatchHubErrorsLogging:
     @patch("hub_adapter.errors.log_event")
     @pytest.mark.asyncio
     async def test_read_timeout_logs(self, mock_log_event):
-        """catch_hub_errors logs hub.read.timeout on httpx.ReadTimeout."""
-        import httpx
+        """catch_hub_errors logs hub.read.timeout on httpx2.ReadTimeout."""
+        import httpx2
 
         @catch_hub_errors
         async def raise_timeout():
-            raise httpx.ReadTimeout("timed out", request=None)
+            raise httpx2.ReadTimeout("timed out", request=None)
 
         with pytest.raises(Exception):
             await raise_timeout()
@@ -138,12 +138,12 @@ class TestCatchHubErrorsLogging:
     @patch("hub_adapter.errors.log_event")
     @pytest.mark.asyncio
     async def test_connect_error_logs(self, mock_log_event):
-        """catch_hub_errors logs hub.connect.error on httpx.ConnectError."""
-        import httpx
+        """catch_hub_errors logs hub.connect.error on httpx2.ConnectError."""
+        import httpx2
 
         @catch_hub_errors
         async def raise_connect():
-            raise httpx.ConnectError("cannot connect")
+            raise httpx2.ConnectError("cannot connect")
 
         with pytest.raises(Exception):
             await raise_connect()
@@ -265,8 +265,8 @@ class TestCatchHubErrorsHubAPIError:
     @pytest.mark.asyncio
     async def test_hub_api_error_connect_timeout_raises_hub_timeout_error(self, mock_log_event):
         """HubAPIError with ConnectTimeout error_response raises HubTimeoutError."""
-        fake_request = httpx.Request("GET", "http://hub")
-        connect_timeout = httpx.ConnectTimeout("timed out", request=fake_request)
+        fake_request = httpx2.Request("GET", "http://hub")
+        connect_timeout = httpx2.ConnectTimeout("timed out", request=fake_request)
 
         @catch_hub_errors
         async def raise_hub_error():
@@ -288,8 +288,8 @@ class TestCatchHubErrorsHubAPIError:
     @pytest.mark.asyncio
     async def test_hub_api_error_connect_error_raises_hub_connect_error(self, mock_log_event):
         """HubAPIError with ConnectError error_response raises HubConnectError."""
-        fake_request = httpx.Request("GET", "http://hub")
-        connect_error = httpx.ConnectError("refused")
+        fake_request = httpx2.Request("GET", "http://hub")
+        connect_error = httpx2.ConnectError("refused")
 
         @catch_hub_errors
         async def raise_hub_error():
@@ -311,7 +311,7 @@ class TestCatchHubErrorsHubAPIError:
     @pytest.mark.asyncio
     async def test_hub_api_error_other_raises_http_exception(self, mock_log_event):
         """HubAPIError with any other error_response raises a plain HTTPException."""
-        fake_request = httpx.Request("GET", "http://hub")
+        fake_request = httpx2.Request("GET", "http://hub")
         error_resp = MagicMock()
         error_resp.status_code = status.HTTP_403_FORBIDDEN
         error_resp.message = "Forbidden by hub"

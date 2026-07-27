@@ -448,7 +448,7 @@ class TestConnection:
         mock_response = MagicMock()
         mock_response.status_code = status_code
 
-        with patch("httpx.get", return_value=mock_response), pytest.raises(error_type) as expected_error:
+        with patch("httpx2.get", return_value=mock_response), pytest.raises(error_type) as expected_error:
             probe_data_service(url="fakeurl", apikey="fakekey", is_fhir=is_fhir, attempt=1, max_attempts=0)
 
         assert expected_error.type is error_type

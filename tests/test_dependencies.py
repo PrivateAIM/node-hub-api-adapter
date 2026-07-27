@@ -5,7 +5,7 @@ import uuid
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import httpx
+import httpx2
 import pytest
 from fastapi import HTTPException
 from flame_hub import CoreClient
@@ -111,7 +111,7 @@ class TestDeps:
         # Test when Hub is down
         with (
             patch(
-                "flame_hub._core_client.CoreClient.find_nodes", side_effect=httpx.ConnectError(message="Hub is dead")
+                "flame_hub._core_client.CoreClient.find_nodes", side_effect=httpx2.ConnectError(message="Hub is dead")
             ),
             pytest.raises(HubConnectError) as hubError,
         ):
@@ -125,7 +125,7 @@ class TestDeps:
         """Test the get_node_type_cache method."""
         mock_node_id.return_value = TEST_MOCK_NODE.id
         with patch("flame_hub._core_client.CoreClient.get_node") as cc_response:
-            cc_response.side_effect = httpx.ConnectError(message="Hub is dead")
+            cc_response.side_effect = httpx2.ConnectError(message="Hub is dead")
 
             with pytest.raises(HubConnectError) as hubError:
                 await get_node_type_cache(self.mock_settings, self.cc)
