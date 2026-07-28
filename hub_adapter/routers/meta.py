@@ -5,7 +5,7 @@ import uuid
 from typing import Annotated
 
 import flame_hub
-import httpx
+import httpx2
 from fastapi import APIRouter, Depends, Form, HTTPException, Path, Security
 from pydantic import BaseModel
 from starlette import status
@@ -65,7 +65,7 @@ async def initialize_analysis(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={
                 "message": f"Analysis {analysis_params.analysis_id} not found",
-                "service": "Hub",
+                "service": ServiceTag.HUB,
                 "status_code": status.HTTP_404_NOT_FOUND,
             },
         )
@@ -86,7 +86,7 @@ async def initialize_analysis(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={
                 "message": "Analysis not ready",
-                "service": "Hub",
+                "service": ServiceTag.HUB,
                 "status_code": status.HTTP_404_NOT_FOUND,
             },
         )
@@ -111,7 +111,7 @@ async def initialize_analysis(
             status_code=start_status_code,
             detail={
                 "message": "Failed to initialize analysis",
-                "service": "PO",
+                "service": ServiceTag.PODORC,
                 "status_code": start_status_code,
             },
             headers={"WWW-Authenticate": "Bearer"},
@@ -141,7 +141,21 @@ async def terminate_analysis(
 
         logger.info(f"No Kong consumer found for analysis {analysis_id}, continuing with pod deletion")
 
-    headers = await _get_internal_token(settings)
+    try:
+        headers = await _get_internal_token(settings)
+
+    except httpx2.ConnectError as e:
+        msg = "Connection Error - IDP is currently unreachable"
+        logger.error(msg)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "message": msg,
+                "service": ServiceTag.IDP,
+                "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
+            },
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from e
 
     microsvc_path = f"{settings.podorc_service_url}/po/delete/{analysis_id}"
 
@@ -150,14 +164,14 @@ async def terminate_analysis(
             url=microsvc_path, method="delete", headers=headers, request_name="meta.terminate"
         )
 
-    except httpx.ConnectError as e:
+    except httpx2.ConnectError as e:
         msg = "Connection Error - PO is currently unreachable"
         logger.error(msg)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail={  # Invalid authentication credentials
                 "message": msg,
-                "service": "PO",
+                "service": ServiceTag.PODORC,
                 "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
             },
             headers={"WWW-Authenticate": "Bearer"},
@@ -169,7 +183,7 @@ async def terminate_analysis(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={
                 "message": f"Service error - {e}",
-                "service": "PO",
+                "service": ServiceTag.PODORC,
                 "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
             },
             headers={"WWW-Authenticate": "Bearer"},

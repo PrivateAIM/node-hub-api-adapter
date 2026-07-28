@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Annotated
 
 import flame_hub
-import httpx
+import httpx2
 import truststore
 from fastapi import Body, Depends, HTTPException
 from flame_hub import HubAPIError
@@ -78,7 +78,7 @@ def get_flame_hub_auth_flow(
     auth = ClientAuth(
         client_id=hub_node_client_id,
         client_secret=hub_node_client_secret,
-        client=httpx.Client(
+        client=httpx2.Client(
             base_url=settings.hub_auth_service_url,
             verify=ssl_ctx,
             event_hooks={"response": [make_log_hook(ServiceTag.HUB)]},
@@ -90,7 +90,7 @@ def get_flame_hub_auth_flow(
 def make_log_hook(service: str, is_async: bool = False, event_name: str | None = None):
     """Return an httpx response event hook that logs with the given service label."""
 
-    def log_response(response: httpx.Response) -> None:
+    def log_response(response: httpx2.Response) -> None:
         request = response.request
         log_level = logging.ERROR if response.status_code >= 400 else logging.INFO
         event = f"{event_name}.response" if event_name else f"{service.lower()}.http.response"
@@ -102,7 +102,7 @@ def make_log_hook(service: str, is_async: bool = False, event_name: str | None =
             service=service,
         )
 
-    async def async_log_response(response: httpx.Response) -> None:
+    async def async_log_response(response: httpx2.Response) -> None:
         log_response(response)
 
     return async_log_response if is_async else log_response
@@ -117,7 +117,7 @@ def get_core_client(
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> flame_hub.CoreClient:
     return flame_hub.CoreClient(
-        client=httpx.Client(
+        client=httpx2.Client(
             base_url=settings.hub_service_url,
             auth=hub_auth,
             verify=ssl_ctx,
@@ -157,7 +157,7 @@ async def get_node_id(
         try:
             node_id_resp = core_client.find_nodes(filter={"client_id": node_client_id}, fields="id")
 
-        except httpx.ConnectError as e:
+        except httpx2.ConnectError as e:
             err = "Connection Error - Hub is currently unreachable"
             logger.error(err)
             raise HubConnectError(
@@ -194,7 +194,7 @@ async def get_node_type_cache(
             node_resp = core_client.get_node(node_id=node_id)
             _node_type_cache = {"type": node_resp.type}
 
-        except httpx.ConnectError as e:
+        except httpx2.ConnectError as e:
             err = "Connection Error - Hub is currently unreachable"
             logger.error(err)
             raise HubConnectError(

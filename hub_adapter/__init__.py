@@ -84,7 +84,7 @@ logging_config = {
             "datefmt": "%Y-%m-%d %H:%M:%S",
         },
         "console_formatter": {
-            "()": JsonFormatter,
+            # "()": JsonFormatter,
             "format": "%(asctime)s [%(levelname)s] %(message)s",
             "datefmt": "%Y-%m-%d %H:%M:%S",
         },
@@ -118,7 +118,7 @@ logging_config = {
             "handlers": ["file_handler", "console_handler"],
             "level": "INFO",
         },
-        "httpx": {
+        "httpx2": {
             "level": "WARNING",
         },
         "uvicorn.access": {

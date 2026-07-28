@@ -5,7 +5,7 @@ import logging
 import os
 from dataclasses import dataclass
 
-import httpx
+import httpx2
 from fastapi import HTTPException
 from starlette import status
 
@@ -44,7 +44,7 @@ class IntegrationTestRunner:
         self.hub_robot = get_flame_hub_auth_flow(self.ssl_ctx, settings)
         self.core_client = get_core_client(self.hub_robot, self.ssl_ctx, settings)
         self.token: dict | None = None
-        self.http_client: httpx.AsyncClient | None = None
+        self.http_client: httpx2.AsyncClient | None = None
         self.datastore_id: str | None = None
         self._resources_created = {
             "datastore": False,
@@ -56,7 +56,7 @@ class IntegrationTestRunner:
 
     async def __aenter__(self):
         """Initialize async resources."""
-        self.http_client = httpx.AsyncClient(timeout=self.integration_settings.request_timeout)
+        self.http_client = httpx2.AsyncClient(timeout=self.integration_settings.request_timeout)
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -71,7 +71,7 @@ class IntegrationTestRunner:
         health_checks = resp.json()
 
         for service, status_resp in health_checks.items():
-            if not isinstance(status_resp, dict) or status_resp["status"] != "ok":
+            if not isinstance(status_resp, dict) or status_resp["status"] != "OK":
                 err_msg = f"{service} health endpoint returned {status_resp}"
                 logger.error(err_msg)
                 raise HTTPException(
@@ -224,7 +224,7 @@ class IntegrationTestRunner:
             logger.info("All integration tests passed successfully! ✓")
             logger.info("=" * 45)
 
-        except httpx.HTTPStatusError as e:
+        except httpx2.HTTPStatusError as e:
             logger.error(f"HTTP error during test: {e.response.status_code} - {e.response.text}")
             raise
 

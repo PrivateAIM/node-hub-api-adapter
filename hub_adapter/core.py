@@ -3,18 +3,17 @@ import logging
 import tempfile
 from collections.abc import Sequence
 
-import httpx
+import httpx2
 from fastapi import HTTPException, params, status
 from fastapi.datastructures import Headers
 from fastapi.requests import Request
 from fastapi.responses import JSONResponse, StreamingResponse
-from httpx import ConnectError, DecodingError, HTTPStatusError, ReadTimeout
+from httpx2 import ConnectError, DecodingError, HTTPStatusError, ReadTimeout
 from starlette.responses import FileResponse, Response
 
 from hub_adapter import post_processing, pre_processing
 from hub_adapter.constants import CONTENT_TYPE, ServiceTag
-from hub_adapter.dependencies import get_settings
-from hub_adapter.dependencies import make_log_hook
+from hub_adapter.dependencies import get_settings, make_log_hook
 from hub_adapter.utils import (
     create_request_data,
     unzip_body_object,
@@ -76,7 +75,7 @@ async def make_request(
         files = {}
 
     event_hooks = {"response": [make_log_hook(service, is_async=True, event_name=request_name)]} if service else {}
-    async with httpx.AsyncClient(headers=headers, timeout=60.0, mounts=None, event_hooks=event_hooks) as client:
+    async with httpx2.AsyncClient(headers=headers, timeout=60.0, mounts=None, event_hooks=event_hooks) as client:
         r = await client.request(
             url=url,
             method=method,

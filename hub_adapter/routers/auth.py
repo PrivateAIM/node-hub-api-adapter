@@ -3,7 +3,7 @@
 import ssl
 from typing import Annotated
 
-import httpx
+import httpx2
 from fastapi import APIRouter, Depends, Form, HTTPException
 from starlette import status
 
@@ -46,10 +46,10 @@ def get_token(
         "scope": "openid",
     }
     oidc_config = get_svc_oidc_config()
-    with httpx.Client(verify=ssl_ctx) as client:
+    with httpx2.Client(verify=ssl_ctx) as client:
         resp = client.post(oidc_config.token_endpoint, data=payload)
 
-    if not resp.status_code == httpx.codes.OK:
+    if not resp.status_code == httpx2.codes.OK:
         raise HTTPException(
             status_code=resp.status_code,
             detail=resp.text,  # Invalid authentication credentials
