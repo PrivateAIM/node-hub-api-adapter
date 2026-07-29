@@ -195,7 +195,7 @@ class KongCleanupManager:
                 log_event(
                     "kong_cleanup.poll",
                     event_description="Sweeping for stale Kong analysis consumers",
-                    level=logging.INFO,
+                    level=logging.DEBUG,
                     service=ServiceTag.KONG_CLEANUP,
                 )
                 await reaper.sweep()
