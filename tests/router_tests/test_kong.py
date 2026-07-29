@@ -309,6 +309,32 @@ class TestKong:
         )
         assert dup_resp.status_code == status.HTTP_409_CONFLICT
 
+    @patch("hub_adapter.routers.kong.kong_admin_client.RoutesApi.list_route")
+    @patch("hub_adapter.routers.kong.kong_admin_client.ServicesApi.get_service")
+    def test_link_project_to_datastore_rejects_other_project(
+        self, mock_get_svc, mock_list_route, authorized_test_client
+    ):
+        """POST /project/{pid}/datastore/{dsid} refuses (409) when the store is already linked to a different project.
+
+        The route's matching path carries no project identifier ("/{service_name}/{type}"), so a data store
+        can only ever be linked to one project at a time.
+        """
+        other_project_id = "11111111-2222-3333-4444-555555555555"
+        other_route = {
+            **KONG_LINK_ROUTE_DATA,
+            "tags": [f"project:{other_project_id}", f"datastore:{TEST_KONG_SERVICE_ID}", f"type:{DS_TYPE}"],
+        }
+        mock_get_svc.return_value = Service(**KONG_DS_SERVICE_DATA)
+        mock_list_route.return_value = ListRoute200Response(data=[Route(**other_route)])
+
+        resp = authorized_test_client.post(
+            f"/kong/project/{TEST_MOCK_PROJECT_ID}/datastore/{TEST_KONG_SERVICE_ID}",
+            json={},
+            auth=BearerAuth(TEST_JWT),
+        )
+        assert resp.status_code == status.HTTP_409_CONFLICT
+        assert other_project_id in resp.json()["detail"]["message"]
+
     def test_link_project_to_datastore_rejects_non_uuid_ids(self, authorized_test_client):
         """A comma-bearing (or otherwise non-UUID) project_id/datastore_id is rejected with 422.
 

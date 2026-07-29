@@ -196,6 +196,21 @@ class KongProjectDatastoreLinkConflictError(KongError):
         )
 
 
+class KongDatastoreLinkedToOtherProjectError(KongError):
+    def __init__(self, datastore_id: str, other_project_id: str):
+        super().__init__(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "message": (
+                    f"Data store {datastore_id} is already linked to project {other_project_id}. "
+                    "A data store can only be linked to one project at a time, unlink it first."
+                ),
+                "service": "Kong",
+                "status_code": status.HTTP_409_CONFLICT,
+            },
+        )
+
+
 class KongProjectDatastoreUnlinkedError(KongError):
     def __init__(self, project_id: str, datastore_id: str):
         super().__init__(
@@ -513,9 +528,7 @@ def catch_kong_errors(f):
                         SERVICE: svc,
                         "status_code": e.status,
                     },
-                    headers={"WWW-Authenticate": "Bearer"}
-                    if e.status == status.HTTP_401_UNAUTHORIZED
-                    else None,
+                    headers={"WWW-Authenticate": "Bearer"} if e.status == status.HTTP_401_UNAUTHORIZED else None,
                 ) from e
 
         except MaxRetryError as e:

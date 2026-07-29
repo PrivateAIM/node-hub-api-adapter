@@ -33,6 +33,7 @@ from hub_adapter.errors import (
     KongAnalysisConsumerNotFoundError,
     KongConsumerApiKeyError,
     KongDataStoreLinkedError,
+    KongDatastoreLinkedToOtherProjectError,
     KongDatastoreMissingTypeError,
     KongDatastoreOrProjectNotFoundError,
     KongGatewayError,
@@ -103,6 +104,12 @@ def _find_project_datastore_route(api_client, project_id: str | uuid.UUID, datas
     """List the link routes between a project and a data store via tags."""
     route_api = kong_admin_client.RoutesApi(api_client)
     return route_api.list_route(tags=f"{project_tag(project_id)},{datastore_tag(datastore_id)}")
+
+
+def _find_datastore_routes(api_client, datastore_id: str | uuid.UUID):
+    """List the link routes for a data store, across every project it's linked to."""
+    route_api = kong_admin_client.RoutesApi(api_client)
+    return route_api.list_route(tags=datastore_tag(datastore_id))
 
 
 def _resolve_datastore_services(api_client, datastore_id_or_name: str) -> list[Service]:
@@ -440,8 +447,8 @@ async def link_project_to_datastore(
 ):
     """Link a project to a data store by creating a route on the store's service.
 
-    The route carries all relationship data in its tags and has no name, the project's analyses reach it automatically
-    through their project ACL group.
+    A data store can only be linked to one project at a time.
+    The route's matching path is "/{service_name}/{type}" with no project identifier in it.
     """
     _require_uuid_ids(project_id=project_id, datastore_id=datastore_id)
 
@@ -460,11 +467,18 @@ async def link_project_to_datastore(
         if ds_type is None:
             raise KongDatastoreMissingTypeError(str(datastore_id))
 
-        existing = _find_project_datastore_route(api_client, project_id, svc.id)
-        if existing.data:
-            raise KongProjectDatastoreLinkConflictError(str(project_id), str(svc.id))
+        existing_routes = _find_datastore_routes(api_client, svc.id)
+        if existing_routes.data:
+            existing_project_ids = sorted(
+                {parse_tags(route.tags).get("project", "unknown") for route in existing_routes.data}
+            )
+            if str(project_id) in existing_project_ids:
+                raise KongProjectDatastoreLinkConflictError(str(project_id), str(svc.id))
+
+            raise KongDatastoreLinkedToOtherProjectError(str(svc.id), existing_project_ids[0])
 
         create_route_request = CreateRouteRequest(
+            name=f"{svc.name}-route",
             protocols=protocols,
             methods=methods,
             paths=[f"/{svc.name}/{ds_type}"],

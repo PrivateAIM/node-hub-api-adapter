@@ -411,4 +411,6 @@ class TestKongCleanupManager:
             with suppress(asyncio.CancelledError):
                 await task
 
+            mock_reaper_cls.assert_called()
+            mock_instance.sweep.assert_awaited()
             mock_log_event.assert_called()

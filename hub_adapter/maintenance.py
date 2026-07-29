@@ -193,7 +193,7 @@ class KongCleanupManager:
         while True:
             try:
                 if reaper is None:
-                    reaper = KongCleanupManager()
+                    reaper = KongConsumerReaper()
                 log_event(
                     "kong_cleanup.poll",
                     event_description="Sweeping for stale Kong analysis consumers",
