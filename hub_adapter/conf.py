@@ -15,11 +15,22 @@ class AutostartSettings(BaseModel):
     model_config = {"extra": "forbid"}
 
 
+class KongCleanupSettings(BaseModel):
+    """Settings for the background sweep that deletes Kong analysis consumers once their analysis
+    reaches a terminal status. Always runs; only the interval is configurable.
+    """
+
+    interval: int | None = 30
+
+    model_config = {"extra": "forbid"}
+
+
 class UserSettings(BaseSettings):
     """Node configuration settings set by the user."""
 
     require_data_store: bool | None = True
     autostart: AutostartSettings | None = AutostartSettings()
+    kong_cleanup: KongCleanupSettings | None = KongCleanupSettings()
 
     model_config = SettingsConfigDict(
         env_file=".env",

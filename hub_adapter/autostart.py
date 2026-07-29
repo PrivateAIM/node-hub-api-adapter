@@ -454,7 +454,7 @@ class GoGoAnalysis:
                     url=microsvc_path,
                     method="get",
                     headers=headers,
-                    service=ServiceTag.PODORC,
+                    service=ServiceTag.PODORC.value,
                     request_name="podorc.status.get",
                 )
 

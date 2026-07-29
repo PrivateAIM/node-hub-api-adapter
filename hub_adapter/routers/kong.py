@@ -66,7 +66,6 @@ from hub_adapter.utils import (
     datastore_tag,
     health_username,
     is_uuid,
-    link_path,
     parse_tags,
     project_tag,
     type_tag,
@@ -458,6 +457,8 @@ async def link_project_to_datastore(
         svc = svc_api.get_service(service_id_or_name=str(datastore_id))
         ds_type = parse_tags(svc.tags).get("type")
 
+        route_name = svc.name + "-route"
+
         if ds_type is None:
             raise KongDatastoreMissingTypeError(str(datastore_id))
 
@@ -466,9 +467,11 @@ async def link_project_to_datastore(
             raise KongProjectDatastoreLinkConflictError(str(project_id), str(svc.id))
 
         create_route_request = CreateRouteRequest(
+            name=route_name,
             protocols=protocols,
             methods=methods,
-            paths=[link_path(project_id, svc.id)],
+            paths=[f"/{svc.name}/{ds_type}"],
+            path_handling="v1",
             https_redirect_status_code=426,
             preserve_host=False,
             request_buffering=True,

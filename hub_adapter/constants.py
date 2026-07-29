@@ -28,6 +28,7 @@ class ServiceTag(str, Enum):
 
     AUTH = "Auth"
     AUTOSTART = "Autostart"
+    KONG_CLEANUP = "Kong Cleanup"
     LOGS = "Logs"
     HEALTH = "Health"
     HUB = "Hub"

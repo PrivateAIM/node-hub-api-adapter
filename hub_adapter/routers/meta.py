@@ -111,7 +111,7 @@ async def initialize_analysis(
             status_code=start_status_code,
             detail={
                 "message": "Failed to initialize analysis",
-                "service": ServiceTag.PODORC,
+                "service": ServiceTag.PODORC.value,
                 "status_code": start_status_code,
             },
             headers={"WWW-Authenticate": "Bearer"},
@@ -171,7 +171,7 @@ async def terminate_analysis(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail={  # Invalid authentication credentials
                 "message": msg,
-                "service": ServiceTag.PODORC,
+                "service": ServiceTag.PODORC.value,
                 "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
             },
             headers={"WWW-Authenticate": "Bearer"},
@@ -183,7 +183,7 @@ async def terminate_analysis(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={
                 "message": f"Service error - {e}",
-                "service": ServiceTag.PODORC,
+                "service": ServiceTag.PODORC.value,
                 "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
             },
             headers={"WWW-Authenticate": "Bearer"},
