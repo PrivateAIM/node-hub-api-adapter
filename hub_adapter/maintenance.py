@@ -142,7 +142,7 @@ class KongConsumerReaper:
         try:
             await delete_analysis(settings=self.settings, analysis_id=analysis_id)
 
-        except HTTPException as e:
+        except (HTTPException, ApiException) as e:
             log_event(
                 "kong_cleanup.delete_error",
                 event_description=f"Failed to delete Kong consumer for analysis {analysis_id}: {e}",
@@ -189,9 +189,11 @@ class KongCleanupManager:
 
     async def _run_cleanup(self, interval: int) -> None:
         """Run the cleanup sweep loop."""
-        reaper = KongConsumerReaper()
+        reaper = None
         while True:
             try:
+                if reaper is None:
+                    reaper = KongCleanupManager()
                 log_event(
                     "kong_cleanup.poll",
                     event_description="Sweeping for stale Kong analysis consumers",

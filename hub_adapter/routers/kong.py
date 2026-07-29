@@ -457,8 +457,6 @@ async def link_project_to_datastore(
         svc = svc_api.get_service(service_id_or_name=str(datastore_id))
         ds_type = parse_tags(svc.tags).get("type")
 
-        route_name = svc.name + "-route"
-
         if ds_type is None:
             raise KongDatastoreMissingTypeError(str(datastore_id))
 
@@ -467,7 +465,6 @@ async def link_project_to_datastore(
             raise KongProjectDatastoreLinkConflictError(str(project_id), str(svc.id))
 
         create_route_request = CreateRouteRequest(
-            name=route_name,
             protocols=protocols,
             methods=methods,
             paths=[f"/{svc.name}/{ds_type}"],
@@ -504,8 +501,14 @@ async def link_project_to_datastore(
             protocols=protocols,
         )
 
-        keyauth_response = plugin_api.create_plugin_for_route(route_response.id, create_keyauth_request)
-        acl_response = plugin_api.create_plugin_for_route(route_response.id, create_acl_request)
+        try:
+            keyauth_response = plugin_api.create_plugin_for_route(route_response.id, create_keyauth_request)
+            acl_response = plugin_api.create_plugin_for_route(route_response.id, create_acl_request)
+
+        except (ApiException, HTTPException) as error:
+            logger.error(f"Plugin setup failed to link {project_id} to {svc.id}, deleting route")
+            route_api.delete_route(route_response.id)
+            raise error
 
     try:
         await probe_connection(settings=settings, project_id=project_id, datastore_id=svc.id)

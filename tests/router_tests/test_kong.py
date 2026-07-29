@@ -280,7 +280,7 @@ class TestKong:
     def test_link_project_to_datastore(
         self, mock_get_svc, mock_list_route, mock_create_route, mock_plugin, mock_probe, authorized_test_client
     ):
-        """POST /project/{pid}/datastore/{dsid} creates a nameless tagged route with plugins."""
+        """POST /project/{pid}/datastore/{dsid} creates a tagged route named after the service, with plugins."""
         mock_get_svc.return_value = Service(**KONG_DS_SERVICE_DATA)
         mock_list_route.return_value = ListRoute200Response(data=[])  # not yet linked
         mock_create_route.return_value = Route(**KONG_LINK_ROUTE_DATA)
@@ -296,8 +296,8 @@ class TestKong:
         assert mock_plugin.call_count == 2
 
         route_request = mock_create_route.call_args.args[1]
-        assert route_request.name is None
-        assert route_request.paths == [f"/{TEST_MOCK_PROJECT_ID}/{TEST_KONG_SERVICE_ID}"]
+        assert route_request.name == f"{TEST_KONG_DS_NAME}-route"
+        assert route_request.paths == [f"/{TEST_KONG_DS_NAME}/{DS_TYPE}"]
         assert set(route_request.tags) == set(KONG_LINK_ROUTE_DATA["tags"])
 
         # Already linked -> 409

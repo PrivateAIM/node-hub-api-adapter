@@ -17,7 +17,6 @@ from hub_adapter.dependencies import (
     get_settings,
     get_ssl_context,
 )
-from hub_adapter.oidc import get_svc_oidc_config
 
 
 @dataclass
@@ -202,7 +201,7 @@ class IntegrationTestRunner:
             self._resources_created["datastore"] = False
             logger.info("✓ Datastore cleaned up")
 
-        except (HTTPException, httpx.HTTPStatusError) as e:
+        except (HTTPException, httpx2.HTTPStatusError) as e:
             logger.error(f"Failed to clean up datastore: {e}")
 
     async def run_all_tests(self):

@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, field_validator, model_validator, Field
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
@@ -10,7 +10,7 @@ class AutostartSettings(BaseModel):
     """Autostart Settings."""
 
     enabled: bool | None = False
-    interval: int | None = 60
+    interval: Annotated[int, Field(gt=0)] | None = 60
 
     model_config = {"extra": "forbid"}
 
@@ -20,7 +20,7 @@ class KongCleanupSettings(BaseModel):
     reaches a terminal status. Always runs; only the interval is configurable.
     """
 
-    interval: int | None = 30
+    interval: Annotated[int, Field(gt=0)] | None = 30
 
     model_config = {"extra": "forbid"}
 

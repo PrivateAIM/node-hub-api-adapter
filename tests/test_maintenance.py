@@ -150,8 +150,8 @@ class TestKongConsumerReaperDelete:
         self.gather_deps_patcher.stop()
 
     @pytest.mark.asyncio
-    @patch("hub_adapter.maintenance.py.log_event")
-    @patch("hub_adapter.maintenance.py.delete_analysis", new_callable=AsyncMock)
+    @patch("hub_adapter.maintenance.log_event")
+    @patch("hub_adapter.maintenance.delete_analysis", new_callable=AsyncMock)
     async def test_delete_success_clears_history(self, mock_delete_analysis, mock_log_event):
         self.reaper._history[TEST_MOCK_ANALYSIS_ID] = {"seen_executing": True, "terminal_since": None}
         result = await self.reaper._delete(TEST_MOCK_ANALYSIS_ID, "executed")
@@ -166,8 +166,8 @@ class TestKongConsumerReaperDelete:
         )
 
     @pytest.mark.asyncio
-    @patch("hub_adapter.maintenance.py.log_event")
-    @patch("hub_adapter.maintenance.py.delete_analysis", new_callable=AsyncMock)
+    @patch("hub_adapter.maintenance.log_event")
+    @patch("hub_adapter.maintenance.delete_analysis", new_callable=AsyncMock)
     async def test_delete_failure_keeps_history_and_logs(self, mock_delete_analysis, mock_log_event):
         mock_delete_analysis.side_effect = HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="gone")
         self.reaper._history[TEST_MOCK_ANALYSIS_ID] = {"seen_executing": True, "terminal_since": None}
@@ -196,10 +196,10 @@ class TestKongConsumerReaperSweep:
         self.gather_deps_patcher.stop()
 
     @pytest.mark.asyncio
-    @patch("hub_adapter.maintenance.py.delete_analysis", new_callable=AsyncMock)
-    @patch("hub_adapter.maintenance.py.list_analysis_nodes", new_callable=AsyncMock)
-    @patch("hub_adapter.maintenance.py.get_node_id", new_callable=AsyncMock)
-    @patch("hub_adapter.maintenance.py.get_analyses")
+    @patch("hub_adapter.maintenance.delete_analysis", new_callable=AsyncMock)
+    @patch("hub_adapter.maintenance.list_analysis_nodes", new_callable=AsyncMock)
+    @patch("hub_adapter.maintenance.get_node_id", new_callable=AsyncMock)
+    @patch("hub_adapter.maintenance.get_analyses")
     async def test_sweep_deletes_executed_consumer(
         self, mock_get_analyses, mock_get_node_id, mock_list_nodes, mock_delete_analysis
     ):
@@ -213,10 +213,10 @@ class TestKongConsumerReaperSweep:
         mock_delete_analysis.assert_awaited_once_with(settings=self.reaper.settings, analysis_id=TEST_MOCK_ANALYSIS_ID)
 
     @pytest.mark.asyncio
-    @patch("hub_adapter.maintenance.py.delete_analysis", new_callable=AsyncMock)
-    @patch("hub_adapter.maintenance.py.list_analysis_nodes", new_callable=AsyncMock)
-    @patch("hub_adapter.maintenance.py.get_node_id", new_callable=AsyncMock)
-    @patch("hub_adapter.maintenance.py.get_analyses")
+    @patch("hub_adapter.maintenance.delete_analysis", new_callable=AsyncMock)
+    @patch("hub_adapter.maintenance.list_analysis_nodes", new_callable=AsyncMock)
+    @patch("hub_adapter.maintenance.get_node_id", new_callable=AsyncMock)
+    @patch("hub_adapter.maintenance.get_analyses")
     async def test_sweep_leaves_running_consumer_alone(
         self, mock_get_analyses, mock_get_node_id, mock_list_nodes, mock_delete_analysis
     ):
@@ -231,10 +231,10 @@ class TestKongConsumerReaperSweep:
         assert self.reaper._history[TEST_MOCK_ANALYSIS_ID]["seen_executing"] is True
 
     @pytest.mark.asyncio
-    @patch("hub_adapter.maintenance.py.delete_analysis", new_callable=AsyncMock)
-    @patch("hub_adapter.maintenance.py.list_analysis_nodes", new_callable=AsyncMock)
-    @patch("hub_adapter.maintenance.py.get_node_id", new_callable=AsyncMock)
-    @patch("hub_adapter.maintenance.py.get_analyses")
+    @patch("hub_adapter.maintenance.delete_analysis", new_callable=AsyncMock)
+    @patch("hub_adapter.maintenance.list_analysis_nodes", new_callable=AsyncMock)
+    @patch("hub_adapter.maintenance.get_node_id", new_callable=AsyncMock)
+    @patch("hub_adapter.maintenance.get_analyses")
     async def test_sweep_prunes_history_for_gone_consumers(
         self, mock_get_analyses, mock_get_node_id, mock_list_nodes, mock_delete_analysis
     ):
@@ -250,8 +250,8 @@ class TestKongConsumerReaperSweep:
         assert other_id not in self.reaper._history
 
     @pytest.mark.asyncio
-    @patch("hub_adapter.maintenance.py.log_event")
-    @patch("hub_adapter.maintenance.py.get_analyses")
+    @patch("hub_adapter.maintenance.log_event")
+    @patch("hub_adapter.maintenance.get_analyses")
     async def test_sweep_handles_kong_fetch_error(self, mock_get_analyses, mock_log_event):
         mock_get_analyses.side_effect = ApiException(status=503, reason="Kong down")
 
@@ -266,9 +266,9 @@ class TestKongConsumerReaperSweep:
         )
 
     @pytest.mark.asyncio
-    @patch("hub_adapter.maintenance.py.log_event")
-    @patch("hub_adapter.maintenance.py.get_node_id", new_callable=AsyncMock)
-    @patch("hub_adapter.maintenance.py.get_analyses")
+    @patch("hub_adapter.maintenance.log_event")
+    @patch("hub_adapter.maintenance.get_node_id", new_callable=AsyncMock)
+    @patch("hub_adapter.maintenance.get_analyses")
     async def test_sweep_handles_hub_fetch_error(self, mock_get_analyses, mock_get_node_id, mock_log_event):
         mock_get_analyses.return_value = {"data": [_consumer(TEST_MOCK_ANALYSIS_ID)]}
         mock_get_node_id.side_effect = HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="down")
@@ -284,7 +284,7 @@ class TestKongConsumerReaperSweep:
         )
 
     @pytest.mark.asyncio
-    @patch("hub_adapter.maintenance.py.get_analyses")
+    @patch("hub_adapter.maintenance.get_analyses")
     async def test_sweep_with_no_consumers_clears_history(self, mock_get_analyses):
         self.reaper._history[TEST_MOCK_ANALYSIS_ID] = {"seen_executing": True, "terminal_since": None}
         mock_get_analyses.return_value = {"data": []}
@@ -295,10 +295,10 @@ class TestKongConsumerReaperSweep:
         assert self.reaper._history == {}
 
     @pytest.mark.asyncio
-    @patch("hub_adapter.maintenance.py.delete_analysis", new_callable=AsyncMock)
-    @patch("hub_adapter.maintenance.py.list_analysis_nodes", new_callable=AsyncMock)
-    @patch("hub_adapter.maintenance.py.get_node_id", new_callable=AsyncMock)
-    @patch("hub_adapter.maintenance.py.get_analyses")
+    @patch("hub_adapter.maintenance.delete_analysis", new_callable=AsyncMock)
+    @patch("hub_adapter.maintenance.list_analysis_nodes", new_callable=AsyncMock)
+    @patch("hub_adapter.maintenance.get_node_id", new_callable=AsyncMock)
+    @patch("hub_adapter.maintenance.get_analyses")
     async def test_sweep_ignores_consumer_without_analysis_tag(
         self, mock_get_analyses, mock_get_node_id, mock_list_nodes, mock_delete_analysis
     ):
@@ -325,15 +325,15 @@ class TestKongCleanupManager:
         assert manager._task is None
 
     @pytest.mark.asyncio
-    @patch("hub_adapter.maintenance.py.log_event")
-    @patch("hub_adapter.maintenance.py.load_persistent_settings")
+    @patch("hub_adapter.maintenance.log_event")
+    @patch("hub_adapter.maintenance.load_persistent_settings")
     async def test_manager_start(self, mock_load_settings, mock_log_event):
         manager = KongCleanupManager()
         mock_settings = MagicMock()
         mock_settings.kong_cleanup.interval = 30
         mock_load_settings.return_value = mock_settings
 
-        with patch("hub_adapter.maintenance.py.KongConsumerReaper"):
+        with patch("hub_adapter.maintenance.KongConsumerReaper"):
             await manager.start()
 
             assert manager._task is not None
@@ -347,15 +347,15 @@ class TestKongCleanupManager:
         await manager.stop()
 
     @pytest.mark.asyncio
-    @patch("hub_adapter.maintenance.py.log_event")
-    @patch("hub_adapter.maintenance.py.load_persistent_settings")
+    @patch("hub_adapter.maintenance.log_event")
+    @patch("hub_adapter.maintenance.load_persistent_settings")
     async def test_manager_start_twice_restarts(self, mock_load_settings, mock_log_event):
         manager = KongCleanupManager()
         mock_settings = MagicMock()
         mock_settings.kong_cleanup.interval = 30
         mock_load_settings.return_value = mock_settings
 
-        with patch("hub_adapter.maintenance.py.KongConsumerReaper"):
+        with patch("hub_adapter.maintenance.KongConsumerReaper"):
             await manager.start()
             first_task = manager._task
 
@@ -373,7 +373,7 @@ class TestKongCleanupManager:
         await manager.stop()
 
     @pytest.mark.asyncio
-    @patch("hub_adapter.maintenance.py.log_event")
+    @patch("hub_adapter.maintenance.log_event")
     async def test_manager_stop(self, mock_log_event):
         manager = KongCleanupManager()
         manager._task = asyncio.create_task(asyncio.sleep(10))
@@ -395,11 +395,11 @@ class TestKongCleanupManager:
         assert manager._task is None
 
     @pytest.mark.asyncio
-    @patch("hub_adapter.maintenance.py.log_event")
+    @patch("hub_adapter.maintenance.log_event")
     async def test_run_cleanup_error_handling(self, mock_log_event):
         manager = KongCleanupManager()
 
-        with patch("hub_adapter.maintenance.py.KongConsumerReaper") as mock_reaper_cls:
+        with patch("hub_adapter.maintenance.KongConsumerReaper") as mock_reaper_cls:
             mock_instance = MagicMock()
             mock_reaper_cls.return_value = mock_instance
             mock_instance.sweep = AsyncMock(side_effect=Exception("Test error"))

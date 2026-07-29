@@ -57,7 +57,6 @@ class BucketError(KongError):
                 SERVICE: "S3",
                 "status_code": status.HTTP_403_FORBIDDEN,
             },
-            headers={"WWW-Authenticate": "Bearer"},
         )
         log_event(
             "storage.bucket.forbidden",
@@ -78,7 +77,6 @@ class KongGatewayError(KongError):
                 SERVICE: server_type,
                 "status_code": status.HTTP_502_BAD_GATEWAY,
             },
-            headers={"WWW-Authenticate": "Bearer"},
         )
         log_event(
             "kong.gateway.error",
@@ -99,7 +97,6 @@ class KongServiceError(KongError):
                 SERVICE: server_type,
                 "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
             },
-            headers={"WWW-Authenticate": "Bearer"},
         )
         log_event(
             "kong.service.resolution_failed",
@@ -120,7 +117,6 @@ class FhirEndpointError(KongError):
                 SERVICE: "FHIR",
                 "status_code": status.HTTP_404_NOT_FOUND,
             },
-            headers={"WWW-Authenticate": "Bearer"},
         )
         log_event(
             "fhir.endpoint.not_found",
@@ -141,7 +137,6 @@ class KongConsumerApiKeyError(KongError):
                 SERVICE: "Kong",
                 "status_code": status.HTTP_404_NOT_FOUND,
             },
-            headers={"WWW-Authenticate": "Bearer"},
         )
         log_event(
             "kong.consumer.api_key.not_found",
@@ -259,7 +254,6 @@ class KongProjectNotMappedError(KongError):
                 "service": "Kong",
                 "status_code": status.HTTP_404_NOT_FOUND,
             },
-            headers={"WWW-Authenticate": "Bearer"},
         )
 
 
@@ -296,7 +290,7 @@ class KongUpstreamError(KongError):
                 "service": "Kong",
                 "status_code": status_code,
             },
-            headers={"WWW-Authenticate": "Bearer"},
+            headers={"WWW-Authenticate": "Bearer"} if status_code == status.HTTP_401_UNAUTHORIZED else None,
         )
 
 
@@ -342,7 +336,6 @@ def catch_hub_errors(f):
                     SERVICE: "proxy",
                     "status_code": status.HTTP_400_BAD_REQUEST,
                 },
-                headers={"WWW-Authenticate": "Bearer"},
             ) from e
 
         except httpx2.ReadTimeout as e:
@@ -361,7 +354,6 @@ def catch_hub_errors(f):
                     SERVICE: svc,
                     "status_code": status.HTTP_408_REQUEST_TIMEOUT,
                 },
-                headers={"WWW-Authenticate": "Bearer"},
             ) from e
 
         except httpx2.ConnectError as e:
@@ -380,7 +372,6 @@ def catch_hub_errors(f):
                     SERVICE: "CoreClient",
                     "status_code": status.HTTP_404_NOT_FOUND,
                 },
-                headers={"WWW-Authenticate": "Bearer"},
             ) from e
 
         except pydantic.ValidationError as e:
@@ -398,7 +389,6 @@ def catch_hub_errors(f):
                     SERVICE: "CoreClient",
                     "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
                 },
-                headers={"WWW-Authenticate": "Bearer"},
             ) from e
 
         except HubAPIError as err:
@@ -420,7 +410,6 @@ def catch_hub_errors(f):
                         SERVICE: svc,
                         "status_code": status.HTTP_408_REQUEST_TIMEOUT,
                     },
-                    headers={"WWW-Authenticate": "Bearer"},
                 ) from err
 
             elif type(resp_error) is httpx2.ConnectError:
@@ -439,7 +428,6 @@ def catch_hub_errors(f):
                         SERVICE: svc,
                         "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
                     },
-                    headers={"WWW-Authenticate": "Bearer"},
                 ) from err
 
             else:
@@ -457,7 +445,9 @@ def catch_hub_errors(f):
                         SERVICE: svc,
                         "status_code": err.error_response.status_code,
                     },
-                    headers={"WWW-Authenticate": "Bearer"},
+                    headers={"WWW-Authenticate": "Bearer"}
+                    if err.error_response.status_code == status.HTTP_401_UNAUTHORIZED
+                    else None,
                 ) from err
 
     return inner
@@ -489,7 +479,6 @@ def catch_kong_errors(f):
                         SERVICE: svc,
                         "status_code": e.status,
                     },
-                    headers={"WWW-Authenticate": "Bearer"},
                 ) from e
 
             elif e.status == status.HTTP_404_NOT_FOUND:
@@ -507,7 +496,6 @@ def catch_kong_errors(f):
                         SERVICE: svc,
                         "status_code": e.status,
                     },
-                    headers={"WWW-Authenticate": "Bearer"},
                 ) from e
 
             else:
@@ -525,7 +513,9 @@ def catch_kong_errors(f):
                         SERVICE: svc,
                         "status_code": e.status,
                     },
-                    headers={"WWW-Authenticate": "Bearer"},
+                    headers={"WWW-Authenticate": "Bearer"}
+                    if e.status == status.HTTP_401_UNAUTHORIZED
+                    else None,
                 ) from e
 
         except MaxRetryError as e:
@@ -543,7 +533,6 @@ def catch_kong_errors(f):
                     SERVICE: svc,
                     "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
                 },
-                headers={"WWW-Authenticate": "Bearer"},
             ) from e
 
         except HTTPException as http_error:
@@ -564,7 +553,6 @@ def catch_kong_errors(f):
                     SERVICE: svc,
                     "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
                 },
-                headers={"WWW-Authenticate": "Bearer"},
             ) from e
 
     return inner
