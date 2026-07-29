@@ -86,12 +86,12 @@ class ServiceRequest(CreateServiceRequest):
     }
 
 
-class MinioConfig(BaseModel):
-    """Credentials for accessing a private S3 bucket hosted on MinIO."""
+class S3Config(BaseModel):
+    """Credentials for accessing a private S3 bucket."""
 
-    minio_access_key: SecretStr
-    minio_secret_key: SecretStr
-    minio_region: str = "us-east-1"
+    s3_access_key: SecretStr
+    s3_secret_key: SecretStr
+    s3_region: str = "us-east-1"
     bucket_name: str | None = None
     timeout: int = 100000
     strip_path_pattern: str | None = None
@@ -139,15 +139,9 @@ class ListServices(ListService200Response):
     data: list[DetailedService] | None = None
 
 
-class DeleteProject(BaseModel):
-    """Response from disconnecting a project from a datastore."""
+class UnlinkResponse(BaseModel):
+    """Response for unlinking a data store from a project or deleting a whole project."""
 
-    removed: Route | None
+    removed_routes: list[Route]
+    removed_consumers: list[Consumer] = []
     status: int | None = None
-
-
-class DeleteService(BaseModel):
-    """Response for deleting orphaned services."""
-
-    deleted: list[dict]
-    count: int

@@ -36,7 +36,7 @@ class TestErrorClassLogging:
             event_description="Bucket does not exist or is set to private",
             level=logging.ERROR,
             status_code=status.HTTP_403_FORBIDDEN,
-            service="MinIO",
+            service="S3",
         )
 
     @patch("hub_adapter.errors.log_event")

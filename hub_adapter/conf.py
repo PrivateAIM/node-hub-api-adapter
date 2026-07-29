@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, field_validator, model_validator, Field
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
@@ -10,7 +10,17 @@ class AutostartSettings(BaseModel):
     """Autostart Settings."""
 
     enabled: bool | None = False
-    interval: int | None = 60
+    interval: Annotated[int, Field(gt=0)] | None = 60
+
+    model_config = {"extra": "forbid"}
+
+
+class KongCleanupSettings(BaseModel):
+    """Settings for the background sweep that deletes Kong analysis consumers once their analysis
+    reaches a terminal status. Always runs; only the interval is configurable.
+    """
+
+    interval: Annotated[int, Field(gt=0)] | None = 30
 
     model_config = {"extra": "forbid"}
 
@@ -20,6 +30,7 @@ class UserSettings(BaseSettings):
 
     require_data_store: bool | None = True
     autostart: AutostartSettings | None = AutostartSettings()
+    kong_cleanup: KongCleanupSettings | None = KongCleanupSettings()
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -1,6 +1,8 @@
 """Utility methods."""
 
 import os
+import re
+import uuid
 
 import jwt
 from fastapi import UploadFile
@@ -141,3 +143,72 @@ def _check_data_required(node_type: str) -> bool:
     disabled in the settings."""
     node_settings = load_persistent_settings()
     return False if node_type == "aggregator" else node_settings.require_data_store
+
+
+# Kong utility functions and definitions
+
+HEALTH_TAG = "health"
+
+# Kong can use ',' and '/' in tags
+_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9._~-]+$")
+
+
+def is_uuid(value: str) -> bool:
+    """Return True if the value parses as a UUID. This is oddly the best way to safely check UUID validity."""
+    try:
+        uuid.UUID(str(value))
+        return True
+
+    except (ValueError, AttributeError, TypeError):
+        return False
+
+
+def validate_datastore_name(name: str) -> str:
+    """Validate an admin-chosen data store display name, returning it unchanged."""
+    if not name or not _NAME_PATTERN.match(name):
+        raise ValueError(f"Invalid data store name {name!r}: only letters, digits, '.', '_', '~', and '-' are allowed")
+
+    if is_uuid(name):
+        raise ValueError(f"Invalid data store name {name!r}: bare UUIDs cannot be used as names")
+
+    return name
+
+
+def project_tag(project_id: str | uuid.UUID) -> str:
+    return f"project:{project_id}"
+
+
+def datastore_tag(service_id: str | uuid.UUID) -> str:
+    return f"datastore:{service_id}"
+
+
+def type_tag(ds_type) -> str:
+    ds = ds_type.value if hasattr(ds_type, "value") else ds_type
+    return f"type:{ds}"
+
+
+def analysis_tag(analysis_id: str | uuid.UUID) -> str:
+    return f"analysis:{analysis_id}"
+
+
+def analysis_username(analysis_id: str | uuid.UUID) -> str:
+    return f"analysis-{analysis_id}"
+
+
+def health_username(project_id: str | uuid.UUID) -> str:
+    return f"health-{project_id}"
+
+
+def link_path(project_id: str | uuid.UUID, service_id: str | uuid.UUID) -> str:
+    return f"/{project_id}/{service_id}"
+
+
+def parse_tags(tags: list[str] | None) -> dict[str, str]:
+    """Parse ['project:abc', 'health'] into {'project': 'abc'}; valueless tags are skipped."""
+    parsed = {}
+    for tag in tags or []:
+        key, sep, value = tag.partition(":")
+        if sep:
+            parsed[key] = value
+
+    return parsed

@@ -111,7 +111,7 @@ async def initialize_analysis(
             status_code=start_status_code,
             detail={
                 "message": "Failed to initialize analysis",
-                "service": ServiceTag.PODORC,
+                "service": ServiceTag.PODORC.value,
                 "status_code": start_status_code,
             },
             headers={"WWW-Authenticate": "Bearer"},
@@ -132,7 +132,14 @@ async def terminate_analysis(
 
     This method will first delete the kong consumer and then send the delete command to the PO.
     """
-    await delete_analysis(analysis_id=analysis_id, settings=settings)
+    try:
+        await delete_analysis(analysis_id=analysis_id, settings=settings)
+
+    except HTTPException as e:
+        if e.status_code != status.HTTP_404_NOT_FOUND:
+            raise
+
+        logger.info(f"No Kong consumer found for analysis {analysis_id}, continuing with pod deletion")
 
     try:
         headers = await _get_internal_token(settings)
@@ -164,7 +171,7 @@ async def terminate_analysis(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail={  # Invalid authentication credentials
                 "message": msg,
-                "service": ServiceTag.PODORC,
+                "service": ServiceTag.PODORC.value,
                 "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
             },
             headers={"WWW-Authenticate": "Bearer"},
@@ -176,7 +183,7 @@ async def terminate_analysis(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={
                 "message": f"Service error - {e}",
-                "service": ServiceTag.PODORC,
+                "service": ServiceTag.PODORC.value,
                 "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
             },
             headers={"WWW-Authenticate": "Bearer"},

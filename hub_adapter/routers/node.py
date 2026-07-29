@@ -50,6 +50,12 @@ async def update_node_settings(
 
             await autostart_manager.update()
 
+        # Restart Kong consumer cleanup if its interval changed (it always runs, it's not user-toggleable)
+        if "kong_cleanup" in node_settings.model_fields_set:
+            from hub_adapter.server import kong_cleanup_manager
+
+            await kong_cleanup_manager.start()
+
         return result
 
     except ValidationError as e:

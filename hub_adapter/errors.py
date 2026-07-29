@@ -54,17 +54,16 @@ class BucketError(KongError):
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
                 "message": message,
-                SERVICE: "MinIO",
+                SERVICE: "S3",
                 "status_code": status.HTTP_403_FORBIDDEN,
             },
-            headers={"WWW-Authenticate": "Bearer"},
         )
         log_event(
             "storage.bucket.forbidden",
             event_description=message,
             level=logging.ERROR,
             status_code=status.HTTP_403_FORBIDDEN,
-            service="MinIO",
+            service="S3",
         )
 
 
@@ -78,7 +77,6 @@ class KongGatewayError(KongError):
                 SERVICE: server_type,
                 "status_code": status.HTTP_502_BAD_GATEWAY,
             },
-            headers={"WWW-Authenticate": "Bearer"},
         )
         log_event(
             "kong.gateway.error",
@@ -99,7 +97,6 @@ class KongServiceError(KongError):
                 SERVICE: server_type,
                 "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
             },
-            headers={"WWW-Authenticate": "Bearer"},
         )
         log_event(
             "kong.service.resolution_failed",
@@ -120,7 +117,6 @@ class FhirEndpointError(KongError):
                 SERVICE: "FHIR",
                 "status_code": status.HTTP_404_NOT_FOUND,
             },
-            headers={"WWW-Authenticate": "Bearer"},
         )
         log_event(
             "fhir.endpoint.not_found",
@@ -141,7 +137,6 @@ class KongConsumerApiKeyError(KongError):
                 SERVICE: "Kong",
                 "status_code": status.HTTP_404_NOT_FOUND,
             },
-            headers={"WWW-Authenticate": "Bearer"},
         )
         log_event(
             "kong.consumer.api_key.not_found",
@@ -149,6 +144,168 @@ class KongConsumerApiKeyError(KongError):
             level=logging.ERROR,
             status_code=status.HTTP_404_NOT_FOUND,
             service="Kong",
+        )
+
+
+class KongDataStoreLinkedError(KongError):
+    def __init__(self, datastore: str, projects: list[str]):
+        super().__init__(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "message": f"Data store {datastore} is still linked to project(s): {', '.join(projects)}. "
+                "Pass cascade=true to delete it along with its links.",
+                "service": "Kong",
+                "status_code": status.HTTP_409_CONFLICT,
+            },
+        )
+
+
+class KongValidationError(KongError):
+    def __init__(self, message: str):
+        super().__init__(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "message": message,
+                "service": "Kong",
+                "status_code": status.HTTP_422_UNPROCESSABLE_ENTITY,
+            },
+        )
+
+
+class KongDatastoreMissingTypeError(KongError):
+    def __init__(self, datastore_id: str):
+        super().__init__(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "message": f"Service {datastore_id} is not a data store (missing type tag)",
+                "service": "Kong",
+                "status_code": status.HTTP_404_NOT_FOUND,
+            },
+        )
+
+
+class KongProjectDatastoreLinkConflictError(KongError):
+    def __init__(self, project_id: str, datastore_id: str):
+        super().__init__(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "message": f"Project {project_id} is already linked to data store {datastore_id}",
+                "service": "Kong",
+                "status_code": status.HTTP_409_CONFLICT,
+            },
+        )
+
+
+class KongDatastoreLinkedToOtherProjectError(KongError):
+    def __init__(self, datastore_id: str, other_project_id: str):
+        super().__init__(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "message": (
+                    f"Data store {datastore_id} is already linked to project {other_project_id}. "
+                    "A data store can only be linked to one project at a time, unlink it first."
+                ),
+                "service": "Kong",
+                "status_code": status.HTTP_409_CONFLICT,
+            },
+        )
+
+
+class KongProjectDatastoreUnlinkedError(KongError):
+    def __init__(self, project_id: str, datastore_id: str):
+        super().__init__(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "message": f"Project {project_id} is not linked to data store {datastore_id}",
+                "service": "Kong",
+                "status_code": status.HTTP_404_NOT_FOUND,
+            },
+        )
+
+
+class KongProjectEmptyError(KongError):
+    def __init__(self, project_id: str):
+        super().__init__(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "message": f"Project {project_id} has no linked data stores or consumers",
+                "service": "Kong",
+                "status_code": status.HTTP_404_NOT_FOUND,
+            },
+        )
+
+
+class KongDatastoreOrProjectNotFoundError(KongError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "message": f"No data store or project found matching {identifier!r}",
+                "service": "Kong",
+                "status_code": status.HTTP_404_NOT_FOUND,
+            },
+        )
+
+
+class KongAmbiguousProjectDatastoreError(KongError):
+    def __init__(self, project_id: str, datastore_ids: list[str]):
+        super().__init__(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "message": f"Project {project_id} is linked to multiple data stores "
+                f"({', '.join(datastore_ids)}); specify one directly.",
+                "service": "Kong",
+                "status_code": status.HTTP_409_CONFLICT,
+            },
+        )
+
+
+class KongProjectNotMappedError(KongError):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "message": "Associated project not mapped to a data store",
+                "service": "Kong",
+                "status_code": status.HTTP_404_NOT_FOUND,
+            },
+        )
+
+
+class KongAnalysisConsumerNotFoundError(KongError):
+    def __init__(self, analysis_id: str):
+        super().__init__(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "message": f"No consumer found for analysis {analysis_id}",
+                "service": "Kong",
+                "status_code": status.HTTP_404_NOT_FOUND,
+            },
+        )
+
+
+class KongProxyNotConfiguredError(KongError):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "message": "Kong proxy service URL not configured",
+                "service": "Kong",
+                "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+            },
+        )
+
+
+class KongUpstreamError(KongError):
+    def __init__(self, status_code: int, message: str):
+        super().__init__(
+            status_code=status_code,
+            detail={
+                "message": message,
+                "service": "Kong",
+                "status_code": status_code,
+            },
+            headers={"WWW-Authenticate": "Bearer"} if status_code == status.HTTP_401_UNAUTHORIZED else None,
         )
 
 
@@ -194,7 +351,6 @@ def catch_hub_errors(f):
                     SERVICE: "proxy",
                     "status_code": status.HTTP_400_BAD_REQUEST,
                 },
-                headers={"WWW-Authenticate": "Bearer"},
             ) from e
 
         except httpx2.ReadTimeout as e:
@@ -213,7 +369,6 @@ def catch_hub_errors(f):
                     SERVICE: svc,
                     "status_code": status.HTTP_408_REQUEST_TIMEOUT,
                 },
-                headers={"WWW-Authenticate": "Bearer"},
             ) from e
 
         except httpx2.ConnectError as e:
@@ -232,7 +387,6 @@ def catch_hub_errors(f):
                     SERVICE: "CoreClient",
                     "status_code": status.HTTP_404_NOT_FOUND,
                 },
-                headers={"WWW-Authenticate": "Bearer"},
             ) from e
 
         except pydantic.ValidationError as e:
@@ -250,7 +404,6 @@ def catch_hub_errors(f):
                     SERVICE: "CoreClient",
                     "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
                 },
-                headers={"WWW-Authenticate": "Bearer"},
             ) from e
 
         except HubAPIError as err:
@@ -272,7 +425,6 @@ def catch_hub_errors(f):
                         SERVICE: svc,
                         "status_code": status.HTTP_408_REQUEST_TIMEOUT,
                     },
-                    headers={"WWW-Authenticate": "Bearer"},
                 ) from err
 
             elif type(resp_error) is httpx2.ConnectError:
@@ -291,7 +443,6 @@ def catch_hub_errors(f):
                         SERVICE: svc,
                         "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
                     },
-                    headers={"WWW-Authenticate": "Bearer"},
                 ) from err
 
             else:
@@ -309,7 +460,9 @@ def catch_hub_errors(f):
                         SERVICE: svc,
                         "status_code": err.error_response.status_code,
                     },
-                    headers={"WWW-Authenticate": "Bearer"},
+                    headers={"WWW-Authenticate": "Bearer"}
+                    if err.error_response.status_code == status.HTTP_401_UNAUTHORIZED
+                    else None,
                 ) from err
 
     return inner
@@ -341,7 +494,6 @@ def catch_kong_errors(f):
                         SERVICE: svc,
                         "status_code": e.status,
                     },
-                    headers={"WWW-Authenticate": "Bearer"},
                 ) from e
 
             elif e.status == status.HTTP_404_NOT_FOUND:
@@ -359,7 +511,6 @@ def catch_kong_errors(f):
                         SERVICE: svc,
                         "status_code": e.status,
                     },
-                    headers={"WWW-Authenticate": "Bearer"},
                 ) from e
 
             else:
@@ -377,7 +528,7 @@ def catch_kong_errors(f):
                         SERVICE: svc,
                         "status_code": e.status,
                     },
-                    headers={"WWW-Authenticate": "Bearer"},
+                    headers={"WWW-Authenticate": "Bearer"} if e.status == status.HTTP_401_UNAUTHORIZED else None,
                 ) from e
 
         except MaxRetryError as e:
@@ -395,7 +546,6 @@ def catch_kong_errors(f):
                     SERVICE: svc,
                     "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
                 },
-                headers={"WWW-Authenticate": "Bearer"},
             ) from e
 
         except HTTPException as http_error:
@@ -416,7 +566,6 @@ def catch_kong_errors(f):
                     SERVICE: svc,
                     "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
                 },
-                headers={"WWW-Authenticate": "Bearer"},
             ) from e
 
     return inner

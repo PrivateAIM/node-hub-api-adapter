@@ -17,7 +17,6 @@ from hub_adapter.dependencies import (
     get_settings,
     get_ssl_context,
 )
-from hub_adapter.oidc import get_svc_oidc_config
 
 
 @dataclass
@@ -45,6 +44,7 @@ class IntegrationTestRunner:
         self.core_client = get_core_client(self.hub_robot, self.ssl_ctx, settings)
         self.token: dict | None = None
         self.http_client: httpx2.AsyncClient | None = None
+        self.datastore_id: str | None = None
         self._resources_created = {
             "datastore": False,
             "analysis": False,
@@ -101,7 +101,7 @@ class IntegrationTestRunner:
         logger.info("✓ Hub communication verified")
 
     async def test_create_datastore(self):
-        """Test: Create a new data store via Kong."""
+        """Test: Create a new data store and link it to the project via Kong."""
         logger.info("Testing datastore creation...")
         payload = {
             "project_id": self.integration_settings.project_id,
@@ -110,7 +110,7 @@ class IntegrationTestRunner:
                 "connect_timeout": 6000,
                 "enabled": True,
                 "host": "node-datastore-blaze",
-                "name": self.integration_settings.project_id,
+                "name": "integration-fhir-store",
                 "path": "/fhir",
                 "port": 80,
                 "protocol": "http",
@@ -124,8 +124,9 @@ class IntegrationTestRunner:
         url = f"{self.integration_settings.api_base_url}/kong/initialize"
         resp = await self.http_client.post(url, json=payload, headers=self.token)
         resp.raise_for_status()
+        self.datastore_id = resp.json()["route"]["service"]["id"]
         self._resources_created["datastore"] = True
-        logger.info("✓ Datastore created successfully")
+        logger.info("✓ Datastore created and linked successfully")
 
     async def test_start_analysis(self):
         """Test: Start an analysis via PodOrc."""
@@ -181,20 +182,26 @@ class IntegrationTestRunner:
             logger.error(f"Failed to clean up analysis: {e}")
 
     async def cleanup_datastore(self):
-        """Clean up: Delete the test datastore."""
+        """Clean up: Delete the test datastore, its project link, and the project's consumers."""
         if not self._resources_created["datastore"]:
             return
 
         try:
             logger.info("Cleaning up datastore...")
-            datastore_name = f"{self.integration_settings.project_id}-fhir"
-            url = f"{self.integration_settings.api_base_url}/kong/datastore/{datastore_name}"
-            resp = await self.http_client.delete(url, headers=self.token)
+            project_url = (
+                f"{self.integration_settings.api_base_url}/kong/project/{self.integration_settings.project_id}"
+            )
+            resp = await self.http_client.delete(project_url, headers=self.token)
             resp.raise_for_status()
+
+            ds_url = f"{self.integration_settings.api_base_url}/kong/datastore/{self.datastore_id}"
+            resp = await self.http_client.delete(ds_url, headers=self.token, params={"cascade": True})
+            resp.raise_for_status()
+
             self._resources_created["datastore"] = False
             logger.info("✓ Datastore cleaned up")
 
-        except HTTPException as e:
+        except (HTTPException, httpx2.HTTPStatusError) as e:
             logger.error(f"Failed to clean up datastore: {e}")
 
     async def run_all_tests(self):

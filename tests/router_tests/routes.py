@@ -5,13 +5,12 @@ from kong_admin_client import Service
 
 from hub_adapter.schemas.hub import AnalysisImageUrl, DetailedAnalysis, NodeTypeResponse
 from hub_adapter.schemas.kong import (
-    DeleteProject,
-    DeleteService,
     LinkDataStoreProject,
     LinkProjectAnalysis,
     ListConsumers,
     ListRoutes,
     ListServices,
+    UnlinkResponse,
 )
 from hub_adapter.schemas.logs import (
     AnalysisLogHistoryResponse,
@@ -124,22 +123,15 @@ EXPECTED_KONG_ROUTE_CONFIG = (
         "status_code": 200,
     },
     {
-        "name": "kong.datastore.delete_orphaned",
-        "path": "/kong/datastore",
-        "methods": {"DELETE"},
-        "response_model": DeleteService,
-        "status_code": 200,
-    },
-    {
         "name": "kong.datastore.get",
-        "path": "/kong/datastore/{project_id}",
+        "path": "/kong/datastore/{datastore_id_or_name}",
         "methods": {"GET"},
         "response_model": ListServices,
         "status_code": 200,
     },
     {
         "name": "kong.datastore.delete",
-        "path": "/kong/datastore/{data_store_name}",
+        "path": "/kong/datastore/{datastore_id_or_name}",
         "methods": {"DELETE"},
         "response_model": None,
         "status_code": 200,
@@ -166,8 +158,8 @@ EXPECTED_KONG_ROUTE_CONFIG = (
         "status_code": 200,
     },
     {
-        "name": "kong.project.create",
-        "path": "/kong/project",
+        "name": "kong.project.link",
+        "path": "/kong/project/{project_id}/datastore/{datastore_id}",
         "methods": {"POST"},
         "response_model": LinkDataStoreProject,
         "status_code": 201,
@@ -181,9 +173,16 @@ EXPECTED_KONG_ROUTE_CONFIG = (
     },
     {
         "name": "kong.project.delete",
-        "path": "/kong/project/{project_route_id}",
+        "path": "/kong/project/{project_id}",
         "methods": {"DELETE"},
-        "response_model": DeleteProject,
+        "response_model": UnlinkResponse,
+        "status_code": 200,
+    },
+    {
+        "name": "kong.project.unlink",
+        "path": "/kong/project/{project_id}/datastore/{datastore_id}",
+        "methods": {"DELETE"},
+        "response_model": UnlinkResponse,
         "status_code": 200,
     },
     {
@@ -216,7 +215,7 @@ EXPECTED_KONG_ROUTE_CONFIG = (
     },
     {
         "name": "kong.probe",
-        "path": "/kong/project/{project_id}/{ds_type}/health",
+        "path": "/kong/project/{project_id}/datastore/{datastore_id}/health",
         "methods": {"GET"},
         "response_model": None,
         "status_code": 200,

@@ -229,4 +229,14 @@ TRACKED_EVENTS = {
     "autostart.kong.route_error": "Autostart failed to retrieve Kong routes",
     "autostart.analysis.invalid_project": "Autostart skipped analysis due to an invalid or unapproved project",
     "autostart.analysis.ready": "Autostart found analyses ready to start",
+    # Kong consumer cleanup events
+    "kong_cleanup.poll": "Kong consumer cleanup swept for stale analysis consumers",
+    "kong_cleanup.error": "Kong consumer cleanup encountered an error during its main loop",
+    "kong_cleanup.started": "Kong consumer cleanup manager started",
+    "kong_cleanup.stopped": "Kong consumer cleanup manager stopped",
+    "kong_cleanup.restarted": "Kong consumer cleanup manager restarted with a new interval",
+    "kong_cleanup.kong_fetch_error": "Kong consumer cleanup failed to list Kong analysis consumers",
+    "kong_cleanup.hub_fetch_error": "Kong consumer cleanup failed to fetch analysis statuses from the Hub",
+    "kong_cleanup.delete_error": "Kong consumer cleanup failed to delete a Kong analysis consumer",
+    "kong_cleanup.consumer_deleted": "Kong consumer cleanup deleted a stale Kong analysis consumer",
 }
