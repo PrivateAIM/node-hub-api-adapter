@@ -7,6 +7,7 @@ from typing import Annotated
 import peewee as pw
 from fastapi import APIRouter, Depends, HTTPException, Query
 from starlette import status
+from starlette.concurrency import run_in_threadpool
 
 from hub_adapter.conf import Settings
 from hub_adapter.constants import ServiceTag
@@ -163,10 +164,17 @@ async def get_health_downstream_services_history(
     monitored = [name for name, summary in services.items() if summary.configured]
 
     try:
-        summaries = summarize_range(service_health_monitor.database, start, end, monitored)
-        last_checks = fetch_last_checks(service_health_monitor.database, start, end, monitored)
+        # Peewee is synchronous, so the queries run in a worker thread to keep the event loop free
+        summaries = await run_in_threadpool(
+            summarize_range, service_health_monitor.database, start, end, monitored
+        )
+        last_checks = await run_in_threadpool(
+            fetch_last_checks, service_health_monitor.database, start, end, monitored
+        )
         raw_checks = (
-            fetch_checks(service_health_monitor.database, start, end, monitored, limit) if include_checks else {}
+            await run_in_threadpool(fetch_checks, service_health_monitor.database, start, end, monitored, limit)
+            if include_checks
+            else {}
         )
 
     except pw.PeeweeException as db_err:

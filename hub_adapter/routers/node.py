@@ -6,6 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Body, HTTPException, Security
 from pydantic import ValidationError
 from starlette import status
+from starlette.concurrency import run_in_threadpool
 
 from hub_adapter.auth import jwtbearer, verify_idp_token
 from hub_adapter.conf import UserSettings
@@ -42,7 +43,8 @@ async def update_node_settings(
     """
     try:
         patch_payload = node_settings.model_dump(exclude_unset=True)
-        result = update_settings(patch_payload)
+        # Writes to Postgres and the JSON cache, so it runs in a worker thread
+        result = await run_in_threadpool(update_settings, patch_payload)
 
         # Update autostart state if any autostart settings changed
         if "autostart" in node_settings.model_fields_set:
@@ -84,4 +86,5 @@ async def update_node_settings(
 )
 async def get_node_settings() -> UserSettings:
     """Get the node configuration settings"""
-    return load_persistent_settings()
+    # Reads from Postgres with a JSON fallback, so it runs in a worker thread
+    return await run_in_threadpool(load_persistent_settings)
