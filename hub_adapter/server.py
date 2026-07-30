@@ -9,10 +9,13 @@ from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
 from hub_adapter import logging_config
-from hub_adapter.autostart import AutostartManager
 from hub_adapter.constants import ServiceTag
 from hub_adapter.dependencies import get_settings
-from hub_adapter.maintenance import KongCleanupManager
+from hub_adapter.managers import (
+    autostart_manager,
+    kong_cleanup_manager,
+    service_health_monitor,
+)
 from hub_adapter.middleware import RequestLoggingMiddleware
 from hub_adapter.routers.auth import auth_router
 from hub_adapter.routers.health import health_router
@@ -25,9 +28,6 @@ from hub_adapter.routers.podorc import po_router
 from hub_adapter.routers.storage import storage_router
 
 logger = logging.getLogger(__name__)
-
-autostart_manager = AutostartManager()
-kong_cleanup_manager = KongCleanupManager()
 
 
 # API metadata
@@ -60,11 +60,13 @@ tags_metadata = [
 async def lifespan(app: FastAPI):
     await autostart_manager.update()
     await kong_cleanup_manager.start()
+    await service_health_monitor.start()
 
     yield
 
     await autostart_manager.stop()
     await kong_cleanup_manager.stop()
+    await service_health_monitor.stop()
 
 
 settings = get_settings()
