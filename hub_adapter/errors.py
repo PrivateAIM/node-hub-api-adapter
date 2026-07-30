@@ -1,6 +1,7 @@
 """Router specific error decorators."""
 
 import functools
+import inspect
 import logging
 
 import httpx2
@@ -9,6 +10,7 @@ from fastapi import HTTPException
 from flame_hub import HubAPIError
 from kong_admin_client import ApiException
 from starlette import status
+from starlette.concurrency import run_in_threadpool
 from urllib3.exceptions import MaxRetryError
 
 from hub_adapter.constants import SERVICE
@@ -327,13 +329,18 @@ def require_victoria_logs(f):
 
 
 def catch_hub_errors(f):
-    """Custom error handling decorator for flame_hub_client."""
+    """Custom error handling decorator for flame_hub_client.
+
+    The Hub client is synchronous, so move to a separate worker thread.
+    The wrapper stays a coroutine either way, so internal callers can keep awaiting the decorated function.
+    """
+    is_async = inspect.iscoroutinefunction(f)
 
     @functools.wraps(f)
     async def inner(*args, **kwargs):
         svc = "Hub"
         try:
-            return await f(*args, **kwargs)
+            return await (f(*args, **kwargs) if is_async else run_in_threadpool(f, *args, **kwargs))
 
         except httpx2.ProxyError as e:
             err = "Proxy Error - Unable to contact the Hub"
@@ -469,13 +476,17 @@ def catch_hub_errors(f):
 
 
 def catch_kong_errors(f):
-    """Custom error handling decorator for Kong endpoints."""
+    """Custom error handling decorator for Kong endpoints.
+
+    The Kong admin client is synchronous, so move to a separate worker thread.
+    """
+    is_async = inspect.iscoroutinefunction(f)
 
     @functools.wraps(f)
     async def inner(*args, **kwargs):
         svc = "Kong"
         try:
-            return await f(*args, **kwargs)
+            return await (f(*args, **kwargs) if is_async else run_in_threadpool(f, *args, **kwargs))
 
         except ApiException as e:
             if e.status == status.HTTP_409_CONFLICT:

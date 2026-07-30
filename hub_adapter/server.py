@@ -4,6 +4,7 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
+import anyio.to_thread
 import uvicorn
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
@@ -58,6 +59,11 @@ tags_metadata = [
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # The Hub and Kong clients are synchronous, so most endpoints occupy a worker thread for the
+    # duration of their upstream call. AnyIO's default of 40 would cap concurrent requests well
+    # below what a single event loop can otherwise serve.
+    anyio.to_thread.current_default_thread_limiter().total_tokens = settings.worker_thread_limit
+
     await autostart_manager.update()
     await kong_cleanup_manager.start()
     await service_health_monitor.start()

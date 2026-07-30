@@ -13,6 +13,7 @@ from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException
 from kong_admin_client import ApiException
+from starlette.concurrency import run_in_threadpool
 
 from hub_adapter.constants import ServiceTag
 from hub_adapter.dependencies import (
@@ -63,7 +64,8 @@ class KongConsumerReaper:
         deleted: set[str] = set()
 
         try:
-            consumers = get_analyses(self.settings)
+            # get_analyses is a synchronous Kong helper
+            consumers = await run_in_threadpool(get_analyses, self.settings)
 
         except (ApiException, HTTPException) as e:
             log_event(
@@ -173,7 +175,7 @@ class KongCleanupManager:
     async def start(self) -> None:
         """Start the cleanup loop, restarting it if it's already running with a different interval."""
         settings = load_persistent_settings()
-        interval = settings.kong_cleanup.interval if settings.kong_cleanup else 30
+        interval: int = settings.kong_cleanup.interval if settings.kong_cleanup else 120
 
         restarting = self._task is not None
         await self._cancel_current_task()
@@ -181,7 +183,7 @@ class KongCleanupManager:
         log_event(
             "kong_cleanup.restarted" if restarting else "kong_cleanup.started",
             event_description=f"{'Restarting' if restarting else 'Starting'} Kong consumer cleanup "
-            f"with interval {interval}s",
+                              f"with interval {interval}s",
             level=logging.INFO,
             service=ServiceTag.KONG_CLEANUP,
         )

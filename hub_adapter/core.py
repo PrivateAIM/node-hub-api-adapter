@@ -26,15 +26,15 @@ logger = logging.getLogger(__name__)
 
 
 async def make_request(
-    url: str,
-    method: str,
-    headers: Headers | dict,
-    query: dict | None = None,
-    data: dict | None = None,
-    files: dict | None = None,
-    file_response: bool = False,
-    service: ServiceTag | None = None,
-    request_name: str | None = None,
+        url: str,
+        method: str,
+        headers: Headers | dict,
+        query: dict | None = None,
+        data: dict | None = None,
+        files: dict | None = None,
+        file_response: bool = False,
+        service: ServiceTag | None = None,
+        request_name: str | None = None,
 ) -> tuple[[JSONResponse | StreamingResponse], int] | tuple[FileResponse, int]:
     """Make an asynchronous request by creating a temporary session.
 
@@ -107,25 +107,25 @@ async def make_request(
 
 
 def route(
-    request_method,
-    path: str,
-    service_url: str,
-    name: str | None = None,
-    status_code: int | None = None,
-    query_params: list[str] | None = None,
-    form_params: list[str] | None = None,
-    body_params: list[str] | None = None,
-    file_params: list[str] | None = None,
-    file_response: bool = False,
-    response_model=None,
-    tags: list[str] = None,
-    dependencies: Sequence[params.Depends] | None = None,
-    summary: str | None = None,
-    description: str | None = None,
-    pre_processing_func: str | None = None,
-    post_processing_func: str | None = None,
-    all_query_params: bool = False,
-    # params from fastapi http methods can be added here later and then added to `request_method()`
+        request_method,
+        path: str,
+        service_url: str,
+        name: str | None = None,
+        status_code: int | None = None,
+        query_params: list[str] | None = None,
+        form_params: list[str] | None = None,
+        body_params: list[str] | None = None,
+        file_params: list[str] | None = None,
+        file_response: bool = False,
+        response_model=None,
+        tags: list[str] = None,
+        dependencies: Sequence[params.Depends] | None = None,
+        summary: str | None = None,
+        description: str | None = None,
+        pre_processing_func: str | None = None,
+        post_processing_func: str | None = None,
+        all_query_params: bool = False,
+        # params from fastapi http methods can be added here later and then added to `request_method()`
 ):
     """A decorator for the FastAPI router, its purpose is to make FastAPI
     acts as a gateway API in front of available microservices.
@@ -318,5 +318,7 @@ def route(
                 resp_data = f(resp_data)
 
             return resp_data
+
+        return inner
 
     return wrapper

@@ -36,7 +36,7 @@ def get_settings():
 
 @lru_cache(maxsize=1)
 def get_ssl_context(
-    settings: Annotated[Settings, Depends(get_settings)],
+        settings: Annotated[Settings, Depends(get_settings)],
 ) -> ssl.SSLContext:
     """Check if there are additional certificates present and if so, load them."""
     cert_path = settings.extra_ca_certs
@@ -47,8 +47,8 @@ def get_ssl_context(
 
 
 def get_flame_hub_auth_flow(
-    ssl_ctx: Annotated[ssl.SSLContext, Depends(get_ssl_context)],
-    settings: Annotated[Settings, Depends(get_settings)],
+        ssl_ctx: Annotated[ssl.SSLContext, Depends(get_ssl_context)],
+        settings: Annotated[Settings, Depends(get_settings)],
 ) -> ClientAuth:
     """Automated method for getting a robot token from the central Hub service."""
     hub_node_client_id, hub_node_client_secret = (
@@ -82,6 +82,7 @@ def get_flame_hub_auth_flow(
         client=httpx2.Client(
             base_url=settings.hub_auth_service_url,
             verify=ssl_ctx,
+            timeout=settings.hub_request_timeout,
             event_hooks={"response": [make_log_hook(ServiceTag.HUB)]},
         ),
     )
@@ -110,18 +111,19 @@ def make_log_hook(service: str, is_async: bool = False, event_name: str | None =
 
 
 def get_core_client(
-    hub_auth: Annotated[
-        ClientAuth,
-        Depends(get_flame_hub_auth_flow),
-    ],
-    ssl_ctx: Annotated[ssl.SSLContext, Depends(get_ssl_context)],
-    settings: Annotated[Settings, Depends(get_settings)],
+        hub_auth: Annotated[
+            ClientAuth,
+            Depends(get_flame_hub_auth_flow),
+        ],
+        ssl_ctx: Annotated[ssl.SSLContext, Depends(get_ssl_context)],
+        settings: Annotated[Settings, Depends(get_settings)],
 ) -> flame_hub.CoreClient:
     return flame_hub.CoreClient(
         client=httpx2.Client(
             base_url=settings.hub_service_url,
             auth=hub_auth,
             verify=ssl_ctx,
+            timeout=settings.hub_request_timeout,
             event_hooks={"response": [make_log_hook(ServiceTag.HUB)]},
         )
     )
@@ -147,24 +149,25 @@ def _write_node_cache(node_cache: dict) -> None:
 
 
 @catch_hub_errors
-async def get_node_id(
-    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
-    settings: Annotated[Settings, Depends(get_settings)],
-    force_refresh: bool = False,
+def get_node_id(
+        core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
+        settings: Annotated[Settings, Depends(get_settings)],
+        force_refresh: bool = False,
 ) -> str | None:
     """Uses the Node client ID to obtain the associated node ID, sets it in the env vars, and returns it.
 
     An empty string node_id indicates no node is associated with the provided node client username.
 
     If None is returned, no filtering will be applied, which is useful for debugging.
+
+    Defined with "def" because it reads the cache file and calls the synchronous Hub client.
     """
     node_client_id = settings.hub_node_client_id
 
     node_cache = {}
 
     if not force_refresh:
-        # Reading the cache file is blocking, so it runs in a worker thread
-        node_cache = await run_in_threadpool(_read_node_cache)
+        node_cache = _read_node_cache()
 
     # Returns None if key not in dict or '' if no Node ID was found
     # Need to default to an intentionally wrong nodeId if nothing found otherwise Hub will return all resources
@@ -194,15 +197,15 @@ async def get_node_id(
             node_id = str(node_id_resp[0].id)  # convert UUID type to string
             node_cache[node_client_id] = node_id
 
-            await run_in_threadpool(_write_node_cache, node_cache)
+            _write_node_cache(node_cache)
 
     return node_id
 
 
 @catch_hub_errors
 async def get_node_type_cache(
-    settings: Annotated[Settings, Depends(get_settings)],
-    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
+        settings: Annotated[Settings, Depends(get_settings)],
+        core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     global _node_type_cache
 
@@ -210,7 +213,8 @@ async def get_node_type_cache(
         node_id = await get_node_id(core_client=core_client, settings=settings)
 
         try:
-            node_resp = core_client.get_node(node_id=node_id)
+            # Stays async because it awaits get_node_id, so the Hub call is offloaded
+            node_resp = await run_in_threadpool(core_client.get_node, node_id=node_id)
             _node_type_cache = {"type": node_resp.type}
 
         except httpx2.ConnectError as e:
@@ -230,8 +234,8 @@ async def get_node_type_cache(
 
 
 def get_node_metadata_for_url(
-    node_id: Annotated[uuid.UUID | str, Body(description="Node UUID")],
-    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
+        node_id: Annotated[uuid.UUID | str, Body(description="Node UUID")],
+        core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ) -> Node | None:
     """Get analysis metadata for a given UUID to be used in creating analysis image URL."""
     node_metadata: Node | None = core_client.get_node(node_id=node_id)
@@ -253,8 +257,8 @@ def get_node_metadata_for_url(
 
 
 def get_registry_metadata_for_url(
-    node_metadata: Annotated[Node, Depends(get_node_metadata_for_url)],
-    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
+        node_metadata: Annotated[Node, Depends(get_node_metadata_for_url)],
+        core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
     """Get registry metadata for a given UUID to be used in creating analysis image URL."""
     registry_metadata = dict()
@@ -337,10 +341,10 @@ def get_registry_metadata_for_url(
 
 
 def compile_analysis_pod_data(
-    analysis_id: Annotated[uuid.UUID | str, Body(description="Analysis UUID")],
-    project_id: Annotated[uuid.UUID | str, Body(description="Project UUID")],
-    compiled_info: Annotated[tuple, Depends(get_registry_metadata_for_url)],
-    kong_token: Annotated[str, Body(description="Analysis keyauth kong token")] = None,
+        analysis_id: Annotated[uuid.UUID | str, Body(description="Analysis UUID")],
+        project_id: Annotated[uuid.UUID | str, Body(description="Project UUID")],
+        compiled_info: Annotated[tuple, Depends(get_registry_metadata_for_url)],
+        kong_token: Annotated[str, Body(description="Analysis keyauth kong token")] = None,
 ):
     """Put all the data together for passing on to the PO."""
     host, registry_project_external_name, registry_user, registry_sec = compiled_info

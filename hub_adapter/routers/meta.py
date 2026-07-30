@@ -9,6 +9,7 @@ import httpx2
 from fastapi import APIRouter, Depends, Form, HTTPException, Path, Security
 from pydantic import BaseModel
 from starlette import status
+from starlette.concurrency import run_in_threadpool
 
 from hub_adapter.auth import (
     _add_internal_token_if_missing,
@@ -59,7 +60,10 @@ async def initialize_analysis(
     initiator = GoGoAnalysis()
     node_id, node_type = await initiator.describe_node()
 
-    analysis = core_client.find_analysis_nodes(filter={"analysis_id": analysis_params.analysis_id})
+    # The Hub client is synchronous and this handler has to stay async, so the call is offloaded
+    analysis = await run_in_threadpool(
+        core_client.find_analysis_nodes, filter={"analysis_id": analysis_params.analysis_id}
+    )
     if not analysis:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
