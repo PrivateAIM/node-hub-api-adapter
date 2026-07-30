@@ -13,11 +13,11 @@ def connect_to_db() -> pw.PostgresqlDatabase | None:
     """Connect to the Postgres database."""
     settings = get_settings()
     required = {
-        "database": settings.postgres_event_db,
-        "user": settings.postgres_event_user,
-        "password": settings.postgres_event_password,
-        "host": settings.postgres_event_host,
-        "port": settings.postgres_event_port,
+        "database": settings.postgres_db,
+        "user": settings.postgres_user,
+        "password": settings.postgres_password,
+        "host": settings.postgres_host,
+        "port": settings.postgres_port,
     }
 
     if not all(required.values()):

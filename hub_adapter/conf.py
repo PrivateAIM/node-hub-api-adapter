@@ -25,12 +25,24 @@ class KongCleanupSettings(BaseModel):
     model_config = {"extra": "forbid"}
 
 
+class ServiceHealthSettings(BaseModel):
+    """Settings for the background routine that probes the downstream services and stores the results in Postgres.
+    Only runs when a Postgres connection could be established when the app started.
+    """
+
+    interval: Annotated[int, Field(gt=0)] | None = 60
+    retention_days: Annotated[int, Field(gt=0)] | None = 30
+
+    model_config = {"extra": "forbid"}
+
+
 class UserSettings(BaseSettings):
     """Node configuration settings set by the user."""
 
     require_data_store: bool | None = True
     autostart: AutostartSettings | None = AutostartSettings()
     kong_cleanup: KongCleanupSettings | None = KongCleanupSettings()
+    service_health: ServiceHealthSettings | None = ServiceHealthSettings()
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -90,11 +102,11 @@ class Settings(BaseSettings):
     researcher_role: str | None = None
 
     # Database (user settings persistence)
-    postgres_event_user: str | None = None
-    postgres_event_password: str | None = None
-    postgres_event_db: str | None = None
-    postgres_event_host: str | None = "localhost"
-    postgres_event_port: str | None = "5432"
+    postgres_user: str | None = None
+    postgres_password: str | None = None
+    postgres_db: str | None = None
+    postgres_host: str | None = "localhost"
+    postgres_port: str | None = "5432"
 
     model_config = SettingsConfigDict(
         env_file=".env",
