@@ -16,6 +16,7 @@ from flame_hub import HubAPIError
 from flame_hub._auth_flows import ClientAuth
 from flame_hub.models import Node
 from starlette import status
+from starlette.concurrency import run_in_threadpool
 
 from hub_adapter import node_id_pickle_path
 from hub_adapter.conf import Settings
@@ -126,6 +127,25 @@ def get_core_client(
     )
 
 
+def _read_node_cache() -> dict:
+    """Load the cached node IDs from disk, returning an empty cache if there is no file yet.
+
+    The file is only ever written by _write_node_cache into this app's own cache directory, so the
+    pickle is trusted local data rather than external input.
+    """
+    if not node_id_pickle_path.is_file():
+        return {}
+
+    with open(node_id_pickle_path, "rb") as f:
+        return pickle.load(f)
+
+
+def _write_node_cache(node_cache: dict) -> None:
+    """Persist the node ID cache to disk."""
+    with open(node_id_pickle_path, "wb") as f:
+        pickle.dump(node_cache, f)
+
+
 @catch_hub_errors
 async def get_node_id(
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
@@ -142,9 +162,9 @@ async def get_node_id(
 
     node_cache = {}
 
-    if not force_refresh and node_id_pickle_path.is_file():
-        with open(node_id_pickle_path, "rb") as f:
-            node_cache = pickle.load(f)
+    if not force_refresh:
+        # Reading the cache file is blocking, so it runs in a worker thread
+        node_cache = await run_in_threadpool(_read_node_cache)
 
     # Returns None if key not in dict or '' if no Node ID was found
     # Need to default to an intentionally wrong nodeId if nothing found otherwise Hub will return all resources
@@ -174,8 +194,7 @@ async def get_node_id(
             node_id = str(node_id_resp[0].id)  # convert UUID type to string
             node_cache[node_client_id] = node_id
 
-            with open(node_id_pickle_path, "wb") as f:
-                pickle.dump(node_cache, f)
+            await run_in_threadpool(_write_node_cache, node_cache)
 
     return node_id
 

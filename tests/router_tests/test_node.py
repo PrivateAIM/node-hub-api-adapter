@@ -68,7 +68,7 @@ class TestNodeSettings:
         """update_node_settings calls autostart_manager.update() when autostart key is present."""
         mock_update_settings.return_value = _DEFAULT_SETTINGS
 
-        with patch("hub_adapter.server.autostart_manager") as mock_manager:
+        with patch("hub_adapter.managers.autostart_manager") as mock_manager:
             mock_manager.update = AsyncMock()
             payload = UserSettings(autostart=AutostartSettings(enabled=True, interval=30))
             await update_node_settings(node_settings=payload)

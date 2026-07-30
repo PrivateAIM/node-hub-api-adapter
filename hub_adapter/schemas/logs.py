@@ -169,6 +169,7 @@ TRACKED_EVENTS = {
     "node.settings.update": "A user updated the node's configurations settings",
     "health.status.get": "An API health check was requested from the Hub Adapter API",
     "health.status.services.get": "An API health check for downstream services was requested from the Hub Adapter API",
+    "health.status.services.history.get": "A user requested the recorded health history of the downstream services",
     "storage.local.delete": "A user sent a request to delete local results to the Storage Service",
     "logs.events.get": "A user requested a list of events from the event log",
     "logs.analysis.live.get": "A user requested the logs for an analysis",
@@ -239,4 +240,13 @@ TRACKED_EVENTS = {
     "kong_cleanup.hub_fetch_error": "Kong consumer cleanup failed to fetch analysis statuses from the Hub",
     "kong_cleanup.delete_error": "Kong consumer cleanup failed to delete a Kong analysis consumer",
     "kong_cleanup.consumer_deleted": "Kong consumer cleanup deleted a stale Kong analysis consumer",
+    # Downstream service health monitoring events
+    "service_health.started": "Service health monitoring started",
+    "service_health.stopped": "Service health monitoring stopped",
+    "service_health.restarted": "Service health monitoring restarted with a new interval",
+    "service_health.disabled": "Service health monitoring is disabled because no database is available",
+    "service_health.error": "Service health monitoring encountered an error during its main loop",
+    "service_health.write_error": "Service health monitoring was unable to store its results",
+    "service_health.status_change": "A downstream service changed between a healthy and an unhealthy state",
+    "service_health.pruned": "Service health monitoring deleted checks older than the retention window",
 }
