@@ -71,6 +71,27 @@ class TestProbeTargets:
         assert "s3" not in results
         assert set(results) == {"po", "storage", "hub_core", "hub_auth", "kong", "idp"}
 
+    @pytest.mark.asyncio
+    async def test_unexpected_probe_error_does_not_lose_the_sweep(self, test_settings: Settings):
+        def _get(url, *args, **kwargs):
+            if url.endswith("/status"):  # the kong target
+                raise RuntimeError("boom")
+            return _mock_response()
+
+        client = MagicMock(spec=httpx2.AsyncClient)
+        client.get = AsyncMock(side_effect=_get)
+
+        with patch("hub_adapter.service_health.httpx2.AsyncClient") as mock_client_cls:
+            mock_client_cls.return_value.__aenter__.return_value = client
+            results = await probe_all(test_settings)
+
+        assert set(results) == {"po", "storage", "hub_core", "hub_auth", "kong", "idp"}
+        assert results["kong"]["status"] == "ERROR"
+        assert results["kong"]["status_code"] == 503
+        assert "RuntimeError" in results["kong"]["message"]
+        assert results["kong"]["latency_ms"] is None
+        assert results["storage"]["status"] == "OK"
+
 
 class TestProbeService:
     """Probing a single service."""
@@ -110,6 +131,24 @@ class TestProbeService:
 
         assert result["status"] == "ERROR"
         assert result["status_code"] == 503
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "error",
+        [
+            httpx2.UnsupportedProtocol("missing scheme"),
+            httpx2.TooManyRedirects("redirect loop"),
+            httpx2.ReadError("connection reset"),
+            httpx2.InvalidURL("not a url"),  # not an HTTPError subclass
+        ],
+    )
+    async def test_other_request_failures_are_caught(self, error):
+        client = _mock_client(side_effect=error)
+        result = await probe_service(client, "storage", "http://storage/healthz")
+
+        assert result["status"] == "ERROR"
+        assert result["status_code"] == 503
+        assert type(error).__name__ in result["message"]
 
     @pytest.mark.asyncio
     async def test_kong_with_unreachable_database_is_an_error(self):

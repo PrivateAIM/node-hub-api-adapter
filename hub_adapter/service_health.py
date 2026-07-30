@@ -15,7 +15,6 @@ from time import perf_counter
 
 import httpx2
 import peewee as pw
-from httpx2 import ConnectError, RemoteProtocolError, TimeoutException
 from playhouse.postgres_ext import DateTimeTZField
 
 from hub_adapter.conf import ServiceHealthSettings, Settings
@@ -92,8 +91,9 @@ async def probe_service(client: httpx2.AsyncClient, service: str, url: str) -> d
             svc_status = ServiceCheckStatus.ERROR
             message = resp.text
 
-    except (TimeoutException, RemoteProtocolError, ConnectError) as e:
-        logger.error(f"Error connecting to {service} service: {e}")
+    # InvalidURL is not an HTTPError subclass, so a misconfigured URL has to be named separately
+    except (httpx2.HTTPError, httpx2.InvalidURL) as e:
+        logger.error(f"Error connecting to {service} service: {e!r}")
         status_code = 503
         svc_status = ServiceCheckStatus.ERROR
         message = repr(e)
@@ -128,9 +128,30 @@ async def probe_all(settings: Settings) -> dict[str, dict]:
     targets = {service: url for service, url in build_probe_targets(settings).items() if url}
 
     async with httpx2.AsyncClient(timeout=PROBE_TIMEOUT) as client:
-        results = await asyncio.gather(*(probe_service(client, svc, url) for svc, url in targets.items()))
+        # An unexpected failure in one probe must not throw away the results of the whole sweep
+        results = await asyncio.gather(
+            *(probe_service(client, svc, url) for svc, url in targets.items()),
+            return_exceptions=True,
+        )
 
-    return dict(zip(targets, results, strict=True))
+    probed: dict[str, dict] = {}
+    for (service, url), result in zip(targets.items(), results, strict=True):
+        if isinstance(result, BaseException):
+            if isinstance(result, asyncio.CancelledError):
+                raise result  # the app is shutting down, not a service outage
+
+            logger.error(f"Unexpected error probing {service} service: {result!r}")
+            result = {
+                "status": ServiceCheckStatus.ERROR,
+                "status_code": 503,
+                "message": repr(result)[:MESSAGE_MAX_LENGTH],
+                "latency_ms": None,
+                "url": url,
+            }
+
+        probed[service] = result
+
+    return probed
 
 
 class ServiceHealthCheck(pw.Model):
