@@ -1,6 +1,6 @@
 """Constants."""
 
-from enum import Enum
+from enum import StrEnum
 
 CONTENT_TYPE = "Content-Type"
 CONTENT_LENGTH = "Content-Length"
@@ -23,8 +23,8 @@ REGISTRY_PROJECT = "registry_project"
 REGISTRY_PROJECT_ID = "registry_project_id"
 
 
-class ServiceTag(str, Enum):
-    """Service tags."""
+class ServiceTag(StrEnum):
+    """Service tags"""
 
     AUTH = "Auth"
     AUTOSTART = "Autostart"
