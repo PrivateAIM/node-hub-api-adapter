@@ -1,9 +1,4 @@
-"""Background routine that probes the downstream microservices and stores the results in Postgres.
-
-The probing logic here is shared with the live `/health/services` endpoint so both report identically.
-Persistence is entirely optional: if no Postgres connection can be established when the app starts,
-the monitoring loop never runs and the history endpoint reports why.
-"""
+"""Background routine that probes the downstream microservices and stores the results in Postgres."""
 
 import asyncio
 import logging
@@ -31,11 +26,10 @@ PROBE_TIMEOUT = 10.0  # seconds
 MESSAGE_MAX_LENGTH = 500  # keep an upstream HTML error page from bloating the table
 PRUNE_INTERVAL = timedelta(hours=1)
 
-# Fallbacks for when the user explicitly nulls out the settings
 DEFAULT_INTERVAL = 60
 DEFAULT_RETENTION_DAYS = 30
 
-# Services that are only probed when the node operator has configured a URL for them
+# Services that are only probed when the node has a URL for them
 OPTIONAL_SERVICES = ("victoria_logs", "message_broker", "s3", "fhir")
 
 
@@ -101,7 +95,7 @@ async def probe_service(client: httpx2.AsyncClient, service: str, url: str) -> d
     latency_ms = round((perf_counter() - start) * 1000, 2)
 
     if service == "kong" and resp is not None and svc_status == ServiceCheckStatus.OK:
-        # Kong answers 200 on /status even when it cannot reach its own database
+        # Kong answers 200 even when it cannot reach its own database
         kong_body = {}
         with suppress(ValueError):
             kong_body = resp.json()
@@ -124,7 +118,7 @@ async def probe_service(client: httpx2.AsyncClient, service: str, url: str) -> d
 
 
 async def probe_all(settings: Settings) -> dict[str, dict]:
-    """Probe every configured downstream service concurrently. Unconfigured services are skipped."""
+    """Probe every configured downstream service concurrently. Missing services are skipped."""
     targets = {service: url for service, url in build_probe_targets(settings).items() if url}
 
     async with httpx2.AsyncClient(timeout=PROBE_TIMEOUT) as client:
@@ -243,22 +237,56 @@ def _range_filter(start: datetime, end: datetime, services: Iterable[str] | None
     return clause
 
 
+def _bucket_expression(bucket_seconds: int):
+    """Generate bucket from SQL epoch"""
+    epoch = pw.fn.EXTRACT(pw.SQL("epoch FROM checked_at"))
+
+    return pw.fn.to_timestamp(pw.fn.FLOOR(epoch / bucket_seconds) * bucket_seconds).alias("bucket")
+
+
 def _as_float(value, ndigits: int | None = None) -> float | None:
-    """Coerce a SQL aggregate (which can come back as a Decimal) to a float."""
+    """Force to a result from a query to float to avoid downstream issues."""
     if value is None:
         return None
 
     return round(float(value), ndigits) if ndigits is not None else float(value)
 
 
+def _rows_to_buckets(rows: list[dict], bucket_seconds: int) -> dict[str, list[dict]]:
+    """Slice aggregates by service into buckets."""
+    width = timedelta(seconds=bucket_seconds)
+    buckets: dict[str, list[dict]] = {}
+
+    for row in rows:
+        total = int(row["total"] or 0)
+        successful = int(row["successful"] or 0)
+        failed = total - successful
+        start = row["bucket"]
+
+        buckets.setdefault(row["service"], []).append(
+            {
+                "start": start,
+                "end": start + width,
+                "total": total,
+                "successful": successful,
+                "failed": failed,
+                "max_latency_ms": _as_float(row["max_latency_ms"]),
+                "avg_latency_ms": _as_float(row["avg_latency_ms"], ndigits=2),
+                "worst_status": ServiceCheckStatus.ERROR if failed else ServiceCheckStatus.OK,
+                "message": row["message"] if failed else None,
+            }
+        )
+
+    for service_buckets in buckets.values():
+        service_buckets.sort(key=lambda bucket: bucket["start"])
+
+    return buckets
+
+
 def summarize_range(
         db: pw.Database, start: datetime, end: datetime, services: Iterable[str] | None = None
 ) -> dict[str, dict]:
-    """Aggregate the stored checks per service over a timeframe.
-
-    Aggregation happens in SQL over the whole range so the totals stay honest even when the raw
-    datapoints returned to the caller are capped by a limit.
-    """
+    """Summarize results by time range."""
     successes = pw.Case(None, [(ServiceHealthCheck.status == ServiceCheckStatus.OK, 1)], 0)
 
     # The query has to be built inside the bind context, otherwise it is not bound to a database
@@ -292,6 +320,39 @@ def summarize_range(
         }
 
     return summaries
+
+
+def bucket_range(
+        db: pw.Database,
+        start: datetime,
+        end: datetime,
+        services: Iterable[str] | None,
+        bucket_seconds: int,
+) -> dict[str, list[dict]]:
+    """Aggregate the stored checks per service into time slices."""
+    successes = pw.Case(None, [(ServiceHealthCheck.status == ServiceCheckStatus.OK, 1)], 0)
+    bucket = _bucket_expression(bucket_seconds)
+
+    with bind_service_health(db):
+        query = (
+            ServiceHealthCheck.select(
+                ServiceHealthCheck.service,
+                bucket,
+                pw.fn.COUNT(ServiceHealthCheck.id).alias("total"),
+                pw.fn.SUM(successes).alias("successful"),
+                pw.fn.MAX(ServiceHealthCheck.latency_ms).alias("max_latency_ms"),
+                pw.fn.AVG(ServiceHealthCheck.latency_ms).alias("avg_latency_ms"),
+                pw.fn.MIN(
+                    pw.Case(None, [(ServiceHealthCheck.status != ServiceCheckStatus.OK,
+                                    ServiceHealthCheck.message)], None)
+                ).alias("message"),
+            )
+            .where(_range_filter(start, end, services))
+            .group_by(ServiceHealthCheck.service, pw.SQL("bucket"))
+        )
+        rows = list(query.dicts())
+
+    return _rows_to_buckets(rows, bucket_seconds)
 
 
 def fetch_last_checks(
@@ -332,11 +393,7 @@ def fetch_checks(
 
 
 class ServiceHealthMonitor:
-    """Manages the downstream service health monitoring loop.
-
-    The loop only runs when a Postgres connection could be established. If no conn is possible when the app starts then
-    monitoring stays disabled for the lifetime of the process and the history endpoint reports the reason.
-    """
+    """Manages the downstream service health monitoring loop."""
 
     def __init__(self):
         self._task: asyncio.Task | None = None
