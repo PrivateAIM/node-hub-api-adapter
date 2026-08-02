@@ -10,10 +10,21 @@ import pytest
 
 from hub_adapter.conf import Settings, UserSettings
 from hub_adapter.dependencies import get_settings
+from hub_adapter.schemas.health import (
+    ServiceCheckStatus,
+    ServiceHealthBucket,
+    ServiceHealthSummary,
+    ServiceMonitoringStatus,
+)
 from hub_adapter.service_health import (
     MESSAGE_MAX_LENGTH,
     PRUNE_INTERVAL,
+    ServiceHealthCheck,
     ServiceHealthMonitor,
+    _bucket_expression,
+    _earliest_failure_message,
+    _rows_to_buckets,
+    bucket_range,
     build_probe_targets,
     probe_all,
     probe_service,
@@ -489,3 +500,271 @@ class TestHistoryEndpoint:
             resp = test_client.get(self.ROUTE)
 
         assert resp.status_code == 503
+
+    def test_resolution_populates_buckets(self, test_client):
+        monitor = self._monitor(True)
+        buckets = {
+            "kong": [
+                {
+                    "start": datetime(2026, 7, 30, 12, 0, tzinfo=UTC),
+                    "end": datetime(2026, 7, 30, 12, 5, tzinfo=UTC),
+                    "total": 5, "successful": 4, "failed": 1,
+                    "max_latency_ms": 1204.0, "avg_latency_ms": 310.5,
+                    "worst_status": ServiceCheckStatus.ERROR,
+                    "message": "Connection refused",
+                }
+            ]
+        }
+
+        with (
+            patch("hub_adapter.managers.service_health_monitor", monitor),
+            patch("hub_adapter.routers.health.summarize_range", return_value={}),
+            patch("hub_adapter.routers.health.fetch_last_checks", return_value={}),
+            patch("hub_adapter.routers.health.bucket_range", return_value=buckets),
+        ):
+            resp = test_client.get(self.ROUTE, params={"resolution": 300})
+
+        assert resp.status_code == 200
+        kong = resp.json()["services"]["kong"]
+        assert len(kong["buckets"]) == 1
+        assert kong["buckets"][0]["failed"] == 1
+        assert kong["buckets"][0]["message"] == "Connection refused"
+
+    def test_buckets_are_empty_without_a_resolution(self, test_client):
+        monitor = self._monitor(True)
+
+        with (
+            patch("hub_adapter.managers.service_health_monitor", monitor),
+            patch("hub_adapter.routers.health.summarize_range", return_value={}),
+            patch("hub_adapter.routers.health.fetch_last_checks", return_value={}),
+            patch("hub_adapter.routers.health.fetch_checks", return_value={}),
+            patch("hub_adapter.routers.health.bucket_range") as mock_bucket,
+        ):
+            resp = test_client.get(self.ROUTE)
+
+        assert resp.status_code == 200
+        mock_bucket.assert_not_called()
+        assert resp.json()["services"]["kong"]["buckets"] == []
+
+    def test_resolution_must_be_positive(self, test_client):
+        monitor = self._monitor(True)
+
+        with patch("hub_adapter.managers.service_health_monitor", monitor):
+            resp = test_client.get(self.ROUTE, params={"resolution": 0})
+
+        assert resp.status_code == 422
+
+    def test_resolution_skips_raw_checks(self, test_client):
+        """Asking for buckets should not also drag back every raw datapoint."""
+        monitor = self._monitor(True)
+
+        with (
+            patch("hub_adapter.managers.service_health_monitor", monitor),
+            patch("hub_adapter.routers.health.summarize_range", return_value={}),
+            patch("hub_adapter.routers.health.fetch_last_checks", return_value={}),
+            patch("hub_adapter.routers.health.bucket_range", return_value={}),
+            patch("hub_adapter.routers.health.fetch_checks") as mock_fetch,
+        ):
+            resp = test_client.get(self.ROUTE, params={"resolution": 300})
+
+        assert resp.status_code == 200
+        mock_fetch.assert_not_called()
+
+
+class TestServiceHealthBucket:
+    """The per-slice aggregate returned when a resolution is requested."""
+
+    def test_summary_has_no_buckets_by_default(self):
+        summary = ServiceHealthSummary(configured=True, status=ServiceMonitoringStatus.ACTIVE)
+        assert summary.buckets == []
+
+    def test_bucket_round_trips(self):
+        bucket = ServiceHealthBucket(
+            start=datetime(2026, 7, 30, 12, 0, tzinfo=UTC),
+            end=datetime(2026, 7, 30, 12, 5, tzinfo=UTC),
+            total=5,
+            successful=4,
+            failed=1,
+            max_latency_ms=1204.0,
+            avg_latency_ms=310.5,
+            worst_status=ServiceCheckStatus.ERROR,
+            message="Connection refused",
+        )
+        assert bucket.worst_status == ServiceCheckStatus.ERROR
+        assert bucket.failed == 1
+
+    def test_rows_fold_into_per_service_buckets(self):
+        rows = [
+            {
+                "service": "kong",
+                "bucket": datetime(2026, 7, 30, 12, 0, tzinfo=UTC),
+                "total": 5, "successful": 5,
+                "max_latency_ms": 40.0, "avg_latency_ms": 30.0,
+                "message": None,
+            },
+            {
+                "service": "kong",
+                "bucket": datetime(2026, 7, 30, 12, 5, tzinfo=UTC),
+                "total": 5, "successful": 3,
+                "max_latency_ms": 1204.0, "avg_latency_ms": 500.0,
+                "message": "Connection refused",
+            },
+        ]
+
+        folded = _rows_to_buckets(rows, 300)
+
+        assert list(folded) == ["kong"]
+        first, second = folded["kong"]
+
+        assert first["failed"] == 0
+        assert first["worst_status"] == ServiceCheckStatus.OK
+        assert first["message"] is None
+        assert first["end"] == datetime(2026, 7, 30, 12, 5, tzinfo=UTC)
+
+        assert second["failed"] == 2
+        assert second["worst_status"] == ServiceCheckStatus.ERROR
+        assert second["message"] == "Connection refused"
+
+    def test_rows_are_sorted_by_slice_start(self):
+        rows = [
+            {"service": "s3", "bucket": datetime(2026, 7, 30, 12, 5, tzinfo=UTC),
+             "total": 1, "successful": 1, "max_latency_ms": 1.0, "avg_latency_ms": 1.0, "message": None},
+            {"service": "s3", "bucket": datetime(2026, 7, 30, 12, 0, tzinfo=UTC),
+             "total": 1, "successful": 1, "max_latency_ms": 1.0, "avg_latency_ms": 1.0, "message": None},
+        ]
+
+        folded = _rows_to_buckets(rows, 300)
+
+        starts = [bucket["start"] for bucket in folded["s3"]]
+        assert starts == sorted(starts)
+
+    def test_message_is_dropped_when_nothing_failed(self):
+        rows = [
+            {"service": "kong", "bucket": datetime(2026, 7, 30, 12, 0, tzinfo=UTC),
+             "total": 3, "successful": 3, "max_latency_ms": 40.0, "avg_latency_ms": 30.0,
+             "message": "stale text"},
+        ]
+
+        folded = _rows_to_buckets(rows, 300)
+
+        assert folded["kong"][0]["failed"] == 0
+        assert folded["kong"][0]["message"] is None
+
+    def test_null_latency_aggregates_survive(self):
+        rows = [
+            {"service": "fhir", "bucket": datetime(2026, 7, 30, 12, 0, tzinfo=UTC),
+             "total": 2, "successful": 0, "max_latency_ms": None, "avg_latency_ms": None,
+             "message": "timed out"},
+        ]
+
+        folded = _rows_to_buckets(rows, 300)
+
+        assert folded["fhir"][0]["max_latency_ms"] is None
+        assert folded["fhir"][0]["worst_status"] == ServiceCheckStatus.ERROR
+
+
+class TestBucketRange:
+    """The GROUP BY service, slice aggregation."""
+
+    def test_bucket_expression_floors_to_the_slice_width(self):
+        db = pw.PostgresqlDatabase("unused")
+
+        with db.bind_ctx((ServiceHealthCheck,)):
+            query = ServiceHealthCheck.select(
+                ServiceHealthCheck.service, _bucket_expression(300)
+            )
+            sql, params = query.sql()
+
+        assert "to_timestamp" in sql
+        assert "FLOOR" in sql
+        assert "EXTRACT(epoch FROM checked_at)" in sql
+        # the slice width must be bound as a parameter, never interpolated
+        assert "300" not in sql
+        assert params == [300, 300]
+
+    def test_bucket_expression_is_parameterised_for_any_width(self):
+        db = pw.PostgresqlDatabase("unused")
+
+        with db.bind_ctx((ServiceHealthCheck,)):
+            sql, params = ServiceHealthCheck.select(_bucket_expression(3600)).sql()
+
+        assert params == [3600, 3600]
+        assert "3600" not in sql
+
+    def test_message_aggregate_picks_the_earliest_failure(self):
+        """With several distinct failure messages in one slice, the slice must report the one that came first.
+
+        MIN() would hand back the alphabetically smallest message instead, so the aggregate has to order the
+        failures by checked_at and take the head.
+        """
+        db = pw.PostgresqlDatabase("unused")
+
+        with db.bind_ctx((ServiceHealthCheck,)):
+            sql, params = ServiceHealthCheck.select(_earliest_failure_message()).sql()
+
+        assert 'array_agg("t1"."message" ORDER BY "t1"."checked_at")' in sql
+        assert ')[1] AS "message"' in sql
+        # only failed checks contribute, so a slice without any yields NULL
+        assert 'FILTER (WHERE ("t1"."status" != %s))' in sql
+        assert params == [ServiceCheckStatus.OK]
+        assert "MIN" not in sql
+
+    def test_bucket_range_selects_the_earliest_failure_message(self):
+        db = MagicMock(spec=pw.PostgresqlDatabase)
+        start = datetime(2026, 7, 30, 12, 0, tzinfo=UTC)
+        end = datetime(2026, 7, 30, 13, 0, tzinfo=UTC)
+
+        with (
+            patch("hub_adapter.service_health.bind_service_health"),
+            patch("hub_adapter.service_health._range_filter"),
+            patch("hub_adapter.service_health._earliest_failure_message") as mock_message,
+            patch("hub_adapter.service_health.ServiceHealthCheck") as mock_model,
+        ):
+            mock_model.select.return_value.where.return_value.group_by.return_value.dicts.return_value = []
+            bucket_range(db, start, end, ["kong"], 300)
+
+        mock_message.assert_called_once_with()
+        assert mock_message.return_value in mock_model.select.call_args.args
+
+    def test_bucket_range_folds_the_query_rows(self):
+        rows = [
+            {"service": "kong", "bucket": datetime(2026, 7, 30, 12, 0, tzinfo=UTC),
+             "total": 5, "successful": 4, "max_latency_ms": 900.0,
+             "avg_latency_ms": 200.0, "message": "boom"},
+        ]
+        db = MagicMock(spec=pw.PostgresqlDatabase)
+
+        start = datetime(2026, 7, 30, 12, 0, tzinfo=UTC)
+        end = datetime(2026, 7, 30, 13, 0, tzinfo=UTC)
+
+        with (
+            patch("hub_adapter.service_health.bind_service_health"),
+            patch("hub_adapter.service_health.ServiceHealthCheck") as mock_model,
+            # _range_filter compares ServiceHealthCheck.checked_at to real datetimes; a bare
+            # MagicMock has no usable __ge__/__le__ for that, so it's stubbed out here since
+            # this test is about the row-folding, not the WHERE clause (covered elsewhere).
+            patch("hub_adapter.service_health._range_filter") as mock_range_filter,
+        ):
+            mock_model.select.return_value.where.return_value.group_by.return_value.dicts.return_value = rows
+            result = bucket_range(db, start, end, ["kong"], 300)
+
+        mock_range_filter.assert_called_once_with(start, end, ["kong"])
+        assert result["kong"][0]["failed"] == 1
+        assert result["kong"][0]["worst_status"] == ServiceCheckStatus.ERROR
+        assert result["kong"][0]["message"] == "boom"
+
+    def test_bucket_range_with_no_rows_returns_empty(self):
+        db = MagicMock(spec=pw.PostgresqlDatabase)
+        start = datetime(2026, 7, 30, 12, 0, tzinfo=UTC)
+        end = datetime(2026, 7, 30, 13, 0, tzinfo=UTC)
+
+        with (
+            patch("hub_adapter.service_health.bind_service_health"),
+            patch("hub_adapter.service_health.ServiceHealthCheck") as mock_model,
+            patch("hub_adapter.service_health._range_filter") as mock_range_filter,
+        ):
+            mock_model.select.return_value.where.return_value.group_by.return_value.dicts.return_value = []
+            result = bucket_range(db, start, end, ["kong"], 300)
+
+        mock_range_filter.assert_called_once_with(start, end, ["kong"])
+        assert result == {}

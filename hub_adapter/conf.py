@@ -16,11 +16,11 @@ class AutostartSettings(BaseModel):
 
 
 class KongCleanupSettings(BaseModel):
-    """Settings for the background sweep that deletes Kong analysis consumers once their analysis
-    reaches a terminal status. Always runs; only the interval is configurable.
+    """Settings for the background sweep that deletes Kong analysis consumers once their analysis reaches a terminal
+    status.
     """
 
-    interval: Annotated[int, Field(gt=0)] | None = 30
+    interval: Annotated[int, Field(gt=0)] | None = 120
 
     model_config = {"extra": "forbid"}
 
@@ -107,6 +107,13 @@ class Settings(BaseSettings):
     postgres_db: str | None = None
     postgres_host: str | None = "localhost"
     postgres_port: str | None = "5432"
+
+    # Upstream request timeouts in seconds (both services are sync)
+    kong_request_timeout: Annotated[float | int, Field(gt=0)] = 10
+    hub_request_timeout: Annotated[float | int, Field(gt=0)] = 10
+
+    # Worker threads available to the synchronous endpoints (default is 40, need >38, this is a safe buffer)
+    worker_thread_limit: Annotated[int, Field(gt=0)] = 100
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -86,7 +86,7 @@ def _parse_query_params(
     name="hub.project.get",
 )
 @catch_hub_errors
-async def list_all_projects(
+def list_all_projects(
     query_params: Annotated[dict, Depends(_parse_query_params)],
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
@@ -102,7 +102,7 @@ async def list_all_projects(
     name="hub.project.get",
 )
 @catch_hub_errors
-async def list_specific_project(
+def list_specific_project(
     project_id: Annotated[uuid.UUID | str, Path(description="Project UUID.")],
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
@@ -118,7 +118,7 @@ async def list_specific_project(
     name="hub.project.node.get",
 )
 @catch_hub_errors
-async def list_project_proposals(
+def list_project_proposals(
     node_id: Annotated[str, Depends(get_node_id)],
     query_params: Annotated[dict, Depends(_parse_query_params)],
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
@@ -139,7 +139,7 @@ async def list_project_proposals(
     name="hub.project.node.get",
 )
 @catch_hub_errors
-async def list_project_proposal(
+def list_project_proposal(
     project_node_id: Annotated[uuid.UUID | str, Path(description="Proposal object UUID.")],
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
@@ -155,7 +155,7 @@ async def list_project_proposal(
     name="hub.project.node.update",
 )
 @catch_hub_errors
-async def accept_reject_project_proposal(
+def accept_reject_project_proposal(
     project_node_id: Annotated[uuid.UUID | str, Path(description="Proposal object UUID.")],
     approval_status: Annotated[
         ProjectNodeApprovalStatus,
@@ -175,7 +175,7 @@ async def accept_reject_project_proposal(
     name="hub.analysis.node.get",
 )
 @catch_hub_errors
-async def list_analysis_nodes(
+def list_analysis_nodes(
     node_id: Annotated[str, Depends(get_node_id)],
     query_params: Annotated[dict, Depends(_parse_query_params)],
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
@@ -196,7 +196,7 @@ async def list_analysis_nodes(
     name="hub.analysis.node.get",
 )
 @catch_hub_errors
-async def list_specific_analysis_node(
+def list_specific_analysis_node(
     analysis_node_id: Annotated[uuid.UUID | str, Path(description="Analysis Node UUID.")],
     query_params: Annotated[dict, Depends(_parse_query_params)],
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
@@ -213,7 +213,7 @@ async def list_specific_analysis_node(
     name="hub.analysis.update",
 )
 @catch_hub_errors
-async def accept_reject_analysis_node(
+def accept_reject_analysis_node(
     analysis_node_id: Annotated[uuid.UUID | str, Path(description="Analysis Node UUID (not analysis_id).")],
     approval_status: Annotated[
         ProjectNodeApprovalStatus,  # same as AnalysisNodeApprovalStatus
@@ -233,7 +233,7 @@ async def accept_reject_analysis_node(
     name="hub.analysis.get",
 )
 @catch_hub_errors
-async def list_all_analyses(
+def list_all_analyses(
     query_params: Annotated[dict, Depends(_parse_query_params)],
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
@@ -249,7 +249,7 @@ async def list_all_analyses(
     name="hub.analysis.get",
 )
 @catch_hub_errors
-async def list_specific_analysis(
+def list_specific_analysis(
     analysis_id: Annotated[uuid.UUID | str, Path(description="Analysis UUID.")],
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
@@ -265,7 +265,7 @@ async def list_specific_analysis(
     name="hub.node.get",
 )
 @catch_hub_errors
-async def list_all_nodes(
+def list_all_nodes(
     query_params: Annotated[dict, Depends(_parse_query_params)],
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
@@ -281,7 +281,7 @@ async def list_all_nodes(
     name="hub.node.get",
 )
 @catch_hub_errors
-async def list_specific_node(
+def list_specific_node(
     node_id: Annotated[uuid.UUID | str, Path(description="Node UUID.")],
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
@@ -297,7 +297,7 @@ async def list_specific_node(
     name="hub.node.type.get",
 )
 @catch_hub_errors
-async def get_node_type(node_type: Annotated[dict | None, Depends(get_node_type_cache)]):
+def get_node_type(node_type: Annotated[dict | None, Depends(get_node_type_cache)]):
     """Return what type of node this API is deployed on."""
     return node_type
 
@@ -310,7 +310,7 @@ async def get_node_type(node_type: Annotated[dict | None, Depends(get_node_type_
     name="hub.analysis.node.update",
 )
 @catch_hub_errors
-async def update_specific_analysis(
+def update_specific_analysis(
     analysis_id: Annotated[uuid.UUID | str, Path(description="Analysis UUID.")],
     name: Annotated[str, Body(description="New analysis name.")],
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
@@ -326,7 +326,7 @@ async def update_specific_analysis(
     response_model=RegistryProject,
 )
 @catch_hub_errors
-async def get_registry_metadata_for_project(
+def get_registry_metadata_for_project(
     registry_project_id: Annotated[uuid.UUID | str, Path(description="Registry project UUID.")],
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
@@ -337,7 +337,7 @@ async def get_registry_metadata_for_project(
 
 @hub_router.post("/analysis/image", response_model=AnalysisImageUrl, name="hub.analysis.image.get")
 @catch_hub_errors
-async def get_analysis_image_url(
+def get_analysis_image_url(
     image_url_resp: Annotated[AnalysisImageUrl, Depends(compile_analysis_pod_data)],
 ):
     """Build an analysis image URL using its metadata from the Hub."""
@@ -352,7 +352,7 @@ async def get_analysis_image_url(
     name="hub.analysis.bucket.get",
 )
 @catch_hub_errors
-async def list_all_analysis_buckets(
+def list_all_analysis_buckets(
     query_params: Annotated[dict, Depends(_parse_query_params)],
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
@@ -368,7 +368,7 @@ async def list_all_analysis_buckets(
     name="hub.analysis.bucket.get",
 )
 @catch_hub_errors
-async def list_specific_analysis_buckets(
+def list_specific_analysis_buckets(
     analysis_bucket_id: Annotated[uuid.UUID | str, Path(description="Bucket UUID.")],
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
@@ -384,7 +384,7 @@ async def list_specific_analysis_buckets(
     name="hub.analysis.bucket.file.get",
 )
 @catch_hub_errors
-async def list_all_analysis_bucket_files(
+def list_all_analysis_bucket_files(
     query_params: Annotated[dict, Depends(_parse_query_params)],
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
@@ -400,7 +400,7 @@ async def list_all_analysis_bucket_files(
     name="hub.analysis.bucket.file.get",
 )
 @catch_hub_errors
-async def list_specific_analysis_bucket_file(
+def list_specific_analysis_bucket_file(
     analysis_bucket_file_id: Annotated[uuid.UUID | str, Path(description="Bucket file UUID.")],
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):

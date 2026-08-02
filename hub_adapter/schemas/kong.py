@@ -1,6 +1,6 @@
 """Models for the Kong microservice."""
 
-from enum import Enum
+from enum import StrEnum
 
 from kong_admin_client import (
     ACL,
@@ -18,14 +18,14 @@ from kong_admin_client import (
 from pydantic import BaseModel, SecretStr
 
 
-class DataStoreType(str, Enum):
+class DataStoreType(StrEnum):
     """Data store types."""
 
     S3 = "s3"
     FHIR = "fhir"
 
 
-class HttpMethodCode(str, Enum):
+class HttpMethodCode(StrEnum):
     """HTTP method codes."""
 
     GET = "GET"
@@ -40,7 +40,7 @@ class HttpMethodCode(str, Enum):
     CUSTOM = "CUSTOM"
 
 
-class ProtocolCode(str, Enum):
+class ProtocolCode(StrEnum):
     """Protocol codes."""
 
     HTTP = "http"

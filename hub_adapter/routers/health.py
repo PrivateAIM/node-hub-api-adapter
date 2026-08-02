@@ -17,12 +17,14 @@ from hub_adapter.schemas.health import (
     HealthCheck,
     HealthStatus,
     ServiceCheckStatus,
+    ServiceHealthBucket,
     ServiceHealthHistory,
     ServiceHealthPoint,
     ServiceHealthSummary,
     ServiceMonitoringStatus,
 )
 from hub_adapter.service_health import (
+    bucket_range,
     build_probe_targets,
     fetch_checks,
     fetch_last_checks,
@@ -48,10 +50,6 @@ DEFAULT_HISTORY_WINDOW = timedelta(days=1)
     name="health.status.get",
 )
 async def get_health() -> HealthCheck:
-    """
-    Returns:
-        HealthCheck: Returns a JSON response with the health status
-    """
     return HealthCheck(status=HealthStatus.OK)
 
 
@@ -96,6 +94,15 @@ async def get_health_downstream_services_history(
             bool,
             Query(description="Whether to include the raw datapoints alongside the summary"),
         ] = True,
+        resolution: Annotated[
+            int | None,
+            Query(
+                gt=0,
+                le=86400,
+                description="Aggregate checks into slices this many seconds wide instead of returning raw datapoints. "
+                            "Slices with no checks are omitted",
+            ),
+        ] = None,
         limit: Annotated[
             int,
             Query(gt=0, le=10000, description="Maximum number of raw datapoints to return per service, newest first"),
@@ -171,11 +178,19 @@ async def get_health_downstream_services_history(
         last_checks = await run_in_threadpool(
             fetch_last_checks, service_health_monitor.database, start, end, monitored
         )
-        raw_checks = (
-            await run_in_threadpool(fetch_checks, service_health_monitor.database, start, end, monitored, limit)
-            if include_checks
-            else {}
-        )
+
+        raw_checks = {}
+        buckets = {}
+
+        if resolution:
+            buckets = await run_in_threadpool(
+                bucket_range, service_health_monitor.database, start, end, monitored, resolution
+            )
+
+        elif include_checks:
+            raw_checks = await run_in_threadpool(
+                fetch_checks, service_health_monitor.database, start, end, monitored, limit
+            )
 
     except pw.PeeweeException as db_err:
         logger.error(f"Unable to fetch the service health history: {db_err}")
@@ -202,6 +217,7 @@ async def get_health_downstream_services_history(
 
         summary.checks = [ServiceHealthPoint.model_validate(check) for check in raw_checks.get(name, [])]
         summary.checks_returned = len(summary.checks)
+        summary.buckets = [ServiceHealthBucket.model_validate(b) for b in buckets.get(name, [])]
 
     return response
 

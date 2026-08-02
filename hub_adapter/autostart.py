@@ -10,6 +10,7 @@ from fastapi import HTTPException
 from flame_hub import HubAPIError
 from httpx2 import ConnectError, HTTPStatusError, ReadTimeout, RemoteProtocolError
 from starlette import status
+from starlette.concurrency import run_in_threadpool
 
 from hub_adapter.auth import _get_internal_token
 from hub_adapter.constants import ServiceTag
@@ -251,7 +252,10 @@ class GoGoAnalysis:
                 )
 
             # Status obtained and no pod is running, the consumer already exists, so reuse its credential
-            existing_keyauth = get_analysis_keyauth(settings=self.settings, analysis_id=analysis_id)
+            # Synchronous Kong helper, so it must not run on the event loop
+            existing_keyauth = await run_in_threadpool(
+                get_analysis_keyauth, settings=self.settings, analysis_id=analysis_id
+            )
             if existing_keyauth is not None:
                 log_event(
                     "autostart.analysis.reuse",

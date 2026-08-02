@@ -6,11 +6,7 @@ from pydantic import BaseModel, Field
 
 
 class HealthStatus(StrEnum):
-    """Health of a service as reported by a live probe.
-
-    Defined as an enum rather than a Literal so that it appears as a named schema in openapi.json
-    and the frontend can import it instead of hardcoding the strings.
-    """
+    """Health of a service as reported by a live probe."""
 
     OK = "OK"
     WARNING = "WARNING"
@@ -71,6 +67,25 @@ class ServiceHealthPoint(BaseModel):
     )
 
 
+class ServiceHealthBucket(BaseModel):
+    """Collection of every recorded probe falling inside a time slice."""
+
+    start: datetime = Field(description="Inclusive start of the slice")
+    end: datetime = Field(description="Exclusive end of the slice")
+    total: int
+    successful: int
+    failed: int
+    max_latency_ms: float | None = None
+    avg_latency_ms: float | None = None
+    worst_status: ServiceCheckStatus = Field(
+        description="ERROR when any check in the slice failed, otherwise OK",
+    )
+    message: str | None = Field(
+        default=None,
+        description="Error text of the earliest failed check in the slice, if any",
+    )
+
+
 class ServiceHealthSummary(BaseModel):
     """Aggregated health of a single downstream service over the requested timeframe."""
 
@@ -97,6 +112,10 @@ class ServiceHealthSummary(BaseModel):
     checks: list[ServiceHealthPoint] = Field(
         default_factory=list,
         description="Raw datapoints in the timeframe, newest first, capped by the limit parameter",
+    )
+    buckets: list[ServiceHealthBucket] = Field(
+        default_factory=list,
+        description="Individual aggregates, only present when resolution is defined",
     )
 
 

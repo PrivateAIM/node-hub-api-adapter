@@ -1,12 +1,12 @@
 """Models for the pod orchestrator end points."""
 
 import uuid
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, RootModel
 
 
-class CleanUpType(str, Enum):
+class CleanUpType(StrEnum):
     """Canned strings for cleanup endpoint"""
 
     all = "all"
@@ -49,7 +49,7 @@ class PodResponse(RootModel[dict[uuid.UUID, list[str | None]]]):
     pass
 
 
-class PodStatus(str, Enum):
+class PodStatus(StrEnum):
     """Custom PO run statuses."""
 
     STARTING = "starting"
