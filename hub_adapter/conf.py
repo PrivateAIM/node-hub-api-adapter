@@ -109,11 +109,11 @@ class Settings(BaseSettings):
     postgres_port: str | None = "5432"
 
     # Upstream request timeouts in seconds (both services are sync)
-    kong_request_timeout: float = 10.0
-    hub_request_timeout: float = 10.0
+    kong_request_timeout: Annotated[float | int, Field(gt=0)] = 10
+    hub_request_timeout: Annotated[float | int, Field(gt=0)] = 10
 
     # Worker threads available to the synchronous endpoints (default is 40, need >38, this is a safe buffer)
-    worker_thread_limit: int = 100
+    worker_thread_limit: Annotated[int, Field(gt=0)] = 100
 
     model_config = SettingsConfigDict(
         env_file=".env",
