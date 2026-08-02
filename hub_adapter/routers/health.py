@@ -210,7 +210,7 @@ async def get_health_downstream_services_history(
             setattr(summary, field, value)
 
         if last_check := last_checks.get(name):
-            summary.last_status = last_check["status"]
+            summary.last_status = ServiceCheckStatus(last_check["status"])
             summary.last_status_code = last_check["status_code"]
             summary.last_checked_at = last_check["checked_at"]
             summary.last_error = last_check["message"] if last_check["status"] != ServiceCheckStatus.OK else None

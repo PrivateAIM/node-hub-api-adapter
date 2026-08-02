@@ -1,6 +1,7 @@
 """Collection of unit tests for the downstream service health monitoring."""
 
 import uuid
+import warnings
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -440,6 +441,30 @@ class TestHistoryEndpoint:
         assert kong["checks_returned"] == 1
         assert kong["checks"][0]["latency_ms"] == 8.0
         assert mock_fetch.call_args.args[-1] == 5  # limit is passed through
+
+    def test_last_status_is_coerced_to_the_enum(self, test_client):
+        """The database hands back a plain string, which must not reach the serializer untyped."""
+        last = {
+            "kong": {
+                "status": "OK",
+                "status_code": 200,
+                "checked_at": datetime.now(UTC),
+                "message": None,
+            }
+        }
+
+        with (
+            patch("hub_adapter.managers.service_health_monitor", self._monitor(True)),
+            patch("hub_adapter.routers.health.summarize_range", return_value={}),
+            patch("hub_adapter.routers.health.fetch_last_checks", return_value=last),
+            patch("hub_adapter.routers.health.fetch_checks", return_value={}),
+            warnings.catch_warnings(),
+        ):
+            warnings.simplefilter("error", UserWarning)
+            resp = test_client.get(self.ROUTE, params={"service": "kong"})
+
+        assert resp.status_code == 200
+        assert resp.json()["services"]["kong"]["last_status"] == "OK"
 
     def test_service_without_recorded_checks_stays_empty(self, test_client):
         with (
