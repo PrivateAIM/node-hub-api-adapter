@@ -244,6 +244,21 @@ def _bucket_expression(bucket_seconds: int):
     return pw.fn.to_timestamp(pw.fn.FLOOR(epoch / bucket_seconds) * bucket_seconds).alias("bucket")
 
 
+def _earliest_failure_message():
+    """Message of the earliest failed check in a group, or NULL when nothing failed.
+
+    MIN() returns the smallest message alphabetically instead of the one that actually came first.
+    """
+    failures = (
+        pw.fn.array_agg(ServiceHealthCheck.message)
+        .order_by(ServiceHealthCheck.checked_at)
+        .filter(ServiceHealthCheck.status != ServiceCheckStatus.OK)
+    )
+
+    # Need to use parantheses otherwise Postgres complains about subscripts
+    return pw.NodeList((pw.SQL("("), failures, pw.SQL(")[1]")), glue="").alias("message")
+
+
 def _as_float(value, ndigits: int | None = None) -> float | None:
     """Force to a result from a query to float to avoid downstream issues."""
     if value is None:
@@ -342,10 +357,7 @@ def bucket_range(
                 pw.fn.SUM(successes).alias("successful"),
                 pw.fn.MAX(ServiceHealthCheck.latency_ms).alias("max_latency_ms"),
                 pw.fn.AVG(ServiceHealthCheck.latency_ms).alias("avg_latency_ms"),
-                pw.fn.MIN(
-                    pw.Case(None, [(ServiceHealthCheck.status != ServiceCheckStatus.OK,
-                                    ServiceHealthCheck.message)], None)
-                ).alias("message"),
+                _earliest_failure_message(),
             )
             .where(_range_filter(start, end, services))
             .group_by(ServiceHealthCheck.service, pw.SQL("bucket"))

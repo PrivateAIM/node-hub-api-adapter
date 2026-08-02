@@ -22,6 +22,7 @@ from hub_adapter.service_health import (
     ServiceHealthCheck,
     ServiceHealthMonitor,
     _bucket_expression,
+    _earliest_failure_message,
     _rows_to_buckets,
     bucket_range,
     build_probe_targets,
@@ -637,6 +638,18 @@ class TestServiceHealthBucket:
         starts = [bucket["start"] for bucket in folded["s3"]]
         assert starts == sorted(starts)
 
+    def test_message_is_dropped_when_nothing_failed(self):
+        rows = [
+            {"service": "kong", "bucket": datetime(2026, 7, 30, 12, 0, tzinfo=UTC),
+             "total": 3, "successful": 3, "max_latency_ms": 40.0, "avg_latency_ms": 30.0,
+             "message": "stale text"},
+        ]
+
+        folded = _rows_to_buckets(rows, 300)
+
+        assert folded["kong"][0]["failed"] == 0
+        assert folded["kong"][0]["message"] is None
+
     def test_null_latency_aggregates_survive(self):
         rows = [
             {"service": "fhir", "bucket": datetime(2026, 7, 30, 12, 0, tzinfo=UTC),
@@ -677,6 +690,41 @@ class TestBucketRange:
 
         assert params == [3600, 3600]
         assert "3600" not in sql
+
+    def test_message_aggregate_picks_the_earliest_failure(self):
+        """With several distinct failure messages in one slice, the slice must report the one that came first.
+
+        MIN() would hand back the alphabetically smallest message instead, so the aggregate has to order the
+        failures by checked_at and take the head.
+        """
+        db = pw.PostgresqlDatabase("unused")
+
+        with db.bind_ctx((ServiceHealthCheck,)):
+            sql, params = ServiceHealthCheck.select(_earliest_failure_message()).sql()
+
+        assert 'array_agg("t1"."message" ORDER BY "t1"."checked_at")' in sql
+        assert ')[1] AS "message"' in sql
+        # only failed checks contribute, so a slice without any yields NULL
+        assert 'FILTER (WHERE ("t1"."status" != %s))' in sql
+        assert params == [ServiceCheckStatus.OK]
+        assert "MIN" not in sql
+
+    def test_bucket_range_selects_the_earliest_failure_message(self):
+        db = MagicMock(spec=pw.PostgresqlDatabase)
+        start = datetime(2026, 7, 30, 12, 0, tzinfo=UTC)
+        end = datetime(2026, 7, 30, 13, 0, tzinfo=UTC)
+
+        with (
+            patch("hub_adapter.service_health.bind_service_health"),
+            patch("hub_adapter.service_health._range_filter"),
+            patch("hub_adapter.service_health._earliest_failure_message") as mock_message,
+            patch("hub_adapter.service_health.ServiceHealthCheck") as mock_model,
+        ):
+            mock_model.select.return_value.where.return_value.group_by.return_value.dicts.return_value = []
+            bucket_range(db, start, end, ["kong"], 300)
+
+        mock_message.assert_called_once_with()
+        assert mock_message.return_value in mock_model.select.call_args.args
 
     def test_bucket_range_folds_the_query_rows(self):
         rows = [
