@@ -7,7 +7,7 @@ managers.
 """
 
 from hub_adapter.autostart import AutostartManager
-from hub_adapter.maintenance import KongCleanupManager
+from hub_adapter.kong_cleanup import KongCleanupManager
 from hub_adapter.service_health import ServiceHealthMonitor
 
 autostart_manager = AutostartManager()

@@ -149,7 +149,7 @@ class GoGoAnalysis:
         return analyses_started
 
     async def register_and_start_analysis(
-        self, analysis_id: str, project_id: str, node_id: str, node_type: str
+            self, analysis_id: str, project_id: str, node_id: str, node_type: str
     ) -> tuple | None:
         """Register an analysis with kong (if required) and start its pod.
 
@@ -186,7 +186,7 @@ class GoGoAnalysis:
         return node_id, node_type
 
     async def register_analysis(
-        self, analysis_id: str, project_id: str, attempt: int = 1, max_attempts: int = 5
+            self, analysis_id: str, project_id: str, attempt: int = 1, max_attempts: int = 5
     ) -> tuple[dict | None, int] | None:
         """Register an analysis with kong."""
         log_event(
@@ -244,7 +244,7 @@ class GoGoAnalysis:
                 return (
                     {
                         "message": f"Analysis {analysis_id} already registered but its status could not be verified, "
-                        f"please retry",
+                                   f"please retry",
                         "service": "PO",
                         "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
                     },
@@ -507,11 +507,11 @@ class GoGoAnalysis:
         return valid_projects
 
     def parse_analyses(
-        self,
-        analyses: list,
-        valid_projects: set,
-        datastore_required: bool = True,
-        enforce_time_and_status_check: bool = True,
+            self,
+            analyses: list,
+            valid_projects: set,
+            datastore_required: bool = True,
+            enforce_time_and_status_check: bool = True,
     ) -> set:
         """Iterate through analyses and check whether they are approved, built, and have a run status."""
         ready_analyses = set()
@@ -632,9 +632,13 @@ class AutostartManager:
 
     async def _run_autostart(self, interval: int) -> None:
         """Run the autostart probing loop."""
-        analysis_initiator = GoGoAnalysis()
+        analysis_initiator = None
         while True:
             try:
+                # Let fail during initialization e.g. Hub being unreachable at startup, will be retried on next loop
+                if analysis_initiator is None:
+                    analysis_initiator = GoGoAnalysis()
+
                 log_event(
                     "autostart.poll",
                     event_description="Checking for new analyses to start",

@@ -738,6 +738,40 @@ class TestAutostartManager:
             # Should have logged the error
             mock_log_event.assert_called()
 
+    @patch("hub_adapter.autostart.log_event")
+    @pytest.mark.asyncio
+    async def test_autostart_manager_retries_initiator_construction(self, mock_log_event):
+        """A GoGoAnalysis that cannot gather its dependencies must not kill the loop for good.
+
+        Its constructor reaches out for the settings, the Hub auth flow and the core client, so it
+        raises whenever the Hub is not up yet at startup. Building it outside the loop let that
+        exception escape the task, leaving autostart dead until the app was restarted.
+        """
+        from hub_adapter.autostart import AutostartManager
+
+        manager = AutostartManager()
+
+        with patch("hub_adapter.autostart.GoGoAnalysis") as mock_gogos:
+            mock_gogos.side_effect = Exception("Hub is not up yet")
+
+            task = asyncio.create_task(manager._run_autostart(interval=0))
+            await asyncio.sleep(0.1)
+
+            still_running = not task.done()
+
+            task.cancel()
+            with suppress(asyncio.CancelledError):
+                await task
+
+        assert still_running, "the loop died on the first failed GoGoAnalysis construction"
+        assert mock_gogos.call_count > 1, "construction was never retried"
+        mock_log_event.assert_any_call(
+            "autostart.error",
+            event_description=ANY,
+            level=logging.ERROR,
+            service=ANY,
+        )
+
 
 class TestAutostartWithRemoteProtocolError:
     """Tests for send_start_request with RemoteProtocolError."""
