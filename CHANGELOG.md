@@ -1,5 +1,38 @@
 # Changelog
 
+## [0.8.0](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.7.0...v0.8.0) (2026-08-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* **kong:** multi datastore kong refactor
+* decouple data stores from projects
+
+### Features
+
+* decouple data stores from projects ([cfa17b5](https://github.com/PrivateAIM/node-hub-api-adapter/commit/cfa17b502709f62c4fa91e6bf1019a9fd7bc7616))
+* **health:** add additional downstream healthchecks ([07a3ba9](https://github.com/PrivateAIM/node-hub-api-adapter/commit/07a3ba91d5b6933559fcaa69170eaffb3179e4bc))
+* **health:** add downstream health monitor ([b521195](https://github.com/PrivateAIM/node-hub-api-adapter/commit/b52119562cc4f8b0def81ccbeae1d645449bf97a))
+* **kong:** add tag based identity helpers ([974f132](https://github.com/PrivateAIM/node-hub-api-adapter/commit/974f132bcc8955543e5c9313a72e97385b3102f4))
+* **kong:** ensure datastore project pairing ([c2a489b](https://github.com/PrivateAIM/node-hub-api-adapter/commit/c2a489b47dee5abee7f4da216ce5871a74309ae6))
+* **kong:** make modified endpoints backwards compatible ([983fe35](https://github.com/PrivateAIM/node-hub-api-adapter/commit/983fe35101c2d910867b0ff050668f9caec7f79a))
+* **kong:** multi datastore kong refactor ([d4772cb](https://github.com/PrivateAIM/node-hub-api-adapter/commit/d4772cb6612cb23bcde900a316f49be323c2eec8))
+* **kong:** project datastore links as tagged nameless routes ([e60a037](https://github.com/PrivateAIM/node-hub-api-adapter/commit/e60a037ecb5bd4e4a246ef911f68108b233d8910))
+* **kong:** tag based analysis consumers with prefixed usernames ([93f9882](https://github.com/PrivateAIM/node-hub-api-adapter/commit/93f9882c68b287f2d6acd59be7c63b24c0019773))
+* **maintenance:** add thread for cleaning kong consumers ([d5eefda](https://github.com/PrivateAIM/node-hub-api-adapter/commit/d5eefda9f090f5851653abaf6e1949cb43377415))
+
+
+### Bug Fixes
+
+* **autostart:** don't tie up API with sleep when waiting for pod start ([a1a455c](https://github.com/PrivateAIM/node-hub-api-adapter/commit/a1a455cb8653edacbeb8a4d36a59f3c3a6d9d9f6))
+
+
+### Performance Improvements
+
+* **health:** bucket results to improve performance ([4772fad](https://github.com/PrivateAIM/node-hub-api-adapter/commit/4772fadc7edc1eefd547403bed543866f261752b))
+* **health:** improve handling of probe errors ([cae9bf4](https://github.com/PrivateAIM/node-hub-api-adapter/commit/cae9bf4523cd22a0f7217ff701f9519658a28fa7))
+* **health:** offload sync calls to new thread ([b9dcdc1](https://github.com/PrivateAIM/node-hub-api-adapter/commit/b9dcdc1edb44c1d70ffa23d8d7f3a1ff15b1eb44))
+
 ## [0.7.0](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.6.5...v0.7.0) (2026-07-01)
 
 
