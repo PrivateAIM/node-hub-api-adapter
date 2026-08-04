@@ -31,8 +31,8 @@ class TestAuthRouter:
         check_routes(auth_router, EXPECTED_AUTH_ROUTE_CONFIG, test_client)
 
     @patch("hub_adapter.routers.auth.get_svc_oidc_config")
-    @patch("hub_adapter.routers.auth.httpx2.Client")
-    def test_get_token_success(self, mock_client_cls, mock_oidc_config, test_settings):
+    @patch("hub_adapter.routers.auth.get_idp_client")
+    def test_get_token_success(self, mock_get_client, mock_oidc_config, test_settings):
         """get_token returns a Token when the IDP responds with 200."""
         mock_oidc_config.return_value = TEST_OIDC
 
@@ -49,20 +49,17 @@ class TestAuthRouter:
         mock_resp.json.return_value = token_payload
 
         mock_client = MagicMock()
-        mock_client.__enter__ = MagicMock(return_value=mock_client)
-        mock_client.__exit__ = MagicMock(return_value=False)
         mock_client.post.return_value = mock_resp
-        mock_client_cls.return_value = mock_client
+        mock_get_client.return_value = mock_client
 
-        ssl_ctx = MagicMock()
-        result = get_token(settings=test_settings, username="user", password="pass", ssl_ctx=ssl_ctx)
+        result = get_token(settings=test_settings, username="user", password="pass")
 
         assert isinstance(result, Token)
         assert result.access_token == "abc123"
 
     @patch("hub_adapter.routers.auth.get_svc_oidc_config")
-    @patch("hub_adapter.routers.auth.httpx2.Client")
-    def test_get_token_raises_on_non_200(self, mock_client_cls, mock_oidc_config, test_settings):
+    @patch("hub_adapter.routers.auth.get_idp_client")
+    def test_get_token_raises_on_non_200(self, mock_get_client, mock_oidc_config, test_settings):
         """get_token raises HTTPException when the IDP returns a non-200 status."""
         mock_oidc_config.return_value = TEST_OIDC
 
@@ -71,15 +68,11 @@ class TestAuthRouter:
         mock_resp.text = "Unauthorized"
 
         mock_client = MagicMock()
-        mock_client.__enter__ = MagicMock(return_value=mock_client)
-        mock_client.__exit__ = MagicMock(return_value=False)
         mock_client.post.return_value = mock_resp
-        mock_client_cls.return_value = mock_client
-
-        ssl_ctx = MagicMock()
+        mock_get_client.return_value = mock_client
 
         with pytest.raises(HTTPException) as exc_info:
-            get_token(settings=test_settings, username="bad", password="wrong", ssl_ctx=ssl_ctx)
+            get_token(settings=test_settings, username="bad", password="wrong")
 
         assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
         assert exc_info.value.detail == "Unauthorized"
