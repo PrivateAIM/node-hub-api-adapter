@@ -21,8 +21,6 @@ logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
-node_database = get_node_database()
-
 
 def with_db_fallback(fallback_value: Any = None, log_message: str = "Database operation failed"):
     """Decorator for database operations with automatic fallback on error.
@@ -66,7 +64,7 @@ class PersistentUserConfiguration(pw.Model):
     configuration = BinaryJSONField(default=dict)
 
     class Meta:
-        database = node_database
+        database = None
 
 
 @contextmanager
@@ -80,6 +78,7 @@ def bind_user_settings(db: pw.Database):
 @with_db_fallback(fallback_value={}, log_message="Database unavailable, falling back to cached settings")
 def _load_from_database() -> dict:
     """Load settings from the database."""
+    node_database = get_node_database()
     if node_database is None:
         return {}
 
@@ -112,6 +111,7 @@ def _save_to_database(settings_dict: dict) -> bool:
     bool
         Whether the settings successfully saved to the database.
     """
+    node_database = get_node_database()
     if node_database is None:
         return False
 

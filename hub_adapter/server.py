@@ -11,7 +11,7 @@ from starlette.middleware.cors import CORSMiddleware
 
 from hub_adapter import logging_config
 from hub_adapter.constants import ServiceTag
-from hub_adapter.dependencies import get_settings
+from hub_adapter.dependencies import close_resources, get_settings
 from hub_adapter.managers import (
     autostart_manager,
     kong_cleanup_manager,
@@ -29,7 +29,6 @@ from hub_adapter.routers.podorc import po_router
 from hub_adapter.routers.storage import storage_router
 
 logger = logging.getLogger(__name__)
-
 
 # API metadata
 tags_metadata = [
@@ -59,9 +58,6 @@ tags_metadata = [
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # The Hub and Kong clients are synchronous, so most endpoints occupy a worker thread for the
-    # duration of their upstream call. AnyIO's default of 40 would cap concurrent requests well
-    # below what a single event loop can otherwise serve.
     anyio.to_thread.current_default_thread_limiter().total_tokens = settings.worker_thread_limit
 
     await autostart_manager.update()
@@ -73,6 +69,9 @@ async def lifespan(app: FastAPI):
     await autostart_manager.stop()
     await kong_cleanup_manager.stop()
     await service_health_monitor.stop()
+
+    # Release the shared clients
+    await close_resources()
 
 
 settings = get_settings()
@@ -98,7 +97,6 @@ app = FastAPI(
     root_path=settings.api_root_path,
     lifespan=lifespan,
 )
-
 
 app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(

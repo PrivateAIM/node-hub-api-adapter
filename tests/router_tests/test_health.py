@@ -28,9 +28,8 @@ def _patch_probe_client(return_value=None, side_effect=None):
     client = MagicMock()
     client.get = AsyncMock(return_value=return_value, side_effect=side_effect)
 
-    patcher = patch("hub_adapter.service_health.httpx2.AsyncClient")
-    mock_cls = patcher.start()
-    mock_cls.return_value.__aenter__.return_value = client
+    patcher = patch("hub_adapter.service_health.get_proxy_client", return_value=client)
+    patcher.start()
 
     return patcher, client
 

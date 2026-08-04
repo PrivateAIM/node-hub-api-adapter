@@ -9,8 +9,7 @@ import httpx2
 from fastapi import HTTPException
 from starlette import status
 
-from hub_adapter.constants import ServiceTag
-from hub_adapter.dependencies import get_settings, make_log_hook, get_ssl_context
+from hub_adapter.dependencies import get_idp_client, get_settings
 from hub_adapter.schemas.conf import OIDCConfiguration
 
 logger = logging.getLogger(__name__)
@@ -46,12 +45,9 @@ def fetch_openid_config(
         oidc_url = oidc_url.rstrip("/") + "/.well-known/openid-configuration"
 
     attempt_num = 0
-    ssl_ctx = get_ssl_context(get_settings())
     while attempt_num <= max_retries:
         try:
-            with httpx2.Client(verify=ssl_ctx, event_hooks={"response": [make_log_hook(ServiceTag.IDP)]}) as client:
-                response = client.get(oidc_url)
-
+            response = get_idp_client().get(oidc_url)
             response.raise_for_status()
             oidc_config = response.json()
 

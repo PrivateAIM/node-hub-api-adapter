@@ -3,7 +3,6 @@ import logging
 import tempfile
 from collections.abc import Sequence
 
-import httpx2
 from fastapi import HTTPException, params, status
 from fastapi.datastructures import Headers
 from fastapi.requests import Request
@@ -13,7 +12,7 @@ from starlette.responses import FileResponse, Response
 
 from hub_adapter import post_processing, pre_processing
 from hub_adapter.constants import CONTENT_TYPE, ServiceTag
-from hub_adapter.dependencies import get_settings, make_log_hook
+from hub_adapter.dependencies import get_proxy_client, get_settings, make_log_hook
 from hub_adapter.utils import (
     create_request_data,
     unzip_body_object,
@@ -26,15 +25,15 @@ logger = logging.getLogger(__name__)
 
 
 async def make_request(
-        url: str,
-        method: str,
-        headers: Headers | dict,
-        query: dict | None = None,
-        data: dict | None = None,
-        files: dict | None = None,
-        file_response: bool = False,
-        service: ServiceTag | None = None,
-        request_name: str | None = None,
+    url: str,
+    method: str,
+    headers: Headers | dict,
+    query: dict | None = None,
+    data: dict | None = None,
+    files: dict | None = None,
+    file_response: bool = False,
+    service: ServiceTag | None = None,
+    request_name: str | None = None,
 ) -> tuple[[JSONResponse | StreamingResponse], int] | tuple[FileResponse, int]:
     """Make an asynchronous request by creating a temporary session.
 
@@ -74,58 +73,61 @@ async def make_request(
     if not files:
         files = {}
 
-    event_hooks = {"response": [make_log_hook(service, is_async=True, event_name=request_name)]} if service else {}
-    async with httpx2.AsyncClient(headers=headers, timeout=60.0, mounts=None, event_hooks=event_hooks) as client:
-        r = await client.request(
-            url=url,
-            method=method,
-            params=query,
-            json=data,
-            files=files,
-            follow_redirects=True,
+    r = await get_proxy_client().request(
+        url=url,
+        method=method,
+        headers=headers,
+        timeout=60.0,
+        params=query,
+        json=data,
+        files=files,
+        follow_redirects=True,
+    )
+
+    if service:
+        make_log_hook(service, event_name=request_name)(r)
+
+    r.raise_for_status()
+
+    if file_response:
+        with tempfile.NamedTemporaryFile(mode="w+b", delete=False) as temp_file:
+            temp_file.write(r.content)
+
+        filename = url.split("/")[-1]  # Get the UUID of object
+        return (
+            FileResponse(
+                temp_file.name,
+                headers=r.headers,
+                filename=filename,
+            ),
+            r.status_code,
         )
 
-        r.raise_for_status()
-
-        if file_response:
-            with tempfile.NamedTemporaryFile(mode="w+b", delete=False) as temp_file:
-                temp_file.write(r.content)
-
-            filename = url.split("/")[-1]  # Get the UUID of object
-            return (
-                FileResponse(
-                    temp_file.name,
-                    headers=r.headers,
-                    filename=filename,
-                ),
-                r.status_code,
-            )
-
-        else:  # Hopefully a JSONResponse
-            resp_data = r.json()
-            return resp_data, r.status_code
+    else:  # Hopefully a JSONResponse
+        resp_data = r.json()
+        return resp_data, r.status_code
 
 
 def route(
-        request_method,
-        path: str,
-        service_url: str,
-        name: str | None = None,
-        status_code: int | None = None,
-        query_params: list[str] | None = None,
-        form_params: list[str] | None = None,
-        body_params: list[str] | None = None,
-        file_params: list[str] | None = None,
-        file_response: bool = False,
-        response_model=None,
-        tags: list[str] = None,
-        dependencies: Sequence[params.Depends] | None = None,
-        summary: str | None = None,
-        description: str | None = None,
-        pre_processing_func: str | None = None,
-        post_processing_func: str | None = None,
-        all_query_params: bool = False,
-        # params from fastapi http methods can be added here later and then added to `request_method()`
+    request_method,
+    path: str,
+    service_url: str,
+    name: str | None = None,
+    status_code: int | None = None,
+    query_params: list[str] | None = None,
+    form_params: list[str] | None = None,
+    body_params: list[str] | None = None,
+    file_params: list[str] | None = None,
+    file_response: bool = False,
+    response_model=None,
+    tags: list[str] = None,
+    dependencies: Sequence[params.Depends] | None = None,
+    summary: str | None = None,
+    description: str | None = None,
+    pre_processing_func: str | None = None,
+    post_processing_func: str | None = None,
+    all_query_params: bool = False,
+    # params from fastapi http methods can be added here later and then added to `request_method()`
 ):
     """A decorator for the FastAPI router, its purpose is to make FastAPI
     acts as a gateway API in front of available microservices.
