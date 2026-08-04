@@ -3,8 +3,9 @@
 import logging
 
 import peewee as pw
+from playhouse.pool import PooledPostgresqlDatabase
 
-from hub_adapter.dependencies import get_settings
+from hub_adapter.dependencies import get_settings, register_closer
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +27,11 @@ def connect_to_db() -> pw.PostgresqlDatabase | None:
 
         return None
 
-    db = pw.PostgresqlDatabase(**required)
+    db = PooledPostgresqlDatabase(
+        **required,
+        max_connections=settings.postgres_max_connections,
+        stale_timeout=settings.postgres_stale_timeout,
+    )
 
     try:
         db.connect(reuse_if_open=True)
@@ -40,10 +45,31 @@ def connect_to_db() -> pw.PostgresqlDatabase | None:
 
 
 _node_database: pw.PostgresqlDatabase | None = None
+_connection_attempted = False
 
 
 def get_node_database() -> pw.PostgresqlDatabase | None:
-    global _node_database
-    if _node_database is None or _node_database.is_closed():
+    """Return the one database object for this process, connecting on first use."""
+    global _node_database, _connection_attempted
+
+    if not _connection_attempted:
+        _connection_attempted = True
         _node_database = connect_to_db()
+        register_closer(_close_database)
+
     return _node_database
+
+
+def _close_database() -> None:
+    """Close every connection peewee opened across all threads AKA burn everything."""
+    global _node_database, _connection_attempted
+
+    if _node_database is not None:
+        try:
+            _node_database.close_all()
+
+        except pw.PeeweeException as db_err:
+            logger.warning(f"Error while closing the database connections: {db_err}")
+
+    _node_database = None
+    _connection_attempted = False

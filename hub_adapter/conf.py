@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from pydantic import BaseModel, field_validator, model_validator, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
@@ -107,6 +107,9 @@ class Settings(BaseSettings):
     postgres_db: str | None = None
     postgres_host: str | None = "localhost"
     postgres_port: str | None = "5432"
+
+    postgres_max_connections: Annotated[int, Field(gt=0)] = 20
+    postgres_stale_timeout: Annotated[int, Field(gt=0)] = 300
 
     # Upstream request timeouts in seconds (both services are sync)
     kong_request_timeout: Annotated[float | int, Field(gt=0)] = 10
