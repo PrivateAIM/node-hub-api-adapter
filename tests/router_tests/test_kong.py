@@ -122,7 +122,7 @@ class TestKong:
             "ds_type": DS_TYPE,
         }
         resp = authorized_test_client.post("/kong/datastore", json=bad_request, auth=BearerAuth(TEST_JWT))
-        assert resp.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert resp.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
     @patch("hub_adapter.routers.kong.kong_admin_client.RoutesApi.list_route")
     @patch("hub_adapter.routers.kong.kong_admin_client.ServicesApi.get_service")
@@ -347,7 +347,7 @@ class TestKong:
             json={},
             auth=BearerAuth(TEST_JWT),
         )
-        assert resp.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert resp.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
         malicious_datastore_id = f"{TEST_KONG_SERVICE_ID},health"
         resp = authorized_test_client.post(
@@ -355,7 +355,7 @@ class TestKong:
             json={},
             auth=BearerAuth(TEST_JWT),
         )
-        assert resp.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert resp.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
     @patch("hub_adapter.routers.kong.kong_admin_client.RoutesApi.delete_route")
     @patch("hub_adapter.routers.kong.probe_connection")
@@ -478,7 +478,7 @@ class TestKong:
         resp = authorized_test_client.delete(
             f"/kong/project/{malicious_project_id}/datastore/{TEST_KONG_SERVICE_ID}", auth=BearerAuth(TEST_JWT)
         )
-        assert resp.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert resp.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
     @patch("hub_adapter.routers.kong.kong_admin_client.ConsumersApi.list_consumer")
     def test_get_analyses(self, mock_list_consumer, authorized_test_client):
@@ -548,7 +548,7 @@ class TestKong:
             {"project_id": TEST_MOCK_PROJECT_ID, "analysis_id": f"{TEST_MOCK_ANALYSIS_ID},health"},
         ):
             resp = authorized_test_client.post("/kong/analysis", json=body_data, auth=BearerAuth(TEST_JWT))
-            assert resp.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+            assert resp.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
         mock_projects.assert_not_called()
 
@@ -635,7 +635,7 @@ class TestConnection:
                 datastore_id=TEST_KONG_SERVICE_ID,
             )
 
-        assert err.value.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert err.value.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
     @pytest.mark.asyncio
     @patch("hub_adapter.routers.kong.probe_data_service")
