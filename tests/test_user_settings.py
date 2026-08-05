@@ -157,7 +157,7 @@ class TestDeepMerge:
 class TestLoadFromDatabase:
     """Tests for _load_from_database function."""
 
-    @patch("hub_adapter.user_settings.node_database")
+    @patch("hub_adapter.user_settings.get_node_database")
     @patch("hub_adapter.user_settings.bind_user_settings")
     def test_load_from_database_success(self, mock_bind, mock_db):
         """Test successfully loading settings from database."""
@@ -175,13 +175,13 @@ class TestLoadFromDatabase:
 
             assert result == {"require_data_store": False, "autostart": {"enabled": True}}
 
-    @patch("hub_adapter.user_settings.node_database", None)
+    @patch("hub_adapter.user_settings.get_node_database", Mock(return_value=None))
     def test_load_from_database_with_none_database(self):
-        """Test that function returns an empty dict when node_database is None."""
+        """Test that function returns an empty dict when there is no database."""
         result = _load_from_database()
         assert result == {}
 
-    @patch("hub_adapter.user_settings.node_database")
+    @patch("hub_adapter.user_settings.get_node_database")
     def test_load_from_database_operational_error(self, mock_db):
         """Test that function returns an empty dict on OperationalError."""
         with patch("hub_adapter.user_settings.bind_user_settings", side_effect=pw.OperationalError("Connection failed")):
@@ -190,7 +190,7 @@ class TestLoadFromDatabase:
 
         assert result == {}
 
-    @patch("hub_adapter.user_settings.node_database")
+    @patch("hub_adapter.user_settings.get_node_database")
     @patch("hub_adapter.user_settings.bind_user_settings")
     def test_load_from_database_returns_empty_config(self, mock_bind, mock_db):
         """Test loading when the configuration is None or empty."""
@@ -258,7 +258,7 @@ class TestLoadFromJson:
 class TestSaveToDatabase:
     """Tests for _save_to_database function."""
 
-    @patch("hub_adapter.user_settings.node_database")
+    @patch("hub_adapter.user_settings.get_node_database")
     @patch("hub_adapter.user_settings.bind_user_settings")
     @patch("hub_adapter.user_settings.logger")
     def test_save_to_database_success(self, test_logger, mock_bind, mock_db):
@@ -276,13 +276,13 @@ class TestSaveToDatabase:
 
             assert result is True
 
-    @patch("hub_adapter.user_settings.node_database", None)
+    @patch("hub_adapter.user_settings.get_node_database", Mock(return_value=None))
     def test_save_to_database_with_none_database(self):
-        """Test that function returns False when node_database is None."""
+        """Test that function returns False when there is no database."""
         result = _save_to_database({"key": "value"})
         assert result is False
 
-    @patch("hub_adapter.user_settings.node_database")
+    @patch("hub_adapter.user_settings.get_node_database")
     def test_save_to_database_operational_error(self, mock_db):
         """Test that function returns False on OperationalError."""
         with patch("hub_adapter.user_settings.bind_user_settings", side_effect=pw.OperationalError("Connection failed")):
@@ -291,7 +291,7 @@ class TestSaveToDatabase:
 
         assert result is False
 
-    @patch("hub_adapter.user_settings.node_database")
+    @patch("hub_adapter.user_settings.get_node_database")
     @patch("hub_adapter.user_settings.bind_user_settings")
     @patch("hub_adapter.user_settings.logger")
     def test_save_to_database_logs_success(self, test_logger, mock_bind, mock_db):
@@ -602,7 +602,7 @@ class TestPersistentUserConfiguration:
 class TestBindUserSettings:
     """Tests for bind_user_settings context manager."""
 
-    @patch("hub_adapter.user_settings.node_database")
+    @patch("hub_adapter.user_settings.get_node_database")
     def test_bind_user_settings_context_manager(self, mock_db):
         """Test that bind_user_settings works as a context manager."""
         mock_db.bind_ctx.return_value.__enter__ = Mock()

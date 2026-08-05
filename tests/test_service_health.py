@@ -75,8 +75,7 @@ class TestProbeTargets:
     async def test_probe_all_skips_unconfigured_services(self, test_settings: Settings):
         client = _mock_client(_mock_response())
 
-        with patch("hub_adapter.service_health.httpx2.AsyncClient") as mock_client_cls:
-            mock_client_cls.return_value.__aenter__.return_value = client
+        with patch("hub_adapter.service_health.get_proxy_client", return_value=client):
             results = await probe_all(test_settings)
 
         assert "fhir" not in results
@@ -93,8 +92,7 @@ class TestProbeTargets:
         client = MagicMock(spec=httpx2.AsyncClient)
         client.get = AsyncMock(side_effect=_get)
 
-        with patch("hub_adapter.service_health.httpx2.AsyncClient") as mock_client_cls:
-            mock_client_cls.return_value.__aenter__.return_value = client
+        with patch("hub_adapter.service_health.get_proxy_client", return_value=client):
             results = await probe_all(test_settings)
 
         assert set(results) == {"po", "storage", "hub_core", "hub_auth", "kong", "idp"}

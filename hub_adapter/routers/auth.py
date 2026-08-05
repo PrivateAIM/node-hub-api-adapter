@@ -1,16 +1,14 @@
 """Endpoints for manually retrieving an JWT."""
 
-import ssl
 from typing import Annotated
 
 import httpx2
 from fastapi import APIRouter, Depends, Form, HTTPException
 from starlette import status
 
-from hub_adapter.auth import get_ssl_context
 from hub_adapter.conf import Settings
 from hub_adapter.constants import ServiceTag
-from hub_adapter.dependencies import get_settings
+from hub_adapter.dependencies import get_idp_client, get_settings
 from hub_adapter.oidc import get_svc_oidc_config
 from hub_adapter.schemas.conf import Token
 
@@ -30,7 +28,6 @@ def get_token(
     settings: Annotated[Settings, Depends(get_settings)],
     username: Annotated[str, Form(description="IDP username")],
     password: Annotated[str, Form(description="IDP password")],
-    ssl_ctx: Annotated[ssl.SSLContext, Depends(get_ssl_context)],
 ) -> Token:
     """Get a JWT from the IDP by passing a valid username and password.
 
@@ -46,8 +43,7 @@ def get_token(
         "scope": "openid",
     }
     oidc_config = get_svc_oidc_config()
-    with httpx2.Client(verify=ssl_ctx) as client:
-        resp = client.post(oidc_config.token_endpoint, data=payload)
+    resp = get_idp_client().post(oidc_config.token_endpoint, data=payload)
 
     if not resp.status_code == httpx2.codes.OK:
         raise HTTPException(

@@ -13,6 +13,7 @@ concurrency:
 jobs:
   release-please:
     name: Release
+    if: ${{ github.event_name == 'push' }}
     runs-on: ubuntu-latest
     outputs:
       released: ${{ steps.release.outputs.release_created }}
@@ -28,10 +29,13 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-  build-prod-image:
-    name: Build and push production Docker image
-    if: ${{ needs.release-please.outputs.released == 'true' }}
+  build-image:
+    # A single build per commit: main HEAD is always tagged `edge` and picks up
+    # the semver tag as well when release-please cut a release for that same commit.
+    # Manual runs skip release-please entirely and publish a `canary` tag instead.
+    name: Build and push Docker image
     needs: release-please  # Wait until pkg bumped
+    if: ${{ !cancelled() && needs.release-please.result != 'failure' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -42,7 +46,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Build production image
+      - name: Build image
         uses: ./.github/actions/build-docker-image
         with:
           platforms: linux/amd64
@@ -50,24 +54,4 @@ jobs:
           image_tags: ${{ needs.release-please.outputs.version }}
           push: 'true'
           token: ${{ secrets.GITHUB_TOKEN }}
-
-  build-canary-image:
-    name: Build and push canary image
-    if: ${{ github.event_name == 'workflow_dispatch' }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - name: Checkout  # required for finding action
-        uses: actions/checkout@v6
-        with:
-          persist-credentials: false
-
-      - name: Build canary image
-        uses: ./.github/actions/build-docker-image
-        with:
-          platforms: linux/amd64
-          docker_file: Dockerfile
-          push: 'true'
-          token: ${{ secrets.GITHUB_TOKEN }}
+          extra_tag: ${{ github.event_name == 'workflow_dispatch' && 'canary' || 'edge' }}

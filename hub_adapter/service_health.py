@@ -15,7 +15,7 @@ from playhouse.postgres_ext import DateTimeTZField
 from hub_adapter.conf import ServiceHealthSettings, Settings
 from hub_adapter.constants import ServiceTag
 from hub_adapter.database import get_node_database
-from hub_adapter.dependencies import get_settings
+from hub_adapter.dependencies import get_proxy_client, get_settings
 from hub_adapter.middleware import log_event
 from hub_adapter.schemas.health import ServiceCheckStatus
 from hub_adapter.user_settings import load_persistent_settings
@@ -76,7 +76,7 @@ async def probe_service(client: httpx2.AsyncClient, service: str, url: str) -> d
     start = perf_counter()
 
     try:
-        resp = await client.get(url)
+        resp = await client.get(url, timeout=PROBE_TIMEOUT)
         status_code = resp.status_code
         if resp.status_code == httpx2.codes.OK:
             svc_status = ServiceCheckStatus.OK
@@ -121,12 +121,12 @@ async def probe_all(settings: Settings) -> dict[str, dict]:
     """Probe every configured downstream service concurrently. Missing services are skipped."""
     targets = {service: url for service, url in build_probe_targets(settings).items() if url}
 
-    async with httpx2.AsyncClient(timeout=PROBE_TIMEOUT) as client:
-        # An unexpected failure in one probe must not throw away the results of the whole sweep
-        results = await asyncio.gather(
-            *(probe_service(client, svc, url) for svc, url in targets.items()),
-            return_exceptions=True,
-        )
+    client = get_proxy_client()
+    # An unexpected failure in one probe must not throw away the results of the whole sweep
+    results = await asyncio.gather(
+        *(probe_service(client, svc, url) for svc, url in targets.items()),
+        return_exceptions=True,
+    )
 
     probed: dict[str, dict] = {}
     for (service, url), result in zip(targets.items(), results, strict=True):
@@ -299,7 +299,7 @@ def _rows_to_buckets(rows: list[dict], bucket_seconds: int) -> dict[str, list[di
 
 
 def summarize_range(
-        db: pw.Database, start: datetime, end: datetime, services: Iterable[str] | None = None
+    db: pw.Database, start: datetime, end: datetime, services: Iterable[str] | None = None
 ) -> dict[str, dict]:
     """Summarize results by time range."""
     successes = pw.Case(None, [(ServiceHealthCheck.status == ServiceCheckStatus.OK, 1)], 0)
@@ -338,11 +338,11 @@ def summarize_range(
 
 
 def bucket_range(
-        db: pw.Database,
-        start: datetime,
-        end: datetime,
-        services: Iterable[str] | None,
-        bucket_seconds: int,
+    db: pw.Database,
+    start: datetime,
+    end: datetime,
+    services: Iterable[str] | None,
+    bucket_seconds: int,
 ) -> dict[str, list[dict]]:
     """Aggregate the stored checks per service into time slices."""
     successes = pw.Case(None, [(ServiceHealthCheck.status == ServiceCheckStatus.OK, 1)], 0)
@@ -368,7 +368,7 @@ def bucket_range(
 
 
 def fetch_last_checks(
-        db: pw.Database, start: datetime, end: datetime, services: Iterable[str] | None = None
+    db: pw.Database, start: datetime, end: datetime, services: Iterable[str] | None = None
 ) -> dict[str, dict]:
     """Return the most recent check per service within the timeframe."""
     with bind_service_health(db):
@@ -382,11 +382,11 @@ def fetch_last_checks(
 
 
 def fetch_checks(
-        db: pw.Database,
-        start: datetime,
-        end: datetime,
-        services: Iterable[str],
-        limit: int,
+    db: pw.Database,
+    start: datetime,
+    end: datetime,
+    services: Iterable[str],
+    limit: int,
 ) -> dict[str, list[dict]]:
     """Return the raw datapoints per service, newest first and capped at limit per service."""
     checks: dict[str, list[dict]] = {}
@@ -488,7 +488,7 @@ class ServiceHealthMonitor:
         log_event(
             "service_health.restarted" if restarting else "service_health.started",
             event_description=f"{'Restarting' if restarting else 'Starting'} downstream service health monitoring "
-                              f"with interval {self.interval}s and a {self.retention_days} day retention",
+            f"with interval {self.interval}s and a {self.retention_days} day retention",
             level=logging.INFO,
             service=ServiceTag.HEALTH,
         )
@@ -539,7 +539,7 @@ class ServiceHealthMonitor:
                 log_event(
                     "service_health.status_change",
                     event_description=f"Service {service} went from {previous} to {current}"
-                                      + (f": {result['message']}" if result["message"] else ""),
+                    + (f": {result['message']}" if result["message"] else ""),
                     level=logging.WARNING if current == ServiceCheckStatus.ERROR else logging.INFO,
                     status_code=result["status_code"],
                     service=ServiceTag.HEALTH,

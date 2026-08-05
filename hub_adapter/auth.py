@@ -1,6 +1,7 @@
 """Handle the authorization and authentication of services."""
 
 import logging
+from functools import lru_cache
 from typing import Annotated
 
 import httpx2
@@ -16,8 +17,11 @@ from starlette.datastructures import MutableHeaders
 from starlette.requests import Request
 
 from hub_adapter.conf import Settings
-from hub_adapter.constants import ServiceTag
-from hub_adapter.dependencies import get_settings, get_ssl_context, make_log_hook
+from hub_adapter.dependencies import (
+    get_hub_async_client,
+    get_idp_client,
+    get_settings,
+)
 from hub_adapter.oidc import (
     check_oidc_configs_match,
     get_svc_oidc_config,
@@ -36,15 +40,21 @@ jwtbearer = HTTPBearer(
 class ProxiedPyJWKClient(PyJWKClient):
     """Custom class to override the PyJWKClient to use proxies when available."""
 
-    def __init__(self, url):
-        super().__init__(url)
-        self._ssl_ctx = get_ssl_context(get_settings())
-
     def fetch_data(self):
-        with httpx2.Client(verify=self._ssl_ctx, event_hooks={"response": [make_log_hook(ServiceTag.IDP)]}) as client:
-            response = client.get(self.uri)
-            response.raise_for_status()
-            return response.json()
+        response = get_idp_client().get(self.uri)
+        response.raise_for_status()
+        jwk_set = response.json()
+
+        if self.jwk_set_cache is not None:
+            self.jwk_set_cache.put(jwk_set)
+
+        return jwk_set
+
+
+@lru_cache(maxsize=4)
+def get_jwk_client(jwks_uri: str) -> ProxiedPyJWKClient:
+    """Return the JWK client for a JWKS URI, reusing it across requests."""
+    return ProxiedPyJWKClient(jwks_uri)
 
 
 async def get_hub_public_key(
@@ -52,11 +62,7 @@ async def get_hub_public_key(
 ) -> dict:
     """Get the central hub service public key."""
     hub_jwks_ep = settings.hub_auth_service_url.rstrip("/") + "/jwks"
-    ssl_ctx = get_ssl_context(settings)
-    async with httpx2.AsyncClient(
-        verify=ssl_ctx, event_hooks={"response": [make_log_hook(ServiceTag.HUB, is_async=True)]}
-    ) as client:
-        resp = await client.get(hub_jwks_ep)
+    resp = await get_hub_async_client().get(hub_jwks_ep)
     return resp.json()
 
 
@@ -86,13 +92,13 @@ async def verify_idp_token(
         issuer = unverified_claims.get("iss")
 
         if settings.override_jwks:  # Override the fetched URIs
-            jwk_client = ProxiedPyJWKClient(settings.override_jwks)
+            jwk_client = get_jwk_client(settings.override_jwks)
         # If the issuer is the user's OIDC, use the user's public key, otherwise use the node's internal public key
         elif issuer == user_oidc_config.issuer:
-            jwk_client = ProxiedPyJWKClient(user_oidc_config.jwks_uri)
+            jwk_client = get_jwk_client(user_oidc_config.jwks_uri)
 
         else:
-            jwk_client = ProxiedPyJWKClient(svc_oidc_config.jwks_uri)
+            jwk_client = get_jwk_client(svc_oidc_config.jwks_uri)
 
         signing_key = jwk_client.get_signing_key_from_jwt(token.credentials)
 
@@ -179,10 +185,7 @@ async def _get_internal_token(settings: Annotated[Settings, Depends(get_settings
     svc_oidc_config = get_svc_oidc_config()
     int_token_ep = svc_oidc_config.token_endpoint
 
-    ssl_ctx = get_ssl_context(settings)
-
-    with httpx2.Client(verify=ssl_ctx, event_hooks={"response": [make_log_hook(ServiceTag.IDP)]}) as client:
-        resp = client.post(int_token_ep, data=payload)
+    resp = get_idp_client().post(int_token_ep, data=payload)
     resp.raise_for_status()
     token_data = resp.json()
 
