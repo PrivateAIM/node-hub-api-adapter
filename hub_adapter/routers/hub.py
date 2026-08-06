@@ -125,7 +125,7 @@ def list_project_proposals(
 ):
     """List project proposals."""
     if node_id:
-        return core_client.find_project_nodes(filter={"node_id": node_id}, **query_params)
+        return core_client.find_project_nodes(filter={"nodeId": node_id}, **query_params)
 
     else:
         return core_client.get_project_nodes(**query_params)
@@ -182,7 +182,7 @@ def list_analysis_nodes(
 ):
     """List all analysis nodes for give node."""
     if node_id:
-        return core_client.find_analysis_nodes(filter={"node_id": node_id}, **query_params)
+        return core_client.find_analysis_nodes(filter={"nodeId": node_id}, **query_params)
 
     else:
         return core_client.find_analysis_nodes(**query_params)
@@ -335,7 +335,11 @@ def get_registry_metadata_for_project(
     return core_client.get_registry_project(registry_project_id=registry_project_id)
 
 
-@hub_router.post("/analysis/image", response_model=AnalysisImageUrl, name="hub.analysis.image.get")
+@hub_router.post(
+    "/analysis/image",
+    response_model=AnalysisImageUrl,
+    name="hub.analysis.image.get",
+)
 @catch_hub_errors
 def get_analysis_image_url(
     image_url_resp: Annotated[AnalysisImageUrl, Depends(compile_analysis_pod_data)],
