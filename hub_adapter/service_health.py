@@ -58,7 +58,7 @@ def build_probe_targets(settings: Settings) -> dict[str, str | None]:
         "kong": _health_url(settings.kong_admin_service_url, "/status"),
         "idp": _health_url(settings.idp_url, "/.well-known/openid-configuration"),
         "victoria_logs": _health_url(settings.victoria_logs_url, "/health"),
-        "message_broker": _health_url(settings.message_broker_url, "/health"),
+        "message_broker": _health_url(settings.message_broker_url, "/actuator/health"),
         "s3": _health_url(settings.s3_url, "/healthz"),
         "fhir": _health_url(settings.fhir_url, "/health"),
     }
