@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.8.1](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.8.0...v0.8.1) (2026-08-08)
+
+
+### Features
+
+* **db:** aggregate db conns ([94ab59c](https://github.com/PrivateAIM/node-hub-api-adapter/commit/94ab59c0320ce96c155fb70408031488688da953))
+* **httpx2:** missed some ([00cf8a9](https://github.com/PrivateAIM/node-hub-api-adapter/commit/00cf8a9f54f3fe158a159c485dbf37ec033b448f))
+* **httpx2:** use shared clients rather than creating new ones constantly ([0af388c](https://github.com/PrivateAIM/node-hub-api-adapter/commit/0af388cc4751a2f694ce8b6e306a1637448f089c))
+
+
+### Bug Fixes
+
+* **db:** restrict db lifecycle to one shared lock ([3962556](https://github.com/PrivateAIM/node-hub-api-adapter/commit/39625569d2532fbef3b0957e2a20f724e82fe397))
+* **db:** set bounded retry conn for DB ([139def0](https://github.com/PrivateAIM/node-hub-api-adapter/commit/139def053157717959c30857cafdca7cfd8f076b))
+* **health:** correct MB health endpoint ([8d8721f](https://github.com/PrivateAIM/node-hub-api-adapter/commit/8d8721fc7b3ef31efa8b05bd57ab0a64e744f20f))
+
 ## [0.8.0](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.7.0...v0.8.0) (2026-08-02)
 
 
