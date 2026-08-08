@@ -273,8 +273,11 @@ def get_node_id(
 
             _write_node_cache(node_cache)
 
+        elif node_id_resp:
+            logger.error("Hub returned multiple nodes for HUB_NODE_CLIENT_ID")
+
         else:
-            logger.error("Unable to retrieve node ID from Hub")
+            logger.info("No Hub node is associated with HUB_NODE_CLIENT_ID")
 
     return node_id
 
