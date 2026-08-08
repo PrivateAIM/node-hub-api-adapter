@@ -252,7 +252,7 @@ def get_node_id(
         logger.info("NODE_ID not set for HUB_NODE_CLIENT_ID, retrieving from Hub")
 
         try:
-            node_id_resp = core_client.find_nodes(filter={"client_id": node_client_id}, fields="id")
+            node_id_resp = core_client.find_nodes(filter={"clientId": node_client_id}, fields="id")
 
         except httpx2.ConnectError as e:
             err = "Connection Error - Hub is currently unreachable"
@@ -272,6 +272,12 @@ def get_node_id(
             node_cache[node_client_id] = node_id
 
             _write_node_cache(node_cache)
+
+        elif node_id_resp:
+            logger.error("Hub returned multiple nodes for HUB_NODE_CLIENT_ID")
+
+        else:
+            logger.info("No Hub node is associated with HUB_NODE_CLIENT_ID")
 
     return node_id
 

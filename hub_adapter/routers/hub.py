@@ -84,6 +84,7 @@ def _parse_query_params(
     status_code=status.HTTP_200_OK,
     response_model=list[Project],
     name="hub.project.get",
+    response_model_by_alias=False,
 )
 @catch_hub_errors
 def list_all_projects(
@@ -100,6 +101,7 @@ def list_all_projects(
     status_code=status.HTTP_200_OK,
     response_model=Project,
     name="hub.project.get",
+    response_model_by_alias=False,
 )
 @catch_hub_errors
 def list_specific_project(
@@ -116,6 +118,7 @@ def list_specific_project(
     status_code=status.HTTP_200_OK,
     response_model=list[ProjectNode],
     name="hub.project.node.get",
+    response_model_by_alias=False,
 )
 @catch_hub_errors
 def list_project_proposals(
@@ -125,7 +128,7 @@ def list_project_proposals(
 ):
     """List project proposals."""
     if node_id:
-        return core_client.find_project_nodes(filter={"node_id": node_id}, **query_params)
+        return core_client.find_project_nodes(filter={"nodeId": node_id}, **query_params)
 
     else:
         return core_client.get_project_nodes(**query_params)
@@ -137,6 +140,7 @@ def list_project_proposals(
     status_code=status.HTTP_200_OK,
     response_model=ProjectNode,
     name="hub.project.node.get",
+    response_model_by_alias=False,
 )
 @catch_hub_errors
 def list_project_proposal(
@@ -153,6 +157,7 @@ def list_project_proposal(
     status_code=status.HTTP_200_OK,
     response_model=ProjectNode,
     name="hub.project.node.update",
+    response_model_by_alias=False,
 )
 @catch_hub_errors
 def accept_reject_project_proposal(
@@ -173,6 +178,7 @@ def accept_reject_project_proposal(
     status_code=status.HTTP_200_OK,
     response_model=list[AnalysisNode],
     name="hub.analysis.node.get",
+    response_model_by_alias=False,
 )
 @catch_hub_errors
 def list_analysis_nodes(
@@ -182,7 +188,7 @@ def list_analysis_nodes(
 ):
     """List all analysis nodes for give node."""
     if node_id:
-        return core_client.find_analysis_nodes(filter={"node_id": node_id}, **query_params)
+        return core_client.find_analysis_nodes(filter={"nodeId": node_id}, **query_params)
 
     else:
         return core_client.find_analysis_nodes(**query_params)
@@ -194,6 +200,7 @@ def list_analysis_nodes(
     status_code=status.HTTP_200_OK,
     response_model=AnalysisNode,
     name="hub.analysis.node.get",
+    response_model_by_alias=False,
 )
 @catch_hub_errors
 def list_specific_analysis_node(
@@ -211,6 +218,7 @@ def list_specific_analysis_node(
     status_code=status.HTTP_200_OK,
     response_model=AnalysisNode,
     name="hub.analysis.update",
+    response_model_by_alias=False,
 )
 @catch_hub_errors
 def accept_reject_analysis_node(
@@ -231,6 +239,7 @@ def accept_reject_analysis_node(
     status_code=status.HTTP_200_OK,
     response_model=list[Analysis],
     name="hub.analysis.get",
+    response_model_by_alias=False,
 )
 @catch_hub_errors
 def list_all_analyses(
@@ -247,6 +256,7 @@ def list_all_analyses(
     status_code=status.HTTP_200_OK,
     response_model=Analysis,
     name="hub.analysis.get",
+    response_model_by_alias=False,
 )
 @catch_hub_errors
 def list_specific_analysis(
@@ -263,6 +273,7 @@ def list_specific_analysis(
     status_code=status.HTTP_200_OK,
     response_model=list[Node],
     name="hub.node.get",
+    response_model_by_alias=False,
 )
 @catch_hub_errors
 def list_all_nodes(
@@ -279,6 +290,7 @@ def list_all_nodes(
     status_code=status.HTTP_200_OK,
     response_model=Node,
     name="hub.node.get",
+    response_model_by_alias=False,
 )
 @catch_hub_errors
 def list_specific_node(
@@ -295,6 +307,7 @@ def list_specific_node(
     status_code=status.HTTP_200_OK,
     response_model=NodeTypeResponse,
     name="hub.node.type.get",
+    response_model_by_alias=False,
 )
 @catch_hub_errors
 def get_node_type(node_type: Annotated[dict | None, Depends(get_node_type_cache)]):
@@ -308,6 +321,7 @@ def get_node_type(node_type: Annotated[dict | None, Depends(get_node_type_cache)
     status_code=status.HTTP_200_OK,
     response_model=DetailedAnalysis,
     name="hub.analysis.node.update",
+    response_model_by_alias=False,
 )
 @catch_hub_errors
 def update_specific_analysis(
@@ -324,6 +338,7 @@ def update_specific_analysis(
     summary="Get registry project",
     status_code=status.HTTP_200_OK,
     response_model=RegistryProject,
+    response_model_by_alias=False,
 )
 @catch_hub_errors
 def get_registry_metadata_for_project(
@@ -335,7 +350,9 @@ def get_registry_metadata_for_project(
     return core_client.get_registry_project(registry_project_id=registry_project_id)
 
 
-@hub_router.post("/analysis/image", response_model=AnalysisImageUrl, name="hub.analysis.image.get")
+@hub_router.post(
+    "/analysis/image", response_model=AnalysisImageUrl, name="hub.analysis.image.get", response_model_by_alias=False
+)
 @catch_hub_errors
 def get_analysis_image_url(
     image_url_resp: Annotated[AnalysisImageUrl, Depends(compile_analysis_pod_data)],
@@ -350,6 +367,7 @@ def get_analysis_image_url(
     status_code=status.HTTP_200_OK,
     # response_model=BucketList,
     name="hub.analysis.bucket.get",
+    response_model_by_alias=False,
 )
 @catch_hub_errors
 def list_all_analysis_buckets(
@@ -366,6 +384,7 @@ def list_all_analysis_buckets(
     status_code=status.HTTP_200_OK,
     response_model=AnalysisBucket,
     name="hub.analysis.bucket.get",
+    response_model_by_alias=False,
 )
 @catch_hub_errors
 def list_specific_analysis_buckets(
@@ -382,6 +401,7 @@ def list_specific_analysis_buckets(
     status_code=status.HTTP_200_OK,
     # response_model=PartialBucketFilesList,
     name="hub.analysis.bucket.file.get",
+    response_model_by_alias=False,
 )
 @catch_hub_errors
 def list_all_analysis_bucket_files(
@@ -398,6 +418,7 @@ def list_all_analysis_bucket_files(
     status_code=status.HTTP_200_OK,
     # response_model=PartialAnalysisBucketFile,
     name="hub.analysis.bucket.file.get",
+    response_model_by_alias=False,
 )
 @catch_hub_errors
 def list_specific_analysis_bucket_file(

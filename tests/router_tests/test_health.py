@@ -166,7 +166,7 @@ class TestHealth:
 
         probed_urls = {call.args[0] for call in client.get.call_args_list}
         assert "http://localhost:9428/health" in probed_urls
-        assert "http://localhost:8090/health" in probed_urls
+        assert "http://localhost:8090/actuator/health" in probed_urls
         assert "http://localhost:8333/healthz" in probed_urls
         assert "http://localhost:8004/health" in probed_urls
 
