@@ -10,6 +10,7 @@ from time import perf_counter
 
 import httpx2
 import peewee as pw
+from playhouse.pool import MaxConnectionsExceeded
 from playhouse.postgres_ext import DateTimeTZField
 
 from hub_adapter.conf import ServiceHealthSettings, Settings
@@ -190,7 +191,7 @@ class ServiceHealthCheck(pw.Model):
 @contextmanager
 def bind_service_health(db: pw.Database):
     """Bind the health check model to a database, creating the table if it does not exist yet."""
-    with db.bind_ctx((ServiceHealthCheck,)):
+    with db.connection_context(), db.bind_ctx((ServiceHealthCheck,)):
         db.create_tables((ServiceHealthCheck,))
         yield
 
@@ -453,7 +454,7 @@ class ServiceHealthMonitor:
             with bind_service_health(db):  # creates the table if it is not there yet
                 pass
 
-        except pw.PeeweeException as db_err:
+        except (pw.PeeweeException, MaxConnectionsExceeded) as db_err:
             self.disabled_reason = (
                 f"Unable to prepare the service health table at startup, service health is not being recorded: {db_err}"
             )
@@ -519,7 +520,7 @@ class ServiceHealthMonitor:
             record_sweep(self._db, results)
             self._prune_if_due()
 
-        except pw.PeeweeException as db_err:
+        except (pw.PeeweeException, MaxConnectionsExceeded) as db_err:
             # A transient database problem must not take monitoring down for good
             log_event(
                 "service_health.write_error",

@@ -110,6 +110,7 @@ class Settings(BaseSettings):
 
     postgres_max_connections: Annotated[int, Field(gt=0)] = 20
     postgres_stale_timeout: Annotated[int, Field(gt=0)] = 300
+    postgres_pool_timeout: Annotated[float | int, Field(gt=0)] = 10
 
     # Upstream request timeouts in seconds (both services are sync)
     kong_request_timeout: Annotated[float | int, Field(gt=0)] = 10

@@ -1,13 +1,17 @@
 """Collection of unit tests for the downstream service health monitoring."""
 
+import tempfile
+import threading
 import uuid
 import warnings
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx2
 import peewee as pw
 import pytest
+from playhouse.pool import PooledSqliteDatabase
 
 from hub_adapter.conf import Settings, UserSettings
 from hub_adapter.dependencies import get_settings
@@ -29,6 +33,7 @@ from hub_adapter.service_health import (
     build_probe_targets,
     probe_all,
     probe_service,
+    record_sweep,
 )
 
 
@@ -791,3 +796,53 @@ class TestBucketRange:
 
         mock_range_filter.assert_called_once_with(start, end, ["kong"])
         assert result == {}
+
+
+def _probe_result() -> dict[str, dict]:
+    """One healthy probe result in the shape record_sweep expects."""
+    return {
+        "kong": {
+            "url": "http://kong/health",
+            "status": ServiceCheckStatus.OK,
+            "status_code": 200,
+            "latency_ms": 4.2,
+            "message": None,
+        }
+    }
+
+
+class TestConnectionPooling:
+    """The pooled connection has to go back to the pool once the work is done."""
+
+    @staticmethod
+    @pytest.fixture
+    def pooled_db():
+        """A tiny pooled database standing in for the node Postgres."""
+        db = PooledSqliteDatabase(str(Path(tempfile.mkdtemp()) / "health.db"), max_connections=2, stale_timeout=300)
+        yield db
+        db.close_all()
+
+    def test_connection_is_returned_to_the_pool(self, pooled_db):
+        """A completed write leaves no connection checked out."""
+        record_sweep(pooled_db, _probe_result())
+
+        assert len(pooled_db._in_use) == 0
+
+    def test_pool_survives_more_sweeps_than_connections(self, pooled_db):
+        """Worker threads come and go, so the pool must not leak one connection per thread."""
+        errors = []
+        results = _probe_result()
+
+        def sweep():
+            try:
+                record_sweep(pooled_db, results)
+
+            except Exception as err:  # noqa: BLE001 - the failure is the assertion
+                errors.append(err)
+
+        for _ in range(pooled_db._max_connections + 3):
+            worker = threading.Thread(target=sweep)
+            worker.start()
+            worker.join()
+
+        assert not errors, f"pool exhausted after {len(errors)} sweeps: {errors[0]}"

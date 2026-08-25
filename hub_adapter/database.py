@@ -39,9 +39,10 @@ def connect_to_db() -> pw.PostgresqlDatabase | None:
         **required,
         max_connections=settings.postgres_max_connections,
         stale_timeout=settings.postgres_stale_timeout,
+        timeout=settings.postgres_pool_timeout,
     )
-
     db.connect(reuse_if_open=True)
+    db.close()
 
     return db
 

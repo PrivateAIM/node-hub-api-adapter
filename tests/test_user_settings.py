@@ -2,11 +2,13 @@
 
 import json
 import tempfile
+import threading
 from pathlib import Path
 from unittest.mock import Mock, patch
 
 import peewee as pw
 import pytest
+from playhouse.pool import PooledSqliteDatabase
 
 from hub_adapter.conf import UserSettings
 from hub_adapter.user_settings import (
@@ -16,6 +18,7 @@ from hub_adapter.user_settings import (
     _load_from_json,
     _save_to_database,
     _save_to_json,
+    bind_user_settings,
     load_persistent_settings,
     save_persistent_settings,
     update_settings,
@@ -660,3 +663,57 @@ class TestIntegration:
         result = load_persistent_settings()
 
         assert result is not None
+
+
+class TestConnectionPooling:
+    """The pooled connection has to go back to the pool once the work is done."""
+
+    @staticmethod
+    @pytest.fixture
+    def pooled_db():
+        """A tiny pooled database standing in for the node Postgres."""
+        db_path = Path(tempfile.mkdtemp()).joinpath("settings.db")
+        db = PooledSqliteDatabase(str(db_path), max_connections=2, stale_timeout=300)
+
+        # Postgres-only GIN index that SQLite cannot parse, irrelevant to connection handling
+        indexed = PersistentUserConfiguration.configuration.index
+        PersistentUserConfiguration.configuration.index = False
+        try:
+            yield db
+
+        finally:
+            PersistentUserConfiguration.configuration.index = indexed
+            db.close_all()
+
+    def test_connection_is_returned_to_the_pool(self, pooled_db):
+        """A completed read leaves no connection checked out."""
+        with bind_user_settings(pooled_db):
+            PersistentUserConfiguration.get_or_create(id=1)
+
+        assert len(pooled_db._in_use) == 0
+
+    def test_connection_is_returned_when_the_query_fails(self, pooled_db):
+        """A failed query must not strand its connection either."""
+        with pytest.raises(pw.PeeweeException), bind_user_settings(pooled_db):
+            pooled_db.execute_sql("SELECT nope FROM nowhere")
+
+        assert len(pooled_db._in_use) == 0
+
+    def test_pool_survives_more_requests_than_connections(self, pooled_db):
+        """Worker threads come and go, so the pool must not leak one connection per thread."""
+        errors = []
+
+        def read_settings():
+            try:
+                with bind_user_settings(pooled_db):
+                    PersistentUserConfiguration.get_or_create(id=1)
+
+            except Exception as err:  # noqa: BLE001 - the failure is the assertion
+                errors.append(err)
+
+        for _ in range(pooled_db._max_connections + 3):
+            worker = threading.Thread(target=read_settings)
+            worker.start()
+            worker.join()
+
+        assert not errors, f"pool exhausted after {len(errors)} requests: {errors[0]}"
