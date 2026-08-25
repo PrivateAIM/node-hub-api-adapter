@@ -334,16 +334,16 @@ wheels = [
 
 [[package]]
 name = "flame-hub-client"
-version = "0.5.3"
+version = "0.5.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx2" },
     { name = "pydantic", extra = ["email"] },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/cb/12/4888c9bfaa419526fac293c651ed32d5647fe682b235aa8815bdca51ce39/flame_hub_client-0.5.3.tar.gz", hash = "sha256:8c9ec61b5c971a26989a066298e51b3272fcb2e93e45698ecfa042550608b73c", size = 27667, upload-time = "2026-08-07T08:59:54.344Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/4f/f4/3be4cd9b3639c47857504122a4d1c11fe7954fccf19b4195f857d136010c/flame_hub_client-0.5.4.tar.gz", hash = "sha256:608372646603009ae268fe54f2303dfe648eacfee72801f54b29aab871a2f325", size = 27669, upload-time = "2026-08-10T08:10:49.358Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a4/39/33bc8d15654b25a49233432cd6fd4d0890d80366a32d8be2a17841eb0977/flame_hub_client-0.5.3-py3-none-any.whl", hash = "sha256:db5a63b34d74d7764cb10bfa9b7a2db59bd0531a22878143ac94e9ddc47f92f3", size = 30134, upload-time = "2026-08-07T08:59:49.839Z" },
+    { url = "https://files.pythonhosted.org/packages/cb/75/6a538ee68cfe2eb59aef6f272aa4d0bf0f66254dac3fda4478b79ec16ca0/flame_hub_client-0.5.4-py3-none-any.whl", hash = "sha256:bb574e4bdb1b8fad95ccb5ce7502ec043c47d2b416e204eeab0864a12b397e1f", size = 30136, upload-time = "2026-08-10T08:10:48.267Z" },
 ]
 
 [[package]]
@@ -414,7 +414,7 @@ wheels = [
 
 [[package]]
 name = "hub-adapter"
-version = "0.8.0"
+version = "0.8.1"
 source = { editable = "." }
 dependencies = [
     { name = "click" },
@@ -448,7 +448,7 @@ requires-dist = [
     { name = "click", specifier = ">=8.1.7" },
     { name = "cryptography", specifier = ">=50.0.0" },
     { name = "fastapi", specifier = ">=0.138.0" },
-    { name = "flame-hub-client", specifier = "==0.5.3" },
+    { name = "flame-hub-client", specifier = ">=0.5.4" },
     { name = "httpx2", specifier = ">=2.9.1" },
     { name = "kongadminclient", git = "https://github.com/PrivateAIM/kong-admin-python-client.git" },
     { name = "peewee", specifier = ">=4.0.2" },
