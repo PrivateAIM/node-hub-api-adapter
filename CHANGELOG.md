@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.2](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.8.1...v0.8.2) (2026-08-25)
+
+
+### Bug Fixes
+
+* **db:** better connection handling ([df9a84a](https://github.com/PrivateAIM/node-hub-api-adapter/commit/df9a84ab3240d20a1c6f60d12bb5e6f69625e5e6))
+
 ## [0.8.1](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.8.0...v0.8.1) (2026-08-08)
 
 
