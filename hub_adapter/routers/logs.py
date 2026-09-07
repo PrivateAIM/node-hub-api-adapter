@@ -120,10 +120,11 @@ async def query_logs(query: str, params: dict | None = None):
 async def _get_analysis_container_names(analysis_id_str: str) -> list[str]:
     """Return all unique container names matching the analysis ID pattern."""
     settings = get_settings()
+    field = settings.container_name_field
     pattern = f"^(nginx-analysis|analysis)-{analysis_id_str}-[0-9]+$"
-    query = f'kubernetes.container_name:~"{pattern}"'
+    query = f'{field}:~"{pattern}"'
     query_data = {
-        "query": f"{query} | uniq by (kubernetes.container_name)",
+        "query": f"{query} | uniq by ({field})",
         "limit": 100,
     }
     resp = await _query_victoria_logs(settings.victoria_logs_url, query_data)
@@ -131,7 +132,7 @@ async def _get_analysis_container_names(analysis_id_str: str) -> list[str]:
     names = []
     for line in resp.text.strip().splitlines():
         if line:
-            name = json.loads(line).get("kubernetes.container_name", "")
+            name = json.loads(line).get(field, "")
             if name:
                 names.append(name)
     return names
@@ -146,7 +147,7 @@ async def _query_pod_logs(
 ) -> list[dict]:
     """Return log lines for a specific container, sorted oldest-first."""
     settings = get_settings()
-    query = f'kubernetes.container_name:"{container_name}"'
+    query = f'{settings.container_name_field}:"{container_name}"'
 
     # HTTP `limit` query param is evil, need to sort first, then limit within the query, DON'T USE QUERY PARAMS!
     select = f"{query} | fields _time, _msg, level, log.error"
@@ -384,12 +385,14 @@ async def get_netstats(
     limit: Annotated[int, Query(description="Maximum number of analysis groups to return")] = 1000,
 ):
     """Retrieve network traffic statistics from netstats log events."""
+    settings = get_settings()
+    field = settings.container_name_field
     query_parts = ['log.event_name:"netstats.analysis.traffic"']
     if analysis_id is not None:
-        query_parts.append(f'kubernetes.container_name:~"net-stats-analysis-{str(analysis_id)}-"')
+        query_parts.append(f'{field}:~"net-stats-analysis-{str(analysis_id)}-"')
     base_query = " AND ".join(query_parts)
 
-    fields = "_time, kubernetes.container_name, kubernetes.pod_name, log.bytes_in, log.bytes_out"
+    fields = f"_time, {field}, kubernetes.pod_name, log.bytes_in, log.bytes_out"
     logsql_query = f"{base_query} | fields {fields}"
 
     params: dict = {}
@@ -402,7 +405,7 @@ async def get_netstats(
 
     totals: dict[str, NetStatTotal] = {}
     for entry in raw_logs:
-        container_name = entry.get("kubernetes.container_name", "")
+        container_name = entry.get(field, "")
         try:
             analysis_id_str, run_number = _parse_netstats_container(container_name)
             entry_analysis_id = uuid.UUID(analysis_id_str)

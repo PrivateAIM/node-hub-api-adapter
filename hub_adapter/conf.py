@@ -81,6 +81,7 @@ class Settings(BaseSettings):
 
     # Optional services
     victoria_logs_url: str | None = None
+    container_name_field: str = "kubernetes.container_name"  # Could change depending on log collector
     message_broker_url: str | None = None
     s3_url: str | None = None
     fhir_url: str | None = None
