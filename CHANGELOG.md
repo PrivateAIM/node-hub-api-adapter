@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.3](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.8.2...v0.8.3) (2026-09-07)
+
+
+### Features
+
+* **logs:** add container name field as conf option ([058cb88](https://github.com/PrivateAIM/node-hub-api-adapter/commit/058cb88c0671129babf5c0137839ed415c1b9373))
+
 ## [0.8.2](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.8.1...v0.8.2) (2026-08-25)
 
 
