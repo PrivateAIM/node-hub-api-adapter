@@ -20,7 +20,7 @@ class KongCleanupSettings(BaseModel):
     status.
     """
 
-    interval: Annotated[int, Field(gt=0)] | None = 120
+    interval: Annotated[int, Field(gt=0)] | None = 600
 
     model_config = {"extra": "forbid"}
 

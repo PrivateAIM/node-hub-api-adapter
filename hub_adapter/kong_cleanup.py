@@ -1,10 +1,5 @@
 """Background sweep that deletes Kong analysis consumers once their analysis has reached a status
-that means the consumer will never be used again, and would otherwise sit in Kong forever.
-
-`execution_status` on each analysis is used as the source of truth rather than the PO's own live status endpoint.
-The PO deletes its own record for an analysis almost immediately after it reaches "executed", so polling the PO
-risks missing that transition entirely.
-"""
+that means the consumer will never be used again, and would otherwise sit in Kong forever."""
 
 import asyncio
 import logging
@@ -36,6 +31,9 @@ NEVER_RAN_GRACE = timedelta(minutes=10)
 
 # Hub execution_status values that mean the analysis is done and won't run again.
 _TERMINAL_STATUSES = {"failed", "stopped"}
+
+# Statuses proving the analysis is alive, but possibly in a restart loop so allow a longer grace period
+_LIVE_STATUSES = {"starting", "started", "stopping", "executing"}
 
 
 class KongConsumerReaper:
@@ -107,7 +105,7 @@ class KongConsumerReaper:
             if await self._process(analysis_id, statuses.get(analysis_id), now):
                 deleted.add(analysis_id)
 
-        # Bound memory to consumers that still exist; anything else is stale tracking.
+        # Bound memory to consumers that still exist, anything else is stale
         for stale_id in set(self._history) - analysis_ids:
             del self._history[stale_id]
 
@@ -117,8 +115,9 @@ class KongConsumerReaper:
         """Apply the cleanup decision for a single analysis. Returns True if its consumer was deleted."""
         entry = self._history.setdefault(analysis_id, {"seen_executing": False, "terminal_since": None})
 
-        if execution_status == "executing":
-            entry["seen_executing"] = True
+        if execution_status in _LIVE_STATUSES:
+            if execution_status == "executing":
+                entry["seen_executing"] = True
             entry["terminal_since"] = None
             return False
 
@@ -137,7 +136,7 @@ class KongConsumerReaper:
 
             return False
 
-        # starting/started/stopping/no Hub record: not terminal, leave the consumer alone
+        # No Hub record = not terminal, but no proof of life either, so leave the consumer and any grace period alone
         return False
 
     async def _delete(self, analysis_id: str, reason: str) -> bool:
@@ -182,8 +181,8 @@ class KongCleanupManager:
 
         log_event(
             "kong_cleanup.restarted" if restarting else "kong_cleanup.started",
-            event_description=f"{'Restarting' if restarting else 'Starting'} Kong consumer cleanup "
-                              f"with interval {interval}s",
+            event_description=f"{'Restarting' if restarting else 'Starting'} "
+            f"Kong consumer cleanup with interval {interval}s",
             level=logging.INFO,
             service=ServiceTag.KONG_CLEANUP,
         )

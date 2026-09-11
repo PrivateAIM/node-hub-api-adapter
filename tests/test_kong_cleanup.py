@@ -131,6 +131,36 @@ class TestKongConsumerReaperProcess:
 
     @pytest.mark.asyncio
     @patch.object(KongConsumerReaper, "_delete", new_callable=AsyncMock)
+    async def test_restart_after_terminal_resets_grace(self, mock_delete):
+        mock_delete.return_value = True
+        now = datetime.now(UTC)
+        self.reaper._history[TEST_MOCK_ANALYSIS_ID] = {"seen_executing": True, "terminal_since": now}
+
+        restarted = now + timedelta(seconds=10)
+        assert await self.reaper._process(TEST_MOCK_ANALYSIS_ID, "started", restarted) is False
+        assert self.reaper._history[TEST_MOCK_ANALYSIS_ID]["terminal_since"] is None
+
+        past_stale_grace = restarted + EXECUTED_AFTER_RUNNING_GRACE
+        assert await self.reaper._process(TEST_MOCK_ANALYSIS_ID, "stopped", past_stale_grace) is False
+        assert self.reaper._history[TEST_MOCK_ANALYSIS_ID]["terminal_since"] == past_stale_grace
+        mock_delete.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch.object(KongConsumerReaper, "_delete", new_callable=AsyncMock)
+    async def test_missing_hub_record_does_not_reset_grace(self, mock_delete):
+        mock_delete.return_value = True
+        now = datetime.now(UTC)
+        self.reaper._history[TEST_MOCK_ANALYSIS_ID] = {"seen_executing": True, "terminal_since": now}
+
+        assert await self.reaper._process(TEST_MOCK_ANALYSIS_ID, None, now + timedelta(seconds=10)) is False
+        assert self.reaper._history[TEST_MOCK_ANALYSIS_ID]["terminal_since"] == now
+
+        past_grace = now + EXECUTED_AFTER_RUNNING_GRACE + timedelta(seconds=1)
+        assert await self.reaper._process(TEST_MOCK_ANALYSIS_ID, "stopped", past_grace) is True
+        mock_delete.assert_awaited_once_with(TEST_MOCK_ANALYSIS_ID, "stopped-after-executing")
+
+    @pytest.mark.asyncio
+    @patch.object(KongConsumerReaper, "_delete", new_callable=AsyncMock)
     async def test_non_terminal_statuses_are_ignored(self, mock_delete):
         for status_val in ("starting", "started", "stopping", None):
             deleted = await self.reaper._process(TEST_MOCK_ANALYSIS_ID, status_val, datetime.now(UTC))
