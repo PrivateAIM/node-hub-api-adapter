@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.4](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.8.3...v0.8.4) (2026-09-11)
+
+
+### Bug Fixes
+
+* **kong:** harden sweep against premature stopped analyses ([78130b8](https://github.com/PrivateAIM/node-hub-api-adapter/commit/78130b8ddb8bf0097834464303dba4ef37728622))
+
 ## [0.8.3](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.8.2...v0.8.3) (2026-09-07)
 
 
