@@ -5,7 +5,8 @@
   "bump-patch-for-minor-pre-major": true,
   "packages": {
     ".": {
-      "release-type": "python"
+      "release-type": "python",
+      "release-as": "1.0.0"
     }
   }
 }
