@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import ssl
 import uuid
 from collections.abc import Iterable
 from contextlib import contextmanager, suppress
@@ -16,7 +17,7 @@ from playhouse.postgres_ext import DateTimeTZField
 from hub_adapter.conf import ServiceHealthSettings, Settings
 from hub_adapter.constants import ServiceTag
 from hub_adapter.database import get_node_database
-from hub_adapter.dependencies import get_proxy_client, get_settings
+from hub_adapter.dependencies import get_proxy_client, get_settings, get_ssl_context
 from hub_adapter.middleware import log_event
 from hub_adapter.schemas.health import ServiceCheckStatus
 from hub_adapter.user_settings import load_persistent_settings
@@ -122,7 +123,8 @@ async def probe_all(settings: Settings) -> dict[str, dict]:
     """Probe every configured downstream service concurrently. Missing services are skipped."""
     targets = {service: url for service, url in build_probe_targets(settings).items() if url}
 
-    client = get_proxy_client()
+    ssl_ctx = get_ssl_context(settings)
+    client = get_proxy_client(ctx=ssl_ctx)
     # An unexpected failure in one probe must not throw away the results of the whole sweep
     results = await asyncio.gather(
         *(probe_service(client, svc, url) for svc, url in targets.items()),
