@@ -200,7 +200,10 @@ def get_hub_async_client() -> httpx2.AsyncClient:
 @lru_cache(maxsize=1)
 def get_proxy_client() -> httpx2.AsyncClient:
     """Shared async client for the downstream services."""
-    return _track_client(httpx2.AsyncClient(), get_proxy_client.cache_clear)
+    return _track_client(
+        httpx2.AsyncClient(verify=get_ssl_context(get_settings())),
+        get_proxy_client.cache_clear,
+    )
 
 
 def _read_node_cache() -> dict:
