@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.0](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.8.3...v1.0.0) (2026-09-15)
+
+
+### Bug Fixes
+
+* **kong:** harden sweep against premature stopped analyses ([78130b8](https://github.com/PrivateAIM/node-hub-api-adapter/commit/78130b8ddb8bf0097834464303dba4ef37728622))
+* **ssl:** add SSL context to hub health endpoint request ([1455ecc](https://github.com/PrivateAIM/node-hub-api-adapter/commit/1455ecc67a3c2d8b34ceb15a9d7320ea6cacd317))
+
 ## [0.8.3](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.8.2...v0.8.3) (2026-09-07)
 
 
