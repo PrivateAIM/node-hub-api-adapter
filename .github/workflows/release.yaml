@@ -30,9 +30,6 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
   build-image:
-    # A single build per commit: main HEAD is always tagged `edge` and picks up
-    # the semver tag as well when release-please cut a release for that same commit.
-    # Manual runs skip release-please entirely and publish a `canary` tag instead.
     name: Build and push Docker image
     needs: release-please  # Wait until pkg bumped
     if: ${{ !cancelled() && needs.release-please.result != 'failure' }}

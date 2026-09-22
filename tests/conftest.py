@@ -1,6 +1,7 @@
 """Test FastAPI app instance."""
 
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from dotenv import load_dotenv
@@ -9,13 +10,31 @@ from fastapi.testclient import TestClient
 
 import hub_adapter.server as server
 from hub_adapter.auth import require_steward_role, verify_idp_token
-from hub_adapter.conf import Settings
+from hub_adapter.conf import Settings, UserSettings
 from tests.constants import (
     FAKE_USER,
     TEST_MOCK_NODE_CLIENT_ID,
     TEST_SVC_URL,
     TEST_URL,
 )
+
+
+class IsolatedTestSettings(UserSettings):
+    """UserSettings that ignores the developer's .env so tests always start from the model defaults."""
+
+    model_config = {**UserSettings.model_config, "env_file": None}
+
+
+@pytest.fixture(scope="session", autouse=True)
+def isolate_test_settings(tmp_path_factory):
+    """Keep the tests from reading my settings."""
+    json_path = tmp_path_factory.mktemp("settings") / "userSettings.json"
+    with (
+        patch("hub_adapter.user_settings.UserSettings", IsolatedTestSettings),
+        patch("hub_adapter.user_settings.get_node_database", return_value=None),
+        patch("hub_adapter.user_settings.SETTINGS_PATH", json_path),
+    ):
+        yield
 
 
 @pytest.fixture(scope="session")

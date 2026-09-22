@@ -37,6 +37,7 @@ from hub_adapter.routers.kong import (
     delete_analysis,
     get_analysis_keyauth,
     list_projects,
+    list_specific_project,
 )
 from hub_adapter.schemas.podorc import PodStatus
 from hub_adapter.user_settings import load_persistent_settings
@@ -149,23 +150,18 @@ class GoGoAnalysis:
         return analyses_started
 
     async def register_and_start_analysis(
-            self, analysis_id: str, project_id: str, node_id: str, node_type: str
+        self, analysis_id: str, project_id: str, node_id: str, node_type: str
     ) -> tuple | None:
-        """Register an analysis with kong (if required) and start its pod.
-
-        The whole register-and-start sequence is serialized per analysis_id so concurrent
-        callers cannot race on consumer creation or double-start the same analysis.
-        """
+        """Register an analysis with kong (if required) and start its pod."""
         async with _registration_locks.acquire(str(analysis_id)):
-            datastore_required = _check_data_required(node_type)
-            if datastore_required:
+            if await self.kong_key_needed(analysis_id, project_id, node_type):
                 kong_resp, status_code = await self.register_analysis(analysis_id, project_id)
                 if status_code != status.HTTP_201_CREATED:
                     return kong_resp, status_code
 
                 kong_token = kong_resp["keyauth"].key
 
-            else:  # Aggregator nodes don't need a kong store nor if the data requirement is disabled
+            else:
                 kong_token = "none_needed"
 
             props = {
@@ -177,6 +173,31 @@ class GoGoAnalysis:
             start_resp, status_code = await self.send_start_request(analysis_props=props, kong_token=kong_token)
             return start_resp, status_code
 
+    async def kong_key_needed(self, analysis_id: str, project_id: str, node_type: str) -> bool:
+        """Determine whether an analysis must be registered with kong before starting."""
+        if node_type == "aggregator":
+            return False
+
+        if _check_data_required(node_type):
+            return True
+
+        try:
+            routes = await list_specific_project(settings=self.settings, project_id=project_id, detailed=False)
+
+        except HTTPException as e:
+            log_event(
+                "autostart.kong.route_error",
+                event_description=(
+                    f"Unable to check for a data store linked to project {project_id}, "
+                    f"starting analysis {analysis_id} without a kong key: {e}"
+                ),
+                level=logging.WARNING,
+                service=ServiceTag.AUTOSTART,
+            )
+            return False
+
+        return bool(routes.data)
+
     async def describe_node(self) -> tuple[str | None, str] | None:
         """Get node information from cache, and if not present, get from Hub and set cache."""
         node_id = await get_node_id(core_client=self.core_client, settings=self.settings)
@@ -186,7 +207,7 @@ class GoGoAnalysis:
         return node_id, node_type
 
     async def register_analysis(
-            self, analysis_id: str, project_id: str, attempt: int = 1, max_attempts: int = 5
+        self, analysis_id: str, project_id: str, attempt: int = 1, max_attempts: int = 5
     ) -> tuple[dict | None, int] | None:
         """Register an analysis with kong."""
         log_event(
@@ -244,7 +265,7 @@ class GoGoAnalysis:
                 return (
                     {
                         "message": f"Analysis {analysis_id} already registered but its status could not be verified, "
-                                   f"please retry",
+                        f"please retry",
                         "service": "PO",
                         "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
                     },
@@ -507,11 +528,11 @@ class GoGoAnalysis:
         return valid_projects
 
     def parse_analyses(
-            self,
-            analyses: list,
-            valid_projects: set,
-            datastore_required: bool = True,
-            enforce_time_and_status_check: bool = True,
+        self,
+        analyses: list,
+        valid_projects: set,
+        datastore_required: bool = True,
+        enforce_time_and_status_check: bool = True,
     ) -> set:
         """Iterate through analyses and check whether they are approved, built, and have a run status."""
         ready_analyses = set()
