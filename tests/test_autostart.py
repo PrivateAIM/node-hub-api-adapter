@@ -929,3 +929,113 @@ class TestRegistrationLock:
 
         assert _registration_locks._locks == {}
         assert _registration_locks._refcounts == {}
+
+
+class TestOptionalDataStoreRegistration:
+    """Tests for issuing kong keys per analysis when the data store requirement is disabled."""
+
+    def setup_method(self):
+        """Set up a fresh analyzer with the data store requirement disabled."""
+        self.gather_deps_patcher = patch.object(GoGoAnalysis, "gather_deps")
+        self.gather_deps_patcher.start()
+
+        self.analyzer = GoGoAnalysis()
+        self.analyzer.settings = Settings()
+        self.analyzer.core_client = None
+
+        self.data_required_patcher = patch("hub_adapter.autostart._check_data_required", return_value=False)
+        self.data_required_patcher.start()
+
+    def teardown_method(self):
+        """Clean up patches."""
+        self.gather_deps_patcher.stop()
+        self.data_required_patcher.stop()
+
+    async def _run(self, node_type: str = "default") -> tuple[MagicMock, MagicMock]:
+        register = patch.object(
+            self.analyzer,
+            "register_analysis",
+            return_value=({"keyauth": FakeKeyAuth("issuedKey")}, status.HTTP_201_CREATED),
+        )
+        start = patch.object(
+            self.analyzer, "send_start_request", return_value=({"ok": "executing"}, status.HTTP_201_CREATED)
+        )
+        with register as mock_register, start as mock_start:
+            await self.analyzer.register_and_start_analysis(
+                TEST_MOCK_ANALYSIS_ID, TEST_MOCK_PROJECT_ID, TEST_MOCK_NODE_ID, node_type
+            )
+
+        return mock_register, mock_start
+
+    @pytest.mark.asyncio
+    @patch("hub_adapter.autostart.list_specific_project")
+    async def test_project_with_data_store_gets_real_key(self, mock_project_routes):
+        """An analysis whose project has a kong route is registered and started with the issued key."""
+        mock_project_routes.return_value = ListRoute200Response(**KONG_GET_ROUTE_RESPONSE)
+
+        mock_register, mock_start = await self._run()
+
+        mock_register.assert_awaited_once_with(TEST_MOCK_ANALYSIS_ID, TEST_MOCK_PROJECT_ID)
+        assert mock_start.await_args.kwargs["kong_token"] == "issuedKey"
+
+    @pytest.mark.asyncio
+    @patch("hub_adapter.autostart.list_specific_project")
+    async def test_project_without_data_store_uses_placeholder(self, mock_project_routes):
+        """An analysis whose project has no kong route is started without touching kong consumers."""
+        mock_project_routes.return_value = ListRoute200Response(data=[])
+
+        mock_register, mock_start = await self._run()
+
+        mock_register.assert_not_awaited()
+        assert mock_start.await_args.kwargs["kong_token"] == "none_needed"
+
+    @pytest.mark.asyncio
+    @patch("hub_adapter.autostart.log_event")
+    @patch("hub_adapter.autostart.list_specific_project")
+    async def test_kong_unreachable_falls_back_to_placeholder(self, mock_project_routes, mock_log_event):
+        """If the route lookup fails, the analysis still starts with the placeholder and a warning is logged."""
+        mock_project_routes.side_effect = HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Kong off"
+        )
+
+        mock_register, mock_start = await self._run()
+
+        mock_register.assert_not_awaited()
+        assert mock_start.await_args.kwargs["kong_token"] == "none_needed"
+        mock_log_event.assert_any_call(
+            "autostart.kong.route_error",
+            event_description=(
+                f"Unable to check for a data store linked to project {TEST_MOCK_PROJECT_ID}, "
+                f"starting analysis {TEST_MOCK_ANALYSIS_ID} without a kong key: 503: Kong off"
+            ),
+            level=logging.WARNING,
+            service=ANY,
+        )
+
+    @pytest.mark.asyncio
+    @patch("hub_adapter.autostart.list_specific_project")
+    async def test_aggregator_skips_route_lookup(self, mock_project_routes):
+        """Aggregator nodes never need a kong key, so no route lookup is made."""
+        mock_register, mock_start = await self._run(node_type="aggregator")
+
+        mock_project_routes.assert_not_called()
+        mock_register.assert_not_awaited()
+        assert mock_start.await_args.kwargs["kong_token"] == "none_needed"
+
+    @pytest.mark.asyncio
+    @patch("hub_adapter.autostart.list_specific_project")
+    async def test_registration_failure_aborts_start(self, mock_project_routes):
+        """When the project has a data store but registration fails, the pod must not be started."""
+        mock_project_routes.return_value = ListRoute200Response(**KONG_GET_ROUTE_RESPONSE)
+        register = patch.object(
+            self.analyzer, "register_analysis", return_value=(None, status.HTTP_503_SERVICE_UNAVAILABLE)
+        )
+        start = patch.object(self.analyzer, "send_start_request")
+
+        with register, start as mock_start:
+            resp = await self.analyzer.register_and_start_analysis(
+                TEST_MOCK_ANALYSIS_ID, TEST_MOCK_PROJECT_ID, TEST_MOCK_NODE_ID, "default"
+            )
+
+        assert resp == (None, status.HTTP_503_SERVICE_UNAVAILABLE)
+        mock_start.assert_not_awaited()
