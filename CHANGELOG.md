@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v1.0.0...v1.0.1) (2026-09-22)
+
+
+### Bug Fixes
+
+* **autostart:** allow kong apikey when ds requirement disabled ([746de04](https://github.com/PrivateAIM/node-hub-api-adapter/commit/746de040fdda1602d9f58dd8f70f6a952b4e40d4))
+
 ## [1.0.0](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v0.8.3...v1.0.0) (2026-09-15)
 
 
