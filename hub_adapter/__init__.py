@@ -2,12 +2,14 @@
 
 import json
 import logging.config
+import os
 import sys
 from contextvars import ContextVar
 from datetime import UTC, datetime
 from pathlib import Path
 
 current_user_id: ContextVar[str | None] = ContextVar("current_user_id", default=None)
+dev_mode = os.environ.get("APP_ENV", None) == "development"
 
 root_dir = Path(__file__).parent.resolve()
 
@@ -84,7 +86,7 @@ logging_config = {
             "datefmt": "%Y-%m-%d %H:%M:%S",
         },
         "console_formatter": {
-            "()": JsonFormatter,
+            "()": JsonFormatter if not dev_mode else logging.Formatter,
             "format": "%(asctime)s [%(levelname)s] %(message)s",
             "datefmt": "%Y-%m-%d %H:%M:%S",
         },
