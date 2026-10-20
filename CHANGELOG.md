@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.1.0](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v1.0.1...v1.1.0) (2026-10-20)
+
+
+### Bug Fixes
+
+* **hub:** serialize hub responses by alias to match OpenAPI schema ([56ee36f](https://github.com/PrivateAIM/node-hub-api-adapter/commit/56ee36f75dbee38aaacac59bb71fcc20a1b34dc5))
+
+
+### Miscellaneous Chores
+
+* release 1.1.0 ([3a16cb2](https://github.com/PrivateAIM/node-hub-api-adapter/commit/3a16cb2465964dd4bbb05fa32b4b6c40bb5d1992))
+
 ## [1.0.1](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v1.0.0...v1.0.1) (2026-09-22)
 
 
