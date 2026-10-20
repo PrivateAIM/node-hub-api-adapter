@@ -334,16 +334,16 @@ wheels = [
 
 [[package]]
 name = "flame-hub-client"
-version = "0.6.0"
+version = "1.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx2" },
     { name = "pydantic", extra = ["email"] },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d6/09/a8fb52a0e2d99ab448d7661909953f16a250a97e6eca468d4df439ac6266/flame_hub_client-0.6.0.tar.gz", hash = "sha256:2439336e4c54dc7ab455e61409ee87f4f1416d2b73ea970cee06996d851d12df", size = 27751, upload-time = "2026-09-08T09:00:06.955Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ca/27/3dc4c1197ee0a54d509f93ea734c01fd402be0ed8a98658dd5b487f87281/flame_hub_client-1.1.0.tar.gz", hash = "sha256:4eff02b8ff8df01d9a313ef464f30ceb6d62f341e39c5b368385564a914bddeb", size = 28058, upload-time = "2026-10-16T14:26:26.918Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/3e/45/5bea9ed047deb65dc0a50cb5265797a69590e1208cb558be832aad4bf00b/flame_hub_client-0.6.0-py3-none-any.whl", hash = "sha256:8106af0f409ad8a928c937d03f60a8a0f421286275dccaf1d9cd335cfc14f4cb", size = 30213, upload-time = "2026-09-08T09:00:05.573Z" },
+    { url = "https://files.pythonhosted.org/packages/f2/b0/1cb499cb502d5bfb7ae2aba0b618c169aa61762665487dd6e1471930b135/flame_hub_client-1.1.0-py3-none-any.whl", hash = "sha256:fa1ce9f764bb832eb512273deb287b8b8846b62f8e79d3a87d67784e334e8d2d", size = 30570, upload-time = "2026-10-16T14:26:25.576Z" },
 ]
 
 [[package]]
@@ -458,7 +458,7 @@ requires-dist = [
     { name = "click", specifier = ">=8.1.7" },
     { name = "cryptography", specifier = ">=50.0.0" },
     { name = "fastapi", specifier = ">=0.138.0" },
-    { name = "flame-hub-client", specifier = ">=0.6.0" },
+    { name = "flame-hub-client", specifier = ">=1.1.0" },
     { name = "httpx2", specifier = ">=2.9.1" },
     { name = "kongadminclient", git = "https://github.com/PrivateAIM/kong-admin-python-client.git" },
     { name = "peewee", specifier = ">=4.0.2" },

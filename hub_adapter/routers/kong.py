@@ -44,7 +44,6 @@ from hub_adapter.errors import (
     KongGatewayError,
     KongProjectDatastoreLinkConflictError,
     KongProjectDatastoreUnlinkedError,
-    KongProjectEmptyError,
     KongProjectNotMappedError,
     KongProxyNotConfiguredError,
     KongServiceError,
@@ -56,14 +55,12 @@ from hub_adapter.schemas.kong import (
     DataStoreType,
     HttpMethodCode,
     LinkDataStoreProject,
-    LinkProjectAnalysis,
     ListConsumers,
     ListRoutes,
     ListServices,
     ProtocolCode,
     S3Config,
     ServiceRequest,
-    UnlinkResponse,
 )
 from hub_adapter.utils import (
     HEALTH_TAG,
@@ -316,13 +313,6 @@ def delete_data_store(
         return status.HTTP_200_OK
 
 
-@kong_router.post(
-    "/datastore",
-    response_model=Service,
-    status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_steward_role)],
-    name="kong.datastore.create",
-)
 @catch_kong_errors
 def create_data_store(
     settings: Annotated[Settings, Depends(get_settings)],
@@ -448,12 +438,6 @@ def list_projects(
     return get_projects(settings, project_id=None, detailed=detailed)
 
 
-@kong_router.get(
-    "/project/{project_id}",
-    response_model=ListRoutes,
-    status_code=status.HTTP_200_OK,
-    name="kong.project.get",
-)
 @catch_kong_errors
 def list_specific_project(
     settings: Annotated[Settings, Depends(get_settings)],
@@ -470,13 +454,6 @@ def list_specific_project(
     return get_projects(settings, project_id=project_id, detailed=detailed)
 
 
-@kong_router.post(
-    "/project/{project_id}/datastore/{datastore_id}",
-    response_model=LinkDataStoreProject,
-    status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_steward_role)],
-    name="kong.project.link",
-)
 @catch_kong_errors
 async def link_project_to_datastore(
     settings: Annotated[Settings, Depends(get_settings)],
@@ -630,77 +607,6 @@ async def create_datastore_and_project_with_link(
         raise error
 
 
-@kong_router.delete(
-    "/project/{project_id}",
-    status_code=status.HTTP_200_OK,
-    dependencies=[Depends(require_steward_role)],
-    response_model=UnlinkResponse,
-    name="kong.project.delete",
-)
-@catch_kong_errors
-def delete_project(
-    settings: Annotated[Settings, Depends(get_settings)],
-    project_id: Annotated[uuid.UUID | str, Path(description="UUID of the project")],
-) -> UnlinkResponse:
-    """Disconnect a project from all data stores and delete all its consumers (analyses + health)."""
-    configuration = kong_config(settings)
-    tags = project_tag(project_id)
-
-    with kong_api_client(configuration) as api_client:
-        route_api = kong_admin_client.RoutesApi(api_client)
-        consumer_api = kong_admin_client.ConsumersApi(api_client)
-
-        routes = route_api.list_route(tags=tags)
-        consumers = consumer_api.list_consumer(tags=tags)
-
-        if not routes.data and not consumers.data:
-            raise KongProjectEmptyError(str(project_id))
-
-        for route in routes.data:
-            route_api.delete_route(route.id)
-
-        for consumer in consumers.data:
-            consumer_api.delete_consumer(consumer_username_or_id=consumer.id)
-
-        logger.info(
-            f"Project {project_id} deleted: {len(routes.data)} link(s), {len(consumers.data)} consumer(s) removed"
-        )
-
-        return UnlinkResponse(removed_routes=routes.data, removed_consumers=consumers.data, status=status.HTTP_200_OK)
-
-
-@kong_router.delete(
-    "/project/{project_id}/datastore/{datastore_id}",
-    status_code=status.HTTP_200_OK,
-    dependencies=[Depends(require_steward_role)],
-    response_model=UnlinkResponse,
-    name="kong.project.unlink",
-)
-@catch_kong_errors
-def unlink_project_from_datastore(
-    settings: Annotated[Settings, Depends(get_settings)],
-    project_id: Annotated[uuid.UUID | str, Path(description="UUID of the project")],
-    datastore_id: Annotated[uuid.UUID | str, Path(description="Kong service ID of the data store")],
-) -> UnlinkResponse:
-    """Unlink a single data store from a project. Consumers (analyses) are kept."""
-    _require_uuid_ids(project_id=project_id, datastore_id=datastore_id)
-
-    configuration = kong_config(settings)
-
-    with kong_api_client(configuration) as api_client:
-        route_api = kong_admin_client.RoutesApi(api_client)
-        routes = _find_project_datastore_route(api_client, project_id, datastore_id)
-
-        if not routes.data:
-            raise KongProjectDatastoreUnlinkedError(str(project_id), str(datastore_id))
-
-        for route in routes.data:
-            route_api.delete_route(route.id)
-            logger.info(f"Project {project_id} unlinked from data store {datastore_id} (route {route.id})")
-
-        return UnlinkResponse(removed_routes=routes.data, status=status.HTTP_200_OK)
-
-
 def _find_analysis_consumer(api_client, analysis_id: str | uuid.UUID):
     """Resolve the Kong consumer for an analysis via its tag, or None."""
     consumer_api = kong_admin_client.ConsumersApi(api_client)
@@ -727,43 +633,6 @@ def get_analyses(
         api_response = consumer_api.list_consumer(tags=",".join(tags) if tags else None)
         analyses = [c for c in api_response.data if HEALTH_TAG not in (c.tags or [])]
         return {"data": analyses}
-
-
-@kong_router.get(
-    "/analysis",
-    response_model=ListConsumers,
-    status_code=status.HTTP_200_OK,
-    name="kong.analysis.get",
-)
-@catch_kong_errors
-def list_analyses(
-    settings: Annotated[Settings, Depends(get_settings)],
-    project_id: Annotated[
-        str | None,
-        Query(description="Filter consumers by project UUID"),
-    ] = None,
-):
-    """List all analyses (referred to as consumers by kong) available. Can be filtered by project UUID."""
-    return get_analyses(settings, project_id=project_id)
-
-
-@kong_router.get(
-    "/analysis/{analysis_id}",
-    response_model=ListConsumers,
-    status_code=status.HTTP_200_OK,
-    name="kong.analysis.get",
-)
-@catch_kong_errors
-def list_specific_analysis(
-    settings: Annotated[Settings, Depends(get_settings)],
-    analysis_id: Annotated[uuid.UUID | str | None, Path(description="UUID of the analysis.")],
-    project_id: Annotated[
-        str | None,
-        Query(description="Filter consumers by project UUID"),
-    ] = None,
-):
-    """List all analyses (referred to as consumers by kong) available."""
-    return get_analyses(settings, analysis_id=analysis_id, project_id=project_id)
 
 
 def get_analysis_keyauth(settings: Settings, analysis_id: str | uuid.UUID):
@@ -795,13 +664,6 @@ def get_analysis_keyauth(settings: Settings, analysis_id: str | uuid.UUID):
     return None
 
 
-@kong_router.post(
-    "/analysis",
-    response_model=LinkProjectAnalysis,
-    status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_steward_role)],
-    name="kong.analysis.create",
-)
 @catch_kong_errors
 def create_and_connect_analysis_to_project(
     settings: Annotated[Settings, Depends(get_settings)],
@@ -859,12 +721,6 @@ def create_and_connect_analysis_to_project(
     return response
 
 
-@kong_router.delete(
-    "/analysis/{analysis_id}",
-    status_code=status.HTTP_200_OK,
-    dependencies=[Depends(require_steward_role)],
-    name="kong.analysis.delete",
-)
 @catch_kong_errors
 def delete_analysis(
     settings: Annotated[Settings, Depends(get_settings)],
