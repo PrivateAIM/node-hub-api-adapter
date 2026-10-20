@@ -71,7 +71,6 @@ def _parse_query_params(
     status_code=status.HTTP_200_OK,
     response_model=list[Project],
     name="hub.project.get",
-    response_model_by_alias=False,
 )
 @catch_hub_errors
 def list_all_projects(
@@ -88,7 +87,6 @@ def list_all_projects(
     status_code=status.HTTP_200_OK,
     response_model=list[ProjectNode],
     name="hub.project.node.get",
-    response_model_by_alias=False,
 )
 @catch_hub_errors
 def list_project_proposals(
@@ -110,7 +108,6 @@ def list_project_proposals(
     status_code=status.HTTP_200_OK,
     response_model=list[AnalysisNode],
     name="hub.analysis.node.get",
-    response_model_by_alias=False,
 )
 @catch_hub_errors
 def list_analysis_nodes(
@@ -132,7 +129,6 @@ def list_analysis_nodes(
     status_code=status.HTTP_200_OK,
     response_model=AnalysisNode,
     name="hub.analysis.node.get",
-    response_model_by_alias=False,
 )
 @catch_hub_errors
 def list_specific_analysis_node(
@@ -150,7 +146,6 @@ def list_specific_analysis_node(
     status_code=status.HTTP_200_OK,
     response_model=NodeTypeResponse,
     name="hub.node.type.get",
-    response_model_by_alias=False,
 )
 @catch_hub_errors
 def get_node_type(node_type: Annotated[dict | None, Depends(get_node_type_cache)]):
