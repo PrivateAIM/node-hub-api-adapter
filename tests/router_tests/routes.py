@@ -1,16 +1,12 @@
 """Expected routes and their configurations for each router."""
 
 from flame_hub._core_client import AnalysisNode, Project, ProjectNode
-from kong_admin_client import Service
 
 from hub_adapter.schemas.hub import NodeTypeResponse
 from hub_adapter.schemas.kong import (
     LinkDataStoreProject,
-    LinkProjectAnalysis,
-    ListConsumers,
     ListRoutes,
     ListServices,
-    UnlinkResponse,
 )
 from hub_adapter.schemas.logs import (
     AnalysisLogHistoryResponse,
@@ -137,13 +133,6 @@ EXPECTED_KONG_ROUTE_CONFIG = (
         "status_code": 200,
     },
     {
-        "name": "kong.datastore.create",
-        "path": "/kong/datastore",
-        "methods": {"POST"},
-        "response_model": Service,
-        "status_code": 201,
-    },
-    {
         "name": "kong.project.get",
         "path": "/kong/project",
         "methods": {"GET"},
@@ -151,67 +140,11 @@ EXPECTED_KONG_ROUTE_CONFIG = (
         "status_code": 200,
     },
     {
-        "name": "kong.project.get",
-        "path": "/kong/project/{project_id}",
-        "methods": {"GET"},
-        "response_model": ListRoutes,
-        "status_code": 200,
-    },
-    {
-        "name": "kong.project.link",
-        "path": "/kong/project/{project_id}/datastore/{datastore_id}",
-        "methods": {"POST"},
-        "response_model": LinkDataStoreProject,
-        "status_code": 201,
-    },
-    {
         "name": "kong.initialize",
         "path": "/kong/initialize",
         "methods": {"POST"},
         "response_model": LinkDataStoreProject,
         "status_code": 201,
-    },
-    {
-        "name": "kong.project.delete",
-        "path": "/kong/project/{project_id}",
-        "methods": {"DELETE"},
-        "response_model": UnlinkResponse,
-        "status_code": 200,
-    },
-    {
-        "name": "kong.project.unlink",
-        "path": "/kong/project/{project_id}/datastore/{datastore_id}",
-        "methods": {"DELETE"},
-        "response_model": UnlinkResponse,
-        "status_code": 200,
-    },
-    {
-        "name": "kong.analysis.get",
-        "path": "/kong/analysis",
-        "methods": {"GET"},
-        "response_model": ListConsumers,
-        "status_code": 200,
-    },
-    {
-        "name": "kong.analysis.get",
-        "path": "/kong/analysis/{analysis_id}",
-        "methods": {"GET"},
-        "response_model": ListConsumers,
-        "status_code": 200,
-    },
-    {
-        "name": "kong.analysis.create",
-        "path": "/kong/analysis",
-        "methods": {"POST"},
-        "response_model": LinkProjectAnalysis,
-        "status_code": 201,
-    },
-    {
-        "name": "kong.analysis.delete",
-        "path": "/kong/analysis/{analysis_id}",
-        "methods": {"DELETE"},
-        "response_model": None,
-        "status_code": 200,
     },
     {
         "name": "kong.probe",
