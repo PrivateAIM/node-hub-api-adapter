@@ -6,28 +6,15 @@ import uuid
 from typing import Annotated
 
 import flame_hub
-from fastapi import APIRouter, Body, Depends, Form, HTTPException, Path, Query, Security
-from flame_hub.models import (
-    Analysis,
-    AnalysisBucket,
-    AnalysisNode,
-    Node,
-    Project,
-    ProjectNode,
-    ProjectNodeApprovalStatus,
-    RegistryProject,
-)
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Security
+from flame_hub.models import AnalysisNode, Project, ProjectNode
 from starlette import status
 
 from hub_adapter.auth import jwtbearer, verify_idp_token
 from hub_adapter.constants import ServiceTag
-from hub_adapter.dependencies import compile_analysis_pod_data, get_core_client, get_node_id, get_node_type_cache
+from hub_adapter.dependencies import get_core_client, get_node_id, get_node_type_cache
 from hub_adapter.errors import catch_hub_errors
-from hub_adapter.schemas.hub import (
-    AnalysisImageUrl,
-    DetailedAnalysis,
-    NodeTypeResponse,
-)
+from hub_adapter.schemas.hub import NodeTypeResponse
 
 hub_router = APIRouter(
     dependencies=[
@@ -96,23 +83,6 @@ def list_all_projects(
 
 
 @hub_router.get(
-    "/projects/{project_id}",
-    summary="List a specific project",
-    status_code=status.HTTP_200_OK,
-    response_model=Project,
-    name="hub.project.get",
-    response_model_by_alias=False,
-)
-@catch_hub_errors
-def list_specific_project(
-    project_id: Annotated[uuid.UUID | str, Path(description="Project UUID.")],
-    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
-):
-    """List project for a given UUID."""
-    return core_client.get_project(project_id=project_id)
-
-
-@hub_router.get(
     "/project-nodes",
     summary="List all of the project proposals",
     status_code=status.HTTP_200_OK,
@@ -132,44 +102,6 @@ def list_project_proposals(
 
     else:
         return core_client.get_project_nodes(**query_params)
-
-
-@hub_router.get(
-    "/project-nodes/{project_node_id}",
-    summary="List a specific project proposal",
-    status_code=status.HTTP_200_OK,
-    response_model=ProjectNode,
-    name="hub.project.node.get",
-    response_model_by_alias=False,
-)
-@catch_hub_errors
-def list_project_proposal(
-    project_node_id: Annotated[uuid.UUID | str, Path(description="Proposal object UUID.")],
-    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
-):
-    """Set the approval status of a project proposal."""
-    return core_client.get_project_node(project_node_id=project_node_id)
-
-
-@hub_router.post(
-    "/project-nodes/{project_node_id}",
-    summary="Update a specific project proposal",
-    status_code=status.HTTP_200_OK,
-    response_model=ProjectNode,
-    name="hub.project.node.update",
-    response_model_by_alias=False,
-)
-@catch_hub_errors
-def accept_reject_project_proposal(
-    project_node_id: Annotated[uuid.UUID | str, Path(description="Proposal object UUID.")],
-    approval_status: Annotated[
-        ProjectNodeApprovalStatus,
-        Form(description="Set the approval status of project for the node. Either 'rejected' or 'approved'"),
-    ],
-    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
-):
-    """Set the approval status of a project proposal."""
-    return core_client.update_project_node(project_node_id=project_node_id, approval_status=approval_status)
 
 
 @hub_router.get(
@@ -212,95 +144,6 @@ def list_specific_analysis_node(
     return core_client.get_analysis_node(analysis_node_id=analysis_node_id, **query_params)
 
 
-@hub_router.post(
-    "/analysis-nodes/{analysis_node_id}",
-    summary="Update a specific analysis proposal",
-    status_code=status.HTTP_200_OK,
-    response_model=AnalysisNode,
-    name="hub.analysis.update",
-    response_model_by_alias=False,
-)
-@catch_hub_errors
-def accept_reject_analysis_node(
-    analysis_node_id: Annotated[uuid.UUID | str, Path(description="Analysis Node UUID (not analysis_id).")],
-    approval_status: Annotated[
-        ProjectNodeApprovalStatus,  # same as AnalysisNodeApprovalStatus
-        Form(description="Set the approval status of project for the node. Either 'rejected' or 'approved'"),
-    ],
-    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
-):
-    """Set the approval status of an analysis proposal."""
-    return core_client.update_analysis_node(analysis_node_id=analysis_node_id, approval_status=approval_status)
-
-
-@hub_router.get(
-    "/analyses",
-    summary="List all of the analysis proposals",
-    status_code=status.HTTP_200_OK,
-    response_model=list[Analysis],
-    name="hub.analysis.get",
-    response_model_by_alias=False,
-)
-@catch_hub_errors
-def list_all_analyses(
-    query_params: Annotated[dict, Depends(_parse_query_params)],
-    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
-):
-    """List all registered analyses."""
-    return core_client.get_analyses(**query_params)
-
-
-@hub_router.get(
-    "/analyses/{analysis_id}",
-    summary="List a specific analysis",
-    status_code=status.HTTP_200_OK,
-    response_model=Analysis,
-    name="hub.analysis.get",
-    response_model_by_alias=False,
-)
-@catch_hub_errors
-def list_specific_analysis(
-    analysis_id: Annotated[uuid.UUID | str, Path(description="Analysis UUID.")],
-    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
-):
-    """List a specific analysis."""
-    return core_client.get_analysis(analysis_id=analysis_id)
-
-
-@hub_router.get(
-    "/nodes",
-    summary="List all of the nodes",
-    status_code=status.HTTP_200_OK,
-    response_model=list[Node],
-    name="hub.node.get",
-    response_model_by_alias=False,
-)
-@catch_hub_errors
-def list_all_nodes(
-    query_params: Annotated[dict, Depends(_parse_query_params)],
-    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
-):
-    """List all nodes."""
-    return core_client.get_nodes(**query_params)
-
-
-@hub_router.get(
-    "/nodes/{node_id}",
-    summary="List a specific node",
-    status_code=status.HTTP_200_OK,
-    response_model=Node,
-    name="hub.node.get",
-    response_model_by_alias=False,
-)
-@catch_hub_errors
-def list_specific_node(
-    node_id: Annotated[uuid.UUID | str, Path(description="Node UUID.")],
-    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
-):
-    """List a specific node."""
-    return core_client.get_node(node_id=node_id)
-
-
 @hub_router.get(
     "/node-type",
     summary="Return what type of node this API is deployed on",
@@ -313,117 +156,3 @@ def list_specific_node(
 def get_node_type(node_type: Annotated[dict | None, Depends(get_node_type_cache)]):
     """Return what type of node this API is deployed on."""
     return node_type
-
-
-@hub_router.post(
-    "/analyses/{analysis_id}",
-    summary="Update a specific analysis proposal",
-    status_code=status.HTTP_200_OK,
-    response_model=DetailedAnalysis,
-    name="hub.analysis.node.update",
-    response_model_by_alias=False,
-)
-@catch_hub_errors
-def update_specific_analysis(
-    analysis_id: Annotated[uuid.UUID | str, Path(description="Analysis UUID.")],
-    name: Annotated[str, Body(description="New analysis name.")],
-    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
-):
-    """Update analysis with a given UUID."""
-    return core_client.update_analysis(analysis_id=analysis_id, name=name)
-
-
-@hub_router.get(
-    "/registry-projects/{registry_project_id}",
-    summary="Get registry project",
-    status_code=status.HTTP_200_OK,
-    response_model=RegistryProject,
-    response_model_by_alias=False,
-)
-@catch_hub_errors
-def get_registry_metadata_for_project(
-    registry_project_id: Annotated[uuid.UUID | str, Path(description="Registry project UUID.")],
-    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
-):
-    """List registry data for a project."""
-
-    return core_client.get_registry_project(registry_project_id=registry_project_id)
-
-
-@hub_router.post(
-    "/analysis/image", response_model=AnalysisImageUrl, name="hub.analysis.image.get", response_model_by_alias=False
-)
-@catch_hub_errors
-def get_analysis_image_url(
-    image_url_resp: Annotated[AnalysisImageUrl, Depends(compile_analysis_pod_data)],
-):
-    """Build an analysis image URL using its metadata from the Hub."""
-    return image_url_resp
-
-
-@hub_router.get(
-    "/analysis-buckets",
-    summary="List a specific analysis bucket",
-    status_code=status.HTTP_200_OK,
-    # response_model=BucketList,
-    name="hub.analysis.bucket.get",
-    response_model_by_alias=False,
-)
-@catch_hub_errors
-def list_all_analysis_buckets(
-    query_params: Annotated[dict, Depends(_parse_query_params)],
-    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
-):
-    """List all analysis buckets."""
-    return core_client.find_analysis_buckets(**query_params)
-
-
-@hub_router.get(
-    "/analysis-buckets/{analysis_bucket_id}",
-    summary="List a specific analysis bucket",
-    status_code=status.HTTP_200_OK,
-    response_model=AnalysisBucket,
-    name="hub.analysis.bucket.get",
-    response_model_by_alias=False,
-)
-@catch_hub_errors
-def list_specific_analysis_buckets(
-    analysis_bucket_id: Annotated[uuid.UUID | str, Path(description="Bucket UUID.")],
-    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
-):
-    """List a specific analysis bucket."""
-    return core_client.get_analysis_bucket(analysis_bucket_id=analysis_bucket_id)
-
-
-@hub_router.get(
-    "/analysis-bucket-files",
-    summary="List partial analysis bucket files.",
-    status_code=status.HTTP_200_OK,
-    # response_model=PartialBucketFilesList,
-    name="hub.analysis.bucket.file.get",
-    response_model_by_alias=False,
-)
-@catch_hub_errors
-def list_all_analysis_bucket_files(
-    query_params: Annotated[dict, Depends(_parse_query_params)],
-    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
-):
-    """List partial analysis bucket files."""
-    return core_client.get_analysis_bucket_files(**query_params)
-
-
-@hub_router.get(
-    "/analysis-bucket-files/{analysis_bucket_file_id}",
-    summary="List partial analysis bucket files.",
-    status_code=status.HTTP_200_OK,
-    # response_model=PartialAnalysisBucketFile,
-    name="hub.analysis.bucket.file.get",
-    response_model_by_alias=False,
-)
-@catch_hub_errors
-def list_specific_analysis_bucket_file(
-    analysis_bucket_file_id: Annotated[uuid.UUID | str, Path(description="Bucket file UUID.")],
-    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
-):
-    """List specific partial analysis bucket file."""
-    return core_client.get_analysis_bucket_file(analysis_bucket_file_id=analysis_bucket_file_id)

@@ -1,9 +1,9 @@
 """Expected routes and their configurations for each router."""
 
-from flame_hub._core_client import Analysis, AnalysisBucket, AnalysisNode, Node, Project, ProjectNode, RegistryProject
+from flame_hub._core_client import AnalysisNode, Project, ProjectNode
 from kong_admin_client import Service
 
-from hub_adapter.schemas.hub import AnalysisImageUrl, DetailedAnalysis, NodeTypeResponse
+from hub_adapter.schemas.hub import NodeTypeResponse
 from hub_adapter.schemas.kong import (
     LinkDataStoreProject,
     LinkProjectAnalysis,
@@ -230,32 +230,11 @@ EXPECTED_HUB_ROUTE_CONFIG = (
         "response_model": list[Project],
     },
     {
-        "path": "/projects/{project_id}",
-        "name": "hub.project.get",
-        "methods": {"GET"},
-        "status_code": 200,
-        "response_model": Project,
-    },
-    {
         "path": "/project-nodes",
         "name": "hub.project.node.get",
         "methods": {"GET"},
         "status_code": 200,
         "response_model": list[ProjectNode],
-    },
-    {
-        "path": "/project-nodes/{project_node_id}",
-        "name": "hub.project.node.get",
-        "methods": {"GET"},
-        "status_code": 200,
-        "response_model": ProjectNode,
-    },
-    {
-        "path": "/project-nodes/{project_node_id}",
-        "name": "hub.project.node.update",
-        "methods": {"POST"},
-        "status_code": 200,
-        "response_model": ProjectNode,
     },
     {
         "path": "/analysis-nodes",
@@ -272,89 +251,11 @@ EXPECTED_HUB_ROUTE_CONFIG = (
         "response_model": AnalysisNode,
     },
     {
-        "path": "/analysis-nodes/{analysis_node_id}",
-        "name": "hub.analysis.update",
-        "methods": {"POST"},
-        "status_code": 200,
-        "response_model": AnalysisNode,
-    },
-    {
-        "path": "/analyses",
-        "name": "hub.analysis.get",
-        "methods": {"GET"},
-        "status_code": 200,
-        "response_model": list[Analysis],
-    },
-    {
-        "path": "/analyses/{analysis_id}",
-        "name": "hub.analysis.get",
-        "methods": {"GET"},
-        "status_code": 200,
-        "response_model": Analysis,
-    },
-    {"path": "/nodes", "name": "hub.node.get", "methods": {"GET"}, "status_code": 200, "response_model": list[Node]},
-    {
-        "path": "/nodes/{node_id}",
-        "name": "hub.node.get",
-        "methods": {"GET"},
-        "status_code": 200,
-        "response_model": Node,
-    },
-    {
         "path": "/node-type",
         "name": "hub.node.type.get",
         "methods": {"GET"},
         "status_code": 200,
         "response_model": NodeTypeResponse,
-    },
-    {
-        "path": "/analyses/{analysis_id}",
-        "name": "hub.analysis.node.update",
-        "methods": {"POST"},
-        "status_code": 200,
-        "response_model": DetailedAnalysis,
-    },
-    {
-        "path": "/registry-projects/{registry_project_id}",
-        "name": "get_registry_metadata_for_project",
-        "methods": {"GET"},
-        "status_code": 200,
-        "response_model": RegistryProject,
-    },
-    {
-        "path": "/analysis/image",
-        "name": "hub.analysis.image.get",
-        "methods": {"POST"},
-        "status_code": None,
-        "response_model": AnalysisImageUrl,
-    },
-    {
-        "path": "/analysis-buckets",
-        "name": "hub.analysis.bucket.get",
-        "methods": {"GET"},
-        "status_code": 200,
-        "response_model": None,
-    },
-    {
-        "path": "/analysis-buckets/{analysis_bucket_id}",
-        "name": "hub.analysis.bucket.get",
-        "methods": {"GET"},
-        "status_code": 200,
-        "response_model": AnalysisBucket,
-    },
-    {
-        "path": "/analysis-bucket-files",
-        "name": "hub.analysis.bucket.file.get",
-        "methods": {"GET"},
-        "status_code": 200,
-        "response_model": None,
-    },
-    {
-        "path": "/analysis-bucket-files/{analysis_bucket_file_id}",
-        "name": "hub.analysis.bucket.file.get",
-        "methods": {"GET"},
-        "status_code": 200,
-        "response_model": None,
     },
 )
 EXPECTED_PO_ROUTE_CONFIG = (
