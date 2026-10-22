@@ -13,7 +13,7 @@ class AutostartSettings(BaseModel):
     enabled: bool | None = False  # If False, then autostart is completely disabled
     interval: Annotated[int, Field(gt=0)] | None = 60
     default_project_autostart_policy: bool = False
-    projects: dict[str | str, bool] = {}  # using UUID as key makes JSON angry
+    projects: dict[str, bool] = {}  # using UUID as key makes JSON angry
 
     model_config = {"extra": "forbid"}
 
