@@ -13,6 +13,7 @@ from starlette import status
 from starlette.concurrency import run_in_threadpool
 
 from hub_adapter.auth import _get_internal_token
+from hub_adapter.conf import AutostartSettings, UserSettings
 from hub_adapter.constants import ServiceTag
 from hub_adapter.core import make_request
 from hub_adapter.dependencies import (
@@ -101,6 +102,9 @@ class GoGoAnalysis:
         """Gather and iterate over analyses from hub and start them if they pass checks."""
         analyses_started = set()
 
+        # Load each time to check for project-specific autostart updates
+        node_settings = await run_in_threadpool(load_persistent_settings)
+
         try:
             node_id, node_type = await self.describe_node()
 
@@ -133,7 +137,7 @@ class GoGoAnalysis:
 
         valid_projects = await self.get_valid_projects()
         datastore_required = _check_data_required(node_type)
-        ready_to_start_analyses = self.parse_analyses(analyses, valid_projects, datastore_required)
+        ready_to_start_analyses = self.parse_analyses(analyses, valid_projects, node_settings, datastore_required)
 
         for analysis in ready_to_start_analyses:
             analysis_id, project_id, node_id, _, _ = analysis
@@ -531,11 +535,13 @@ class GoGoAnalysis:
         self,
         analyses: list,
         valid_projects: set,
+        node_settings: UserSettings,
         datastore_required: bool = True,
         enforce_time_and_status_check: bool = True,
     ) -> set:
         """Iterate through analyses and check whether they are approved, built, and have a run status."""
         ready_analyses = set()
+        autostart_settings = node_settings.autostart or AutostartSettings()
         for entry in analyses:
             if entry.analysis is None:
                 log_event(
@@ -570,12 +576,26 @@ class GoGoAnalysis:
                     log_event(
                         "autostart.analysis.invalid_project",
                         event_description=(
-                            f"Cannot start analysis {analysis_id} because its project with ID {project_id}"
-                            " is not valid. Project is either not approved or missing a data store"
+                            f"Cannot start analysis {analysis_id} because project ID {project_id} is not valid. "
+                            f"Project is either not approved or missing a data store"
                         ),
                         level=logging.INFO,
                         service=ServiceTag.AUTOSTART,
                     )
+
+            # Check if project has autostart enabled
+            proj_autostart_policy_enabled = autostart_settings.project_allowed(project_id)
+            if is_valid and not proj_autostart_policy_enabled:
+                log_event(
+                    "autostart.analysis.disabled_project",
+                    event_description=(
+                        f"Cannot autostart analysis {analysis_id} because autostart is disabled for project ID "
+                        f"{project_id}"
+                    ),
+                    level=logging.INFO,
+                    service=ServiceTag.AUTOSTART,
+                )
+            is_valid = is_valid and proj_autostart_policy_enabled
 
             if is_valid:
                 valid_entry = (
@@ -605,9 +625,9 @@ class AutostartManager:
 
     async def update(self) -> None:
         """Update the autostart state based on current settings."""
-        settings = load_persistent_settings()
-        user_enabled = settings.autostart.enabled if settings.autostart else False
-        interval = settings.autostart.interval if settings.autostart else 60
+        node_settings = load_persistent_settings()
+        user_enabled = node_settings.autostart.enabled if node_settings.autostart else False
+        interval = node_settings.autostart.interval if node_settings.autostart else 60
 
         if user_enabled and not self._enabled:
             # Start autostart task

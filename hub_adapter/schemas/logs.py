@@ -215,6 +215,7 @@ TRACKED_EVENTS = {
     "autostart.analysis.status_error": "Autostart failed to fetch the status of an analysis pod",
     "autostart.kong.route_error": "Autostart failed to retrieve Kong routes",
     "autostart.analysis.invalid_project": "Autostart skipped analysis due to an invalid or unapproved project",
+    "autostart.analysis.disabled_project": "Autostart skipped analysis since project has autostart disabled",
     "autostart.analysis.ready": "Autostart found analyses ready to start",
     # Kong consumer cleanup events
     "kong_cleanup.poll": "Kong consumer cleanup swept for stale analysis consumers",

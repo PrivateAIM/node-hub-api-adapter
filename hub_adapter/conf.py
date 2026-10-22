@@ -1,5 +1,6 @@
 """Adapter API Settings."""
 
+import uuid
 from typing import Annotated
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -9,10 +10,21 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 class AutostartSettings(BaseModel):
     """Autostart Settings."""
 
-    enabled: bool | None = False
+    enabled: bool | None = False  # If False, then autostart is completely disabled
     interval: Annotated[int, Field(gt=0)] | None = 60
+    default_project_autostart_policy: bool = False
+    projects: dict[str | str, bool] = {}  # using UUID as key makes JSON angry
 
     model_config = {"extra": "forbid"}
+
+    @field_validator("projects", mode="before")
+    @classmethod
+    def normalize_project_ids(cls, v):
+        """Validate project ID is a UUID but convert back to string to appease the JSON gods."""
+        return {str(uuid.UUID(str(k))): val for k, val in (v or {}).items()}
+
+    def project_allowed(self, project_id: str) -> bool:
+        return self.projects.get(project_id, self.default_project_autostart_policy)
 
 
 class KongCleanupSettings(BaseModel):
