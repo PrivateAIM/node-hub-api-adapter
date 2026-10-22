@@ -13,7 +13,7 @@ from starlette import status
 from starlette.concurrency import run_in_threadpool
 
 from hub_adapter.auth import _get_internal_token
-from hub_adapter.conf import UserSettings
+from hub_adapter.conf import AutostartSettings, UserSettings
 from hub_adapter.constants import ServiceTag
 from hub_adapter.core import make_request
 from hub_adapter.dependencies import (
@@ -541,6 +541,7 @@ class GoGoAnalysis:
     ) -> set:
         """Iterate through analyses and check whether they are approved, built, and have a run status."""
         ready_analyses = set()
+        autostart_settings = node_settings.autostart or AutostartSettings()
         for entry in analyses:
             if entry.analysis is None:
                 log_event(
@@ -583,7 +584,7 @@ class GoGoAnalysis:
                     )
 
             # Check if project has autostart enabled
-            proj_autostart_policy_enabled = node_settings.autostart.project_allowed(project_id)
+            proj_autostart_policy_enabled = autostart_settings.project_allowed(project_id)
             if is_valid and not proj_autostart_policy_enabled:
                 log_event(
                     "autostart.analysis.disabled_project",

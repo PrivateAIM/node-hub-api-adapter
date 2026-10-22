@@ -13,7 +13,7 @@ from kong_admin_client import ListRoute200Response, Route
 from starlette import status
 
 from hub_adapter.autostart import GoGoAnalysis
-from hub_adapter.conf import Settings
+from hub_adapter.conf import AutostartSettings, Settings, UserSettings
 from hub_adapter.errors import KongConflictError, KongConnectError
 from tests.constants import (
     ANALYSIS_NODES_RESP,
@@ -23,6 +23,8 @@ from tests.constants import (
     TEST_MOCK_NODE_ID,
     TEST_MOCK_PROJECT_ID,
 )
+
+AUTOSTART_ALL_PROJECTS = UserSettings(autostart=AutostartSettings(default_project_autostart_policy=True))
 
 
 class FakeKeycloak:
@@ -377,7 +379,9 @@ class TestAutostart:
         """Test parsing analyses choosing whether they should be started i.e. built but no run status."""
         formatted_analyses = [AnalysisNode(**analysis) for analysis in ANALYSIS_NODES_RESP]
         assert len(formatted_analyses) == 6
-        ready_analyses = self.analyzer.parse_analyses(formatted_analyses, {TEST_MOCK_PROJECT_ID})
+        ready_analyses = self.analyzer.parse_analyses(
+            formatted_analyses, {TEST_MOCK_PROJECT_ID}, AUTOSTART_ALL_PROJECTS
+        )
 
         assert len(ready_analyses) == 1
         assert isinstance(ready_analyses, set)
@@ -561,7 +565,7 @@ class TestAutostartErrorAndEvents:
         """Test parse_analyses when datastore is not required."""
         formatted_analyses = [AnalysisNode(**analysis) for analysis in ANALYSIS_NODES_RESP]
         ready_analyses = self.analyzer.parse_analyses(
-            formatted_analyses, {TEST_MOCK_PROJECT_ID}, datastore_required=False
+            formatted_analyses, {TEST_MOCK_PROJECT_ID}, AUTOSTART_ALL_PROJECTS, datastore_required=False
         )
 
         assert len(ready_analyses) >= 1
@@ -571,7 +575,7 @@ class TestAutostartErrorAndEvents:
         """Test parse_analyses when time and status check is disabled."""
         formatted_analyses = [AnalysisNode(**analysis) for analysis in ANALYSIS_NODES_RESP]
         ready_analyses = self.analyzer.parse_analyses(
-            formatted_analyses, {TEST_MOCK_PROJECT_ID}, enforce_time_and_status_check=False
+            formatted_analyses, {TEST_MOCK_PROJECT_ID}, AUTOSTART_ALL_PROJECTS, enforce_time_and_status_check=False
         )
 
         # Should include analyses that are approved and executed regardless of time
@@ -579,14 +583,14 @@ class TestAutostartErrorAndEvents:
 
     def test_parse_analyses_empty_list(self):
         """Test parse_analyses with empty analysis list."""
-        ready_analyses = self.analyzer.parse_analyses([], {TEST_MOCK_PROJECT_ID})
+        ready_analyses = self.analyzer.parse_analyses([], {TEST_MOCK_PROJECT_ID}, AUTOSTART_ALL_PROJECTS)
         assert len(ready_analyses) == 0
         assert isinstance(ready_analyses, set)
 
     def test_parse_analyses_no_valid_projects(self):
         """Test parse_analyses with no valid projects."""
         formatted_analyses = [AnalysisNode(**analysis) for analysis in ANALYSIS_NODES_RESP]
-        ready_analyses = self.analyzer.parse_analyses(formatted_analyses, set())
+        ready_analyses = self.analyzer.parse_analyses(formatted_analyses, set(), AUTOSTART_ALL_PROJECTS)
         assert len(ready_analyses) == 0
 
     @patch("hub_adapter.autostart.log_event")
@@ -594,7 +598,9 @@ class TestAutostartErrorAndEvents:
         """Entries where entry.analysis is None must be skipped without raising AttributeError."""
         node_without_analysis = {k: v for k, v in ANALYSIS_NODES_RESP[1].items() if k != "analysis"}
         formatted_analyses = [AnalysisNode(**node_without_analysis)]
-        ready_analyses = self.analyzer.parse_analyses(formatted_analyses, {TEST_MOCK_PROJECT_ID})
+        ready_analyses = self.analyzer.parse_analyses(
+            formatted_analyses, {TEST_MOCK_PROJECT_ID}, AUTOSTART_ALL_PROJECTS
+        )
         assert len(ready_analyses) == 0
         mock_log_event.assert_any_call(
             "autostart.analysis.missing_analysis",
@@ -602,6 +608,97 @@ class TestAutostartErrorAndEvents:
             level=logging.WARNING,
             service=ANY,
         )
+
+    @patch("hub_adapter.autostart.log_event")
+    def test_parse_analyses_default_policy_disables_projects(self, mock_log_event):
+        """With the default settings, no project is allowed to autostart."""
+        formatted_analyses = [AnalysisNode(**analysis) for analysis in ANALYSIS_NODES_RESP]
+        ready_analyses = self.analyzer.parse_analyses(formatted_analyses, {TEST_MOCK_PROJECT_ID}, UserSettings())
+
+        assert ready_analyses == set()
+        mock_log_event.assert_any_call(
+            "autostart.analysis.disabled_project",
+            event_description=(
+                f"Cannot autostart analysis {TEST_MOCK_ANALYSIS_ID} because autostart is disabled for project ID "
+                f"{TEST_MOCK_PROJECT_ID}"
+            ),
+            level=logging.INFO,
+            service=ANY,
+        )
+
+    def test_parse_analyses_project_enabled_overrides_default(self):
+        """A project explicitly enabled starts even when the default policy is disabled."""
+        node_settings = UserSettings(
+            autostart=AutostartSettings(default_project_autostart_policy=False, projects={TEST_MOCK_PROJECT_ID: True})
+        )
+        formatted_analyses = [AnalysisNode(**analysis) for analysis in ANALYSIS_NODES_RESP]
+        ready_analyses = self.analyzer.parse_analyses(formatted_analyses, {TEST_MOCK_PROJECT_ID}, node_settings)
+
+        assert {entry[0] for entry in ready_analyses} == {TEST_MOCK_ANALYSIS_ID}
+
+    @patch("hub_adapter.autostart.log_event")
+    def test_parse_analyses_project_disabled_overrides_default(self, mock_log_event):
+        """A project explicitly disabled is skipped even when the default policy is enabled."""
+        node_settings = UserSettings(
+            autostart=AutostartSettings(default_project_autostart_policy=True, projects={TEST_MOCK_PROJECT_ID: False})
+        )
+        formatted_analyses = [AnalysisNode(**analysis) for analysis in ANALYSIS_NODES_RESP]
+        ready_analyses = self.analyzer.parse_analyses(formatted_analyses, {TEST_MOCK_PROJECT_ID}, node_settings)
+
+        assert ready_analyses == set()
+        logged_events = [c.args[0] for c in mock_log_event.call_args_list]
+        assert "autostart.analysis.disabled_project" in logged_events
+
+    @patch("hub_adapter.autostart.log_event")
+    def test_parse_analyses_null_autostart_settings(self, mock_log_event):
+        """A null autostart section falls back to the defaults instead of raising."""
+        formatted_analyses = [AnalysisNode(**analysis) for analysis in ANALYSIS_NODES_RESP]
+        ready_analyses = self.analyzer.parse_analyses(
+            formatted_analyses, {TEST_MOCK_PROJECT_ID}, UserSettings(autostart=None)
+        )
+
+        assert ready_analyses == set()
+        logged_events = [c.args[0] for c in mock_log_event.call_args_list]
+        assert "autostart.analysis.disabled_project" in logged_events
+
+    @patch("hub_adapter.autostart.log_event")
+    def test_parse_analyses_disabled_project_not_logged_for_invalid_analyses(self, mock_log_event):
+        """The disabled_project event is only emitted for analyses that would otherwise have started."""
+        formatted_analyses = [AnalysisNode(**analysis) for analysis in ANALYSIS_NODES_RESP]
+        ready_analyses = self.analyzer.parse_analyses(formatted_analyses, set(), UserSettings())
+
+        assert ready_analyses == set()
+        logged_events = [c.args[0] for c in mock_log_event.call_args_list]
+        assert "autostart.analysis.invalid_project" in logged_events
+        assert "autostart.analysis.disabled_project" not in logged_events
+
+    @patch("hub_adapter.autostart.GoGoAnalysis.register_and_start_analysis")
+    @patch("hub_adapter.autostart.GoGoAnalysis.get_valid_projects")
+    @patch("hub_adapter.autostart.list_analysis_nodes")
+    @patch("hub_adapter.autostart.GoGoAnalysis.describe_node")
+    @patch("hub_adapter.autostart.load_persistent_settings")
+    @pytest.mark.asyncio
+    async def test_auto_start_analyses_reloads_project_policy(
+        self, mock_load_settings, mock_describe_node, mock_list_nodes, mock_valid_projects, mock_register_and_start
+    ):
+        """Settings are reloaded on every run so project policy changes apply without a restart."""
+        mock_describe_node.return_value = (TEST_MOCK_NODE_ID, "default")
+        mock_list_nodes.return_value = [AnalysisNode(**analysis) for analysis in ANALYSIS_NODES_RESP]
+        mock_valid_projects.return_value = {TEST_MOCK_PROJECT_ID}
+        mock_register_and_start.return_value = ({"status": "started"}, status.HTTP_201_CREATED)
+
+        mock_load_settings.return_value = UserSettings()
+        assert await self.analyzer.auto_start_analyses() == set()
+        mock_register_and_start.assert_not_called()
+
+        mock_load_settings.return_value = UserSettings(
+            autostart=AutostartSettings(projects={TEST_MOCK_PROJECT_ID: True})
+        )
+        assert await self.analyzer.auto_start_analyses() == {TEST_MOCK_ANALYSIS_ID}
+        mock_register_and_start.assert_called_once_with(
+            TEST_MOCK_ANALYSIS_ID, TEST_MOCK_PROJECT_ID, TEST_MOCK_NODE_ID, "default"
+        )
+        assert mock_load_settings.call_count == 2
 
 
 class TestAutostartManager:
