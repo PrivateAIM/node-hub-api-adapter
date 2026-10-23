@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v1.1.0...v1.2.0) (2026-10-22)
+
+
+### Features
+
+* **autostart:** allow project-specific autostart control ([15bc60a](https://github.com/PrivateAIM/node-hub-api-adapter/commit/15bc60a179ff518147c6d038b05b51b789084368))
+
 ## [1.1.0](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v1.0.1...v1.1.0) (2026-10-20)
 
 
