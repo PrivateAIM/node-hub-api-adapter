@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v1.2.0...v1.2.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* **autostart:** update meta endpoint to use update method ([b91277a](https://github.com/PrivateAIM/node-hub-api-adapter/commit/b91277ac3adab74bb2a3336c02bb0e7b06406adf))
+
 ## [1.2.0](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v1.1.0...v1.2.0) (2026-10-22)
 
 
