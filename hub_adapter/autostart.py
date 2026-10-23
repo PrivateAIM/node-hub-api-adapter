@@ -535,13 +535,16 @@ class GoGoAnalysis:
         self,
         analyses: list,
         valid_projects: set,
-        node_settings: UserSettings,
+        node_settings: UserSettings | None = None,
         datastore_required: bool = True,
         enforce_time_and_status_check: bool = True,
     ) -> set:
-        """Iterate through analyses and check whether they are approved, built, and have a run status."""
+        """Iterate through analyses and check whether they are approved, built, and have a run status.
+
+        The per-project autostart policy is only enforced when node_settings is given.
+        """
         ready_analyses = set()
-        autostart_settings = node_settings.autostart or AutostartSettings()
+        autostart_settings = (node_settings.autostart or AutostartSettings()) if node_settings else None
         for entry in analyses:
             if entry.analysis is None:
                 log_event(
@@ -584,7 +587,7 @@ class GoGoAnalysis:
                     )
 
             # Check if project has autostart enabled
-            proj_autostart_policy_enabled = autostart_settings.project_allowed(project_id)
+            proj_autostart_policy_enabled = autostart_settings is None or autostart_settings.project_allowed(project_id)
             if is_valid and not proj_autostart_policy_enabled:
                 log_event(
                     "autostart.analysis.disabled_project",

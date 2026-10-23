@@ -626,6 +626,13 @@ class TestAutostartErrorAndEvents:
             service=ANY,
         )
 
+    def test_parse_analyses_without_node_settings_skips_project_policy(self):
+        """Manual initialization omits node_settings, so the autostart project policy must not apply."""
+        formatted_analyses = [AnalysisNode(**analysis) for analysis in ANALYSIS_NODES_RESP]
+        ready_analyses = self.analyzer.parse_analyses(formatted_analyses, {TEST_MOCK_PROJECT_ID})
+
+        assert {entry[0] for entry in ready_analyses} == {TEST_MOCK_ANALYSIS_ID}
+
     def test_parse_analyses_project_enabled_overrides_default(self):
         """A project explicitly enabled starts even when the default policy is disabled."""
         node_settings = UserSettings(

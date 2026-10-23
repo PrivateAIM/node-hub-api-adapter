@@ -80,7 +80,7 @@ async def initialize_analysis(
     parsed_analyses = initiator.parse_analyses(
         [analysis[0]],
         valid_projects,
-        datastore_required,
+        datastore_required=datastore_required,
         enforce_time_and_status_check=False,
     )
     ready_to_start_analyses = [analysis[0] for analysis in parsed_analyses]

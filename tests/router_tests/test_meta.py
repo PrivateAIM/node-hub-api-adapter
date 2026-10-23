@@ -61,6 +61,8 @@ class TestMeta:
         gen_resp = await initialize_analysis(analysis_params=fake_analysis_form, core_client=cc)
         assert gen_resp == valid_resp
         assert StatusOnlyResponse.model_validate(gen_resp)
+        parse_args, _ = mock_parsed_analyses.call_args
+        assert len(parse_args) == 2
 
         # Returned status code not 201 or 200
         mock_start_resp.return_value = (valid_resp, status.HTTP_202_ACCEPTED)
