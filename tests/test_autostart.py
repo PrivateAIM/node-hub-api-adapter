@@ -267,16 +267,10 @@ class TestAutostart:
     @patch("hub_adapter.autostart.make_request")
     @patch("hub_adapter.autostart.GoGoAnalysis.fetch_token_header")
     @patch("hub_adapter.autostart.compile_analysis_pod_data")
-    @patch("hub_adapter.autostart.get_node_metadata_for_url")
-    @patch("hub_adapter.autostart.get_registry_metadata_for_url")
     @pytest.mark.asyncio
-    async def test_send_start_request(
-        self, mock_registry_metadata, mock_node_metadata, mock_pod_data, mock_token_header, mock_request, mock_log_event
-    ):
+    async def test_send_start_request(self, mock_pod_data, mock_token_header, mock_request, mock_log_event):
         """Test starting an analysis pod."""
         # These first methods are for feeding into one another
-        mock_registry_metadata.return_value = {}  # Not needed
-        mock_node_metadata.return_value = {}  # Not needed
         mock_pod_data.return_value = {}  # Not needed
         mock_token_header.return_value = {"foo"}  # Just need something
 
@@ -429,21 +423,15 @@ class TestAutostartErrorAndEvents:
     @patch("hub_adapter.autostart.make_request")
     @patch("hub_adapter.autostart.GoGoAnalysis.fetch_token_header")
     @patch("hub_adapter.autostart.compile_analysis_pod_data")
-    @patch("hub_adapter.autostart.get_node_metadata_for_url")
-    @patch("hub_adapter.autostart.get_registry_metadata_for_url")
     @pytest.mark.asyncio
     async def test_send_start_request_http_status_error(
         self,
-        mock_registry_metadata,
-        mock_node_metadata,
         mock_pod_data,
         mock_token_header,
         mock_request,
         mock_log_event,
     ):
         """Test send_start_request with HTTPStatusError."""
-        mock_registry_metadata.return_value = {}
-        mock_node_metadata.return_value = {}
         mock_pod_data.return_value = {}
         mock_token_header.return_value = {"Authorization": "Bearer token"}
 
@@ -469,21 +457,15 @@ class TestAutostartErrorAndEvents:
     @patch("hub_adapter.autostart.make_request")
     @patch("hub_adapter.autostart.GoGoAnalysis.fetch_token_header")
     @patch("hub_adapter.autostart.compile_analysis_pod_data")
-    @patch("hub_adapter.autostart.get_node_metadata_for_url")
-    @patch("hub_adapter.autostart.get_registry_metadata_for_url")
     @pytest.mark.asyncio
     async def test_send_start_request_connect_error(
         self,
-        mock_registry_metadata,
-        mock_node_metadata,
         mock_pod_data,
         mock_token_header,
         mock_request,
         mock_log_event,
     ):
         """Test send_start_request with ConnectError."""
-        mock_registry_metadata.return_value = {}
-        mock_node_metadata.return_value = {}
         mock_pod_data.return_value = {}
         mock_token_header.return_value = {"Authorization": "Bearer token"}
 
@@ -503,12 +485,8 @@ class TestAutostartErrorAndEvents:
 
     @patch("hub_adapter.autostart.GoGoAnalysis.fetch_token_header")
     @patch("hub_adapter.autostart.compile_analysis_pod_data")
-    @patch("hub_adapter.autostart.get_node_metadata_for_url")
-    @patch("hub_adapter.autostart.get_registry_metadata_for_url")
     @pytest.mark.asyncio
-    async def test_send_start_request_no_token(
-        self, mock_registry_metadata, mock_node_metadata, mock_pod_data, mock_token_header
-    ):
+    async def test_send_start_request_no_token(self, mock_pod_data, mock_token_header):
         """Test send_start_request when token header is None."""
         mock_token_header.return_value = None
 
@@ -896,21 +874,15 @@ class TestAutostartWithRemoteProtocolError:
     @patch("hub_adapter.autostart.make_request")
     @patch("hub_adapter.autostart.GoGoAnalysis.fetch_token_header")
     @patch("hub_adapter.autostart.compile_analysis_pod_data")
-    @patch("hub_adapter.autostart.get_node_metadata_for_url")
-    @patch("hub_adapter.autostart.get_registry_metadata_for_url")
     @pytest.mark.asyncio
     async def test_send_start_request_remote_protocol_error(
         self,
-        mock_registry_metadata,
-        mock_node_metadata,
         mock_pod_data,
         mock_token_header,
         mock_request,
         mock_log_event,
     ):
         """Test send_start_request with RemoteProtocolError."""
-        mock_registry_metadata.return_value = {}
-        mock_node_metadata.return_value = {}
         mock_pod_data.return_value = {}
         mock_token_header.return_value = {"Authorization": "Bearer token"}
 

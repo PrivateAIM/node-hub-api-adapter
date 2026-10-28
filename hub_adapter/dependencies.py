@@ -316,128 +316,15 @@ async def get_node_type_cache(
     return _node_type_cache
 
 
-def get_node_metadata_for_url(
-    node_id: Annotated[uuid.UUID | str, Body(description="Node UUID")],
-    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
-) -> Node | None:
-    """Get analysis metadata for a given UUID to be used in creating analysis image URL."""
-    node_metadata: Node | None = core_client.get_node(node_id=node_id)
-
-    if not node_metadata.registry_project_id:
-        err_msg = f"No registry project associated with node {node_id}"
-        logger.error(err_msg)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "message": err_msg,
-                "service": "Hub",
-                "status_code": status.HTTP_400_BAD_REQUEST,
-            },
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    return node_metadata
-
-
-def get_registry_metadata_for_url(
-    node_metadata: Annotated[Node, Depends(get_node_metadata_for_url)],
-    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
-):
-    """Get registry metadata for a given UUID to be used in creating analysis image URL."""
-    registry_metadata = dict()
-
-    try:
-        registry_metadata = core_client.get_registry_project(
-            node_metadata.registry_project_id,
-            fields=("account_id", "account_name", "account_secret"),
-        )
-
-    except HubAPIError as err:
-        if err.error_response.status_code == status.HTTP_404_NOT_FOUND:
-            err_msg = f"Registry Project {node_metadata.registry_project_id} not found"
-            logger.error(err_msg)
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail={
-                    "message": err_msg,
-                    "service": "Hub",
-                    "status_code": status.HTTP_404_NOT_FOUND,
-                },
-                headers={"WWW-Authenticate": "Bearer"},
-            ) from err
-
-        else:
-            logger.error(err.error_response.message)
-            raise HTTPException(
-                status_code=err.error_response.status_code,
-                detail={
-                    "message": err.error_response.message,
-                    "service": "Hub",
-                    "status_code": err.error_response.status_code,
-                },
-                headers={"WWW-Authenticate": "Bearer"},
-            ) from err
-
-    if not registry_metadata.external_name:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "message": "No external name for node found",
-                "service": "Hub",
-                "status_code": status.HTTP_400_BAD_REQUEST,
-            },
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    if not registry_metadata.account_name or not registry_metadata.account_secret:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "message": "Unable to retrieve node client ID or secret from the registry",
-                "service": "Hub",
-                "status_code": status.HTTP_404_NOT_FOUND,
-            },
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    registry_project_external_name = registry_metadata.external_name
-    registry_id = registry_metadata.registry_id
-
-    if not registry_id:
-        err = f"No registry is associated with node {registry_project_external_name}"
-        logger.error(err)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "message": err,
-                "service": "Hub",
-                "status_code": status.HTTP_400_BAD_REQUEST,
-            },
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    host = registry_metadata.registry.host
-    user = registry_metadata.account_name
-    pwd = registry_metadata.account_secret
-
-    return host, registry_project_external_name, user, pwd
-
-
 def compile_analysis_pod_data(
     analysis_id: Annotated[uuid.UUID | str, Body(description="Analysis UUID")],
     project_id: Annotated[uuid.UUID | str, Body(description="Project UUID")],
-    compiled_info: Annotated[tuple, Depends(get_registry_metadata_for_url)],
     kong_token: Annotated[str, Body(description="Analysis keyauth kong token")] = None,
 ):
     """Put all the data together for passing on to the PO."""
-    host, registry_project_external_name, registry_user, registry_sec = compiled_info
     compiled_response = {
-        "image_url": f"{host}/{registry_project_external_name}/{analysis_id}",
         "analysis_id": str(analysis_id),
         "project_id": str(project_id),
         "kong_token": kong_token,
-        "registry_url": host,
-        "registry_user": registry_user,
-        "registry_password": registry_sec,
     }
     return compiled_response

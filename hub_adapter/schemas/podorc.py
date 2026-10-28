@@ -23,11 +23,7 @@ class CreateAnalysis(BaseModel):
 
     analysis_id: str
     project_id: str
-    registry_url: str
-    registry_user: str
-    registry_password: str
     kong_token: str
-    image_url: str
 
 
 class LogReport(RootModel[dict[uuid.UUID, list[str | None]]]):

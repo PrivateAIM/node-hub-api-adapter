@@ -18,9 +18,7 @@ from hub_adapter.dependencies import (
     get_core_client,
     get_flame_hub_auth_flow,
     get_node_id,
-    get_node_metadata_for_url,
     get_node_type_cache,
-    get_registry_metadata_for_url,
     get_ssl_context,
 )
 from hub_adapter.errors import HubConnectError
@@ -138,113 +136,18 @@ class TestDeps:
             good_cache = await get_node_type_cache(self.mock_settings, self.cc)
             assert good_cache["type"] == TEST_MOCK_NODE.type
 
-    @patch("flame_hub._core_client.CoreClient.get_node")
-    def test_get_node_metadata_for_url(self, mock_node):
-        """Test the get_node_metadata_for_url method."""
-        mock_node.return_value = TEST_MOCK_NODE
-        correct_metadata = get_node_metadata_for_url(TEST_MOCK_NODE.id, self.cc)
-        assert correct_metadata == TEST_MOCK_NODE
-
-        # Raise error if needed info is missing
-        mock_node.return_value.registry_project_id = None
-        with pytest.raises(HTTPException) as err:
-            get_node_metadata_for_url(TEST_MOCK_NODE.id, self.cc)
-
-            assert err.value.status_code == status.HTTP_400_BAD_REQUEST
-
-    @patch("flame_hub._core_client.CoreClient.get_registry_project")
-    def test_get_registry_metadata_for_url(self, mock_registry_project):
-        """Test the get_registry_metadata_for_url method."""
-
-        account_name = "fakeName"
-        account_secret = "fakeSecret"
-        host = "fakeHost"
-
-        class FakeRegistry(BaseModel):
-            host: str
-
-        class FakeRegistryProject(BaseModel):
-            account_id: uuid.UUID | None = None
-            account_name: str | None = None
-            account_secret: str | None = None
-            external_name: str | None = None
-            registry_id: uuid.UUID | None = None
-            registry: FakeRegistry | None = None
-
-        # Registry project not found - TODO fix
-        # mock_registry_project.side_effect = HubAPIError(message="No external name for node found", request=None)
-        # with pytest.raises(HubAPIError) as err:
-        #     get_registry_metadata_for_url(FAKE_NODE, self.cc)
-        #
-        #     assert err.value.error_response.status_code == status.HTTP_404_NOT_FOUND
-        #
-        # mock_registry_project.side_effect = None
-
-        mock_registry_project.return_value = FakeRegistryProject(
-            account_id=TEST_MOCK_NODE.id,
-            account_name=account_name,
-            account_secret=account_secret,
-            registry=FakeRegistry(host=host),
-        )
-
-        # No external name for node found
-        with pytest.raises(HTTPException) as err:
-            get_registry_metadata_for_url(TEST_MOCK_NODE, self.cc)
-
-            assert err.value.status_code == status.HTTP_400_BAD_REQUEST
-            assert err.value.detail["message"] == "No external name for node found"
-
-        mock_registry_project.return_value.external_name = account_name
-
-        # No account_name for node found
-        mock_registry_project.return_value.account_name = None
-        with pytest.raises(HTTPException) as err:
-            get_registry_metadata_for_url(TEST_MOCK_NODE, self.cc)
-
-            assert err.value.status_code == status.HTTP_404_NOT_FOUND
-            assert err.value.detail["message"] == "Unable to retrieve node client ID or secret from the registry"
-
-        # Missing registry_id
-        mock_registry_project.return_value.account_name = account_name
-        with pytest.raises(HTTPException) as err:
-            get_registry_metadata_for_url(TEST_MOCK_NODE, self.cc)
-
-            assert err.value.status_code == status.HTTP_400_BAD_REQUEST
-            assert "No registry is associated with node " in err.value.detail["message"]
-
-        mock_registry_project.return_value.registry_id = TEST_MOCK_NODE.id
-
-        # Working response
-        assert get_registry_metadata_for_url(TEST_MOCK_NODE, self.cc) == (
-            host,
-            account_name,
-            account_name,
-            account_secret,
-        )
-
-    @patch("flame_hub._core_client.CoreClient.get_registry_project")
-    def test_compile_analysis_pod_data(self, mock_registry_project):
+    def test_compile_analysis_pod_data(self):
         """Test the compile_analysis_pod_data method."""
-        host = "fakeHost"
-        ext_name = "fakeExternalName"
-        username = "fakeUsername"
-        pwd = "fakePwd"
         kong_token = "fakeKongToken"
 
-        registry_info = (host, ext_name, username, pwd)
-
         compiled_info = compile_analysis_pod_data(
-            TEST_MOCK_ANALYSIS_ID, TEST_MOCK_PROJECT_ID, registry_info, kong_token
+            TEST_MOCK_ANALYSIS_ID, TEST_MOCK_PROJECT_ID, kong_token
         )
 
         expected_result = {
-            "image_url": f"{host}/{ext_name}/{TEST_MOCK_ANALYSIS_ID}",
             "analysis_id": str(TEST_MOCK_ANALYSIS_ID),
             "project_id": str(TEST_MOCK_PROJECT_ID),
             "kong_token": kong_token,
-            "registry_url": host,
-            "registry_user": username,
-            "registry_password": pwd,
         }
 
         assert compiled_info == expected_result
