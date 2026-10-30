@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.2](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v1.2.1...v1.2.2) (2026-10-30)
+
+
+### Bug Fixes
+
+* **hub:** explicitly add include field to hub requests ([26f8040](https://github.com/PrivateAIM/node-hub-api-adapter/commit/26f8040af30ca328c06166067bb74e9486bba4c4))
+
 ## [1.2.1](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v1.2.0...v1.2.1) (2026-10-27)
 
 
