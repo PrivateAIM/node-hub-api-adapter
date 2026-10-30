@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = ">=3.12"
 
 [[package]]
@@ -334,16 +334,16 @@ wheels = [
 
 [[package]]
 name = "flame-hub-client"
-version = "1.1.0"
+version = "2.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx2" },
     { name = "pydantic", extra = ["email"] },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ca/27/3dc4c1197ee0a54d509f93ea734c01fd402be0ed8a98658dd5b487f87281/flame_hub_client-1.1.0.tar.gz", hash = "sha256:4eff02b8ff8df01d9a313ef464f30ceb6d62f341e39c5b368385564a914bddeb", size = 28058, upload-time = "2026-10-16T14:26:26.918Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/33/20/9b41b8dc36bbc85970bcd32f0e94899cb35d7b58a912ffcef448209befe6/flame_hub_client-2.0.0.tar.gz", hash = "sha256:4f792b12ce0547b871db4c5205d5edfa5742797e22b1c57a8fe41ca04747defb", size = 27882, upload-time = "2026-10-29T11:02:38.836Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f2/b0/1cb499cb502d5bfb7ae2aba0b618c169aa61762665487dd6e1471930b135/flame_hub_client-1.1.0-py3-none-any.whl", hash = "sha256:fa1ce9f764bb832eb512273deb287b8b8846b62f8e79d3a87d67784e334e8d2d", size = 30570, upload-time = "2026-10-16T14:26:25.576Z" },
+    { url = "https://files.pythonhosted.org/packages/bc/3d/0479d5bf5208cf334c0296cb40d7b2a975fed9dfee379980db7319b68bf5/flame_hub_client-2.0.0-py3-none-any.whl", hash = "sha256:a6014398d4ed89bcd5bec6d6936aaea401ab6ed57354fcbc5a8ae429b15e7789", size = 30342, upload-time = "2026-10-29T11:02:37.447Z" },
 ]
 
 [[package]]
@@ -458,7 +458,7 @@ requires-dist = [
     { name = "click", specifier = ">=8.1.7" },
     { name = "cryptography", specifier = ">=50.0.0" },
     { name = "fastapi", specifier = ">=0.138.0" },
-    { name = "flame-hub-client", specifier = ">=1.1.0" },
+    { name = "flame-hub-client", specifier = ">=2.0.0" },
     { name = "httpx2", specifier = ">=2.9.1" },
     { name = "kongadminclient", git = "https://github.com/PrivateAIM/kong-admin-python-client.git" },
     { name = "peewee", specifier = ">=4.0.2" },
