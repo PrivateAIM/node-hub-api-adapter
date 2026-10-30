@@ -112,7 +112,7 @@ class GoGoAnalysis:
             )
             return None
 
-        formatted_query_params = _parse_query_params(sort="-updated_at")
+        formatted_query_params = _parse_query_params(sort="-updated_at", include="analysis")
 
         try:
             analyses = await list_analysis_nodes(
