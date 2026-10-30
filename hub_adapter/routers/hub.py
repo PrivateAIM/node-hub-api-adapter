@@ -32,9 +32,13 @@ def _parse_query_params(
     page: Annotated[str | None, Query(description='Pagination as JSON, e.g. {"limit": 50, "offset": 0}')] = None,
     sort: Annotated[str | None, Query(description="Sort field; prefix with - for descending, + for ascending")] = None,
     fields: Annotated[str | None, Query(description="Comma-separated list of fields to return")] = None,
+    include: Annotated[str | None, Query(description="Comma-separated list of nested fields to include")] = None,
 ) -> dict:
     """Format query params for the hub client."""
     formatted: dict = {}
+
+    if include:
+        formatted["include"] = include.split(",")
 
     if fields:
         formatted["fields"] = fields.split(",")

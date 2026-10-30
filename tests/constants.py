@@ -51,7 +51,6 @@ TEST_MOCK_NODE = Node(
     realm_id=None,
     registry_id=None,
     type="default",
-    robot_id=None,  # deprecated
 )
 
 MOCK_ANALYSIS = {

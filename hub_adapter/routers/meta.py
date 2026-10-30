@@ -62,7 +62,7 @@ async def initialize_analysis(
 
     # The Hub client is synchronous and this handler has to stay async, so the call is offloaded
     analysis = await run_in_threadpool(
-        core_client.find_analysis_nodes, filter={"analysis_id": analysis_params.analysis_id}
+        core_client.find_analysis_nodes, filter={"analysis_id": analysis_params.analysis_id}, include="analysis"
     )
     if not analysis:
         raise HTTPException(

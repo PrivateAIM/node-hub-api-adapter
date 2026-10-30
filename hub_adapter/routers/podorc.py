@@ -9,12 +9,7 @@ from starlette import status
 from starlette.requests import Request
 from starlette.responses import Response
 
-from hub_adapter.auth import (
-    _add_internal_token_if_missing,
-    jwtbearer,
-    require_researcher_role,
-    verify_idp_token,
-)
+from hub_adapter.auth import _add_internal_token_if_missing, jwtbearer, require_researcher_role, verify_idp_token
 from hub_adapter.constants import ServiceTag
 from hub_adapter.core import route
 from hub_adapter.dependencies import compile_analysis_pod_data, get_settings
@@ -52,10 +47,6 @@ logger = logging.getLogger(__name__)
     body_params=[
         "analysis_id",
         "project_id",
-        "registry_url",
-        "registry_user",
-        "registry_password",
-        "image_url",
         "kong_token",
     ],
     name="podorc.pods.create",

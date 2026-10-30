@@ -21,18 +21,13 @@ from hub_adapter.dependencies import (
     get_core_client,
     get_flame_hub_auth_flow,
     get_node_id,
-    get_node_metadata_for_url,
     get_node_type_cache,
-    get_registry_metadata_for_url,
     get_settings,
     get_ssl_context,
 )
 from hub_adapter.errors import KongConflictError, KongConnectError
 from hub_adapter.middleware import log_event
-from hub_adapter.routers.hub import (
-    _parse_query_params,
-    list_analysis_nodes,
-)
+from hub_adapter.routers.hub import _parse_query_params, list_analysis_nodes
 from hub_adapter.routers.kong import (
     create_and_connect_analysis_to_project,
     delete_analysis,
@@ -117,7 +112,7 @@ class GoGoAnalysis:
             )
             return None
 
-        formatted_query_params = _parse_query_params(sort="-updated_at")
+        formatted_query_params = _parse_query_params(sort="-updated_at", include="analysis")
 
         try:
             analyses = await list_analysis_nodes(
@@ -377,16 +372,12 @@ class GoGoAnalysis:
             service=ServiceTag.AUTOSTART,
         )
 
-        node_metadata = get_node_metadata_for_url(analysis_props["node_id"], core_client=self.core_client)
-        analysis_info = get_registry_metadata_for_url(node_metadata, core_client=self.core_client)
-
         analysis_id = analysis_props["analysis_id"]
         project_id = analysis_props["project_id"]
 
         props = compile_analysis_pod_data(
             analysis_id=analysis_id,
             project_id=project_id,
-            compiled_info=analysis_info,
             kong_token=kong_token,
         )
 
