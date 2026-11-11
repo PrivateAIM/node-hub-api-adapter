@@ -63,7 +63,7 @@ async def verify_idp_token(
     settings: Annotated[Settings, Depends(get_settings)],
     token: HTTPAuthorizationCredentials | None = Security(jwtbearer),
 ) -> dict:
-    """Decode the auth token using keycloak's public key."""
+    """Decode the auth token using IDP's public key."""
     svc = "Auth"
     if not token:
         raise HTTPException(

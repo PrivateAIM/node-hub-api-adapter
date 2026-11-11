@@ -209,7 +209,7 @@ class IntegrationTestRunner:
         try:
             # Authentication
             await self.get_auth_token()
-            logger.info("✓ Keycloak authentication verified")
+            logger.info("IDP authentication verified")
 
             # Run tests in sequence
             await self.test_health_endpoints()

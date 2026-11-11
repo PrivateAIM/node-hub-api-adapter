@@ -14,7 +14,6 @@ class CleanUpType(StrEnum):
     services = "services"
     mb = "mb"
     rs = "rs"
-    keycloak = "keycloak"
     zombies = "zombies"
 
 

@@ -208,6 +208,6 @@ async def cleanup_node(
     """Delete specific types of resources.
 
     Should be a comma separated combination of the following entries:
-    'all', 'analyzes', 'services', 'mb', 'rs', 'keycloak'
+    'all', 'analyzes', 'services', 'mb', 'rs'
     """
     pass
