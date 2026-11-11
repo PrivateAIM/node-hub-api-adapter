@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v1.2.2...v1.3.0) (2026-11-11)
+
+
+### Features
+
+* **auth:** use hub JWT for internal auth ([e9a2cec](https://github.com/PrivateAIM/node-hub-api-adapter/commit/e9a2cecb3be4b8f08f4495c4b97937b6f89eda78))
+
 ## [1.2.2](https://github.com/PrivateAIM/node-hub-api-adapter/compare/v1.2.1...v1.2.2) (2026-10-30)
 
 
