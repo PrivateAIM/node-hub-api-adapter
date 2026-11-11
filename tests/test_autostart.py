@@ -7,6 +7,7 @@ from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
+from flame_hub import HubAPIError
 from flame_hub.models import AnalysisNode
 from httpx2 import ConnectError, HTTPStatusError, RemoteProtocolError, Request, Response
 from kong_admin_client import ListRoute200Response, Route
@@ -227,38 +228,35 @@ class TestAutostart:
         assert pod_running_error is None
 
     @patch("hub_adapter.autostart.log_event")
-    @patch("hub_adapter.autostart._get_internal_token")
+    @patch("hub_adapter.autostart.get_hub_token_header")
     @pytest.mark.asyncio
     async def test_fetch_token_header(self, mock_fetch_token, mock_log_event):
-        """Test checking whether the pod is running."""
+        """Test fetching the core client's Hub token header."""
         # Success
         mock_fetch_token.return_value = {"Authorization": "Bearer test_token"}
         token_resp = await self.analyzer.fetch_token_header()
         assert token_resp == {"Authorization": "Bearer test_token"}
 
         # Failure
-        mock_fetch_token.side_effect = HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="IDP can't be reached"
-        )
+        mock_fetch_token.side_effect = ConnectError("Hub can't be reached")
         no_connect_error_resp = await self.analyzer.fetch_token_header()
         assert no_connect_error_resp is None
         mock_log_event.assert_any_call(
             "autostart.token.error",
-            event_description="Unable to fetch OIDC token: 503: IDP can't be reached",
+            event_description="Unable to fetch Hub token: Hub can't be reached",
             level=logging.ERROR,
             service=ANY,
         )
 
-        mock_fetch_token.side_effect = HTTPStatusError(
-            message="IDP exchange failed",
-            request=Request(url="/", method="GET"),
-            response=Response(status_code=status.HTTP_401_UNAUTHORIZED),
+        mock_fetch_token.side_effect = HubAPIError(
+            message="Invalid client credentials",
+            request=Request(url="https://auth.example/token", method="POST"),
         )
-        exchange_error_resp = await self.analyzer.fetch_token_header()
-        assert exchange_error_resp is None
+        rejected_resp = await self.analyzer.fetch_token_header()
+        assert rejected_resp is None
         mock_log_event.assert_any_call(
             "autostart.token.error",
-            event_description="Unable to fetch OIDC token: IDP exchange failed",
+            event_description="Unable to fetch Hub token: Invalid client credentials",
             level=logging.ERROR,
             service=ANY,
         )

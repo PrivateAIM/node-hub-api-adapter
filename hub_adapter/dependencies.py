@@ -173,6 +173,24 @@ def get_core_client(
     )
 
 
+def get_hub_token_header(
+    hub_auth: Annotated[ClientAuth, Depends(get_flame_hub_auth_flow)],
+) -> dict[str, str]:
+    """Return auth header and get new one if needed."""
+    # Trick core client into regenerating token
+    auth_request = next(hub_auth.auth_flow(httpx2.Request("GET", "https://foo.bar")))
+    return {"Authorization": auth_request.headers["Authorization"]}
+
+
+@catch_hub_errors
+def fetch_hub_token_header() -> dict[str, str]:
+    """Get Hub JWT for requests to downstream services."""
+    settings = get_settings()
+    ssl_ctx = get_ssl_context(settings)
+    hub_auth = get_flame_hub_auth_flow(ssl_ctx, settings)
+    return get_hub_token_header(hub_auth)
+
+
 @lru_cache(maxsize=1)
 def get_idp_client() -> httpx2.Client:
     """Shared sync client for the IDP."""

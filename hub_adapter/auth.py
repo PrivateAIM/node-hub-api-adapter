@@ -13,8 +13,6 @@ from fastapi.security import (
 )
 from jwt import PyJWKClient
 from starlette import status
-from starlette.datastructures import MutableHeaders
-from starlette.requests import Request
 
 from hub_adapter.conf import Settings
 from hub_adapter.dependencies import (
@@ -22,18 +20,13 @@ from hub_adapter.dependencies import (
     get_idp_client,
     get_settings,
 )
-from hub_adapter.oidc import (
-    check_oidc_configs_match,
-    get_svc_oidc_config,
-    get_user_oidc_config,
-)
-from hub_adapter.schemas.conf import Token
+from hub_adapter.oidc import get_oidc_config
 
 logger = logging.getLogger(__name__)
 
 jwtbearer = HTTPBearer(
     scheme_name="JWT",
-    description="Pass a valid JWT here for authentication. Can be obtained from /token endpoint.",
+    description="Pass a valid JWT from the IDP for authentication.",
 )
 
 
@@ -83,22 +76,9 @@ async def verify_idp_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    user_oidc_config = get_user_oidc_config()
-    svc_oidc_config = get_svc_oidc_config()
-
     try:
-        # Decode just to get issuer
-        unverified_claims = jwt.decode(token.credentials, options={"verify_signature": False})
-        issuer = unverified_claims.get("iss")
-
-        if settings.override_jwks:  # Override the fetched URIs
-            jwk_client = get_jwk_client(settings.override_jwks)
-        # If the issuer is the user's OIDC, use the user's public key, otherwise use the node's internal public key
-        elif issuer == user_oidc_config.issuer:
-            jwk_client = get_jwk_client(user_oidc_config.jwks_uri)
-
-        else:
-            jwk_client = get_jwk_client(svc_oidc_config.jwks_uri)
+        jwks_uri = settings.override_jwks or get_oidc_config().jwks_uri
+        jwk_client = get_jwk_client(jwks_uri)
 
         signing_key = jwk_client.get_signing_key_from_jwt(token.credentials)
 
@@ -170,45 +150,6 @@ async def verify_idp_token(
                 "status_code": status.HTTP_401_UNAUTHORIZED,
             },
         ) from Exception
-
-
-async def _get_internal_token(settings: Annotated[Settings, Depends(get_settings)]) -> dict | None:
-    """If the Hub Adapter is set up to use an external IDP for user auth, it needs to retrieve a JWT from the
-    internal keycloak to make requests to the PO."""
-
-    payload = {
-        "grant_type": "client_credentials",
-        "client_id": settings.api_client_id,
-        "client_secret": settings.api_client_secret,
-    }
-
-    svc_oidc_config = get_svc_oidc_config()
-    int_token_ep = svc_oidc_config.token_endpoint
-
-    resp = get_idp_client().post(int_token_ep, data=payload)
-    resp.raise_for_status()
-    token_data = resp.json()
-
-    token = Token(**token_data)
-    return {"Authorization": f"Bearer {token.access_token}"}
-
-
-async def _add_internal_token_if_missing(request: Request) -> Request:
-    """Adds a JWT from the internal IDP is not present in the request."""
-    settings = get_settings()
-    configs_match, _ = check_oidc_configs_match()
-
-    if not configs_match:
-        logger.debug("External IDP different from internal, retrieving JWT from internal keycloak")
-        internal_token = await _get_internal_token(settings)
-        if internal_token:
-            updated_headers = MutableHeaders(request.headers)
-            updated_headers.update(internal_token)
-            logger.debug("Added internal keycloak JWT to request headers")
-            request._headers = updated_headers
-            request.scope.update(headers=request.headers.raw)
-
-    return request
 
 
 # RBAC dependencies

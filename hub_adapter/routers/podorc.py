@@ -9,7 +9,7 @@ from starlette import status
 from starlette.requests import Request
 from starlette.responses import Response
 
-from hub_adapter.auth import _add_internal_token_if_missing, jwtbearer, require_researcher_role, verify_idp_token
+from hub_adapter.auth import jwtbearer, require_researcher_role, verify_idp_token
 from hub_adapter.constants import ServiceTag
 from hub_adapter.core import route
 from hub_adapter.dependencies import compile_analysis_pod_data, get_settings
@@ -26,7 +26,6 @@ po_router = APIRouter(
     dependencies=[
         Security(verify_idp_token),
         Security(jwtbearer),
-        Depends(_add_internal_token_if_missing),
         Depends(require_researcher_role),
     ],
     tags=[ServiceTag.PODORC],

@@ -5,28 +5,10 @@ import uuid
 import pytest
 from pydantic import ValidationError
 
-from hub_adapter.conf import AutostartSettings, Settings, UserSettings
+from hub_adapter.conf import AutostartSettings, UserSettings
 
 PROJECT_ID = "9cbefefe-2420-4b8e-8ac1-f48148a9fd40"
 OTHER_PROJECT_ID = "16cdb4d5-a4ee-47c4-822f-c0bfd4271ce2"
-
-
-class TestSettingsValidator:
-    """Tests for the Settings model_validator."""
-
-    def test_node_svc_oidc_url_defaults_to_idp_url_when_not_set(self):
-        """When node_svc_oidc_url is not provided, it is set to idp_url by the validator."""
-        settings = Settings(_env_file=None, idp_url="https://idp.example.com")
-        assert settings.node_svc_oidc_url == "https://idp.example.com"
-
-    def test_node_svc_oidc_url_preserved_when_explicitly_set(self):
-        """When node_svc_oidc_url is explicitly provided, it is not overwritten."""
-        settings = Settings(
-            _env_file=None,
-            idp_url="https://idp.example.com",
-            node_svc_oidc_url="https://svc-oidc.example.com",
-        )
-        assert settings.node_svc_oidc_url == "https://svc-oidc.example.com"
 
 
 class TestAutostartSettings:

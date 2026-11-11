@@ -18,7 +18,6 @@ from hub_adapter.managers import (
     service_health_monitor,
 )
 from hub_adapter.middleware import RequestLoggingMiddleware
-from hub_adapter.routers.auth import auth_router
 from hub_adapter.routers.health import health_router
 from hub_adapter.routers.hub import hub_router
 from hub_adapter.routers.kong import kong_router
@@ -32,7 +31,6 @@ logger = logging.getLogger(__name__)
 
 # API metadata
 tags_metadata = [
-    {"name": ServiceTag.AUTH, "description": "Endpoints for authorization specific tasks."},
     {"name": ServiceTag.LOGS, "description": "Retrieval of logs and events."},
     {"name": ServiceTag.HUB, "description": "Gateway endpoints for the central Hub service."},
     {
@@ -84,9 +82,6 @@ app = FastAPI(
         "email": "bschultz013@gmail.com",
         "url": "https://docs.privateaim.net/about/team.html",
     },
-    swagger_ui_init_oauth={
-        "clientId": settings.api_client_id,
-    },
     servers=[
         {"url": "http://localhost:5000", "description": "api"},
     ],
@@ -115,7 +110,6 @@ routers = (
     storage_router,
     kong_router,
     health_router,
-    auth_router,
     logs_router,
 )
 

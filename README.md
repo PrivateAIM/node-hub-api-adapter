@@ -36,9 +36,6 @@ HUB_AUTH_SERVICE_URL="https://auth.privateaim.dev"  # URL for auth EPs for the H
 HUB_SERVICE_URL="https://core.privateaim.dev"  # URL for project/analysis EPs for the Hub
 HUB_NODE_CLIENT_ID=""  # Client UUID for a registered node
 HUB_NODE_CLIENT_SECRET=""  # Client secret for a registered node 
-API_CLIENT_ID="hub-adapter"  # IDP Client ID for this hub-adapter service, this must be the client ID specified 
-API_CLIENT_SECRET=""  # IDP Client Secret for this hub-adapter service
-#NODE_SVC_OIDC_URL="https://data-center.node.com/keycloak/realms/flame"  # The internal IDP used by other Node microsvcs
 OVERRIDE_JWKS=""  # JWKS URI to override the endpoints fetched from the IDP issuer (meant for local testing)
 HTTP_PROXY=""  # Forward proxy address for HTTP requests
 HTTPS_PROXY=""  # Forward proxy address for HTTPS requests
@@ -65,9 +62,6 @@ RESEARCHER_ROLE="researcher"  # Role name for users who can only modify analyses
 | HUB_AUTH_SERVICE_URL   | URL to the auth Hub service                                                                                       | https://auth.privateaim.dev |    x     |
 | HUB_NODE_CLIENT_ID     | Client UUID for a registered node                                                                                 |                             |    x     |
 | HUB_NODE_CLIENT_SECRET | Client secret for a registered node                                                                               |                             |    x     |
-| API_CLIENT_ID          | IDP Client ID for this hub-adapter service, should be the same (internal) IDP used by the other node services     |         hub-adapter         |    x     |
-| API_CLIENT_SECRET      | IDP Client Secret for this hub-adapter service, should be the same (internal) IDP used by the other node services |                             |    x     |
-| NODE_SVC_OIDC_URL      | The (internal) IDP URL used by the other Node services when different from the IDP used for user authentication.  |                             |          |
 | OVERRIDE_JWKS          | JWKS URI to override the endpoints fetched from the IDP issuer (meant for local testing)                          |                             |          |
 | HTTP_PROXY             | Forward proxy address for HTTP requests                                                                           |                             |          |
 | HTTPS_PROXY            | Forward proxy address for HTTPS requests                                                                          |                             |          |

@@ -8,11 +8,14 @@ from httpx2 import ConnectError
 from starlette import status
 
 from hub_adapter.dependencies import get_core_client, get_flame_hub_auth_flow, get_ssl_context
+from hub_adapter.errors import HubConnectError
 from hub_adapter.routers.meta import InitializeAnalysis, initialize_analysis, meta_router, terminate_analysis
 from hub_adapter.schemas.podorc import StatusOnlyResponse
 from tests.conftest import check_routes
 from tests.constants import TEST_MOCK_ANALYSIS_ID, TEST_MOCK_NODE_ID, TEST_MOCK_PROJECT_ID
 from tests.router_tests.routes import EXPECTED_META_ROUTE_CONFIG
+
+HUB_TOKEN_HEADER = {"Authorization": "Bearer hub-jwt"}
 
 
 class TestMeta:
@@ -106,7 +109,7 @@ class TestMeta:
     @pytest.mark.asyncio
     @patch("hub_adapter.routers.meta.logger")
     @patch("hub_adapter.routers.meta.make_request")
-    @patch("hub_adapter.routers.meta._get_internal_token")
+    @patch("hub_adapter.routers.meta.fetch_hub_token_header", return_value=HUB_TOKEN_HEADER)
     @patch("hub_adapter.routers.meta.delete_analysis")
     async def test_terminate_analysis(
         self,
@@ -121,7 +124,6 @@ class TestMeta:
 
         # Mock values
         mock_deletion.return_value = None  # Don't need it
-        mock_token.return_value = {}  # Don't need it
         mock_po_request.return_value = (
             valid_resp,
             status.HTTP_200_OK,
@@ -133,6 +135,7 @@ class TestMeta:
         assert mock_logger.info.call_count == 1
         mock_logger.info.assert_called_with(f"Analysis {TEST_MOCK_ANALYSIS_ID} was terminated")
         assert StatusOnlyResponse.model_validate(returned_data)
+        assert mock_po_request.call_args.kwargs["headers"] == HUB_TOKEN_HEADER
 
         # Can't connect to PodOrc
         mock_po_request.side_effect = ConnectError(message="")
@@ -156,40 +159,23 @@ class TestMeta:
             assert mock_logger.error.call_count == 1
 
     @pytest.mark.asyncio
-    @patch("hub_adapter.routers.meta.logger")
     @patch("hub_adapter.routers.meta.make_request")
-    @patch("hub_adapter.routers.meta._get_internal_token")
+    @patch("hub_adapter.routers.meta.fetch_hub_token_header")
     @patch("hub_adapter.routers.meta.delete_analysis")
-    async def test_terminate_analysis_idp_unreachable(
-        self,
-        mock_deletion,
-        mock_token,
-        mock_po_request,
-        mock_logger,
-        test_settings,
-    ):
-        """An unreachable IDP is reported as a retryable 503 rather than escaping as a 500."""
+    async def test_terminate_analysis_hub_unreachable(self, mock_deletion, mock_token, mock_po_request, test_settings):
+        """If the Hub token can't be fetched, the error is raised and the PodOrc is never contacted."""
         mock_deletion.return_value = None
-        mock_token.side_effect = ConnectError(message="")
+        mock_token.side_effect = HubConnectError(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Hub down")
 
-        with pytest.raises(HTTPException) as idp_connection_error:
+        with pytest.raises(HubConnectError) as error:
             await terminate_analysis(TEST_MOCK_ANALYSIS_ID, test_settings)
 
-        err_msg = "Connection Error - IDP is currently unreachable"
-        assert idp_connection_error.value.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
-        assert idp_connection_error.value.detail == {
-            "message": err_msg,
-            "service": "IDP",
-            "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
-        }
-        mock_logger.error.assert_called_once_with(err_msg)
-        mock_po_request.assert_not_called()  # The PO is never contacted without a token
-
-        # assert mock_logger.info.call_args_list[0] == f"Analysis {TEST_MOCK_ANALYSIS_ID} had no pods running that could be terminated"
+        assert error.value.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+        mock_po_request.assert_not_called()
 
     @pytest.mark.asyncio
     @patch("hub_adapter.routers.meta.make_request")
-    @patch("hub_adapter.routers.meta._get_internal_token")
+    @patch("hub_adapter.routers.meta.fetch_hub_token_header", return_value=HUB_TOKEN_HEADER)
     @patch("hub_adapter.routers.meta.delete_analysis")
     async def test_terminate_analysis_tolerates_missing_kong_consumer(
         self,
@@ -200,7 +186,6 @@ class TestMeta:
     ):
         """A 404 from delete_analysis (no Kong consumer, e.g. aggregator analyses) must not abort pod deletion."""
         valid_resp = {TEST_MOCK_ANALYSIS_ID: "stopped"}
-        mock_token.return_value = {}
         mock_po_request.return_value = (valid_resp, status.HTTP_200_OK)
         mock_deletion.side_effect = HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -218,7 +203,7 @@ class TestMeta:
 
     @pytest.mark.asyncio
     @patch("hub_adapter.routers.meta.make_request")
-    @patch("hub_adapter.routers.meta._get_internal_token")
+    @patch("hub_adapter.routers.meta.fetch_hub_token_header", return_value=HUB_TOKEN_HEADER)
     @patch("hub_adapter.routers.meta.delete_analysis")
     async def test_terminate_analysis_reraises_non_404_kong_errors(
         self,
@@ -228,7 +213,6 @@ class TestMeta:
         test_settings,
     ):
         """A non-404 error from delete_analysis must abort before the PodOrc delete call."""
-        mock_token.return_value = {}
         mock_deletion.side_effect = HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail={

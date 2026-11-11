@@ -14,13 +14,3 @@ class OIDCConfiguration(BaseModel):
 
     class ConfigDict:
         extra = "ignore"  # Ignore extra OIDC config fields
-
-
-class Token(BaseModel):
-    """IDP token model."""
-
-    access_token: str
-    token_type: str
-    expires_in: int
-    refresh_token: str | None = None
-    refresh_expires_in: int | None = None

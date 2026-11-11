@@ -9,9 +9,9 @@ import httpx2
 from fastapi import HTTPException
 from starlette import status
 
-from hub_adapter.auth import _get_internal_token
 from hub_adapter.conf import Settings
 from hub_adapter.dependencies import (
+    fetch_hub_token_header,
     get_core_client,
     get_flame_hub_auth_flow,
     get_settings,
@@ -85,11 +85,11 @@ class IntegrationTestRunner:
         logger.info("✓ Downstream services report healthy statuses")
 
     async def get_auth_token(self) -> dict:
-        """Get a JWT using client credentials from the bundled Keycloak instance."""
+        """Get the core client's Hub JWT as an Authorization header."""
         if self.token:
             return self.token
 
-        self.token = await _get_internal_token(self.settings)
+        self.token = await fetch_hub_token_header()
         logger.info("Successfully obtained authentication token")
         return self.token
 

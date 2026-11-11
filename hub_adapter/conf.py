@@ -3,7 +3,7 @@
 import uuid
 from typing import Annotated
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
@@ -78,9 +78,7 @@ class Settings(BaseSettings):
     extra_ca_certs: str | None = None
 
     # IDP Settings
-    idp_url: str = "http://localhost:8080"  # User
-    # If using a different service for node OIDC, set this to the URL of that service
-    node_svc_oidc_url: str | None = None
+    idp_url: str = "http://localhost:8080"
 
     # JWKS URI to override the endpoints fetched from the IDP issuer (meant for local testing)
     override_jwks: str | None = None
@@ -97,10 +95,6 @@ class Settings(BaseSettings):
     message_broker_url: str | None = None
     s3_url: str | None = None
     fhir_url: str | None = None
-
-    # User IDP client ID and secret for the hub adapter
-    api_client_id: str = "hub-adapter"
-    api_client_secret: str | None = None
 
     # Hub
     hub_auth_service_url: str = "https://auth.privateaim.dev"
@@ -139,12 +133,6 @@ class Settings(BaseSettings):
         frozen=True,
         extra="ignore",  # Needed for unit tests
     )
-
-    @model_validator(mode="after")
-    def set_node_svc_oidc_url(self) -> "Settings":
-        if self.node_svc_oidc_url is None:
-            object.__setattr__(self, "node_svc_oidc_url", self.idp_url)
-        return self
 
     @field_validator("cors_allowed_origins", mode="before")
     @classmethod

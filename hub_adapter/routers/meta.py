@@ -12,8 +12,6 @@ from starlette import status
 from starlette.concurrency import run_in_threadpool
 
 from hub_adapter.auth import (
-    _add_internal_token_if_missing,
-    _get_internal_token,
     jwtbearer,
     require_researcher_role,
     verify_idp_token,
@@ -22,7 +20,7 @@ from hub_adapter.autostart import GoGoAnalysis
 from hub_adapter.conf import Settings
 from hub_adapter.constants import ServiceTag
 from hub_adapter.core import make_request
-from hub_adapter.dependencies import get_core_client, get_settings
+from hub_adapter.dependencies import fetch_hub_token_header, get_core_client, get_settings
 from hub_adapter.routers.kong import delete_analysis
 from hub_adapter.schemas.podorc import StatusOnlyResponse
 from hub_adapter.utils import _check_data_required
@@ -31,7 +29,6 @@ meta_router = APIRouter(
     dependencies=[
         Security(verify_idp_token),
         Security(jwtbearer),
-        Depends(_add_internal_token_if_missing),
         Depends(require_researcher_role),
     ],
     tags=[ServiceTag.META],
@@ -145,22 +142,7 @@ async def terminate_analysis(
 
         logger.info(f"No Kong consumer found for analysis {analysis_id}, continuing with pod deletion")
 
-    try:
-        headers = await _get_internal_token(settings)
-
-    except httpx2.ConnectError as e:
-        msg = "Connection Error - IDP is currently unreachable"
-        logger.error(msg)
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={
-                "message": msg,
-                "service": ServiceTag.IDP,
-                "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
-            },
-            headers={"WWW-Authenticate": "Bearer"},
-        ) from e
-
+    headers = await fetch_hub_token_header()
     microsvc_path = f"{settings.podorc_service_url}/po/delete/{analysis_id}"
 
     try:

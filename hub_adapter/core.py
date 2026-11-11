@@ -12,7 +12,7 @@ from starlette.responses import FileResponse, Response
 
 from hub_adapter import post_processing, pre_processing
 from hub_adapter.constants import CONTENT_TYPE, ServiceTag
-from hub_adapter.dependencies import get_proxy_client, get_settings, make_log_hook
+from hub_adapter.dependencies import fetch_hub_token_header, get_proxy_client, get_settings, make_log_hook
 from hub_adapter.utils import (
     create_request_data,
     unzip_body_object,
@@ -206,6 +206,9 @@ def route(
             request_headers.pop("content-length", None)  # Let httpx configure content-length
             request_headers.pop("content-type", None)  # Let httpx configure content-type
             request_headers.pop("host", None)
+            # Downstream services trust the Hub's issuer, not the IDP the user authenticated with
+            request_headers.pop("authorization", None)
+            request_headers.update(await fetch_hub_token_header())
 
             if pre_processing_func:  # all used pp functions found in post_processing
                 f = getattr(pre_processing, pre_processing_func)
