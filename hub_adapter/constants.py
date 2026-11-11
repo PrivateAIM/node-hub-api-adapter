@@ -20,7 +20,6 @@ NODE_ID = "NODE_ID"
 class ServiceTag(StrEnum):
     """Service tags"""
 
-    AUTH = "Auth"
     AUTOSTART = "Autostart"
     KONG_CLEANUP = "Kong Cleanup"
     LOGS = "Logs"

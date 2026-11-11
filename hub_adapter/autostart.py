@@ -8,11 +8,10 @@ from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException
 from flame_hub import HubAPIError
-from httpx2 import ConnectError, HTTPStatusError, ReadTimeout, RemoteProtocolError
+from httpx2 import ConnectError, HTTPError, HTTPStatusError, ReadTimeout, RemoteProtocolError
 from starlette import status
 from starlette.concurrency import run_in_threadpool
 
-from hub_adapter.auth import _get_internal_token
 from hub_adapter.conf import AutostartSettings, UserSettings
 from hub_adapter.constants import ServiceTag
 from hub_adapter.core import make_request
@@ -20,6 +19,7 @@ from hub_adapter.dependencies import (
     compile_analysis_pod_data,
     get_core_client,
     get_flame_hub_auth_flow,
+    get_hub_token_header,
     get_node_id,
     get_node_type_cache,
     get_settings,
@@ -79,9 +79,10 @@ _registration_locks = _RegistrationLocks()
 class GoGoAnalysis:
     def __init__(self):
         self.settings = None
+        self.auth = None
         self.core_client = None
 
-        self.gather_deps()  # populates self.settings and self.core_client
+        self.gather_deps()  # populates self.settings, self.hub_auth and self.core_client
 
     def gather_deps(self):
         """Gather all the dependencies needed to run the autostart mode."""
@@ -91,6 +92,7 @@ class GoGoAnalysis:
         core_client = get_core_client(hub_auth, ssl_ctx, settings)
 
         self.settings = settings
+        self.auth = hub_auth
         self.core_client = core_client
 
     async def auto_start_analyses(self) -> set | None:
@@ -350,15 +352,14 @@ class GoGoAnalysis:
         return pod_status  # Error occurred and no status retrieved
 
     async def fetch_token_header(self) -> dict | None:
-        """Append OIDC token to headers."""
+        """Get the Authorization header carrying the core client's Hub JWT."""
         try:
-            token = await _get_internal_token(self.settings)
-            return token
+            return await run_in_threadpool(get_hub_token_header, self.auth)
 
-        except (HTTPException, HTTPStatusError) as e:
+        except HTTPError as e:
             log_event(
                 "autostart.token.error",
-                event_description=f"Unable to fetch OIDC token: {e}",
+                event_description=f"Unable to fetch Hub token: {e}",
                 level=logging.ERROR,
                 service=ServiceTag.AUTOSTART,
             )
