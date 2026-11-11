@@ -14,7 +14,6 @@ from hub_adapter.conf import Settings, UserSettings
 from tests.constants import (
     FAKE_USER,
     TEST_MOCK_NODE_CLIENT_ID,
-    TEST_SVC_URL,
     TEST_URL,
 )
 
@@ -84,11 +83,8 @@ def test_settings() -> Settings:
             hub_service_url="https://core.privateaim.dev",
             hub_node_client_id=TEST_MOCK_NODE_CLIENT_ID,  # fake uuid
             hub_node_client_secret="foobar",
-            api_client_id="hub-adapter-test",
-            api_client_secret="notASecret",
             http_proxy="http://squid.proxy:3128",
             https_proxy="http://squid.proxy:3128",
-            node_svc_oidc_url=TEST_SVC_URL,
             # Pinned so a developer's local .env cannot switch the optional services on
             victoria_logs_url=None,
             message_broker_url=None,

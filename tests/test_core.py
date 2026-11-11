@@ -1,11 +1,14 @@
 """Test the key functions that govern the gateway."""
 
+from unittest.mock import patch
+
 import httpx2
 import pytest
 from starlette.responses import FileResponse
 
 from hub_adapter.core import make_request
-from tests.constants import TEST_URL
+from tests.constants import TEST_JWT, TEST_MOCK_PROJECT_ID, TEST_URL
+from tests.pseudo_auth import BearerAuth
 
 
 class TestCore:
@@ -45,6 +48,22 @@ class TestCore:
 
         assert working_code == 200
         assert isinstance(file_resp, FileResponse)
+
+    @patch("hub_adapter.core.make_request")
+    @patch("hub_adapter.core.fetch_hub_token_header")
+    def test_route_replaces_user_token_with_hub_token(self, mock_hub_token, mock_request, authorized_test_client):
+        """Proxied requests carry the core client's Hub JWT instead of the user's IDP token."""
+        mock_hub_token.return_value = {"Authorization": "Bearer hub-jwt"}
+        mock_request.return_value = ({}, 200)
+
+        resp = authorized_test_client.delete(
+            "/local", params={"project_id": TEST_MOCK_PROJECT_ID}, auth=BearerAuth(TEST_JWT)
+        )
+
+        assert resp.status_code == 200
+        sent_headers = mock_request.call_args.kwargs["headers"]
+        assert sent_headers["Authorization"] == "Bearer hub-jwt"
+        assert "authorization" not in sent_headers
 
     # TODO write unit tests for route decorator
     # def test_route_decorator(self, httpx2_mock):

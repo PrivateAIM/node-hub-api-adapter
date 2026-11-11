@@ -15,8 +15,10 @@ from starlette import status
 
 from hub_adapter.dependencies import (
     compile_analysis_pod_data,
+    fetch_hub_token_header,
     get_core_client,
     get_flame_hub_auth_flow,
+    get_hub_token_header,
     get_node_id,
     get_node_type_cache,
     get_ssl_context,
@@ -97,6 +99,30 @@ class TestDeps:
         assert isinstance(cc, CoreClient)
 
     @pytest.mark.asyncio
+    @patch("hub_adapter.dependencies.get_hub_token_header")
+    async def test_fetch_hub_token_header(self, mock_get_header):
+        """The Hub token header is returned, and an unreachable Hub becomes a HubConnectError."""
+        mock_get_header.return_value = {"Authorization": "Bearer hub-jwt"}
+        assert await fetch_hub_token_header() == {"Authorization": "Bearer hub-jwt"}
+
+        mock_get_header.side_effect = httpx2.ConnectError("Hub down")
+        with pytest.raises(HubConnectError):
+            await fetch_hub_token_header()
+
+    def test_get_hub_token_header(self, httpx2_mock):
+        """The core client's Hub JWT is returned as a header and reused until it expires."""
+        auth = get_flame_hub_auth_flow.__wrapped__(self.ctx, self.mock_settings)  # Fresh instance, no cached token
+        token_ep = f"{self.mock_settings.hub_auth_service_url.rstrip('/')}/token"
+        token_route = httpx2_mock.post(token_ep).respond(
+            status_code=200,
+            json={"access_token": "hub-jwt", "expires_in": 3600, "token_type": "Bearer", "scope": ""},
+        )
+
+        assert get_hub_token_header(auth) == {"Authorization": "Bearer hub-jwt"}
+        assert get_hub_token_header(auth) == {"Authorization": "Bearer hub-jwt"}
+        assert token_route.call_count == 1
+
+    @pytest.mark.asyncio
     async def test_get_node_id(self):
         """Test the get_node_id method."""
         # Working test
@@ -140,9 +166,7 @@ class TestDeps:
         """Test the compile_analysis_pod_data method."""
         kong_token = "fakeKongToken"
 
-        compiled_info = compile_analysis_pod_data(
-            TEST_MOCK_ANALYSIS_ID, TEST_MOCK_PROJECT_ID, kong_token
-        )
+        compiled_info = compile_analysis_pod_data(TEST_MOCK_ANALYSIS_ID, TEST_MOCK_PROJECT_ID, kong_token)
 
         expected_result = {
             "analysis_id": str(TEST_MOCK_ANALYSIS_ID),

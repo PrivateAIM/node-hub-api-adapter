@@ -8,12 +8,8 @@ import pytest
 from fastapi import HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
 from starlette import status
-from starlette.datastructures import MutableHeaders
-from starlette.requests import Request
 
 from hub_adapter.auth import (
-    _add_internal_token_if_missing,
-    _get_internal_token,
     get_hub_public_key,
     require_admin_role,
     require_researcher_role,
@@ -31,7 +27,6 @@ from tests.constants import (
     TEST_OIDC,
     TEST_RESEARCHER_DECRYPTED_JWT,
     TEST_STEWARD_DECRYPTED_JWT,
-    TEST_SVC_OIDC,
 )
 
 
@@ -54,15 +49,14 @@ class TestAuth:
 
             assert missingError.type == HTTPException
 
-    @patch("hub_adapter.auth.get_svc_oidc_config")
-    @patch("hub_adapter.auth.get_user_oidc_config")
+    @patch("hub_adapter.auth.get_jwk_client")
+    @patch("hub_adapter.auth.get_oidc_config")
     @patch("hub_adapter.auth.jwt.decode")
     @pytest.mark.asyncio
-    async def test_verify_idp_token_errors(self, mock_decode, mock_user_oidc, mock_svc_oidc, test_settings):
+    async def test_verify_idp_token_errors(self, mock_decode, mock_oidc, mock_jwk_client, test_settings):
         """Test that verify_idp_token handles decode errors."""
         fake_token = HTTPAuthorizationCredentials(scheme="Bearer", credentials="")
-        mock_user_oidc.return_value = ""
-        mock_svc_oidc.return_value = ""
+        mock_oidc.return_value = TEST_OIDC
 
         mock_decode.side_effect = httpx2.ConnectError("Can't connect to server")
         with pytest.raises(HTTPException) as connect_error:
@@ -91,49 +85,6 @@ class TestAuth:
             await verify_idp_token(test_settings, token=fake_token)
             assert random_error.value.status_code == status.HTTP_401_UNAUTHORIZED
             assert missing_claim_error.value.detail["message"] == "Unable to parse authentication token"
-
-    @patch("hub_adapter.auth.get_svc_oidc_config")
-    @pytest.mark.asyncio
-    async def test_get_internal_token(self, mock_svc_oidc, httpx2_mock, test_settings):
-        """Test the get_internal_token method."""
-        mock_svc_oidc.return_value = TEST_SVC_OIDC
-        fake_token_resp = {
-            "access_token": TEST_JWT,
-            "token_type": "Bearer",
-            "expires_in": 7200,
-            "refresh_token": TEST_JWT,
-            "refresh_expires_in": 1800,
-        }
-        httpx2_mock.post(TEST_SVC_OIDC.token_endpoint).respond(status_code=200, json=fake_token_resp)
-        assert await _get_internal_token(test_settings) == {"Authorization": f"Bearer {TEST_JWT}"}
-
-    @patch("hub_adapter.auth._get_internal_token")
-    @patch("hub_adapter.auth.check_oidc_configs_match")
-    @pytest.mark.asyncio
-    async def test_add_internal_token_if_missing(self, mock_config_check, mock_internal_token):
-        """Test the add_internal_token_if_missing method."""
-        req_scope = {
-            "type": "http",
-            "method": "GET",
-            "path": "/",
-            "headers": [],
-        }
-        fake_request = Request(req_scope)
-        fake_token_header = {"Authorization": f"Bearer {TEST_JWT}"}
-        assert not fake_request.headers
-
-        # Add nothing
-        mock_config_check.return_value = (True, TEST_OIDC)
-        unmodified_resp = await _add_internal_token_if_missing(fake_request)
-        assert isinstance(unmodified_resp, Request)
-        assert not unmodified_resp.headers
-
-        # Add header
-        mock_config_check.return_value = (False, TEST_OIDC)
-        mock_internal_token.return_value = fake_token_header
-        modified_resp = await _add_internal_token_if_missing(fake_request)
-        assert isinstance(modified_resp, Request)
-        assert modified_resp.headers == MutableHeaders(fake_token_header)
 
     @patch("hub_adapter.auth.logger")
     @pytest.mark.asyncio
